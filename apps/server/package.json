@@ -1,0 +1,30 @@
+{
+  "name": "@wiki-agents/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "WIKI_AGENTS_DATA_DIR=${WIKI_AGENTS_DATA_DIR:-../../.data} node --conditions=source --watch --import tsx src/index.ts",
+    "start": "node dist/index.js",
+    "check": "tsc --noEmit -p tsconfig.test.json",
+    "test": "vitest run",
+    "build": "tsc -p tsconfig.json",
+    "db:generate": "drizzle-kit generate"
+  },
+  "dependencies": {
+    "@effect/platform-node": "4.1.2",
+    "@wiki-agents/contracts": "0.1.0",
+    "better-sqlite3": "^13.0.3",
+    "drizzle-orm": "^0.45.4",
+    "effect": "4.1.2"
+  },
+  "devDependencies": {
+    "@effect/vitest": "4.1.2",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^22.10.0",
+    "drizzle-kit": "^0.31.11",
+    "tsx": "^4.23.0",
+    "typescript": "^6.0.0",
+    "vitest": "^5.1.0"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "extends": "$app/tsconfig",
+  "compilerOptions": {
+    "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": true,
+    "verbatimModuleSyntax": true,
+    "customConditions": ["source"]
+  },
+  "include": ["src", "test", "*"],
+  "exclude": ["src/service-worker"]
+}

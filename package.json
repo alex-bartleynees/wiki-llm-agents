@@ -1,0 +1,19 @@
+{
+  "name": "wiki-agents",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/contracts",
+    "apps/server",
+    "apps/web"
+  ],
+  "scripts": {
+    "dev": "nix run .#dev",
+    "check": "npm run check --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

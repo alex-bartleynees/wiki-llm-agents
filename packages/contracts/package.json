@@ -1,0 +1,24 @@
+{
+  "name": "@wiki-agents/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Effect Schemas shared by the server and the web app. Depends on effect only.",
+  "exports": {
+    "./*": {
+      "source": "./src/*.ts",
+      "types": "./dist/*.d.ts",
+      "default": "./dist/*.js"
+    }
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "effect": "4.1.2"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.0"
+  }
+}

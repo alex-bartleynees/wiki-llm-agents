@@ -1,0 +1,91 @@
+/* Design tokens from the "Wiki Agent Workspace" mockup (design/). */
+@import "@fontsource/ibm-plex-sans/400.css";
+@import "@fontsource/ibm-plex-sans/500.css";
+@import "@fontsource/ibm-plex-sans/600.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+@import "@fontsource/source-serif-4/400.css";
+@import "@fontsource/source-serif-4/600.css";
+
+:root {
+  --font-ui: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font-read: "Source Serif 4", Georgia, serif;
+
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --sunken: #eef0f3;
+  --line: #dde0e5;
+  --line-soft: #ebedf0;
+  --ink: #14161a;
+  --ink-2: #41454d;
+  --ink-3: #60656e;
+  --accent: #0f6e6a;
+  --accent-ink: #0f6e6a;
+  --accent-soft: #e2f0ef;
+  --on-accent: #ffffff;
+  /* Amber marks anything an agent made. */
+  --agent: #8a5300;
+  --agent-soft: #f6eedf;
+  --ok: #2d7a4b;
+  --del: #a3262b;
+  --ins: #2d7a4b;
+
+  --radius: 4px;
+  --header-height: 52px;
+  --bottom-bar-height: 64px;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --bg: #0d0e11;
+  --surface: #15171b;
+  --sunken: #0a0b0d;
+  --line: #282b31;
+  --line-soft: #1e2126;
+  --ink: #e8eaed;
+  --ink-2: #b6bac2;
+  --ink-3: #8c919a;
+  --accent: #4fc1b8;
+  --accent-ink: #6fd3cb;
+  --accent-soft: #14292a;
+  --on-accent: #071413;
+  --agent: #e0a54a;
+  --agent-soft: #261f14;
+  --ok: #72c391;
+  --del: #f08c8c;
+  --ins: #72c391;
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font: 14px/1.45 var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--accent-ink);
+}
+a:hover {
+  color: var(--ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
