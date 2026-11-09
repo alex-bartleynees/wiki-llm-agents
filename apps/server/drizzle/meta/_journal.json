@@ -29,6 +29,13 @@
       "when": 1794202902111,
       "tag": "0003_pins",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1794247414678,
+      "tag": "0004_threads",
+      "breakpoints": true
     }
   ]
 }

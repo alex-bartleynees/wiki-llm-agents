@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from "svelte";
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
   import { VIEW_PARAMS } from "@wiki-agents/contracts/notes/model";
@@ -19,27 +20,34 @@
       .find((path) => path !== null) ?? undefined,
   );
 
+  // Each effect reads only its triggers and loads untracked: a load reads and writes
+  // its store's state, and tracking that re-ran the effect on every failure, retrying
+  // in a tight loop while the server was down.
   $effect(() => {
-    void vaults.load();
+    untrack(() => void vaults.load());
   });
 
   // Follow the open vault's changes, and keep the tree current.
   $effect(() => {
-    if (vaultId === undefined) vaultEvents.disconnect();
-    else vaultEvents.connect(vaultId);
+    const id = vaultId;
+    untrack(() => (id === undefined ? vaultEvents.disconnect() : vaultEvents.connect(id)));
   });
 
   $effect(() => {
-    if (vaultId !== undefined) void tree.load(vaultId);
+    const id = vaultId;
+    if (id !== undefined) untrack(() => void tree.load(id));
   });
 
   $effect(() => {
-    if (vaultEvents.revision > 0 && vaultId !== undefined) void tree.load(vaultId, { refresh: true });
+    const id = vaultId;
+    if (vaultEvents.revision > 0 && id !== undefined) untrack(() => void tree.load(id, { refresh: true }));
   });
 
   // Pins: titles change and files go missing as the vault changes.
   $effect(() => {
-    if (vaultId !== undefined) void pins.load(vaultId, { refresh: vaultEvents.revision > 0 });
+    const id = vaultId;
+    const refresh = vaultEvents.revision > 0;
+    if (id !== undefined) untrack(() => void pins.load(id, { refresh }));
   });
 
   /** On phone the drawer only holds files: search has its own tab. */

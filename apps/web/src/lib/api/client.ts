@@ -14,6 +14,24 @@ const decodeResponse = async <S extends Schema.ConstraintDecoder<unknown>>(respo
   return Schema.decodeUnknownPromise(schema)(await response.json()) as Promise<S["Type"]>;
 };
 
+/**
+ * How long a write waits for the server. Writes answer at once (registering a vault
+ * waits for its first scan, a few seconds); past this the server is down or stuck,
+ * and the view should say so rather than wait forever.
+ */
+const WRITE_TIMEOUT_MS = 15_000;
+
+/** Turns a timeout or a refused connection into a message worth showing. */
+const send = async (path: string, init: RequestInit): Promise<Response> => {
+  try {
+    return await fetch(path, { ...init, signal: AbortSignal.timeout(WRITE_TIMEOUT_MS) });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "TimeoutError") throw new ApiError(0, "The server didn't answer; try again");
+    if (error instanceof TypeError) throw new ApiError(0, "Can't reach the server; try again");
+    throw error;
+  }
+};
+
 /** GET a same-origin API path and decode the body with the operation's response schema. */
 export const getJson = async <S extends Schema.ConstraintDecoder<unknown>>(
   path: string,
@@ -30,7 +48,7 @@ export const postJson = async <R extends Schema.ConstraintCodec<unknown, unknown
   schema: S,
 ): Promise<S["Type"]> => {
   const encoded = await Schema.encodeUnknownPromise(request)(body);
-  const response = await fetch(path, {
+  const response = await send(path, {
     method: "POST",
     headers: { accept: "application/json", "content-type": "application/json" },
     body: JSON.stringify(encoded),
@@ -40,7 +58,7 @@ export const postJson = async <R extends Schema.ConstraintCodec<unknown, unknown
 
 /** DELETE a same-origin API path (parameters in the query string); decode the response. */
 export const deleteJson = async <S extends Schema.ConstraintDecoder<unknown>>(path: string, schema: S): Promise<S["Type"]> =>
-  decodeResponse(await fetch(path, { method: "DELETE", headers: { accept: "application/json" } }), schema);
+  decodeResponse(await send(path, { method: "DELETE", headers: { accept: "application/json" } }), schema);
 
 export const errorMessage = (error: unknown, fallback: string) =>
   error instanceof Error && error.message !== "" ? error.message : fallback;

@@ -11,3 +11,6 @@ export const internalError = (operation: string) => (cause: unknown) =>
     Effect.logError(`${operation} failed`, cause),
     Effect.succeed(HttpServerResponse.text("Internal server error", { status: 500 })),
   );
+
+/** The request is valid but conflicts with the current state (a turn is running...). */
+export const conflict = (message: string) => HttpServerResponse.text(message, { status: 409 });

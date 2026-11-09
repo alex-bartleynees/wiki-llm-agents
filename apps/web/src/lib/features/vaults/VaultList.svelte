@@ -1,8 +1,10 @@
 <script lang="ts">
+  import { untrack } from "svelte";
   import { vaults } from "./vaults.svelte.ts";
 
+  // Untracked: the load reads the store's state, which would re-run this effect.
   $effect(() => {
-    void vaults.load();
+    untrack(() => void vaults.load());
   });
 </script>
 

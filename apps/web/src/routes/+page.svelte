@@ -1,14 +1,17 @@
 <script lang="ts">
+  import { untrack } from "svelte";
   import { goto } from "$app/navigation";
   import AddVaultForm from "#lib/features/vaults/AddVaultForm.svelte";
   import { vaults } from "#lib/features/vaults/vaults.svelte.ts";
 
   // With a vault registered, open the last one used; otherwise offer to add one.
   $effect(() => {
-    void vaults.load().then(() => {
-      const vault = vaults.preferred;
-      if (vault) void goto(`/vaults/${vault.id}`, { replaceState: true });
-    });
+    untrack(() =>
+      vaults.load().then(() => {
+        const vault = vaults.preferred;
+        if (vault) void goto(`/vaults/${vault.id}`, { replaceState: true });
+      }),
+    );
   });
 </script>
 

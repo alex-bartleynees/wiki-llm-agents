@@ -53,6 +53,27 @@ be rebuilt from disk: `POST /api/vaults/:id/rebuild-index`.
   them; **recent notes** are kept per device in `localStorage`. The note's
   **Outline** lists its headings.
 
+### Threads
+
+The right-hand pane (the Chat tab on phone) holds the vault's agent threads. For now
+the only provider is **replay**, which plays recorded turns and spends no tokens; the
+message picks the recording by keyword (`providers/replay/transcripts.ts`): *edit*
+asks for an approval, *question* (or *ask*) asks a question, *long* streams slowly
+(for trying Stop and reloads), *fail* fails, and anything else gives a plain answer.
+
+- `POST /api/vaults/:id/threads` creates a thread; `POST /api/threads/:id/messages`
+  starts a turn (409 while one runs); `POST /api/threads/:id/interrupt` stops it;
+  `POST /api/threads/:id/requests/:requestId` answers an approval or question.
+- Each thread has a **ThreadActor** (`features/threads/thread-actor.ts`): one mailbox
+  and one fiber, so sends, interrupts, answers, and provider events never race. It
+  writes to SQLite before it publishes, and rebuilds its state from SQLite.
+- `GET /events/threads/:id?after=<seq>` streams the thread's stored events after
+  `seq`, then live ones; reconnecting browsers send `Last-Event-ID`, so a reload or a
+  dropped connection mid-turn misses nothing and repeats nothing.
+- At startup the server wakes threads left mid-turn: a turn that never reached the
+  provider is started, one waiting on an approval or question stays answerable, and
+  one that was streaming is closed as interrupted.
+
 The app only reads vaults until change review exists (slice 8). Dot-folders
 (`.git`, `.obsidian`, `.trash`, `.stfolder`...) and Syncthing conflict copies are
 hidden, and the path guard refuses anything that resolves outside the vault,

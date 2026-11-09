@@ -7,6 +7,11 @@ import { IndexStoreLive } from "../features/indexing/sqlite-store.js";
 import { IndexingStartup } from "../features/indexing/startup.js";
 import { VaultWatcherLive, VaultWatcherNoop } from "../features/indexing/watcher.js";
 import { PinRepositoryLive } from "../features/pins/sqlite-repository.js";
+import { ProviderRegistryLive } from "../features/providers/registry-live.js";
+import { ThreadRepositoryLive } from "../features/threads/sqlite-repository.js";
+import { ThreadsStartup } from "../features/threads/startup.js";
+import { ThreadActorsLive } from "../features/threads/thread-actors.js";
+import { ThreadBusLive } from "../features/threads/thread-bus.js";
 import { VaultRepositoryLive } from "../features/vaults/sqlite-repository.js";
 import { startupVaults } from "../features/vaults/startup-vaults.js";
 import { AppConfig } from "../shared/config.js";
@@ -15,7 +20,7 @@ import { SqliteLive } from "../shared/persistence/sqlite.js";
 import { router } from "./router.js";
 
 /** Repositories for every feature, over one shared SQLite connection. */
-export const RepositoriesLive = Layer.mergeAll(VaultRepositoryLive, PinRepositoryLive);
+export const RepositoriesLive = Layer.mergeAll(VaultRepositoryLive, PinRepositoryLive, ThreadRepositoryLive, ProviderRegistryLive);
 
 export interface AppOptions {
   /** Folders from `--vault`, registered before the server starts. */
@@ -31,13 +36,17 @@ const indexing = (watch: boolean) =>
     Layer.provideMerge(IndexStoreLive),
   );
 
+/** ThreadActors and the bus their events go out on. */
+const threads = ThreadActorsLive.pipe(Layer.provideMerge(ThreadBusLive));
+
 /**
  * The HTTP app without a listening server or database, so tests can supply both.
  * Its services (repositories, indexer...) are part of the output, for tests.
  */
 export const makeHttpApp = (options: AppOptions) =>
   HttpRouter.serve(Layer.mergeAll(router, OriginGuardLive), { disableLogger: true }).pipe(
-    Layer.provide(Layer.mergeAll(startupVaults(options.vaults), IndexingStartup)),
+    Layer.provide(Layer.mergeAll(startupVaults(options.vaults), IndexingStartup, ThreadsStartup)),
+    Layer.provideMerge(threads),
     Layer.provideMerge(Layer.mergeAll(RepositoriesLive, indexing(options.watch))),
   );
 
