@@ -1,7 +1,10 @@
+import { posix } from "node:path";
+import type { TagCount } from "@wiki-agents/contracts/search/list-tags/response";
 import { and, asc, count, eq, inArray, ne, notInArray, sql } from "drizzle-orm";
 import { Context, Effect, Layer } from "effect";
 import { DbError } from "../../shared/persistence/errors.js";
 import { Sqlite } from "../../shared/persistence/sqlite.js";
+import { searchNotes } from "./sqlite-search.js";
 import { IndexStore } from "./store.js";
 import { blobs, links, notes, vaultFiles } from "./table.js";
 import { VaultIndex } from "./vault-index.js";
@@ -156,6 +159,17 @@ const make = Effect.gen(function* () {
           .sort((a, b) => a.path.localeCompare(b.path)),
       ),
 
+    titledFiles: (vaultId) =>
+      query(() =>
+        db
+          .select({ path: vaultFiles.path, kind: vaultFiles.kind, title: notes.title })
+          .from(vaultFiles)
+          .leftJoin(notes, and(eq(notes.vaultId, vaultFiles.vaultId), eq(notes.path, vaultFiles.path)))
+          .where(eq(vaultFiles.vaultId, vaultId))
+          .all()
+          .map((row) => ({ ...row, title: row.title ?? posix.basename(row.path) })),
+      ),
+
     backlinks: (vaultId, path) =>
       query(() =>
         db
@@ -173,6 +187,19 @@ const make = Effect.gen(function* () {
         const noteCount = db.select({ n: count() }).from(notes).where(eq(notes.vaultId, vaultId)).get();
         return { files: files?.n ?? 0, notes: noteCount?.n ?? 0 };
       }),
+
+    search: (vaultId, searchQuery) => query(() => searchNotes(db, vaultId, searchQuery)),
+
+    tags: (vaultId) =>
+      query(() =>
+        db.all<TagCount>(
+          sql`SELECT t.value AS tag, count(*) AS count
+              FROM notes, json_each(notes.tags) AS t
+              WHERE notes.vault_id = ${vaultId} AND t.type = 'text'
+              GROUP BY t.value
+              ORDER BY count DESC, t.value COLLATE NOCASE`,
+        ),
+      ),
   });
 
   return { store, index };

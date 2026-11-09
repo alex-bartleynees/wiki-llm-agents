@@ -129,6 +129,17 @@ describe("renderNote", () => {
     expect(html).toContain("<b>bold</b>");
   });
 
+  it("lists headings with the ids used in the HTML, including repeated and raw HTML ones", () => {
+    const { headings } = render("# Title\n\n## Part *one*\n\n## Part one\n\n<h3>Raw</h3>\n\n> [!note] Callout\n> ### Inside\n\n## \n");
+    expect(headings).toEqual([
+      { depth: 1, text: "Title", id: "title" },
+      { depth: 2, text: "Part one", id: "part-one" },
+      { depth: 2, text: "Part one", id: "part-one-1" },
+      { depth: 3, text: "Raw", id: "raw" },
+      { depth: 3, text: "Inside", id: "inside" },
+    ]);
+  });
+
   it("keeps note content from forging heading ids", () => {
     const { html } = render('<h2 id="app">Forged</h2>');
     expect(html).toContain('<h2 id="forged">Forged</h2>');

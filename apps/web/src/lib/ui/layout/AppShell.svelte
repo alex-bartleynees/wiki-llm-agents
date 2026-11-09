@@ -1,11 +1,12 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
   import { afterNavigate } from "$app/navigation";
+  import { page } from "$app/state";
   import Splitter from "#lib/ui/primitives/Splitter.svelte";
   import { theme } from "#lib/ui/theme.svelte.ts";
   import BottomBar from "./BottomBar.svelte";
   import { paneWidths, THREADS_PANE, VAULT_PANE } from "./pane-widths.svelte.ts";
-  import { shell } from "./shell.svelte.ts";
+  import { shell, shortcutLabel } from "./shell.svelte.ts";
 
   let {
     vault,
@@ -48,11 +49,16 @@
       </svg>
       wiki-agents
     </a>
-    <label class="search">
-      <span class="visually-hidden">Search</span>
-      <input type="search" placeholder="Search or ask the vault" disabled />
-      <kbd class="mono">⌘K</kbd>
-    </label>
+    <button
+      type="button"
+      class="search"
+      aria-haspopup="dialog"
+      disabled={page.params["vaultId"] === undefined}
+      onclick={() => (shell.switcherOpen = true)}
+    >
+      <span class="search-label">Search or open a note</span>
+      <kbd class="mono">{shortcutLabel("K")}</kbd>
+    </button>
     <button
       type="button"
       class="icon"
@@ -134,18 +140,24 @@
     border: 1px solid var(--line);
     border-radius: var(--radius);
     background: var(--bg);
+    font: inherit;
     color: var(--ink-3);
+    cursor: pointer;
   }
-  .search input {
+  .search:hover:not(:disabled) {
+    border-color: var(--ink-3);
+  }
+  .search:disabled {
+    cursor: default;
+    opacity: 0.6;
+  }
+  .search-label {
     flex: 1;
     min-width: 0;
-    border: 0;
-    background: transparent;
-    font: inherit;
-    color: var(--ink);
-  }
-  .search input:focus {
-    outline: none;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   kbd {
     font-size: 11px;
@@ -267,13 +279,5 @@
     .vault {
       transition: none;
     }
-  }
-
-  .visually-hidden {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
   }
 </style>

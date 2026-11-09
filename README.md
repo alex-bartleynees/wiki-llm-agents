@@ -39,6 +39,20 @@ registered and at every start, and a watcher keeps the index current; the open n
 the tree, and backlinks update live over `/events/vaults/:id`. The index can always
 be rebuilt from disk: `POST /api/vaults/:id/rebuild-index`.
 
+### Search
+
+- **Quick switcher** (⌘K / Ctrl K, or the header box): fuzzy match on note titles
+  and paths (`GET /api/vaults/:id/quick-switch?q=`). With nothing typed it lists
+  pinned and recent notes; ⌘↵ sends the text to full-text search.
+- **Full-text search** (⌘⇧F / Ctrl Shift F; the sidebar's Search tab on desktop,
+  the Search tab on phone): `GET /api/vaults/:id/search?q=&tags=a,b`, over FTS5 with
+  bm25 ranking (title, then tags, then body). Words match by prefix, `"quoted
+  phrases"` exactly; nothing else is query syntax. Tag filters include child tags
+  (`project` matches `project/app`). Snippets are sent as text parts, never HTML.
+- **Pins** are stored on the server (`/api/vaults/:id/pins`), so every device sees
+  them; **recent notes** are kept per device in `localStorage`. The note's
+  **Outline** lists its headings.
+
 The app only reads vaults until change review exists (slice 8). Dot-folders
 (`.git`, `.obsidian`, `.trash`, `.stfolder`...) and Syncthing conflict copies are
 hidden, and the path guard refuses anything that resolves outside the vault,

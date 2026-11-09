@@ -3,7 +3,11 @@
   import { page } from "$app/state";
   import { VIEW_PARAMS } from "@wiki-agents/contracts/notes/model";
   import { vaultEvents } from "#lib/features/indexing/vault-events.svelte.ts";
+  import PinnedNotes from "#lib/features/pins/PinnedNotes.svelte";
+  import { pins } from "#lib/features/pins/pins.svelte.ts";
+  import SearchPanel from "#lib/features/search/SearchPanel.svelte";
   import { vaults } from "#lib/features/vaults/vaults.svelte.ts";
+  import { shell, shortcutLabel } from "#lib/ui/layout/shell.svelte.ts";
   import FileTree from "./FileTree.svelte";
   import { tree } from "./tree.svelte.ts";
 
@@ -32,6 +36,14 @@
   $effect(() => {
     if (vaultEvents.revision > 0 && vaultId !== undefined) void tree.load(vaultId, { refresh: true });
   });
+
+  // Pins: titles change and files go missing as the vault changes.
+  $effect(() => {
+    if (vaultId !== undefined) void pins.load(vaultId, { refresh: vaultEvents.revision > 0 });
+  });
+
+  /** On phone the drawer only holds files: search has its own tab. */
+  const showSearch = $derived(shell.sidebar === "search" && !shell.phone.current);
 </script>
 
 <div class="pane">
@@ -61,13 +73,30 @@
     {:else if vaults.state.status === "loaded"}
       <p class="muted">No vaults yet. <a href="/settings">Add one</a>.</p>
     {/if}
-  {:else if tree.state.status === "loaded" && tree.vaultId === vaultId}
-    <FileTree {vaultId} root={tree.state.root} {current} />
-  {:else if tree.state.status === "failed"}
-    <p class="muted">{tree.state.message}</p>
-    <button type="button" onclick={() => tree.load(vaultId, { refresh: true })}>Retry</button>
   {:else}
-    <p class="muted">Loading…</p>
+    <div class="modes" role="group" aria-label="Sidebar">
+      <button type="button" aria-pressed={!showSearch} onclick={() => (shell.sidebar = "files")}>Files</button>
+      <button
+        type="button"
+        aria-pressed={showSearch}
+        title="Search notes ({shortcutLabel('⇧F')})"
+        onclick={() => (shell.sidebar = "search")}
+      >
+        Search
+      </button>
+    </div>
+
+    {#if showSearch}
+      <SearchPanel />
+    {:else if tree.state.status === "loaded" && tree.vaultId === vaultId}
+      <PinnedNotes {vaultId} {current} />
+      <FileTree {vaultId} root={tree.state.root} {current} />
+    {:else if tree.state.status === "failed"}
+      <p class="muted">{tree.state.message}</p>
+      <button type="button" onclick={() => tree.load(vaultId, { refresh: true })}>Retry</button>
+    {:else}
+      <p class="muted">Loading…</p>
+    {/if}
   {/if}
 </div>
 
@@ -115,6 +144,33 @@
   .settings:hover {
     background: var(--sunken);
     color: var(--ink);
+  }
+  .modes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+    padding: 2px;
+    border-radius: var(--radius);
+    background: var(--sunken);
+  }
+  .modes button {
+    justify-self: stretch;
+    height: 26px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    font-size: 12px;
+    color: var(--ink-3);
+  }
+  .modes button[aria-pressed="true"] {
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+  }
+  @media (max-width: 899px) {
+    .modes {
+      display: none;
+    }
   }
   .vaults {
     list-style: none;

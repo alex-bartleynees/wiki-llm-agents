@@ -1,7 +1,10 @@
 <script lang="ts">
   import "#lib/ui/tokens.css";
   import VaultPane from "#lib/features/notes/VaultPane.svelte";
+  import QuickSwitcher from "#lib/features/search/QuickSwitcher.svelte";
+  import SearchPanel from "#lib/features/search/SearchPanel.svelte";
   import AppShell from "#lib/ui/layout/AppShell.svelte";
+  import { shell } from "#lib/ui/layout/shell.svelte.ts";
 
   let { children } = $props();
 </script>
@@ -27,9 +30,14 @@
   {/snippet}
 
   {#snippet search()}
-    <div class="placeholder"><p>Search arrives in slice 3.</p></div>
+    <!-- Desktop shows search in the vault sidebar instead. -->
+    {#if shell.phone.current}
+      <SearchPanel />
+    {/if}
   {/snippet}
 </AppShell>
+
+<QuickSwitcher />
 
 <style>
   .placeholder {

@@ -57,3 +57,11 @@ export const viewHref = (vaultId: string, path: string): string | undefined => {
 /** The raw file. Every response from here is sandboxed by the server's CSP. */
 export const vaultFileHref = (vaultId: string, path: string) =>
   `/api/vaults/${encodeURIComponent(vaultId)}/files?path=${encodePath(path)}`;
+
+/** A heading in a rendered note, for the outline. `id` is the element id in the note's HTML. */
+export const Heading = Schema.Struct({
+  depth: Schema.Number,
+  text: Schema.String,
+  id: Schema.String,
+});
+export type Heading = typeof Heading.Type;

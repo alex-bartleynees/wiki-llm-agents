@@ -4,8 +4,11 @@
   import { tick } from "svelte";
   import { ApiError, errorMessage, isAbort } from "#lib/api/client.ts";
   import { vaultEvents } from "#lib/features/indexing/vault-events.svelte.ts";
+  import PinButton from "#lib/features/pins/PinButton.svelte";
   import { getBacklinks, getNote } from "./api.ts";
   import Backlinks from "./Backlinks.svelte";
+  import Outline from "./Outline.svelte";
+  import { recent } from "./recent.svelte.ts";
   import { timeAgo } from "./time.ts";
   import "./prose.css";
 
@@ -43,6 +46,7 @@
         noteState = { status: "loaded", note };
         if (key !== shownKey) {
           shownKey = key;
+          recent.add(vaultId, { path, kind: "note", title: note.title });
           void placeScroll();
         }
       },
@@ -93,6 +97,10 @@
         <span class="tag">#{tag}</span>
       {/each}
       <span class="facts">
+        {#if noteState.note.headings.length > 1}
+          <Outline headings={noteState.note.headings} />
+        {/if}
+        <PinButton {vaultId} {path} />
         {#if backlinks !== undefined}
           <a href="#backlinks-heading">{backlinks.length} {backlinks.length === 1 ? "backlink" : "backlinks"}</a>
           <span aria-hidden="true">·</span>
@@ -156,7 +164,9 @@
   }
   .facts {
     display: inline-flex;
-    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 6px;
     margin-left: auto;
   }
   .facts a {

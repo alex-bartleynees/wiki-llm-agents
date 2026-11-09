@@ -6,6 +6,7 @@ import { IndexerLive } from "../features/indexing/indexer-live.js";
 import { IndexStoreLive } from "../features/indexing/sqlite-store.js";
 import { IndexingStartup } from "../features/indexing/startup.js";
 import { VaultWatcherLive, VaultWatcherNoop } from "../features/indexing/watcher.js";
+import { PinRepositoryLive } from "../features/pins/sqlite-repository.js";
 import { VaultRepositoryLive } from "../features/vaults/sqlite-repository.js";
 import { startupVaults } from "../features/vaults/startup-vaults.js";
 import { AppConfig } from "../shared/config.js";
@@ -14,7 +15,7 @@ import { SqliteLive } from "../shared/persistence/sqlite.js";
 import { router } from "./router.js";
 
 /** Repositories for every feature, over one shared SQLite connection. */
-export const RepositoriesLive = Layer.mergeAll(VaultRepositoryLive);
+export const RepositoriesLive = Layer.mergeAll(VaultRepositoryLive, PinRepositoryLive);
 
 export interface AppOptions {
   /** Folders from `--vault`, registered before the server starts. */

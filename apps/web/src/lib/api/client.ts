@@ -38,6 +38,10 @@ export const postJson = async <R extends Schema.ConstraintCodec<unknown, unknown
   return decodeResponse(response, schema);
 };
 
+/** DELETE a same-origin API path (parameters in the query string); decode the response. */
+export const deleteJson = async <S extends Schema.ConstraintDecoder<unknown>>(path: string, schema: S): Promise<S["Type"]> =>
+  decodeResponse(await fetch(path, { method: "DELETE", headers: { accept: "application/json" } }), schema);
+
 export const errorMessage = (error: unknown, fallback: string) =>
   error instanceof Error && error.message !== "" ? error.message : fallback;
 

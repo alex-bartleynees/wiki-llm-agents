@@ -1,4 +1,4 @@
-import type { NoteLink } from "@wiki-agents/contracts/notes/model";
+import type { Heading, NoteLink } from "@wiki-agents/contracts/notes/model";
 import GithubSlugger from "github-slugger";
 import type { Element, ElementContent, Root as HastRoot } from "hast";
 import type { Root } from "mdast";
@@ -19,6 +19,7 @@ export interface RenderedNote {
   readonly frontmatter: Readonly<Record<string, Json>>;
   readonly tags: ReadonlyArray<string>;
   readonly links: ReadonlyArray<NoteLink>;
+  readonly headings: ReadonlyArray<Heading>;
 }
 
 const HEADING = /^h[1-6]$/;
@@ -47,6 +48,18 @@ const toHtml = unified()
   .use(rehypeStringify)
   .freeze();
 
+/** Headings with the ids `addHeadingIdsAndExternalLinks` gave them, in document order. */
+const collectHeadings = (tree: HastRoot): Array<Heading> => {
+  const headings: Array<Heading> = [];
+  visit(tree, "element", (node: Element) => {
+    if (HEADING.test(node.tagName) && typeof node.properties.id === "string") {
+      const text = textOf(node).replace(/\s+/g, " ").trim();
+      if (text !== "") headings.push({ depth: Number(node.tagName.slice(1)), text, id: node.properties.id });
+    }
+  });
+  return headings;
+};
+
 /**
  * Renders an Obsidian note to sanitised HTML: GFM, frontmatter, callouts, wikilinks,
  * embeds, and raw HTML (sanitised). Pure: everything it needs is in the context.
@@ -56,6 +69,8 @@ export const renderNote = (markdown: string, context: LinkContext): RenderedNote
   const { frontmatter } = takeFrontmatter(tree);
   transformCallouts(tree);
   const links = transformLinks(tree, context);
-  const html = toHtml.stringify(toHtml.runSync(tree) as HastRoot);
-  return { title: noteTitle(frontmatter, context.path), html, frontmatter, tags: readTags(frontmatter), links };
+  const hast = toHtml.runSync(tree) as HastRoot;
+  const html = toHtml.stringify(hast);
+  const headings = collectHeadings(hast);
+  return { title: noteTitle(frontmatter, context.path), html, frontmatter, tags: readTags(frontmatter), links, headings };
 };

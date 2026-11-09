@@ -1,5 +1,5 @@
 import { Schema } from "effect";
-import { NoteLink } from "../model.js";
+import { Heading, NoteLink } from "../model.js";
 
 export const GetNoteResponse = Schema.Struct({
   vaultId: Schema.String,
@@ -13,5 +13,7 @@ export const GetNoteResponse = Schema.Struct({
   /** Last modified on disk, in milliseconds since the epoch. */
   modifiedAt: Schema.Number,
   links: Schema.Array(NoteLink),
+  /** Headings in document order, for the outline. */
+  headings: Schema.Array(Heading),
 });
 export type GetNoteResponse = typeof GetNoteResponse.Type;
