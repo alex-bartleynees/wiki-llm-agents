@@ -3,7 +3,7 @@ import { fileKind, type NoteLink } from "@wiki-agents/contracts/notes/model";
 import { slug } from "github-slugger";
 import type { Image, Link, PhrasingContent, Root, Text } from "mdast";
 import { SKIP, visit } from "unist-util-visit";
-import { type LinkIndex, parseWikilink, resolveLinkTarget } from "../../../shared/markdown/link-resolution.js";
+import { type LinkIndex, parseWikilink, resolveLinkTarget, resolveMarkdownTarget } from "../../../shared/markdown/link-resolution.js";
 import { relativeUrlTarget, WIKILINK } from "../../../shared/markdown/syntax.js";
 
 export interface LinkContext {
@@ -67,7 +67,7 @@ export const transformLinks = (tree: Root, context: LinkContext): ReadonlyArray<
     const relative = relativeUrlTarget(element.url);
     if (relative === undefined) return;
     const { target, fragment } = relative;
-    const path = resolve(target);
+    const path = resolveMarkdownTarget(context.index, target, context.path);
     record("markdown", target, path);
     if (path === undefined) {
       if (element.type === "link" && parent !== undefined && index !== undefined) {

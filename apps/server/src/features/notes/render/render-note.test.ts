@@ -145,3 +145,12 @@ describe("renderNote", () => {
     expect(html).toContain('<h2 id="forged">Forged</h2>');
   });
 });
+
+it("resolves markdown links relative to the source rather than a root namesake", () => {
+  const note = renderNote("[B](B.md)", {
+    ...context,
+    path: "folder/A.md",
+    index: makeLinkIndex(["B.md", "folder/B.md"]),
+  });
+  expect(note.html).toContain('href="/note/folder/B.md"');
+});

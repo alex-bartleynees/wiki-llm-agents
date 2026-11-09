@@ -83,3 +83,10 @@ export const resolveLinkTarget = (
   }
   return undefined;
 };
+
+/** Markdown URLs name a file relative to their source, without wikilink fallback. */
+export const resolveMarkdownTarget = (index: LinkIndex, target: string, fromPath: string): string | undefined => {
+  const path = posix.normalize(posix.join(posix.dirname(fromPath), target));
+  if (path === ".." || path.startsWith("../")) return undefined;
+  return index.byPath.get(path.toLowerCase());
+};

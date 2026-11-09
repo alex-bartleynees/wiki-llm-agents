@@ -4,7 +4,7 @@ import { fileKind } from "@wiki-agents/contracts/notes/model";
 import type { Vault } from "@wiki-agents/contracts/vaults/model";
 import { Effect, FileSystem, Option } from "effect";
 import { extractNote } from "../../shared/markdown/extract.js";
-import { makeLinkIndex, resolveLinkTarget } from "../../shared/markdown/link-resolution.js";
+import { makeLinkIndex, resolveLinkTarget, resolveMarkdownTarget } from "../../shared/markdown/link-resolution.js";
 import { normaliseVaultPath, resolveInVault } from "../../shared/vault/path-guard.js";
 import { listVaultFiles } from "../../shared/vault/vault-files.js";
 import { type IndexedFileWithHash, IndexStore } from "./store.js";
@@ -102,7 +102,7 @@ export const reconcileVault = Effect.fnUntraced(function* (vault: Vault, scope: 
   if (changed.size > 0) {
     const linkIndex = makeLinkIndex((yield* store.files(vault.id)).map((file) => file.path));
     const updates = (yield* store.links(vault.id)).flatMap((link) => {
-      const targetPath = resolveLinkTarget(linkIndex, link.target, link.srcPath) ?? null;
+      const targetPath = (link.kind === "markdown" ? resolveMarkdownTarget : resolveLinkTarget)(linkIndex, link.target, link.srcPath) ?? null;
       return targetPath === link.targetPath ? [] : [{ ...link, targetPath }];
     });
     yield* store.setLinkTargets(vault.id, updates);

@@ -35,14 +35,16 @@
     else article?.closest("main")?.scrollTo({ top: 0 });
   };
 
-  // The note: on open, on retry, and whenever the file changes on disk.
+  // Rendered links depend on the whole index; keep content only for same-note refreshes.
   $effect(() => {
     void attempt;
-    void vaultEvents.versionOf(path);
+    void vaultEvents.revision;
     const key = `${vaultId}\0${path}`;
+    if (key !== shownKey) noteState = { status: "loading" };
     const controller = new AbortController();
     getNote(vaultId, path, controller.signal).then(
       (note) => {
+        if (controller.signal.aborted) return;
         noteState = { status: "loaded", note };
         if (key !== shownKey) {
           shownKey = key;
@@ -51,7 +53,7 @@
         }
       },
       (error) => {
-        if (isAbort(error)) return;
+        if (controller.signal.aborted || isAbort(error)) return;
         shownKey = undefined;
         noteState = {
           status: "failed",

@@ -10,6 +10,8 @@ import { RegisterVaultResponse } from "@wiki-agents/contracts/vaults/register-va
 import { sql } from "drizzle-orm";
 import { Deferred, Duration, Effect, Fiber, PubSub, Schema, Stream } from "effect";
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http";
+import { VaultRepository } from "../../src/features/vaults/repository.js";
+import { VaultWatcher } from "../../src/features/indexing/watcher.js";
 import { Indexer } from "../../src/features/indexing/indexer.js";
 import { Sqlite } from "../../src/shared/persistence/sqlite.js";
 import { makeTestApp, TestApp } from "./infrastructure/test-app.js";
@@ -187,6 +189,18 @@ layer(TestApp)("vault index", (it) => {
     }),
   );
 
+  it.effect("markdown backlinks resolve relative to the source", () =>
+    Effect.gen(function* () {
+      const { vault } = yield* newVault({
+        "B.md": "# Root",
+        "folder/B.md": "# Local",
+        "folder/A.md": "[B](B.md)",
+      });
+      expect(yield* backlinks(vault, "folder/B.md")).toEqual(["folder/A.md"]);
+      expect(yield* backlinks(vault, "B.md")).toEqual([]);
+    }),
+  );
+
   it.effect("a rebuild gives the same index as incremental updates", () =>
     Effect.gen(function* () {
       const { vault, root, write } = yield* newVault();
@@ -242,6 +256,25 @@ layer(TestApp)("vault index", (it) => {
 describe("watching vault folders", () => {
   // Real clock: the watcher debounces with Effect.sleep. No polling: the test awaits the event.
   layer(makeTestApp({ watch: true }), { excludeTestServices: true })("with the real watcher", (it) => {
+    it.effect("retries watching after an unavailable directory is restored", () =>
+      Effect.gen(function* () {
+        const { root } = yield* makeTestVault({ files: {} });
+        const vault = { id: "restored-vault", name: "Restored", rootPath: join(root, "Restored") };
+        yield* (yield* VaultRepository).insert({ ...vault, createdAt: new Date() });
+        const watcher = yield* VaultWatcher;
+        yield* watcher.watch(vault);
+        mkdirSync(vault.rootPath);
+        const response = yield* HttpClient.execute(
+          HttpClientRequest.post("/api/vaults").pipe(HttpClientRequest.bodyJsonUnsafe({ rootPath: vault.rootPath })),
+        );
+        expect(response.status).toBe(200);
+        const subscription = yield* (yield* Indexer).subscribe;
+        writeFileSync(join(vault.rootPath, "New.md"), "# New");
+        const event = yield* PubSub.take(subscription).pipe(Effect.timeout(Duration.seconds(10)));
+        expect(event).toEqual({ type: "vault.changed", vaultId: vault.id, paths: ["New.md"] });
+      }),
+    );
+
     it.effect("re-indexes a file written on disk and publishes the change", () =>
       Effect.gen(function* () {
         const { vault, write } = yield* newVault();

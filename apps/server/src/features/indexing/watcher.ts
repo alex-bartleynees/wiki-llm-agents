@@ -1,7 +1,7 @@
 import { relative, sep } from "node:path";
 import type { Vault } from "@wiki-agents/contracts/vaults/model";
 import { watch } from "chokidar";
-import { Context, Effect, FileSystem, Layer, Queue, Stream } from "effect";
+import { Context, Deferred, Effect, Fiber, FileSystem, Layer, Queue, Semaphore, Stream } from "effect";
 import { isIgnoredName } from "../../shared/vault/path-guard.js";
 import { makeDebouncer } from "./debounce.js";
 import { Indexer } from "./indexer.js";
@@ -32,9 +32,10 @@ export const VaultWatcherLive = Layer.effect(
     const scope = yield* Effect.scope;
     const debounce = yield* makeDebouncer(DEBOUNCE);
     const watching = new Set<string>();
+    const lock = yield* Semaphore.make(1);
 
-    const changesIn = (root: string) =>
-      Stream.callback<string>((queue) =>
+    const changesIn = (root: string, ready: Deferred.Deferred<void, Error>) =>
+      Stream.callback<string | Error>((queue) =>
         Effect.acquireRelease(
           Effect.sync(() =>
             watch(root, {
@@ -43,7 +44,12 @@ export const VaultWatcherLive = Layer.effect(
               ignored: (path) => relative(root, path).split(sep).some(isIgnoredName),
             })
               .on("all", (_event, path) => Queue.offerUnsafe(queue, path))
-              .on("error", (error) => Effect.runFork(Effect.logWarning(`watching ${root} failed`, error))),
+              .on("ready", () => Deferred.doneUnsafe(ready, Effect.void))
+              .on("error", (error) => {
+                const failure = error instanceof Error ? error : new Error(String(error));
+                Deferred.doneUnsafe(ready, Effect.fail(failure));
+                Queue.offerUnsafe(queue, failure);
+              }),
           ),
           (watcher) => Effect.promise(() => watcher.close()),
         ),
@@ -53,17 +59,20 @@ export const VaultWatcherLive = Layer.effect(
       watch: (vault) =>
         Effect.gen(function* () {
           if (watching.has(vault.id)) return;
-          watching.add(vault.id);
           const root = yield* fs.realPath(vault.rootPath);
-          yield* changesIn(root).pipe(
+          const ready = yield* Deferred.make<void, Error>();
+          const fiber = yield* changesIn(root, ready).pipe(
             Stream.runForEach((absolute) => {
+              if (absolute instanceof Error) return Effect.logWarning(`watching ${root} failed`, absolute);
               const path = relative(root, absolute).split(sep).join("/");
               if (path === "" || path.startsWith("..")) return Effect.void;
               return debounce(`${vault.id}\0${path}`, indexer.enqueue({ _tag: "Sync", vault, paths: [path] }));
             }),
             Effect.forkIn(scope),
           );
-        }).pipe(Effect.catch((error) => Effect.logWarning(`can't watch ${vault.rootPath}`, error))),
+          yield* Deferred.await(ready).pipe(Effect.onError(() => Fiber.interrupt(fiber)));
+          watching.add(vault.id);
+        }).pipe(lock.withPermits(1), Effect.catch((error) => Effect.logWarning(`can't watch ${vault.rootPath}`, error))),
     });
   }),
 );
