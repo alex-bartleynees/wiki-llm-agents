@@ -3,10 +3,10 @@ import type { Vault } from "@wiki-agents/contracts/vaults/model";
 import { watch } from "chokidar";
 import { Context, Deferred, Effect, Fiber, FileSystem, Layer, Queue, Semaphore, Stream } from "effect";
 import { isIgnoredName } from "../../shared/vault/path-guard.js";
-import { makeDebouncer } from "./debounce.js";
+import { makePathBatcher } from "./debounce.js";
 import { Indexer } from "./indexer.js";
 
-/** How long a path must be quiet before it is re-indexed. */
+/** Window for collecting file events into one command per vault. */
 export const DEBOUNCE = "300 millis";
 
 export interface VaultWatcherService {
@@ -20,7 +20,7 @@ export class VaultWatcher extends Context.Service<VaultWatcher, VaultWatcherServ
 export const VaultWatcherNoop = Layer.succeed(VaultWatcher, VaultWatcher.of({ watch: () => Effect.void }));
 
 /**
- * chokidar per vault → per-path debounce → `Sync` commands for the IndexerActor.
+ * chokidar per vault → bounded path batches → `Sync` commands for the IndexerActor.
  * Ignored names are never watched. Symlinks are not followed: links to other folders
  * would otherwise watch outside the vault (the next scan still picks them up).
  */
@@ -30,7 +30,7 @@ export const VaultWatcherLive = Layer.effect(
     const indexer = yield* Indexer;
     const fs = yield* FileSystem.FileSystem;
     const scope = yield* Effect.scope;
-    const debounce = yield* makeDebouncer(DEBOUNCE);
+    const batch = yield* makePathBatcher(DEBOUNCE);
     const watching = new Set<string>();
     const lock = yield* Semaphore.make(1);
 
@@ -66,7 +66,7 @@ export const VaultWatcherLive = Layer.effect(
               if (absolute instanceof Error) return Effect.logWarning(`watching ${root} failed`, absolute);
               const path = relative(root, absolute).split(sep).join("/");
               if (path === "" || path.startsWith("..")) return Effect.void;
-              return debounce(`${vault.id}\0${path}`, indexer.enqueue({ _tag: "Sync", vault, paths: [path] }));
+              return batch(vault.id, path, (paths) => indexer.enqueue({ _tag: "Sync", vault, paths }));
             }),
             Effect.forkIn(scope),
           );

@@ -30,12 +30,26 @@ export const parseWikilink = (inner: string): ParsedWikilink => {
 export interface LinkIndex {
   readonly byPath: ReadonlyMap<string, string>;
   readonly paths: ReadonlyArray<string>;
+  readonly bySuffix: ReadonlyMap<string, ReadonlyArray<string>>;
 }
 
-export const makeLinkIndex = (paths: ReadonlyArray<string>): LinkIndex => ({
-  byPath: new Map(paths.map((path) => [path.toLowerCase(), path])),
-  paths,
-});
+export const makeLinkIndex = (paths: ReadonlyArray<string>): LinkIndex => {
+  const bySuffix = new Map<string, Array<string>>();
+  for (const path of paths) {
+    const segments = path.toLowerCase().split("/");
+    for (let i = 1; i < segments.length; i++) {
+      const suffix = segments.slice(i).join("/");
+      const matches = bySuffix.get(suffix) ?? [];
+      matches.push(path);
+      bySuffix.set(suffix, matches);
+    }
+  }
+  return {
+    byPath: new Map(paths.map((path) => [path.toLowerCase(), path])),
+    paths,
+    bySuffix,
+  };
+};
 
 const folderOf = (path: string) => {
   const dir = posix.dirname(path);
@@ -76,7 +90,7 @@ export const resolveLinkTarget = (
     if (match !== undefined) return match;
   }
   for (const candidate of candidates) {
-    const matches = index.paths.filter((path) => path.toLowerCase().endsWith(`/${candidate}`));
+    const matches = index.bySuffix.get(candidate) ?? [];
     if (matches.length === 0) continue;
     const sameFolder = matches.find((path) => folderOf(path).toLowerCase() === fromFolder);
     return sameFolder ?? [...matches].sort(byShortestPath)[0];

@@ -275,6 +275,25 @@ describe("watching vault folders", () => {
       }),
     );
 
+    it.effect("indexes a bulk project move and keeps backlinks consistent", () =>
+      Effect.gen(function* () {
+        const files = Object.fromEntries(
+          Array.from({ length: 100 }, (_, i) => [`Active/Note${i}.md`, "[[Home]]"]),
+        );
+        const { vault, root } = yield* newVault({ ...files, "Home.md": "# Home" });
+        const subscription = yield* (yield* Indexer).subscribe;
+        renameSync(join(root, "Active"), join(root, "Completed"));
+        const event = yield* PubSub.take(subscription).pipe(Effect.timeout(Duration.seconds(10)));
+        expect(event.paths).toHaveLength(200);
+        expect(event.paths).toContain("Active/Note0.md");
+        expect(event.paths).toContain("Completed/Note99.md");
+        const sources = yield* backlinks(vault, "Home.md");
+        expect(sources).toHaveLength(100);
+        expect(sources.every((path) => path.startsWith("Completed/"))).toBe(true);
+        expect((yield* HttpClient.get("/health")).status).toBe(200);
+      }),
+    );
+
     it.effect("re-indexes a file written on disk and publishes the change", () =>
       Effect.gen(function* () {
         const { vault, write } = yield* newVault();

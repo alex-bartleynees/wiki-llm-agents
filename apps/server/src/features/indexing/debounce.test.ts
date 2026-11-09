@@ -1,7 +1,7 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
 import { TestClock } from "effect/testing";
-import { makeDebouncer } from "./debounce.js";
+import { makeDebouncer, makePathBatcher } from "./debounce.js";
 
 describe("makeDebouncer", () => {
   it.effect("runs only the last effect for a key, once the key is quiet", () =>
@@ -22,3 +22,20 @@ describe("makeDebouncer", () => {
     }),
   );
 });
+
+it.effect("batches different paths per vault without waiting for a continuous sync to stop", () =>
+  Effect.gen(function* () {
+    const batch = yield* makePathBatcher("300 millis");
+    const ran: Array<ReadonlyArray<string>> = [];
+    const flush = (paths: ReadonlyArray<string>) => Effect.sync(() => void ran.push(paths));
+    yield* batch("vault", "a.md", flush);
+    yield* TestClock.adjust("200 millis");
+    yield* batch("vault", "b.md", flush);
+    yield* batch("vault", "a.md", flush);
+    yield* TestClock.adjust("100 millis");
+    expect(ran).toEqual([["a.md", "b.md"]]);
+    yield* batch("vault", "c.md", flush);
+    yield* TestClock.adjust("300 millis");
+    expect(ran).toEqual([["a.md", "b.md"], ["c.md"]]);
+  }),
+);
