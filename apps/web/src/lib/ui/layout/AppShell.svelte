@@ -1,8 +1,10 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
   import { afterNavigate } from "$app/navigation";
+  import Splitter from "#lib/ui/primitives/Splitter.svelte";
   import { theme } from "#lib/ui/theme.svelte.ts";
   import BottomBar from "./BottomBar.svelte";
+  import { paneWidths, THREADS_PANE, VAULT_PANE } from "./pane-widths.svelte.ts";
   import { shell } from "./shell.svelte.ts";
 
   let {
@@ -61,14 +63,30 @@
     </button>
   </header>
 
-  <div class="panes">
+  <div class="panes" style:--vault-width="{paneWidths.vault}px" style:--threads-width="{paneWidths.threads}px">
     {#if shell.drawerOpen}
       <button type="button" class="backdrop" aria-label="Close vault" onclick={() => (shell.drawerOpen = false)}></button>
     {/if}
     <aside class="vault" class:open={shell.drawerOpen} aria-label="Vault">
       {@render vault()}
     </aside>
+    <Splitter
+      label="Resize vault sidebar"
+      edge="start"
+      value={paneWidths.vault}
+      {...VAULT_PANE}
+      onresize={(width) => paneWidths.setVault(width)}
+      oncommit={() => paneWidths.save()}
+    />
     <main class="note">{@render note()}</main>
+    <Splitter
+      label="Resize threads sidebar"
+      edge="end"
+      value={paneWidths.threads}
+      {...THREADS_PANE}
+      onresize={(width) => paneWidths.setThreads(width)}
+      oncommit={() => paneWidths.save()}
+    />
     <aside class="threads" aria-label="Agent threads">{@render threads()}</aside>
     <section class="agents" aria-label="Agents">{@render agents()}</section>
     <section class="search-pane" aria-label="Search">{@render search()}</section>
@@ -151,22 +169,26 @@
     min-height: 0;
     display: flex;
   }
+  /*
+   * Sidebars take the width set with the splitters; when the window is too narrow,
+   * they shrink (down to their minimum) before the note goes below 400px.
+   */
   .vault {
-    flex: 1 1 240px;
-    max-width: 264px;
+    flex: 0 1 var(--vault-width);
+    min-width: 180px;
     padding: 18px 12px;
     border-right: 1px solid var(--line);
     overflow: auto;
   }
   .note {
-    flex: 999 1 560px;
-    min-width: 0;
+    flex: 1 1 0;
+    min-width: 400px;
     background: var(--surface);
     overflow: auto;
   }
   .threads {
-    flex: 1 1 340px;
-    max-width: 400px;
+    flex: 0 1 var(--threads-width);
+    min-width: 260px;
     border-left: 1px solid var(--line);
     overflow: auto;
   }
@@ -198,14 +220,19 @@
     .threads {
       display: none;
       flex: 1 1 auto;
+      min-width: 0;
       max-width: none;
       border: 0;
+    }
+    .panes > :global(.splitter) {
+      display: none;
     }
     .vault {
       position: absolute;
       inset: 0 auto 0 0;
       z-index: 2;
       width: min(300px, 85vw);
+      min-width: 0;
       max-width: none;
       background: var(--bg);
       transform: translateX(-100%);
