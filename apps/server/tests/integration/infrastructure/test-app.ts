@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { NodeHttpServer } from "@effect/platform-node";
 import { Effect, Layer } from "effect";
-import { HttpAppLive } from "../../../src/app/layers.js";
+import { type AppOptions, makeHttpApp } from "../../../src/app/layers.js";
 import { makeSqlite, Sqlite } from "../../../src/shared/persistence/sqlite.js";
 
 const migrationsDir = fileURLToPath(new URL("../../../drizzle", import.meta.url));
@@ -25,7 +25,7 @@ export const TestSqlite = Layer.effect(
  * The real HTTP app on an ephemeral port, with an HttpClient pointed at it.
  * Sqlite is exposed so tests can seed data the API can't create yet.
  */
-export const TestApp = HttpAppLive.pipe(
-  Layer.provideMerge(TestSqlite),
-  Layer.provideMerge(NodeHttpServer.layerTest),
-);
+export const makeTestApp = (options: AppOptions) =>
+  makeHttpApp(options).pipe(Layer.provideMerge(TestSqlite), Layer.provideMerge(NodeHttpServer.layerTest));
+
+export const TestApp = makeTestApp({ vaults: [] });

@@ -28,6 +28,7 @@
   --agent: #8a5300;
   --agent-soft: #f6eedf;
   --ok: #2d7a4b;
+  --warn: #b54708;
   --del: #a3262b;
   --ins: #2d7a4b;
 
@@ -53,6 +54,7 @@
   --agent: #e0a54a;
   --agent-soft: #261f14;
   --ok: #72c391;
+  --warn: #f0883e;
   --del: #f08c8c;
   --ins: #72c391;
   color-scheme: dark;

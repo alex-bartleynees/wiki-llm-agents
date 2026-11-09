@@ -2,7 +2,11 @@ import adapter from "@sveltejs/adapter-static";
 import { sveltekit } from "@sveltejs/kit/vite";
 import { defaultClientConditions, defaultServerConditions, defineConfig } from "vite";
 
-const server = "http://127.0.0.1:4317";
+/**
+ * Keep the browser's Host header (Vite's shorthand `"/api": url` rewrites it to the
+ * target), so the server's Origin check sees the same origin as in production.
+ */
+const server = { target: "http://127.0.0.1:4317", changeOrigin: false };
 
 export default defineConfig({
   plugins: [

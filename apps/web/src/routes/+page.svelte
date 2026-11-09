@@ -1,47 +1,47 @@
 <script lang="ts">
-  import VaultList from "#lib/features/vaults/VaultList.svelte";
-  import AppShell from "#lib/ui/layout/AppShell.svelte";
+  import { goto } from "$app/navigation";
+  import AddVaultForm from "#lib/features/vaults/AddVaultForm.svelte";
+  import { vaults } from "#lib/features/vaults/vaults.svelte.ts";
+
+  // With a vault registered, open the last one used; otherwise offer to add one.
+  $effect(() => {
+    void vaults.load().then(() => {
+      const vault = vaults.preferred;
+      if (vault) void goto(`/vaults/${vault.id}`, { replaceState: true });
+    });
+  });
 </script>
 
-<AppShell>
-  {#snippet vault()}
-    <VaultList />
-  {/snippet}
-
-  {#snippet note()}
-    <article class="placeholder">
-      <h1>Nothing open</h1>
-      <p>Register a vault and open a note. Notes arrive in slice 1.</p>
-    </article>
-  {/snippet}
-
-  {#snippet threads()}
-    <div class="placeholder">
-      <p class="mono label">threads</p>
-      <p>Agent threads arrive in M2.</p>
-    </div>
-  {/snippet}
-
-  {#snippet agents()}
-    <div class="placeholder"><p>Agents arrive in M2.</p></div>
-  {/snippet}
-
-  {#snippet search()}
-    <div class="placeholder"><p>Search arrives in slice 3.</p></div>
-  {/snippet}
-</AppShell>
+<section>
+  {#if vaults.state.status === "failed"}
+    <h1>Can't reach the server</h1>
+    <p class="muted">{vaults.state.message}</p>
+  {:else if vaults.state.status === "loaded" && vaults.list.length === 0}
+    <h1>Add your first vault</h1>
+    <p class="muted">A vault is a folder of markdown notes, such as an Obsidian vault.</p>
+    <AddVaultForm onadded={(vault) => goto(`/vaults/${vault.id}`)} />
+  {:else}
+    <p class="muted">Loading…</p>
+  {/if}
+</section>
 
 <style>
-  .placeholder {
-    padding: 32px;
-    color: var(--ink-3);
+  section {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 48px;
   }
   h1 {
     margin: 0 0 8px;
-    font: 600 28px/1.2 var(--font-read);
-    color: var(--ink);
+    font: 600 30px/1.2 var(--font-read);
   }
-  .label {
-    font-size: 11px;
+  .muted {
+    margin: 0 0 20px;
+    color: var(--ink-3);
+  }
+  @media (max-width: 899px) {
+    section {
+      padding: 24px 18px;
+    }
   }
 </style>

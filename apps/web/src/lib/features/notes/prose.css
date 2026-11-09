@@ -1,0 +1,198 @@
+/*
+ * Reading view for rendered notes. Global because the HTML arrives through {@html},
+ * so every rule is scoped under .prose.
+ */
+.prose {
+  font: 17px/1.65 var(--font-read);
+  color: var(--ink);
+  overflow-wrap: break-word;
+}
+.prose > :first-child {
+  margin-top: 0;
+}
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4,
+.prose h5,
+.prose h6 {
+  margin: 1.6em 0 0.5em;
+  font-family: var(--font-read);
+  font-weight: 600;
+  line-height: 1.25;
+  scroll-margin-top: 16px;
+}
+.prose h1 {
+  font-size: 30px;
+}
+.prose h2 {
+  font-size: 23px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.prose h3 {
+  font-size: 19px;
+}
+.prose h4,
+.prose h5,
+.prose h6 {
+  font-size: 17px;
+}
+.prose p,
+.prose ul,
+.prose ol,
+.prose pre,
+.prose table,
+.prose blockquote,
+.prose details {
+  margin: 0 0 1em;
+}
+.prose ul,
+.prose ol {
+  padding-left: 1.5em;
+}
+.prose li > ul,
+.prose li > ol {
+  margin-bottom: 0;
+}
+.prose li.task-list-item {
+  list-style: none;
+  margin-left: -1.3em;
+}
+.prose hr {
+  margin: 2em 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+.prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius);
+}
+
+/* Links: wikilinks in the accent colour; unresolved ones muted and not clickable. */
+.prose a {
+  color: var(--accent-ink);
+  text-decoration-color: color-mix(in srgb, var(--accent-ink) 40%, transparent);
+  text-underline-offset: 2px;
+}
+.prose a:hover {
+  text-decoration-color: currentColor;
+}
+.prose a.wikilink {
+  text-decoration: none;
+}
+.prose a.wikilink:hover {
+  text-decoration: underline;
+}
+.prose a.embed::before {
+  content: "↪ ";
+}
+.prose .wikilink.unresolved {
+  font-style: normal;
+  color: var(--ink-3);
+  border-bottom: 1px dashed var(--ink-3);
+  cursor: help;
+}
+
+/* Code */
+.prose code {
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+  background: var(--sunken);
+  font: 0.85em/1.5 var(--font-mono);
+}
+.prose pre {
+  padding: 12px 14px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  background: var(--sunken);
+  overflow-x: auto;
+}
+.prose pre code {
+  padding: 0;
+  background: none;
+  font-size: 13px;
+}
+
+/* Tables scroll sideways on narrow screens instead of overflowing the page. */
+.prose table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font: 14px/1.45 var(--font-ui);
+}
+.prose th,
+.prose td {
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+.prose th {
+  background: var(--sunken);
+  font-weight: 600;
+}
+
+.prose blockquote {
+  padding: 0 0 0 14px;
+  border-left: 3px solid var(--line);
+  color: var(--ink-2);
+}
+
+/* Callouts. Amber (--agent) is reserved for agent content, so `agent` callouts use it. */
+.prose .callout {
+  --callout: var(--accent);
+  padding: 10px 14px;
+  border-left: 3px solid var(--callout);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--callout) 7%, transparent);
+  font: 15px/1.55 var(--font-ui);
+}
+.prose .callout-title {
+  margin: 0;
+  font-weight: 600;
+  color: var(--callout);
+}
+.prose summary.callout-title {
+  cursor: pointer;
+}
+.prose .callout-content > :first-child {
+  margin-top: 6px;
+}
+.prose .callout-content > :last-child {
+  margin-bottom: 0;
+}
+.prose .callout[data-callout="warning"],
+.prose .callout[data-callout="caution"],
+.prose .callout[data-callout="attention"] {
+  --callout: var(--warn);
+}
+.prose .callout[data-callout="danger"],
+.prose .callout[data-callout="error"],
+.prose .callout[data-callout="bug"],
+.prose .callout[data-callout="failure"],
+.prose .callout[data-callout="important"] {
+  --callout: var(--del);
+}
+.prose .callout[data-callout="success"],
+.prose .callout[data-callout="check"],
+.prose .callout[data-callout="done"],
+.prose .callout[data-callout="tip"] {
+  --callout: var(--ok);
+}
+.prose .callout[data-callout="quote"],
+.prose .callout[data-callout="cite"],
+.prose .callout[data-callout="example"] {
+  --callout: var(--ink-3);
+}
+.prose .callout[data-callout="agent"] {
+  --callout: var(--agent);
+}
+
+@media (max-width: 899px) {
+  .prose {
+    font-size: 16px;
+  }
+}

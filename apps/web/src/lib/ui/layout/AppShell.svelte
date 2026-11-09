@@ -1,7 +1,9 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
+  import { afterNavigate } from "$app/navigation";
   import { theme } from "#lib/ui/theme.svelte.ts";
-  import BottomBar, { type Tab } from "./BottomBar.svelte";
+  import BottomBar from "./BottomBar.svelte";
+  import { shell } from "./shell.svelte.ts";
 
   let {
     vault,
@@ -17,29 +19,33 @@
     search: Snippet;
   } = $props();
 
-  // Phone only: which pane fills the screen, and whether the vault drawer is open.
-  let tab = $state<Tab>("wiki");
-  let drawerOpen = $state(false);
+  // Phone: opening a note (from the drawer or a link) shows it full screen.
+  afterNavigate(() => {
+    shell.drawerOpen = false;
+    shell.tab = "wiki";
+  });
 </script>
 
-<div class="app" data-tab={tab}>
+<svelte:window onkeydown={(event) => event.key === "Escape" && (shell.drawerOpen = false)} />
+
+<div class="app" data-tab={shell.tab}>
   <header>
     <button
       type="button"
       class="icon drawer-toggle"
       aria-label="Vault"
-      aria-expanded={drawerOpen}
-      onclick={() => (drawerOpen = !drawerOpen)}
+      aria-expanded={shell.drawerOpen}
+      onclick={() => (shell.drawerOpen = !shell.drawerOpen)}
     >
       ☰
     </button>
-    <span class="brand">
+    <a class="brand" href="/">
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
         <rect x="1.5" y="1.5" width="17" height="17" rx="2" stroke="var(--ink)" stroke-width="1.5" />
         <path d="M6 6.5h8M6 10h5" stroke="var(--accent)" stroke-width="1.5" />
       </svg>
       wiki-agents
-    </span>
+    </a>
     <label class="search">
       <span class="visually-hidden">Search</span>
       <input type="search" placeholder="Search or ask the vault" disabled />
@@ -56,7 +62,10 @@
   </header>
 
   <div class="panes">
-    <aside class="vault" class:open={drawerOpen} aria-label="Vault">
+    {#if shell.drawerOpen}
+      <button type="button" class="backdrop" aria-label="Close vault" onclick={() => (shell.drawerOpen = false)}></button>
+    {/if}
+    <aside class="vault" class:open={shell.drawerOpen} aria-label="Vault">
       {@render vault()}
     </aside>
     <main class="note">{@render note()}</main>
@@ -66,7 +75,7 @@
   </div>
 
   <div class="bottom-bar">
-    <BottomBar active={tab} onselect={(next) => ((tab = next), (drawerOpen = false))} />
+    <BottomBar active={shell.tab} onselect={(next) => ((shell.tab = next), (shell.drawerOpen = false))} />
   </div>
 </div>
 
@@ -89,6 +98,8 @@
     border-bottom: 1px solid var(--line);
   }
   .brand {
+    color: var(--ink);
+    text-decoration: none;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -162,6 +173,7 @@
   .agents,
   .search-pane,
   .bottom-bar,
+  .backdrop,
   .drawer-toggle {
     display: none;
   }
@@ -192,16 +204,24 @@
     .vault {
       position: absolute;
       inset: 0 auto 0 0;
-      z-index: 1;
+      z-index: 2;
       width: min(300px, 85vw);
       max-width: none;
       background: var(--bg);
       transform: translateX(-100%);
       transition: transform 150ms ease;
-      box-shadow: 0 0 24px rgb(0 0 0 / 0.15);
     }
     .vault.open {
+      box-shadow: 0 0 24px rgb(0 0 0 / 0.15);
       transform: none;
+    }
+    .backdrop {
+      display: block;
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      border: 0;
+      background: rgb(0 0 0 / 0.3);
     }
     .app[data-tab="wiki"] .note,
     .app[data-tab="chat"] .threads,
