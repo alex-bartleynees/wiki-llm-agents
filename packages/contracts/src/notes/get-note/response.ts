@@ -10,6 +10,8 @@ export const GetNoteResponse = Schema.Struct({
   html: Schema.String,
   frontmatter: Schema.Record(Schema.String, Schema.Json),
   tags: Schema.Array(Schema.String),
+  /** Last modified on disk, in milliseconds since the epoch. */
+  modifiedAt: Schema.Number,
   links: Schema.Array(NoteLink),
 });
 export type GetNoteResponse = typeof GetNoteResponse.Type;

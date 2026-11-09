@@ -3,7 +3,8 @@ import { fileKind, type NoteLink } from "@wiki-agents/contracts/notes/model";
 import { slug } from "github-slugger";
 import type { Image, Link, PhrasingContent, Root, Text } from "mdast";
 import { SKIP, visit } from "unist-util-visit";
-import { type LinkIndex, parseWikilink, resolveLinkTarget } from "../link-resolution.js";
+import { type LinkIndex, parseWikilink, resolveLinkTarget } from "../../../shared/markdown/link-resolution.js";
+import { relativeUrlTarget, WIKILINK } from "../../../shared/markdown/syntax.js";
 
 export interface LinkContext {
   /** Vault-relative path of the note being rendered. */
@@ -14,18 +15,8 @@ export interface LinkContext {
   readonly fileHref: (path: string) => string;
 }
 
-const WIKILINK = /(!?)\[\[([^[\]\n]+?)\]\]/g;
 const IMAGE = /\.(avif|bmp|gif|jpe?g|png|svg|webp)$/i;
 const SIZE = /^(\d+)(?:x(\d+))?$/;
-const HAS_SCHEME = /^[a-z][a-z\d+.-]*:/i;
-
-const safeDecode = (value: string) => {
-  try {
-    return decodeURIComponent(value);
-  } catch {
-    return value;
-  }
-};
 
 const stem = (path: string) => posix.basename(path).replace(/\.md$/i, "");
 
@@ -73,12 +64,9 @@ export const transformLinks = (tree: Root, context: LinkContext): ReadonlyArray<
   // Markdown links and images with relative URLs: `[x](Other%20Note.md#Part)`, `![](assets/a.png)`.
   visit(tree, ["link", "image"], (node, index, parent) => {
     const element = node as Link | Image;
-    const url = element.url;
-    if (url === "" || url.startsWith("#") || url.startsWith("//") || HAS_SCHEME.test(url)) return;
-    const hash = url.indexOf("#");
-    const rawTarget = hash === -1 ? url : url.slice(0, hash);
-    const fragment = hash === -1 ? undefined : url.slice(hash + 1);
-    const target = safeDecode(rawTarget);
+    const relative = relativeUrlTarget(element.url);
+    if (relative === undefined) return;
+    const { target, fragment } = relative;
     const path = resolve(target);
     record("markdown", target, path);
     if (path === undefined) {
@@ -91,7 +79,7 @@ export const transformLinks = (tree: Root, context: LinkContext): ReadonlyArray<
     if (element.type === "image") {
       element.url = context.fileHref(path);
     } else {
-      const { href, className } = destination(context, path, fragment === undefined ? undefined : safeDecode(fragment));
+      const { href, className } = destination(context, path, fragment);
       element.url = href;
       element.data = { hProperties: { className } };
     }

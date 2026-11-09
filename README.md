@@ -34,6 +34,11 @@ rsync -a --exclude .git ~/Documents/obsidian-vault/ .data/vault/
 nix develop -c npm run dev -w @wiki-agents/server -- --vault ../../.data/vault
 ```
 
+Each vault is indexed into SQLite (files, notes, links, full-text search) when it is
+registered and at every start, and a watcher keeps the index current; the open note,
+the tree, and backlinks update live over `/events/vaults/:id`. The index can always
+be rebuilt from disk: `POST /api/vaults/:id/rebuild-index`.
+
 The app only reads vaults until change review exists (slice 8). Dot-folders
 (`.git`, `.obsidian`, `.trash`, `.stfolder`...) and Syncthing conflict copies are
 hidden, and the path guard refuses anything that resolves outside the vault,

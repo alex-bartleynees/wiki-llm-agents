@@ -1,8 +1,12 @@
 <script lang="ts">
+  import type { GetBacklinksResponse } from "@wiki-agents/contracts/notes/get-backlinks/response";
   import type { GetNoteResponse } from "@wiki-agents/contracts/notes/get-note/response";
   import { tick } from "svelte";
   import { ApiError, errorMessage, isAbort } from "#lib/api/client.ts";
-  import { getNote } from "./api.ts";
+  import { vaultEvents } from "#lib/features/indexing/vault-events.svelte.ts";
+  import { getBacklinks, getNote } from "./api.ts";
+  import Backlinks from "./Backlinks.svelte";
+  import { timeAgo } from "./time.ts";
   import "./prose.css";
 
   let { vaultId, path }: { vaultId: string; path: string } = $props();
@@ -13,10 +17,13 @@
     | { readonly status: "failed"; readonly notFound: boolean; readonly message: string };
 
   let noteState = $state<NoteState>({ status: "loading" });
+  let backlinks = $state<GetBacklinksResponse["backlinks"] | undefined>(undefined);
   let article: HTMLElement | undefined = $state();
   let attempt = $state(0);
+  /** The note on screen. A reload of the same note (it changed on disk) keeps the scroll position. */
+  let shownKey: string | undefined;
 
-  /** After a new note renders: go to the linked heading, else to the top of the pane. */
+  /** After opening a note: go to the linked heading, else to the top of the pane. */
   const placeScroll = async () => {
     await tick();
     const id = decodeURIComponent(location.hash.slice(1));
@@ -25,22 +32,44 @@
     else article?.closest("main")?.scrollTo({ top: 0 });
   };
 
+  // The note: on open, on retry, and whenever the file changes on disk.
   $effect(() => {
     void attempt;
+    void vaultEvents.versionOf(path);
+    const key = `${vaultId}\0${path}`;
     const controller = new AbortController();
     getNote(vaultId, path, controller.signal).then(
       (note) => {
         noteState = { status: "loaded", note };
-        void placeScroll();
+        if (key !== shownKey) {
+          shownKey = key;
+          void placeScroll();
+        }
       },
       (error) => {
         if (isAbort(error)) return;
+        shownKey = undefined;
         noteState = {
           status: "failed",
           notFound: error instanceof ApiError && error.status === 404,
           message: errorMessage(error, "Could not load the note"),
         };
       },
+    );
+    return () => controller.abort();
+  });
+
+  // Backlinks: any change in the vault can add or remove one.
+  let backlinksKey: string | undefined;
+  $effect(() => {
+    void vaultEvents.revision;
+    const key = `${vaultId}\0${path}`;
+    if (key !== backlinksKey) backlinks = undefined;
+    backlinksKey = key;
+    const controller = new AbortController();
+    getBacklinks(vaultId, path, controller.signal).then(
+      (response) => (backlinks = response.backlinks),
+      () => {},
     );
     return () => controller.abort();
   });
@@ -63,6 +92,15 @@
       {#each noteState.note.tags as tag (tag)}
         <span class="tag">#{tag}</span>
       {/each}
+      <span class="facts">
+        {#if backlinks !== undefined}
+          <a href="#backlinks-heading">{backlinks.length} {backlinks.length === 1 ? "backlink" : "backlinks"}</a>
+          <span aria-hidden="true">·</span>
+        {/if}
+        <time datetime={new Date(noteState.note.modifiedAt).toISOString()} title={new Date(noteState.note.modifiedAt).toLocaleString()}>
+          modified {timeAgo(noteState.note.modifiedAt)}
+        </time>
+      </span>
     {/if}
   </p>
 
@@ -72,10 +110,13 @@
     {/if}
     <!-- Rendered and sanitised on the server (rehype-sanitize). -->
     <div class="prose">{@html noteState.note.html}</div>
+    <Backlinks {vaultId} {backlinks} />
   {:else if noteState.status === "failed"}
     <h1 class="title">{noteState.notFound ? "Note not found" : "Couldn't open this note"}</h1>
     <p class="muted mono">{path}</p>
-    {#if !noteState.notFound}
+    {#if noteState.notFound}
+      <p class="muted">It may have been moved or deleted.</p>
+    {:else}
       <p class="muted">{noteState.message}</p>
       <button type="button" onclick={() => attempt++}>Retry</button>
     {/if}
@@ -113,6 +154,14 @@
   .meta > .tag:first-child {
     margin-left: 6px;
   }
+  .facts {
+    display: inline-flex;
+    gap: 6px;
+    margin-left: auto;
+  }
+  .facts a {
+    color: inherit;
+  }
   .title {
     margin: 0 0 16px;
     font: 600 30px/1.2 var(--font-read);
@@ -134,6 +183,9 @@
   @media (max-width: 899px) {
     article {
       padding: 18px 18px 48px;
+    }
+    .facts {
+      margin-left: 0;
     }
   }
 </style>

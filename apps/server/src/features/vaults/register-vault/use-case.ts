@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import { basename, isAbsolute, join } from "node:path";
 import type { RegisterVaultRequest } from "@wiki-agents/contracts/vaults/register-vault/request";
 import { Clock, Data, Effect, FileSystem, Option } from "effect";
+import { trackVault } from "../../indexing/track-vault.js";
 import { VaultRepository } from "../repository.js";
 
 export class InvalidVaultFolder extends Data.TaggedError("InvalidVaultFolder")<{
@@ -16,6 +17,8 @@ const expandHome = (path: string) =>
 /**
  * Registers a folder as a vault, by its canonical path (symlinks resolved), so the
  * same folder can't be added twice. Registering an existing folder returns it.
+ * Waits for the first index scan, so the vault's tree is complete on return; a scan
+ * that fails is logged and doesn't undo the registration.
  */
 export const registerVault = Effect.fn("registerVault")(function* (request: RegisterVaultRequest) {
   const requested = expandHome(request.rootPath.trim());
@@ -35,9 +38,12 @@ export const registerVault = Effect.fn("registerVault")(function* (request: Regi
 
   const repository = yield* VaultRepository;
   const existing = yield* repository.findByRootPath(rootPath);
-  if (Option.isSome(existing)) return { vault: existing.value, created: false };
-
-  const vault = { id: randomUUID(), name: request.name?.trim() || basename(rootPath), rootPath };
-  yield* repository.insert({ ...vault, createdAt: new Date(yield* Clock.currentTimeMillis) });
-  return { vault, created: true };
+  const vault = Option.isSome(existing)
+    ? existing.value
+    : { id: randomUUID(), name: request.name?.trim() || basename(rootPath), rootPath };
+  if (Option.isNone(existing)) {
+    yield* repository.insert({ ...vault, createdAt: new Date(yield* Clock.currentTimeMillis) });
+  }
+  yield* trackVault(vault).pipe(Effect.catchTag("IndexFailed", (error) => Effect.logWarning("first index scan failed", error)));
+  return { vault, created: Option.isNone(existing) };
 });

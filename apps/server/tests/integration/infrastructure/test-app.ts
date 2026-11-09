@@ -25,7 +25,7 @@ export const TestSqlite = Layer.effect(
  * The real HTTP app on an ephemeral port, with an HttpClient pointed at it.
  * Sqlite is exposed so tests can seed data the API can't create yet.
  */
-export const makeTestApp = (options: AppOptions) =>
-  makeHttpApp(options).pipe(Layer.provideMerge(TestSqlite), Layer.provideMerge(NodeHttpServer.layerTest));
+export const makeTestApp = (options: Partial<AppOptions> = {}) =>
+  makeHttpApp({ vaults: [], watch: false, ...options }).pipe(Layer.provideMerge(TestSqlite), Layer.provideMerge(NodeHttpServer.layerTest));
 
-export const TestApp = makeTestApp({ vaults: [] });
+export const TestApp = makeTestApp();

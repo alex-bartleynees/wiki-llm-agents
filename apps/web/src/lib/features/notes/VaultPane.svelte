@@ -2,6 +2,7 @@
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
   import { VIEW_PARAMS } from "@wiki-agents/contracts/notes/model";
+  import { vaultEvents } from "#lib/features/indexing/vault-events.svelte.ts";
   import { vaults } from "#lib/features/vaults/vaults.svelte.ts";
   import FileTree from "./FileTree.svelte";
   import { tree } from "./tree.svelte.ts";
@@ -18,8 +19,18 @@
     void vaults.load();
   });
 
+  // Follow the open vault's changes, and keep the tree current.
+  $effect(() => {
+    if (vaultId === undefined) vaultEvents.disconnect();
+    else vaultEvents.connect(vaultId);
+  });
+
   $effect(() => {
     if (vaultId !== undefined) void tree.load(vaultId);
+  });
+
+  $effect(() => {
+    if (vaultEvents.revision > 0 && vaultId !== undefined) void tree.load(vaultId, { refresh: true });
   });
 </script>
 
@@ -54,7 +65,7 @@
     <FileTree {vaultId} root={tree.state.root} {current} />
   {:else if tree.state.status === "failed"}
     <p class="muted">{tree.state.message}</p>
-    <button type="button" onclick={() => tree.load(vaultId, true)}>Retry</button>
+    <button type="button" onclick={() => tree.load(vaultId, { refresh: true })}>Retry</button>
   {:else}
     <p class="muted">Loading…</p>
   {/if}

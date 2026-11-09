@@ -15,7 +15,7 @@ buildNpmPackage {
 
   # Update after changing package-lock.json:
   #   nix run nixpkgs#prefetch-npm-deps package-lock.json
-  npmDepsHash = "sha256-PrbsqCRmbDh1eReoznhRoqhICsKlTbSKoIWw9T/6KOM=";
+  npmDepsHash = "sha256-Nby9hBMbnPG8IqnWi5Ne/Le8XcfNql0D+CCYfZ7OLHI=";
 
   # better-sqlite3 ships prebuilt binaries; python3 is only for its node-gyp fallback.
   nativeBuildInputs = [ python3 makeWrapper ];
@@ -37,6 +37,11 @@ buildNpmPackage {
     # Production dependencies only (workspace links included).
     npm prune --omit=dev --no-audit --no-fund
     cp -r node_modules $app/
+    # npm nests a dependency in a workspace when the root holds another version of it
+    # (chokidar 6 for the server, while a dev tool hoists chokidar 4), so copy those too.
+    for workspace in apps/server packages/contracts; do
+      if [ -d $workspace/node_modules ]; then cp -r $workspace/node_modules $app/$workspace/; fi
+    done
 
     makeWrapper ${nodejs}/bin/node $out/bin/wiki-agents \
       --add-flags "$app/apps/server/dist/index.js" \

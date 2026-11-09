@@ -15,6 +15,7 @@
     "@effect/platform-node": "4.1.2",
     "@wiki-agents/contracts": "0.1.0",
     "better-sqlite3": "^13.0.3",
+    "chokidar": "^6.0.0",
     "drizzle-orm": "^0.45.4",
     "effect": "4.1.2",
     "github-slugger": "^2.0.0",

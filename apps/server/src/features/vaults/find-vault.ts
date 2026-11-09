@@ -1,6 +1,6 @@
 import { Effect, Option } from "effect";
-import { VaultRepository } from "../vaults/repository.js";
-import { VaultNotFound } from "./errors.js";
+import { VaultRepository } from "./repository.js";
+import { VaultNotFound } from "../../shared/vault/errors.js";
 
 export const findVault = Effect.fnUntraced(function* (vaultId: string) {
   const repository = yield* VaultRepository;

@@ -7,18 +7,23 @@ type TreeState =
   | { readonly status: "loaded"; readonly root: TreeFolder; readonly count: number }
   | { readonly status: "failed"; readonly message: string };
 
-/** The file tree of the open vault. Reloaded when the vault changes (live updates come in slice 2). */
+/** The file tree of the open vault. */
 class TreeStore {
   vaultId = $state<string | undefined>(undefined);
   state = $state<TreeState>({ status: "loading" });
   #controller: AbortController | undefined;
 
-  async load(vaultId: string, force = false) {
-    if (vaultId === this.vaultId && !force && this.state.status !== "failed") return;
+  /**
+   * Loads the tree when the vault changes. `refresh` reloads the same vault quietly,
+   * keeping the current tree on screen until the new one arrives (live updates).
+   */
+  async load(vaultId: string, options: { readonly refresh?: boolean } = {}) {
+    const sameVault = vaultId === this.vaultId;
+    if (sameVault && !options.refresh && this.state.status !== "failed") return;
     this.#controller?.abort();
     const controller = (this.#controller = new AbortController());
     this.vaultId = vaultId;
-    this.state = { status: "loading" };
+    if (!sameVault || this.state.status !== "loaded") this.state = { status: "loading" };
     try {
       const { entries } = await getTree(vaultId, controller.signal);
       this.state = { status: "loaded", root: buildTree(entries), count: entries.length };

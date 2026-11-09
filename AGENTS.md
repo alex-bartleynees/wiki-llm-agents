@@ -20,7 +20,12 @@ Read `README.md` first. Design decisions are in the user's vault at
 - A feature never imports another feature's adapter (`sqlite-repository.ts`).
 - Each feature owns its tables in `features/<feature>/table.ts`; generate a
   migration with `npm run db:generate -w @wiki-agents/server`; never edit
-  generated SQL by hand.
+  generated SQL by hand. For what Drizzle can't declare (FTS5 virtual tables), write
+  a custom migration: `npx drizzle-kit generate --custom --name <name>` in
+  `apps/server`.
+- Code used by several features lives in `apps/server/src/shared/` (`vault/` path
+  guard and walker, `markdown/` parsing and link resolution); features read each
+  other's data through ports (`indexing/vault-index.ts`), never their adapters.
 - In the web app use `#lib/...` imports (SvelteKit 3), not `$lib`.
 - Every screen must work at desktop (1440px) and phone (390px) widths.
 - Tests: integration tests boot the real HTTP app with `TestApp`

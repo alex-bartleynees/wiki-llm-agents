@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { makeLinkIndex } from "../link-resolution.js";
+import { makeLinkIndex } from "../../../shared/markdown/link-resolution.js";
 import { renderNote } from "./render-note.js";
 
 const context = {

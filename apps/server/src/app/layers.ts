@@ -2,6 +2,10 @@ import { createServer } from "node:http";
 import { NodeHttpServer } from "@effect/platform-node";
 import { Layer } from "effect";
 import { HttpRouter } from "effect/http";
+import { IndexerLive } from "../features/indexing/indexer-live.js";
+import { IndexStoreLive } from "../features/indexing/sqlite-store.js";
+import { IndexingStartup } from "../features/indexing/startup.js";
+import { VaultWatcherLive, VaultWatcherNoop } from "../features/indexing/watcher.js";
 import { VaultRepositoryLive } from "../features/vaults/sqlite-repository.js";
 import { startupVaults } from "../features/vaults/startup-vaults.js";
 import { AppConfig } from "../shared/config.js";
@@ -15,13 +19,25 @@ export const RepositoriesLive = Layer.mergeAll(VaultRepositoryLive);
 export interface AppOptions {
   /** Folders from `--vault`, registered before the server starts. */
   readonly vaults: ReadonlyArray<string>;
+  /** Watch vault folders for changes. Off in tests that drive the indexer themselves. */
+  readonly watch: boolean;
 }
 
-/** The HTTP app without a listening server or database, so tests can supply both. */
+/** The vault index, the IndexerActor, and the file watcher. */
+const indexing = (watch: boolean) =>
+  (watch ? VaultWatcherLive : VaultWatcherNoop).pipe(
+    Layer.provideMerge(IndexerLive),
+    Layer.provideMerge(IndexStoreLive),
+  );
+
+/**
+ * The HTTP app without a listening server or database, so tests can supply both.
+ * Its services (repositories, indexer...) are part of the output, for tests.
+ */
 export const makeHttpApp = (options: AppOptions) =>
   HttpRouter.serve(Layer.mergeAll(router, OriginGuardLive), { disableLogger: true }).pipe(
-    Layer.provide(startupVaults(options.vaults)),
-    Layer.provide(RepositoriesLive),
+    Layer.provide(Layer.mergeAll(startupVaults(options.vaults), IndexingStartup)),
+    Layer.provideMerge(Layer.mergeAll(RepositoriesLive, indexing(options.watch))),
   );
 
 const ServerLive = NodeHttpServer.layerConfig(() => createServer(), {
@@ -29,5 +45,5 @@ const ServerLive = NodeHttpServer.layerConfig(() => createServer(), {
   port: AppConfig.port,
 });
 
-export const makeAppLive = (options: AppOptions) =>
-  makeHttpApp(options).pipe(Layer.provide(SqliteLive), Layer.provide(ServerLive));
+export const makeAppLive = (options: Omit<AppOptions, "watch">) =>
+  makeHttpApp({ ...options, watch: true }).pipe(Layer.provide(SqliteLive), Layer.provide(ServerLive));

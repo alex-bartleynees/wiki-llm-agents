@@ -1,8 +1,8 @@
 import { posix } from "node:path";
 import type { GetFileRequest } from "@wiki-agents/contracts/notes/get-file/request";
 import { Effect, FileSystem } from "effect";
-import { findVault } from "../find-vault.js";
-import { resolveInVault } from "../path-guard.js";
+import { findVault } from "../../vaults/find-vault.js";
+import { resolveInVault } from "../../../shared/vault/path-guard.js";
 import { withMemoryStorage } from "./memory-storage.js";
 
 /** Types shown inline. Everything else is sent as a download. */
