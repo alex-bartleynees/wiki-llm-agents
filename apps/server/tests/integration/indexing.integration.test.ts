@@ -305,4 +305,19 @@ describe("watching vault folders", () => {
       }),
     );
   });
+
+  // A VM's shared folder reports no file system events for changes made on the host;
+  // polling finds them. (Real clock again: chokidar polls on its own timer.)
+  layer(makeTestApp({ watch: true, watchPollMs: 100 }), { excludeTestServices: true })("with polling", (it) => {
+    it.effect("re-indexes a file written on disk and publishes the change", () =>
+      Effect.gen(function* () {
+        const { vault, write } = yield* newVault();
+        const subscription = yield* (yield* Indexer).subscribe;
+        write("Projects/Polled.md", "[[index]]");
+        const event = yield* PubSub.take(subscription).pipe(Effect.timeout(Duration.seconds(10)));
+        expect(event).toEqual({ type: "vault.changed", vaultId: vault.id, paths: ["Projects/Polled.md"] });
+        expect(yield* backlinks(vault, "index.md")).toEqual(["Projects/Plan.md", "Projects/Polled.md"]);
+      }),
+    );
+  });
 });

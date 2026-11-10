@@ -18,6 +18,11 @@ export const AppConfig = {
   configDir: Config.String("WIKI_AGENTS_CONFIG_DIR").pipe(Config.withDefault(join(xdgConfigHome, "wiki-agents"))),
   /** Built web app to serve. Unset in development, where Vite serves the UI. */
   staticDir: Config.option(Config.String("WIKI_AGENTS_STATIC_DIR")),
+  /**
+   * Check vault files every this many milliseconds instead of waiting for file system
+   * events, for vaults whose changes the OS doesn't report (a folder shared into a VM).
+   */
+  watchPollMs: Config.option(Config.Int("WIKI_AGENTS_WATCH_POLL_MS")),
   /** The OpenCode executable: a path, or a name looked up on `PATH`. */
   opencodeBinary: Config.String("WIKI_AGENTS_OPENCODE").pipe(Config.withDefault("opencode")),
   migrationsDir: Config.String("WIKI_AGENTS_MIGRATIONS_DIR").pipe(

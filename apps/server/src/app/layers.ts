@@ -1,13 +1,13 @@
 import { ProjectRepositoryLive } from "../features/projects/sqlite-repository.js";
 import { NodeHttpServer } from "@effect/platform-node";
-import { Effect, type FileSystem, Layer } from "effect";
+import { Effect, type FileSystem, Layer, Option } from "effect";
 import { HttpRouter } from "effect/http";
 import type { AgentCatalog } from "../features/agents/catalog.js";
 import { AgentCatalogLive } from "../features/agents/catalog-live.js";
 import { IndexerLive } from "../features/indexing/indexer-live.js";
 import { IndexStoreLive } from "../features/indexing/sqlite-store.js";
 import { IndexingStartup } from "../features/indexing/startup.js";
-import { VaultWatcherLive, VaultWatcherNoop } from "../features/indexing/watcher.js";
+import { makeVaultWatcher, VaultWatcherNoop } from "../features/indexing/watcher.js";
 import { McpTokensLive } from "../features/mcp/tokens.js";
 import { VaultToolsLive } from "../features/mcp/vault-tools-live.js";
 import { PinRepositoryLive } from "../features/pins/sqlite-repository.js";
@@ -34,6 +34,8 @@ export interface AppOptions {
   readonly vaults: ReadonlyArray<string>;
   /** Watch vault folders for changes. Off in tests that drive the indexer themselves. */
   readonly watch: boolean;
+  /** Poll vault files at this interval instead of using file system events. */
+  readonly watchPollMs?: number | undefined;
   /** The providers threads can use; OpenCode and replay unless a test chooses. */
   readonly providers?: Layer.Layer<ProviderRegistry, DbError, Sqlite>;
   /** The rules and agents. Required, so a test can never fall back to your real config directory. */
@@ -41,8 +43,8 @@ export interface AppOptions {
 }
 
 /** The vault index, the IndexerActor, and the file watcher. */
-const indexing = (watch: boolean) =>
-  (watch ? VaultWatcherLive : VaultWatcherNoop).pipe(
+const indexing = (watch: boolean, pollMs: number | undefined) =>
+  (watch ? makeVaultWatcher({ pollMs }) : VaultWatcherNoop).pipe(
     Layer.provideMerge(IndexerLive),
     Layer.provideMerge(IndexStoreLive),
   );
@@ -68,7 +70,7 @@ export const makeHttpApp = (options: AppOptions) =>
         RepositoriesLive,
         options.providers ?? ProviderRegistryLive,
         options.agents,
-        indexing(options.watch),
+        indexing(options.watch, options.watchPollMs),
       )),
   );
 
@@ -80,5 +82,9 @@ const ServerLive = Layer.unwrap(
   }),
 );
 
-export const makeAppLive = (options: Omit<AppOptions, "watch" | "agents">) =>
-  makeHttpApp({ ...options, watch: true, agents: AgentCatalogLive }).pipe(Layer.provide(SqliteLive), Layer.provide(ServerLive));
+export const makeAppLive = (options: Omit<AppOptions, "watch" | "watchPollMs" | "agents">) =>
+  Layer.unwrap(
+    Effect.map(AppConfig.watchPollMs, (pollMs) =>
+      makeHttpApp({ ...options, watch: true, watchPollMs: Option.getOrUndefined(pollMs), agents: AgentCatalogLive }),
+    ),
+  ).pipe(Layer.provide(SqliteLive), Layer.provide(ServerLive));

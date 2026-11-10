@@ -4,10 +4,19 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    # Only for `checks`: builds a home-manager configuration with the module.
+    home-manager = {
+      url = "github:nix-community/home-manager";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
-    flake-utils.lib.eachDefaultSystem (system:
+  outputs = { self, nixpkgs, flake-utils, home-manager }:
+    {
+      # `services.wiki-agents`: the app as a user service (see nix/hm-module.nix).
+      homeManagerModules.default = import ./nix/hm-module.nix self;
+    }
+    // flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
         nodejs = pkgs.nodejs_22;
@@ -47,6 +56,43 @@
           inherit wiki-agents;
           default = wiki-agents;
         };
+
+        # The module evaluates and builds in a home-manager configuration like the hosts'.
+        checks.hm-module =
+          let
+            home = home-manager.lib.homeManagerConfiguration {
+              inherit pkgs;
+              modules = [
+                self.homeManagerModules.default
+                {
+                  home = {
+                    username = "test";
+                    homeDirectory = "/home/test";
+                    stateVersion = "25.05";
+                  };
+                  services.wiki-agents = {
+                    enable = true;
+                    vaults = [ "/home/test/Documents/My Vault" ];
+                    port = 4320;
+                    watchPollMs = 2000;
+                    enableLinger = true;
+                    desktopEntry = true;
+                  };
+                }
+              ];
+            };
+            unit = "${home.activationPackage}/home-files/.config/systemd/user/wiki-agents.service";
+          in
+          pkgs.runCommand "wiki-agents-hm-module" { } ''
+            grep -q 'ExecStart=.*/bin/wiki-agents --vault .*/home/test/Documents/My Vault' ${unit}
+            grep -q 'Environment="WIKI_AGENTS_PORT=4320"' ${unit}
+            grep -q 'Environment="WIKI_AGENTS_WATCH_POLL_MS=2000"' ${unit}
+            grep -q 'WantedBy=wiki-agents.target' ${unit}
+            test -e ${home.activationPackage}/home-files/.config/systemd/user/wiki-agents.target
+            test -e ${home.activationPackage}/home-path/share/applications/wiki-agents.desktop
+            grep -q 'enable-linger' ${home.activationPackage}/activate
+            touch $out
+          '';
 
         apps.dev = {
           type = "app";

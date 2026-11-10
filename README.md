@@ -308,3 +308,54 @@ design/             Claude Design mockup
 | `WIKI_AGENTS_MIGRATIONS_DIR` | `apps/server/drizzle` |
 | `WIKI_AGENTS_OPENCODE` | `opencode` (looked up on `PATH`) |
 | `WIKI_AGENTS_CONFIG_DIR` | `$XDG_CONFIG_HOME/wiki-agents` (rules and agents) |
+| `WIKI_AGENTS_WATCH_POLL_MS` | unset (file system events); set to poll vault files, e.g. `2000`, when the vault is a virtiofs or SSHFS mount whose changes the OS doesn't report |
+
+## Run as a service
+
+The flake exports a home-manager module, `homeManagerModules.default`, which runs
+the app as a user service under `wiki-agents.target`. Add the repo as an input of
+your NixOS or home-manager flake:
+
+```nix
+inputs.wiki-agents = {
+  url = "github:alex-bartleynees/wiki-llm-agents";
+  inputs.nixpkgs.follows = "nixpkgs";
+};
+```
+
+Then, in the home-manager user (as a NixOS module or standalone, like `services.t3`):
+
+```nix
+imports = [ inputs.wiki-agents.homeManagerModules.default ];
+
+services.wiki-agents = {
+  enable = true;
+  enableLinger = true;                                  # start at boot, keep running after logout
+  vaults = [ "/home/alexbn/Documents/obsidian-vault" ];
+  port = 4320;                                          # 4317 is `nix run .#dev`'s
+  watchPollMs = 2000;                                   # vault on virtiofs (dev-vm) or SSHFS (exe.dev)
+};
+```
+
+Options: `vaults`, `host` (default `127.0.0.1`), `port` (default `4317`), `dataDir`,
+`configDir` (rules and agents; never written by Nix), `watchPollMs`, `opencode` (a
+package; default: `opencode` from your user profile, which must be 2.2.x),
+`environment`, `enableLinger` and `desktopEntry` (default off). `nix flake check`
+builds a home-manager configuration with the module (`checks.hm-module`).
+
+- Agents run only while the machine is up and the service runs: threads pause with
+  the machine, and later reminders and scheduled tasks will wait for it too.
+  `enableLinger` keeps the service running without a login session.
+- Logs: `journalctl --user -u wiki-agents -f`. Restart:
+  `systemctl --user restart wiki-agents.target`. Migrations run at start, so an
+  update is `nix flake update wiki-agents` and a switch.
+- **Reaching it from another machine.** It listens on loopback by default. From the
+  desktop, either tunnel (`ssh -L 4320:127.0.0.1:4320 dev-vm`, then open
+  http://127.0.0.1:4320) or, on dev-vm's host-only network, set
+  `host = "10.0.0.2"` and open port 4320 in the VM's firewall
+  (`networking.firewall.allowedTCPPorts`). There is no login yet: whoever reaches
+  the port can use the app, and the folder picker lists folder names this user can
+  read, so don't listen on an address others can reach.
+- **The real vault.** Until change review (slice 9), agent edits to the vault have no
+  in-app diff or undo; they follow each agent's autonomy, which asks before edits by
+  default. Use git, Syncthing versioning or backups to undo one.

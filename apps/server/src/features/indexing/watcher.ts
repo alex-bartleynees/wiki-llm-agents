@@ -23,8 +23,12 @@ export const VaultWatcherNoop = Layer.succeed(VaultWatcher, VaultWatcher.of({ wa
  * chokidar per vault → bounded path batches → `Sync` commands for the IndexerActor.
  * Ignored names are never watched. Symlinks are not followed: links to other folders
  * would otherwise watch outside the vault (the next scan still picks them up).
+ *
+ * With `pollMs`, files are checked every `pollMs` instead of waiting for file system
+ * events: for vaults whose changes the OS doesn't report, such as a folder shared
+ * into a VM over virtiofs and edited on the host.
  */
-export const VaultWatcherLive = Layer.effect(
+export const makeVaultWatcher = (options: { readonly pollMs?: number | undefined } = {}) => Layer.effect(
   VaultWatcher,
   Effect.gen(function* () {
     const indexer = yield* Indexer;
@@ -41,6 +45,7 @@ export const VaultWatcherLive = Layer.effect(
             watch(root, {
               ignoreInitial: true,
               followSymlinks: false,
+              ...(options.pollMs === undefined ? {} : { usePolling: true, interval: options.pollMs, binaryInterval: options.pollMs }),
               ignored: (path) => relative(root, path).split(sep).some(isIgnoredName),
             })
               .on("all", (_event, path) => Queue.offerUnsafe(queue, path))
@@ -76,3 +81,6 @@ export const VaultWatcherLive = Layer.effect(
     });
   }),
 );
+
+/** Native file system events. */
+export const VaultWatcherLive = makeVaultWatcher();
