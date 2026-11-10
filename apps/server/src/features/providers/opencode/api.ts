@@ -58,6 +58,12 @@ export interface OpenCodeApi {
   }) => Effect.Effect<string, OpenCodeError>;
   /** Replaces the session's permission rules (it keeps the ones it was created with otherwise). */
   readonly setPermissions: (sessionId: string, permissions: ReadonlyArray<OpenCodePermissionRule>) => Effect.Effect<void, OpenCodeError>;
+  /**
+   * Sets the app's instructions on the session (OpenCode adds them to the system
+   * prompt as `<context key="wiki-agents">`), or removes them with null. Setting the
+   * same text again changes nothing.
+   */
+  readonly setInstructions: (sessionId: string, text: string | null) => Effect.Effect<void, OpenCodeError>;
   /** False when OpenCode no longer has the session (deleted, or another data directory). */
   readonly sessionExists: (sessionId: string) => Effect.Effect<boolean, OpenCodeError>;
   /** Queues a message; OpenCode starts running it unless a turn is already running. Returns its inbox id. */

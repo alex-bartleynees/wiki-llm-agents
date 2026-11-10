@@ -1,6 +1,7 @@
 <script lang="ts">
   import "#lib/ui/tokens.css";
   import { page } from "$app/state";
+  import AgentsPane from "#lib/features/agents/AgentsPane.svelte";
   import VaultPane from "#lib/features/notes/VaultPane.svelte";
   import QuickSwitcher from "#lib/features/search/QuickSwitcher.svelte";
   import SearchPanel from "#lib/features/search/SearchPanel.svelte";
@@ -33,7 +34,10 @@
   {/snippet}
 
   {#snippet agents()}
-    <div class="placeholder"><p>Agents arrive in M2.</p></div>
+    <!-- Desktop shows agents in the right-hand pane instead. -->
+    {#if shell.phone.current}
+      <AgentsPane />
+    {/if}
   {/snippet}
 
   {#snippet search()}

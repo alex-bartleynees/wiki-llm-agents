@@ -1,6 +1,8 @@
 import { NodeHttpServer } from "@effect/platform-node";
-import { Effect, Layer } from "effect";
+import { Effect, type FileSystem, Layer } from "effect";
 import { HttpRouter } from "effect/http";
+import type { AgentCatalog } from "../features/agents/catalog.js";
+import { AgentCatalogLive } from "../features/agents/catalog-live.js";
 import { IndexerLive } from "../features/indexing/indexer-live.js";
 import { IndexStoreLive } from "../features/indexing/sqlite-store.js";
 import { IndexingStartup } from "../features/indexing/startup.js";
@@ -31,6 +33,8 @@ export interface AppOptions {
   readonly watch: boolean;
   /** The providers threads can use; OpenCode and replay unless a test chooses. */
   readonly providers?: Layer.Layer<ProviderRegistry, DbError, Sqlite>;
+  /** The rules and agents. Required, so a test can never fall back to your real config directory. */
+  readonly agents: Layer.Layer<AgentCatalog, never, FileSystem.FileSystem>;
 }
 
 /** The vault index, the IndexerActor, and the file watcher. */
@@ -51,7 +55,12 @@ export const makeHttpApp = (options: AppOptions) =>
   HttpRouter.serve(Layer.mergeAll(router, OriginGuardLive), { disableLogger: true }).pipe(
     Layer.provide(Layer.mergeAll(startupVaults(options.vaults), IndexingStartup, ThreadsStartup)),
     Layer.provideMerge(threads),
-    Layer.provideMerge(Layer.mergeAll(RepositoriesLive, options.providers ?? ProviderRegistryLive, indexing(options.watch))),
+    Layer.provideMerge(Layer.mergeAll(
+        RepositoriesLive,
+        options.providers ?? ProviderRegistryLive,
+        options.agents,
+        indexing(options.watch),
+      )),
   );
 
 /** The Node server, and the signal its SSE streams end on when it starts closing. */
@@ -62,5 +71,5 @@ const ServerLive = Layer.unwrap(
   }),
 );
 
-export const makeAppLive = (options: Omit<AppOptions, "watch">) =>
-  makeHttpApp({ ...options, watch: true }).pipe(Layer.provide(SqliteLive), Layer.provide(ServerLive));
+export const makeAppLive = (options: Omit<AppOptions, "watch" | "agents">) =>
+  makeHttpApp({ ...options, watch: true, agents: AgentCatalogLive }).pipe(Layer.provide(SqliteLive), Layer.provide(ServerLive));

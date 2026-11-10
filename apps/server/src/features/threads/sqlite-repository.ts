@@ -24,6 +24,7 @@ const summaryColumns = {
   title: threads.title,
   providerInstanceId: threads.providerInstanceId,
   model: threads.model,
+  agentId: threads.agentId,
   createdAt: threads.createdAt,
   updatedAt: threads.updatedAt,
   status: sql<ThreadSummary["status"]>`CASE
@@ -69,11 +70,11 @@ export const ThreadRepositoryLive = Layer.effect(
       providerSession: (threadId) =>
         query(() => {
           const row = db
-            .select({ nativeSessionId: threads.nativeSessionId, model: threads.model })
+            .select({ nativeSessionId: threads.nativeSessionId, model: threads.model, agentId: threads.agentId })
             .from(threads)
             .where(eq(threads.id, threadId))
             .get();
-          return row ?? { nativeSessionId: null, model: null };
+          return row ?? { nativeSessionId: null, model: null, agentId: null };
         }),
 
       setNativeSession: (threadId, nativeSessionId) =>
@@ -84,6 +85,12 @@ export const ThreadRepositoryLive = Layer.effect(
       setModel: (threadId, model, at) =>
         query(() => {
           db.update(threads).set({ model, updatedAt: new Date(at) }).where(eq(threads.id, threadId)).run();
+          return Option.getOrThrow(findSync(threadId));
+        }),
+
+      setAgent: (threadId, agentId, at) =>
+        query(() => {
+          db.update(threads).set({ agentId, updatedAt: new Date(at) }).where(eq(threads.id, threadId)).run();
           return Option.getOrThrow(findSync(threadId));
         }),
 

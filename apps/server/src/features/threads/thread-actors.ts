@@ -18,6 +18,7 @@ export interface ThreadActorsService {
     answer: RequestAnswer,
   ) => Effect.Effect<void, StartError | Effect.Error<ReturnType<ThreadActor["answerRequest"]>>>;
   readonly setModel: (threadId: string, model: string) => Effect.Effect<ThreadSummary, StartError | Effect.Error<ReturnType<ThreadActor["setModel"]>>>;
+  readonly setAgent: (threadId: string, agentId: string | null) => Effect.Effect<ThreadSummary, StartError | Effect.Error<ReturnType<ThreadActor["setAgent"]>>>;
   /** Starts the actor, which resumes or closes a turn left running by the last run. */
   readonly wake: (threadId: string) => Effect.Effect<void, StartError>;
 }
@@ -38,7 +39,8 @@ export const ThreadActorsLive = Layer.effect(
       interrupt: (threadId) => withActor(threadId, (actor) => actor.interrupt),
       answerRequest: (threadId, requestId, answer) => withActor(threadId, (actor) => actor.answerRequest(requestId, answer)),
       setModel: (threadId, model) => withActor(threadId, (actor) => actor.setModel(model)),
-      wake: (threadId) => withActor(threadId, () => Effect.void),
+      setAgent: (threadId, agentId) => withActor(threadId, (actor) => actor.setAgent(agentId)),
+      wake: (threadId) => withActor(threadId, (actor) => actor.resumed),
     });
   }),
 );

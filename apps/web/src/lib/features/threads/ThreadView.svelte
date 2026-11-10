@@ -1,5 +1,8 @@
 <script lang="ts">
   import { tick } from "svelte";
+  import AgentPicker from "#lib/features/agents/AgentPicker.svelte";
+  import { agents } from "#lib/features/agents/agents.svelte.ts";
+  import { describeAutonomy, enforcedAutonomy } from "#lib/features/agents/autonomy.ts";
   import AgentText from "./AgentText.svelte";
   import Composer from "./Composer.svelte";
   import ModelPicker from "./ModelPicker.svelte";
@@ -30,6 +33,11 @@
   };
 
   const provider = $derived(providers.get(openThread.thread?.providerInstanceId));
+  const agent = $derived(agents.get(openThread.thread?.agentId));
+  const autonomySummary = $derived.by(() => {
+    const enforced = enforcedAutonomy(agent, provider?.id);
+    return enforced === null ? "" : describeAutonomy(enforced);
+  });
 
   const OUTCOME_LABEL = { completed: "Done", interrupted: "Stopped", failed: "Failed" } as const;
 
@@ -41,14 +49,19 @@
 <header>
   <button type="button" class="back" aria-label="All threads" onclick={() => threads.select(null)}>←</button>
   <h2 title={openThread.thread?.title ?? undefined}>{openThread.thread?.title ?? "New thread"}</h2>
-  {#if provider?.capabilities.models && openThread.threadId !== null}
-    <ModelPicker threadId={openThread.threadId} />
-  {:else if provider}
-    <span class="provider mono">{provider.name}</span>
-  {/if}
   {#if status !== "idle"}
     <span class="status mono" data-status={status}>{STATUS_LABEL[status]}</span>
   {/if}
+  <div class="controls">
+    {#if openThread.thread}
+      <AgentPicker thread={openThread.thread} onchange={(thread) => openThread.updated(thread)} />
+    {/if}
+    {#if provider?.capabilities.models && openThread.threadId !== null}
+      <ModelPicker threadId={openThread.threadId} />
+    {:else if provider}
+      <span class="provider mono">{provider.name}</span>
+    {/if}
+  </div>
 </header>
 
 <div class="timeline" bind:this={scroller} {onscroll} aria-live="polite" aria-busy={status === "running"}>
@@ -62,8 +75,12 @@
         <p>Ask about the vault. This thread uses the replay provider, which plays recorded turns.</p>
         <p>Include <em>edit</em> for an approval, <em>question</em> for a question, <em>long</em> for a slow answer, or <em>fail</em> for an error.</p>
       {:else}
-        <p>Ask {provider?.name ?? "the agent"} about the vault. It works in the vault's folder.</p>
-        <p>It asks before it edits a note, runs a command, or fetches from the web. Approvals change the files.</p>
+        {#if agent}
+          <p>Ask the {agent.name} agent ({provider?.name ?? "its provider"}) about the vault. {agent.description}</p>
+        {:else}
+          <p>Ask {provider?.name ?? "the agent"} about the vault. It works in the vault's folder and follows the app's rules.</p>
+        {/if}
+        <p>{autonomySummary} Approvals change the files.</p>
       {/if}
     </div>
   {/if}
@@ -106,8 +123,17 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-wrap: wrap;
     padding: 10px 12px;
     border-bottom: 1px solid var(--line-soft);
+  }
+  /* Agent and model on their own row, so neither is squeezed by a long title. */
+  .controls {
+    flex: 1 0 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
   }
   .back {
     flex: 0 0 auto;
@@ -120,7 +146,7 @@
     cursor: pointer;
   }
   h2 {
-    flex: 1 1 auto;
+    flex: 1 1 0;
     min-width: 0;
     margin: 0;
     font-size: 14px;

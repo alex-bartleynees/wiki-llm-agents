@@ -13,6 +13,8 @@ class ShellStore {
   drawerOpen = $state(false);
   sidebar = $state<Sidebar>("files");
   switcherOpen = $state(false);
+  /** Desktop: whether the right-hand pane shows threads or agents. */
+  sidePane = $state<"threads" | "agents">("threads");
   /** Same breakpoint as the layout's CSS. */
   readonly phone = new MediaQuery("max-width: 899px");
 

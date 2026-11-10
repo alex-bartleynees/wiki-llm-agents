@@ -169,6 +169,7 @@ export const ReplayAdapter: ProviderAdapter = {
   kind: "replay",
   capabilities: { interrupt: true, resume: true, approvals: true, questions: true, models: false },
   openSession: () => makeSession,
+  enforcement: () => ({ autonomy: null, notes: ["Replay plays recorded turns and runs no tools, so autonomy doesn't apply."] }),
   status: Effect.succeed({ _tag: "ready", version: null }),
   listModels: () => Effect.succeed({ models: [], defaultModel: null }),
 };

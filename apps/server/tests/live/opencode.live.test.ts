@@ -2,8 +2,10 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "@effect/vitest";
+import { DEFAULT_AUTONOMY } from "@wiki-agents/contracts/agents/model";
 import { Effect, Stream } from "effect";
 import { makeOpenCodeAdapter } from "../../src/features/providers/opencode/adapter.js";
+import type { SessionSetup } from "../../src/features/providers/port.js";
 import { binaryVersion, startServer } from "../../src/features/providers/opencode/server.js";
 import { VAULT_FILES } from "../fixtures/opencode/fixture.js";
 
@@ -17,9 +19,17 @@ import { VAULT_FILES } from "../fixtures/opencode/fixture.js";
 const live = process.env.WIKI_AGENTS_LIVE_OPENCODE === "1";
 const binary = process.env.WIKI_AGENTS_OPENCODE ?? "opencode";
 
+/** An agent instruction the answer can only follow if it reached the model. */
+const SETUP: SessionSetup = {
+  instructions: [
+    { source: "agent", title: "Test agent", path: "/nowhere/agents/test.md", text: "End every answer with the word PINEAPPLE, in capitals." },
+  ],
+  autonomy: DEFAULT_AUTONOMY,
+};
+
 describe.skipIf(!live)("OpenCode, live", () => {
   it.live(
-    "answers a question about the vault",
+    "answers a question about the vault, following the agent's instructions",
     () =>
       Effect.scoped(
         Effect.gen(function* () {
@@ -34,11 +44,11 @@ describe.skipIf(!live)("OpenCode, live", () => {
           const adapter = yield* makeOpenCodeAdapter({ start: startServer({ binary }), installedVersion: binaryVersion(binary) });
           expect(yield* adapter.status).toMatchObject({ _tag: "ready" });
 
-          const session = yield* adapter.openSession({ threadId: "live", cwd: root, nativeSessionId: null, model: null });
+          const session = yield* adapter.openSession({ threadId: "live", cwd: root, nativeSessionId: null, model: null, setup: SETUP });
           // Reading needs no approval; anything else (a command, say) is denied, and the agent carries on.
           const events = yield* Stream.runCollect(
             session
-              .startTurn({ turnId: "turn-1", text: "What do I like to drink in the afternoon? Read the notes; answer in one sentence." })
+              .startTurn({ turnId: "turn-1", text: "What do I like to drink in the afternoon? Read the notes; answer in one sentence.", setup: SETUP })
               .pipe(
                 Stream.tap((event) =>
                   event._tag === "request.opened" && event.prompt._tag === "approval"
@@ -53,6 +63,7 @@ describe.skipIf(!live)("OpenCode, live", () => {
           expect(finished).toMatchObject({ _tag: "turn.finished", outcome: "completed" });
           const reply = events.flatMap((event) => (event._tag === "message.delta" ? [event.text] : [])).join("");
           expect(reply.toLowerCase()).toContain("tea");
+          expect(reply).toContain("PINEAPPLE");
         }),
       ),
     { timeout: 180_000 },

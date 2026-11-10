@@ -5,6 +5,7 @@ import { OpenCode, type OpenCodeClient } from "@opencode/client/effect";
 import { Cause, Deferred, Duration, Effect, Exit, Fiber, Layer, PubSub, Schedule, type Scope, Stream } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/http";
 import { type OpenCodeApi, OpenCodeError, type OpenCodeSignal, modelName, modelRef } from "./api.js";
+import { INSTRUCTIONS_KEY } from "./instructions.js";
 
 /**
  * The OpenCode version the pinned `@opencode/client` speaks. Other 2.2 releases are
@@ -161,6 +162,13 @@ const makeApi = (client: OpenCodeClient, version: string, hub: PubSub.PubSub<Ope
   },
   setPermissions: (sessionId, permissions) =>
     call("updating the session's permissions", client.session.update({ sessionID: sessionId as never, permissions: permissions as never })),
+  setInstructions: (sessionId, text) =>
+    text === null
+      ? call("removing the session's instructions", client.experimental.session.instructions.entry.remove({ sessionID: sessionId as never, key: INSTRUCTIONS_KEY }))
+      : call(
+          "setting the session's instructions",
+          client.experimental.session.instructions.entry.put({ sessionID: sessionId as never, key: INSTRUCTIONS_KEY, value: text }),
+        ),
   sessionExists: (sessionId) =>
     call(
       "finding the session",

@@ -7,7 +7,7 @@ import { createThread } from "./use-case.js";
 
 const Params = Schema.Struct({ vaultId: Schema.String });
 
-/** The vault comes from the route, the provider from the body. */
+/** The vault comes from the route, the provider and agent from the body. */
 export const createThreadEndpoint = Effect.gen(function* () {
   const { vaultId } = yield* HttpRouter.schemaPathParams(Params);
   const body = yield* HttpServerRequest.schemaBodyJson(CreateThreadRequest);
@@ -19,6 +19,7 @@ export const createThreadEndpoint = Effect.gen(function* () {
     HttpServerError: () => Effect.succeed(badRequest()),
     VaultNotFound: () => Effect.succeed(notFound("Vault not found")),
     ProviderInstanceNotFound: () => Effect.succeed(badRequest("Unknown provider")),
+    AgentNotFound: (error) => Effect.succeed(badRequest(error.reason)),
   }),
   Effect.catch(internalError("create thread")),
 );

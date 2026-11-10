@@ -1,5 +1,6 @@
 import { Layer } from "effect";
 import { HttpRouter, HttpServerResponse } from "effect/http";
+import { agentsRouter } from "../features/agents/router.js";
 import { indexingRouter } from "../features/indexing/router.js";
 import { notesRouter } from "../features/notes/router.js";
 import { pinsRouter } from "../features/pins/router.js";
@@ -20,5 +21,6 @@ export const router = Layer.mergeAll(
   pinsRouter,
   providersRouter,
   threadsRouter,
+  agentsRouter,
   webAppRouter,
 );

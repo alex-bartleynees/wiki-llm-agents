@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { NodeHttpServer } from "@effect/platform-node";
 import { Effect, Layer } from "effect";
+import { makeAgentCatalog } from "../../../src/features/agents/catalog-live.js";
 import { type AppOptions, makeHttpApp } from "../../../src/app/layers.js";
 import { makeProviderRegistry } from "../../../src/features/providers/registry-live.js";
 import { ReplayAdapter } from "../../../src/features/providers/replay/adapter.js";
@@ -23,6 +24,20 @@ export const TestSqlite = Layer.effect(
   }),
 );
 
+/**
+ * The rules and agents in a fresh temp config directory (seeded with the defaults),
+ * not watched: tests write files and call `reload`.
+ */
+export const TestAgents = Layer.unwrap(
+  Effect.map(
+    Effect.acquireRelease(
+      Effect.sync(() => mkdtempSync(join(tmpdir(), "wiki-agents-config-"))),
+      (dir) => Effect.sync(() => rmSync(dir, { recursive: true, force: true })),
+    ),
+    (dir) => makeAgentCatalog({ dir, watch: false }),
+  ),
+);
+
 /** The replay provider alone, so tests never start OpenCode. */
 export const ReplayOnly = makeProviderRegistry(Effect.succeed([ReplayAdapter]));
 
@@ -31,6 +46,6 @@ export const ReplayOnly = makeProviderRegistry(Effect.succeed([ReplayAdapter]));
  * Sqlite is exposed so tests can seed data the API can't create yet.
  */
 export const makeTestApp = (options: Partial<AppOptions> = {}) =>
-  makeHttpApp({ vaults: [], watch: false, providers: ReplayOnly, ...options }).pipe(Layer.provideMerge(TestSqlite), Layer.provideMerge(NodeHttpServer.layerTest));
+  makeHttpApp({ vaults: [], watch: false, providers: ReplayOnly, agents: TestAgents, ...options }).pipe(Layer.provideMerge(TestSqlite), Layer.provideMerge(NodeHttpServer.layerTest));
 
 export const TestApp = makeTestApp();

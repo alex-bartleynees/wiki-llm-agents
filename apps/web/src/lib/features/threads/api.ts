@@ -27,8 +27,16 @@ export const listThreads = (vaultId: string, signal?: AbortSignal) => getJson(va
 export const getProviderStatus = (providerInstanceId: string, signal?: AbortSignal) =>
   getJson(`/api/providers/${encodeURIComponent(providerInstanceId)}/status`, GetProviderStatusResponse, signal);
 
-export const createThread = (vaultId: string, providerInstanceId?: string) =>
-  postJson(vaultThreadsPath(vaultId), CreateThreadRequest, providerInstanceId === undefined ? {} : { providerInstanceId }, CreateThreadResponse);
+export const createThread = (vaultId: string, options: { readonly providerInstanceId?: string; readonly agentId?: string }) =>
+  postJson(
+    vaultThreadsPath(vaultId),
+    CreateThreadRequest,
+    {
+      ...(options.providerInstanceId === undefined ? {} : { providerInstanceId: options.providerInstanceId }),
+      ...(options.agentId === undefined ? {} : { agentId: options.agentId }),
+    },
+    CreateThreadResponse,
+  );
 
 export const listModels = (threadId: string, signal?: AbortSignal) => getJson(`${threadPath(threadId)}/models`, ListModelsResponse, signal);
 

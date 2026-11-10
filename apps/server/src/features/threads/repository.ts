@@ -6,6 +6,9 @@ export interface NewThread {
   readonly id: string;
   readonly vaultId: string;
   readonly providerInstanceId: string;
+  readonly agentId: string | null;
+  /** The model to start with; null for the provider's default. */
+  readonly model: string | null;
   readonly createdAt: number;
 }
 
@@ -35,12 +38,13 @@ export interface RequestRecord {
 export interface ThreadRepositoryService {
   readonly insert: (thread: NewThread) => Effect.Effect<ThreadSummary, DbError>;
   readonly find: (threadId: string) => Effect.Effect<Option.Option<ThreadSummary>, DbError>;
-  /** What the provider needs to continue the thread's conversation. */
+  /** What the provider needs to continue the thread's conversation, and the agent it follows. */
   readonly providerSession: (
     threadId: string,
-  ) => Effect.Effect<{ readonly nativeSessionId: string | null; readonly model: string | null }, DbError>;
+  ) => Effect.Effect<{ readonly nativeSessionId: string | null; readonly model: string | null; readonly agentId: string | null }, DbError>;
   readonly setNativeSession: (threadId: string, nativeSessionId: string | null) => Effect.Effect<void, DbError>;
   readonly setModel: (threadId: string, model: string, at: number) => Effect.Effect<ThreadSummary, DbError>;
+  readonly setAgent: (threadId: string, agentId: string | null, at: number) => Effect.Effect<ThreadSummary, DbError>;
   /** Most recently updated first. */
   readonly listByVault: (vaultId: string) => Effect.Effect<ReadonlyArray<ThreadSummary>, DbError>;
   /** Events with a seq greater than `afterSeq`, in order. */

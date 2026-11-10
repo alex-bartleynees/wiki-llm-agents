@@ -1,8 +1,13 @@
 <script lang="ts">
+  import { agents } from "#lib/features/agents/agents.svelte.ts";
   import { timeAgo } from "#lib/features/notes/time.ts";
   import { providers } from "./providers.svelte.ts";
   import { STATUS_LABEL } from "./status.ts";
   import { threads } from "./threads.svelte.ts";
+
+  $effect(() => {
+    void agents.load();
+  });
 
   $effect(() => {
     void providers.load().then(() => {
@@ -13,6 +18,13 @@
 
   const chosen = $derived(providers.chosen);
   const status = $derived(chosen === undefined ? undefined : providers.statuses[chosen.id]);
+
+  /** An agent that names a provider switches new threads to it; you can still pick another. */
+  const chooseAgent = (id: string) => {
+    agents.choose(id === "" ? null : id);
+    const provider = agents.chosen?.provider;
+    if (provider != null && providers.get(provider) !== undefined) providers.choose(provider);
+  };
 </script>
 
 <header>
@@ -29,6 +41,12 @@
         {/each}
       </select>
     {/if}
+    <select aria-label="Agent for new threads" value={agents.chosen?.id ?? ""} onchange={(event) => chooseAgent(event.currentTarget.value)}>
+      <option value="">No agent</option>
+      {#each agents.list as agent (agent.id)}
+        <option value={agent.id}>{agent.name}</option>
+      {/each}
+    </select>
     <button type="button" class="new" onclick={() => threads.create()}>New thread</button>
   </div>
 </header>
@@ -56,6 +74,9 @@
         <button type="button" onclick={() => threads.select(thread.id)}>
           <span class="title">{thread.title ?? "New thread"}</span>
           <span class="meta mono">
+            {#if thread.agentId !== null}
+              <span class="agent-name">{agents.get(thread.agentId)?.name ?? thread.agentId}</span> ·
+            {/if}
             {#if thread.status !== "idle"}
               <span class="status" data-status={thread.status}>{STATUS_LABEL[thread.status]}</span> ·
             {/if}
@@ -74,6 +95,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 8px;
+    flex-wrap: wrap;
     padding: 14px 16px;
     border-bottom: 1px solid var(--line-soft);
   }
@@ -150,6 +172,9 @@
   .meta {
     font-size: 11px;
     color: var(--ink-3);
+  }
+  .agent-name {
+    color: var(--agent);
   }
   .status[data-status="running"] {
     color: var(--accent-ink);

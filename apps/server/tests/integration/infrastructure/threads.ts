@@ -81,3 +81,10 @@ export const requestIdOf = (events: ReadonlyArray<ThreadEvent>) => {
 };
 
 export const status = (threadId: string) => Effect.map(getThread(threadId), (response) => response.thread.status);
+
+/** Switches the thread's agent (null for none); fails unless the server accepts it. */
+export const setAgent = (threadId: string, agentId: string | null) =>
+  HttpClient.execute(HttpClientRequest.put(`/api/threads/${threadId}/agent`).pipe(HttpClientRequest.bodyJsonUnsafe({ agentId }))).pipe(
+    Effect.flatMap(HttpClientResponse.filterStatusOk),
+    Effect.asVoid,
+  );

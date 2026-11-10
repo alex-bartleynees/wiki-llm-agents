@@ -1,3 +1,4 @@
+import type { Autonomy } from "@wiki-agents/contracts/agents/model";
 import type { ProviderCapabilities, ProviderModel, ProviderStatus } from "@wiki-agents/contracts/providers/model";
 import type { RequestAnswer, ThreadEvent } from "@wiki-agents/contracts/threads/model";
 import { Data, type Effect, type Option, type Scope, type Stream } from "effect";
@@ -17,9 +18,32 @@ export class ProviderError extends Data.TaggedError("ProviderError")<{
   readonly cause?: unknown;
 }> {}
 
+/** Text the agent is told on top of the provider's own instructions. */
+export interface Instruction {
+  /** `rules`: applies to every agent; `agent`: the named agent's file; `vault`: the vault's own `AGENTS.md`. */
+  readonly source: "rules" | "agent" | "vault";
+  /** Where it comes from, e.g. `rules/wiki-llm.md`, `Researcher agent`, `AGENTS.md in the vault`. */
+  readonly title: string;
+  /** Absolute path of the file it was read from. */
+  readonly path: string;
+  readonly text: string;
+}
+
+/**
+ * What the app layers on a session: instructions, in order (later ones win where they
+ * disagree), and the autonomy the provider enforces. Sent with every turn, so edits
+ * to the rules, the agent's file, or a different agent apply from the next turn;
+ * adapters skip what hasn't changed.
+ */
+export interface SessionSetup {
+  readonly instructions: ReadonlyArray<Instruction>;
+  readonly autonomy: Autonomy;
+}
+
 export interface TurnInput {
   readonly turnId: string;
   readonly text: string;
+  readonly setup: SessionSetup;
 }
 
 export interface ResumeInput extends TurnInput {
@@ -53,6 +77,8 @@ export interface OpenSessionInput {
   readonly nativeSessionId: string | null;
   /** The thread's model; null for the provider's default. */
   readonly model: string | null;
+  /** The setup a new session starts with (turns bring the current one). */
+  readonly setup: SessionSetup;
 }
 
 export interface ModelList {
@@ -70,6 +96,8 @@ export interface ProviderAdapter {
   readonly capabilities: ProviderCapabilities;
   /** Closing the scope ends the session and any process it started. */
   readonly openSession: (input: OpenSessionInput) => Effect.Effect<ProviderSession, ProviderError, Scope.Scope>;
+  /** What this provider actually enforces for `autonomy`, and notes where that differs. */
+  readonly enforcement: (autonomy: Autonomy) => { readonly autonomy: Autonomy | null; readonly notes: ReadonlyArray<string> };
   /** Whether turns can run: installed, a supported version, and it starts. Opens no session. */
   readonly status: Effect.Effect<ProviderStatus>;
   /** Models offered in `cwd`; none when `capabilities.models` is false. */

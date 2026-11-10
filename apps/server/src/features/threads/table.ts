@@ -9,6 +9,8 @@ export const threads = sqliteTable(
     title: text("title"),
     providerInstanceId: text("provider_instance_id").notNull(),
     model: text("model"),
+    /** The named agent (`agents/<id>.md`) the thread follows; null for the rules alone. */
+    agentId: text("agent_id"),
     /** The provider's own session id, for resuming (OpenCode session, Claude session). */
     nativeSessionId: text("native_session_id"),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),

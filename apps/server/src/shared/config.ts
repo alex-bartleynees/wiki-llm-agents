@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { Config } from "effect";
 
 const xdgDataHome = process.env.XDG_DATA_HOME ?? join(homedir(), ".local", "share");
+const xdgConfigHome = process.env.XDG_CONFIG_HOME ?? join(homedir(), ".config");
 
 /** Process configuration. Every value has a default so `wiki-agents` starts with no setup. */
 export const AppConfig = {
@@ -13,6 +14,8 @@ export const AppConfig = {
   dataDir: Config.String("WIKI_AGENTS_DATA_DIR").pipe(
     Config.withDefault(join(xdgDataHome, "wiki-agents")),
   ),
+  /** Rules and agent definitions (`rules/*.md`, `agents/*.md`), seeded on first start. */
+  configDir: Config.String("WIKI_AGENTS_CONFIG_DIR").pipe(Config.withDefault(join(xdgConfigHome, "wiki-agents"))),
   /** Built web app to serve. Unset in development, where Vite serves the UI. */
   staticDir: Config.option(Config.String("WIKI_AGENTS_STATIC_DIR")),
   /** The OpenCode executable: a path, or a name looked up on `PATH`. */

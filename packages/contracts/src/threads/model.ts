@@ -138,6 +138,8 @@ export const ThreadSummary = Schema.Struct({
   providerInstanceId: Schema.String,
   /** The model chosen for this thread; null uses the provider's default. */
   model: Schema.NullOr(Schema.String),
+  /** The named agent whose instructions and autonomy the thread uses; null for none. */
+  agentId: Schema.NullOr(Schema.String),
   status: ThreadStatus,
   /** The last event's seq; 0 for a new thread. */
   lastSeq: Schema.Number,

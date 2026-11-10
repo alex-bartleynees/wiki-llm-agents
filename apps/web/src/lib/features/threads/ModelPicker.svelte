@@ -69,7 +69,7 @@
   select {
     flex: 0 1 auto;
     min-width: 0;
-    max-width: 45%;
+    max-width: 50%;
     height: 28px;
     padding: 0 4px;
     border: 1px solid var(--line);

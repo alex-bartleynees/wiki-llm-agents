@@ -27,6 +27,7 @@ export type FakeCall =
   | { readonly call: "prompt"; readonly text: string }
   | { readonly call: "cancelPrompt" | "interrupt" }
   | { readonly call: "setPermissions"; readonly permissions: ReadonlyArray<OpenCodePermissionRule> }
+  | { readonly call: "setInstructions"; readonly text: string | null }
   | { readonly call: "reply"; readonly requestId: string; readonly reply: string; readonly message?: string }
   | { readonly call: "switchModel"; readonly model: string };
 
@@ -137,6 +138,10 @@ export const makeFakeOpenCode = Effect.gen(function* () {
     setPermissions: (_sessionId, permissions) =>
       Effect.sync(() => {
         calls.push({ call: "setPermissions", permissions });
+      }),
+    setInstructions: (_sessionId, text) =>
+      Effect.sync(() => {
+        calls.push({ call: "setInstructions", text });
       }),
     sessionExists: (sessionId) => Effect.sync(() => sessions.has(sessionId)),
     prompt: (sessionId, text) =>

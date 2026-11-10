@@ -18,9 +18,10 @@ import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http";
 import { TestClock } from "effect/testing";
 import { makeHttpApp } from "../../src/app/layers.js";
 import { SERVER_STOPPED } from "../../src/features/threads/thread-actor.js";
+import { ThreadActors } from "../../src/features/threads/thread-actors.js";
 import { ThreadBus } from "../../src/features/threads/thread-bus.js";
 import { makeSqlite, Sqlite } from "../../src/shared/persistence/sqlite.js";
-import { ReplayOnly, TestApp } from "./infrastructure/test-app.js";
+import { ReplayOnly, TestAgents, TestApp } from "./infrastructure/test-app.js";
 import { makeTestVault } from "./infrastructure/test-vault.js";
 
 import {
@@ -278,7 +279,7 @@ const migrationsDir = fileURLToPath(new URL("../../drizzle", import.meta.url));
  * part of it. Closing the scope stops it, like stopping the server.
  */
 const appOn = (file: string) =>
-  makeHttpApp({ vaults: [], watch: false, providers: ReplayOnly }).pipe(
+  makeHttpApp({ vaults: [], watch: false, providers: ReplayOnly, agents: TestAgents }).pipe(
     Layer.provideMerge(Layer.effect(Sqlite, makeSqlite({ file, migrationsDir }))),
     Layer.provideMerge(NodeHttpServer.layerTest),
   );
@@ -293,11 +294,16 @@ const tempDatabase = Effect.acquireRelease(
   (dir) => Effect.sync(() => rmSync(dir, { recursive: true, force: true })),
 ).pipe(Effect.map((dir) => join(dir, "app.db")));
 
-/** Waits for the thread's turn to finish after a restart (the actor may already be resuming). */
+/**
+ * Waits for the thread's turn to finish after a restart. Startup wakes the actor in
+ * the background; waking it again waits until it has resumed (and started any
+ * timers), so moving the test clock can't skip past them.
+ */
 const finishedAfterRestart = (thread: ThreadSummary, act: Effect.Effect<unknown, unknown, App>) =>
   Effect.gen(function* () {
     const events = yield* watch(thread.id);
     yield* act;
+    yield* (yield* ThreadActors).wake(thread.id);
     const done = (yield* getThread(thread.id)).events.some((event) => event.event._tag === "turn.finished");
     if (!done) yield* events.until(isTag("turn.finished"));
     return yield* getThread(thread.id);
@@ -369,14 +375,7 @@ describe("threads across a restart", () => {
           return { thread, turnId };
         }),
       );
-      const after = yield* run(
-        file,
-        Effect.gen(function* () {
-          const events = yield* watch(thread.id);
-          yield* events.until(isTag("turn.finished"));
-          return yield* getThread(thread.id);
-        }),
-      );
+      const after = yield* run(file, finishedAfterRestart(thread, Effect.void));
       expect(after.events.at(-1)?.event).toMatchObject({ _tag: "turn.finished", turnId, outcome: "completed" });
       expect(tags(after.events).filter((tag) => tag === "user.message")).toHaveLength(1);
     }),

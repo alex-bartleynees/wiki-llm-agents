@@ -1,27 +1,20 @@
+import { DEFAULT_AUTONOMY } from "@wiki-agents/contracts/agents/model";
 import type { ProviderStatus } from "@wiki-agents/contracts/providers/model";
 import type { RequestAnswer } from "@wiki-agents/contracts/threads/model";
 import { Duration, Effect, Exit, Option, PubSub, Queue, RcRef, Scope, Stream } from "effect";
-import { type ProviderAdapter, ProviderError, type ProviderEvent, type ProviderSession } from "../port.js";
+import { type ProviderAdapter, ProviderError, type ProviderEvent, type ProviderSession, type SessionSetup, type TurnInput } from "../port.js";
 import type { OpenCodeApi, OpenCodeError, OpenCodeEvent, OpenCodePermissionRule, OpenCodeSignal } from "./api.js";
 import { formAnswer, makeTurnMapper, sessionOf } from "./events.js";
+import { instructionsText, MAX_INSTRUCTIONS_BYTES } from "./instructions.js";
+import { enforcedAutonomy, permissionRules } from "./permissions.js";
 import { CLIENT_VERSION, isSupportedVersion } from "./server.js";
 
-/** Tools that only read (or ask you something); everything else asks first. */
-export const READ_ONLY_ACTIONS = ["read", "glob", "grep", "list", "lsp", "question", "todowrite", "skill"] as const;
-
 /**
- * Until agents have their own autonomy (slice 6), every OpenCode session asks
- * before anything but reading: editing or creating files (`edit`), commands
- * (`shell`), the web (`webfetch`, `websearch`), files outside the vault, and any
- * tool this list doesn't know. OpenCode applies the last matching rule, so the
- * read-only allowances follow the catch-all. The app always answers `once`:
- * OpenCode stores `always` for the whole project, which would widen every other
- * thread's permissions.
+ * A session's rules without an agent: read freely, ask before anything else (see
+ * `permissions.ts`). The app always answers `once`: OpenCode stores `always` for
+ * the whole project, which would widen every other thread's permissions.
  */
-export const SESSION_PERMISSIONS: ReadonlyArray<OpenCodePermissionRule> = [
-  { action: "*", resource: "*", effect: "ask" },
-  ...READ_ONLY_ACTIONS.map((action) => ({ action, resource: "*", effect: "allow" }) as const),
-];
+export const SESSION_PERMISSIONS: ReadonlyArray<OpenCodePermissionRule> = permissionRules(DEFAULT_AUTONOMY);
 
 export interface OpenCodeAdapterOptions {
   /** Starts an OpenCode server; it stops when the scope closes. */
@@ -74,14 +67,47 @@ const nextSignal = (subscription: PubSub.Subscription<OpenCodeSignal>, sessionId
  */
 type Connect = Effect.Effect<OpenCodeApi, ProviderError>;
 
-const makeSession = (connect: Connect, sessionId: string, cwd: string, silence: Duration.Input): ProviderSession => {
+/** What the session was last given, so a turn sends only what changed. */
+interface Applied {
+  /** The permission rules, as JSON. */
+  rules: string;
+  /** The instructions entry; undefined until set by this run of the app. */
+  instructions: string | null | undefined;
+}
+
+const rulesKey = (setup: SessionSetup) => JSON.stringify(permissionRules(setup.autonomy));
+
+const makeSession = (connect: Connect, sessionId: string, cwd: string, silence: Duration.Input, applied: Applied): ProviderSession => {
   let turn: RunningTurn | undefined;
   const requests = new Map<string, PendingRequest>();
 
-  const startTurn = ({ turnId, text }: { readonly turnId: string; readonly text: string }) =>
+  /** Brings the session's permissions and instructions up to date with `setup`. */
+  const apply = (api: OpenCodeApi, setup: SessionSetup) =>
+    Effect.gen(function* () {
+      const rules = rulesKey(setup);
+      if (rules !== applied.rules) {
+        yield* api.setPermissions(sessionId, permissionRules(setup.autonomy));
+        applied.rules = rules;
+      }
+      const instructions = instructionsText(setup.instructions, cwd);
+      if (instructions !== applied.instructions) {
+        if (instructions !== null && Buffer.byteLength(instructions, "utf8") > MAX_INSTRUCTIONS_BYTES) {
+          return yield* new ProviderError({
+            message: `The rules and agent instructions are ${Math.ceil(Buffer.byteLength(instructions, "utf8") / 1024)} KiB; OpenCode takes at most ${MAX_INSTRUCTIONS_BYTES / 1024} KiB.`,
+          });
+        }
+        // On the first turn of this run `applied.instructions` is unknown, so this also
+        // removes instructions an earlier run left on a continued session.
+        yield* api.setInstructions(sessionId, instructions);
+        applied.instructions = instructions;
+      }
+    }).pipe(Effect.mapError((error) => (error instanceof ProviderError ? error : toProviderError(error))));
+
+  const startTurn = ({ turnId, text, setup }: TurnInput) =>
     Stream.callback<ProviderEvent, ProviderError>((queue) =>
       Effect.gen(function* () {
         const api = yield* connect;
+        yield* apply(api, setup);
         // Subscribe before sending: OpenCode's stream is live only.
         const subscription = yield* api.subscribe;
         const current: RunningTurn = { id: turnId, inboxId: undefined, started: false };
@@ -266,7 +292,8 @@ export const makeOpenCodeAdapter = (options: OpenCodeAdapterOptions) =>
     const adapter: ProviderAdapter = {
       kind: "opencode",
       capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: true },
-      openSession: ({ cwd, nativeSessionId, model }) =>
+      enforcement: enforcedAutonomy,
+      openSession: ({ cwd, nativeSessionId, model, setup }) =>
         Effect.gen(function* () {
           // The session holds one server at a time, in a scope of its own inside the
           // session's, swapped for a new server when the held one has stopped.
@@ -282,16 +309,18 @@ export const makeOpenCodeAdapter = (options: OpenCodeAdapterOptions) =>
           }).pipe(Effect.mapError(toProviderError));
 
           const api = yield* connect;
+          const rules = permissionRules(setup.autonomy);
+          const applied: Applied = { rules: rulesKey(setup), instructions: undefined };
           const existing = nativeSessionId !== null && (yield* api.sessionExists(nativeSessionId).pipe(Effect.mapError(toProviderError)));
           if (existing && nativeSessionId !== null) {
             // The session keeps the rules it was made with; bring them up to date.
-            yield* api.setPermissions(nativeSessionId, SESSION_PERMISSIONS).pipe(Effect.mapError(toProviderError));
-            return makeSession(connect, nativeSessionId, cwd, silence);
+            yield* api.setPermissions(nativeSessionId, rules).pipe(Effect.mapError(toProviderError));
+            return makeSession(connect, nativeSessionId, cwd, silence, applied);
           }
           const sessionId = yield* api
-            .createSession({ directory: cwd, model, permissions: SESSION_PERMISSIONS })
+            .createSession({ directory: cwd, model, permissions: rules })
             .pipe(Effect.mapError(toProviderError));
-          return makeSession(connect, sessionId, cwd, silence);
+          return makeSession(connect, sessionId, cwd, silence, applied);
         }),
       status,
       listModels: (cwd) =>

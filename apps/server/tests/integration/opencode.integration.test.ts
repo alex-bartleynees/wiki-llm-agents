@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -15,6 +15,7 @@ import { TestClock } from "effect/testing";
 import { makeHttpApp } from "../../src/app/layers.js";
 import { DENIED, makeOpenCodeAdapter, OPENCODE_STOPPED, SESSION_PERMISSIONS } from "../../src/features/providers/opencode/adapter.js";
 import { type OpenCodeApi, OpenCodeError } from "../../src/features/providers/opencode/api.js";
+import { permissionRules } from "../../src/features/providers/opencode/permissions.js";
 import { binaryVersion } from "../../src/features/providers/opencode/server.js";
 import { makeProviderRegistry } from "../../src/features/providers/registry-live.js";
 import { ReplayAdapter } from "../../src/features/providers/replay/adapter.js";
@@ -23,7 +24,7 @@ import { ThreadBus } from "../../src/features/threads/thread-bus.js";
 import { makeSqlite, Sqlite } from "../../src/shared/persistence/sqlite.js";
 import { type FakeOpenCode, loadFixture, makeFakeOpenCode, type PlayOptions } from "../fixtures/opencode/fake-api.js";
 import { VAULT_FILES } from "../fixtures/opencode/fixture.js";
-import { makeTestApp } from "./infrastructure/test-app.js";
+import { makeTestApp, TestAgents } from "./infrastructure/test-app.js";
 import {
   answer,
   decode,
@@ -34,6 +35,7 @@ import {
   newVaultWith,
   requestIdOf,
   sendOk,
+  setAgent,
   status,
   tags,
 } from "./infrastructure/threads.js";
@@ -147,6 +149,49 @@ layer(App)("OpenCode provider", (it) => {
     }),
   );
 
+  it.effect("gives the session the agent's autonomy and instructions, without the vault's AGENTS.md OpenCode reads itself", () =>
+    Effect.gen(function* () {
+      const { vault, thread, fake, prompts } = yield* setUp("simple");
+      writeFileSync(join(vault.rootPath, "AGENTS.md"), "# Vault rules\n\nVAULT-ONLY-MARKER");
+      yield* setAgent(thread.id, "researcher");
+      const events = yield* watch(thread.id);
+      yield* sendOk(thread.id, prompts[0]!);
+      expect(finishedOf(yield* events.until(isTag("turn.finished"))).outcome).toBe("completed");
+
+      const researcher = { read: "allow", create: "allow", edit: "ask", commands: "deny", web: "allow" } as const;
+      expect(fake.calls[0]).toEqual({ call: "createSession", model: null, permissions: permissionRules(researcher) });
+      const instructions = fake.calls.find((call) => call.call === "setInstructions");
+      if (instructions?.call !== "setInstructions" || instructions.text === null) throw new Error("no instructions were set");
+      expect(instructions.text).toContain("# Wiki-LLM rules");
+      expect(instructions.text).toContain("You are the Researcher agent");
+      expect(instructions.text.indexOf("# Wiki-LLM rules")).toBeLessThan(instructions.text.indexOf("You are the Researcher agent"));
+      expect(instructions.text).not.toContain("VAULT-ONLY-MARKER");
+      // Instructions go in before the message.
+      expect(fake.calls.map((call) => call.call).slice(0, 3)).toEqual(["createSession", "setInstructions", "prompt"]);
+    }),
+  );
+
+  it.effect("sends only what changed: nothing between turns, the new agent's rules after a switch", () =>
+    Effect.gen(function* () {
+      const { thread, fake, prompts } = yield* setUp("multi-turn");
+      const events = yield* watch(thread.id);
+      yield* sendOk(thread.id, prompts[0]!);
+      yield* events.until(isTag("turn.finished"));
+      const afterFirst = fake.calls.length;
+
+      yield* setAgent(thread.id, "reviewer");
+      const again = yield* watch(thread.id);
+      yield* sendOk(thread.id, prompts[1]!);
+      yield* again.until(isTag("turn.finished"));
+      const second = fake.calls.slice(afterFirst);
+      const reviewer = { read: "allow", create: "deny", edit: "deny", commands: "deny", web: "ask" } as const;
+      expect(second.map((call) => call.call)).toEqual(["setPermissions", "setInstructions", "prompt"]);
+      expect(second[0]).toEqual({ call: "setPermissions", permissions: permissionRules(reviewer) });
+      expect(second[1]).toMatchObject({ call: "setInstructions", text: expect.stringContaining("You are the Reviewer agent") });
+      expect(fake.calls.filter((call) => call.call === "setInstructions")).toHaveLength(2);
+    }),
+  );
+
   it.effect("shows an edit as an approval with its diff, and edits once approved", () =>
     Effect.gen(function* () {
       const { thread, fake, prompts } = yield* setUp("approval-approved");
@@ -210,7 +255,7 @@ layer(App)("OpenCode provider", (it) => {
       expect((yield* interrupt(thread.id)).status).toBe(200);
       expect(finishedOf(yield* events.until(isTag("turn.finished")))).toMatchObject({ outcome: "interrupted", reason: null });
 
-      expect(fake.calls.map((call) => call.call)).toEqual(["createSession", "prompt", "cancelPrompt", "interrupt"]);
+      expect(fake.calls.map((call) => call.call)).toEqual(["createSession", "setInstructions", "prompt", "cancelPrompt", "interrupt"]);
       yield* fake.played;
       expect(yield* fake.api.isRunning(fixture.sessionId)).toBe(false);
     }),
@@ -224,7 +269,7 @@ layer(App)("OpenCode provider", (it) => {
       yield* interrupt(thread.id);
       expect(finishedOf(yield* events.until(isTag("turn.finished"))).outcome).toBe("interrupted");
       yield* fake.played;
-      expect(fake.calls.map((call) => call.call)).toEqual(["createSession", "prompt", "cancelPrompt"]);
+      expect(fake.calls.map((call) => call.call)).toEqual(["createSession", "setInstructions", "prompt", "cancelPrompt"]);
     }),
   );
 
@@ -432,7 +477,7 @@ const migrationsDir = fileURLToPath(new URL("../../drizzle", import.meta.url));
 
 /** The app over a database file and an OpenCode that outlives it (sessions are OpenCode's own data). */
 const appOn = (file: string, fake: FakeOpenCode) =>
-  makeHttpApp({ vaults: [], watch: false, providers: providersOver(Layer.succeed(Fake, fake)) }).pipe(
+  makeHttpApp({ vaults: [], watch: false, providers: providersOver(Layer.succeed(Fake, fake)), agents: TestAgents }).pipe(
     Layer.provideMerge(Layer.effect(Sqlite, makeSqlite({ file, migrationsDir }))),
     Layer.provideMerge(NodeHttpServer.layerTest),
   );
@@ -479,6 +524,8 @@ describe("OpenCode across a restart", () => {
       );
       expect(fake.calls).toEqual([
         { call: "setPermissions", permissions: SESSION_PERMISSIONS },
+        // This run hasn't set the session's instructions yet, so it sets them again.
+        { call: "setInstructions", text: expect.stringContaining("# Wiki-LLM rules") },
         { call: "prompt", text: fixture.turns[0]!.prompt },
       ]);
       expect(tags(stored).filter((tag) => tag === "turn.finished")).toHaveLength(2);

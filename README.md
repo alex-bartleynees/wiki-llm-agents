@@ -56,7 +56,7 @@ be rebuilt from disk: `POST /api/vaults/:id/rebuild-index`.
 ### Threads
 
 The right-hand pane (the Chat tab on phone) holds the vault's agent threads. Pick the
-provider for new threads next to **New thread**:
+provider and the agent (below) for new threads next to **New thread**:
 
 - **OpenCode** (the default): your installed `opencode` 2.2.x, with your own login and
   config. The app runs one `opencode serve` on a free localhost port with a generated
@@ -65,9 +65,10 @@ provider for new threads next to **New thread**:
   vault's folder; the thread keeps its session id, so a later message, even after a
   restart, continues the same conversation. Pick the thread's model in its header
   (`GET /api/threads/:id/models`, `PUT /api/threads/:id/model`).
-  **Approvals are real:** OpenCode asks before anything but reading (editing or
-  creating a file, a command, the web, any tool the app doesn't know), and approving
-  changes the files. The app answers `once`, never `always` (OpenCode would remember
+  **Approvals are real:** what OpenCode may do unasked is the thread's agent's
+  autonomy (without an agent: read, and ask before editing or creating a file, a
+  command, or the web); anything outside the vault's folder and any tool the app
+  doesn't know always asks, and approving changes the files. The app answers `once`, never `always` (OpenCode would remember
   that for every thread in the folder). A denial tells the agent why, and it carries
   on. Develop against a copy of the vault (below).
   `GET /api/providers/opencode/status` checks it is installed, a supported version,
@@ -101,6 +102,42 @@ provider for new threads next to **New thread**:
   (replay), and one that was streaming is closed as interrupted. OpenCode can't
   resume: its server stops with the app and cancels the turn and its pending
   approvals, so an OpenCode turn cut off by a restart is closed as interrupted.
+
+### Agents and rules
+
+Named agents and the rules every agent follows are markdown files in the app's
+config directory (`WIKI_AGENTS_CONFIG_DIR`, default `~/.config/wiki-agents`), not in a
+vault, so every vault gets them. The first start writes `rules/wiki-llm.md` and four
+agents (`agents/researcher.md`, `librarian`, `builder`, `reviewer`); after that the
+files are yours: edits and deletions stick. The app reloads them when they change.
+To have the same agents on every machine, point `WIKI_AGENTS_CONFIG_DIR` at a
+Syncthing folder outside your vaults (outside, so an agent always has to ask before touching
+its own instructions), and let it finish syncing before the first start on a new machine, or
+that machine's fresh defaults would win over your edits. A Syncthing conflict copy
+(`*.sync-conflict-*.md`) isn't loaded; the Agents screen lists it.
+
+- An agent file's body is its instructions; its frontmatter holds `name`,
+  `description`, `provider` and `model` (defaults for new threads), `sources`,
+  `concurrency`, and `autonomy` per action (`read`, `create`, `edit`, `commands`,
+  `web`: `allow`, `ask`, or `deny`; `always` and `never` work too). Anything left out
+  reads freely and asks for the rest. Unknown keys are errors, so typos can't pass.
+- A file that doesn't load is listed on the Agents screen with the reason; the other
+  agents still work. A thread whose agent is missing or broken fails its next turn
+  saying so, rather than running without it.
+- Each turn the thread's provider gets every `rules/*.md`, then the agent's
+  instructions, then the vault's own `AGENTS.md` if it has one, and the agent's
+  autonomy. OpenCode gets them as one session instruction entry (`<context
+  key="wiki-agents">`) and session permission rules, sent only when they change; it
+  reads `AGENTS.md` itself, so the app doesn't send it twice. OpenCode can't tell
+  creating a file from editing one: both get the stricter level, and the agent screen
+  says so.
+- Pick a thread's agent in its header; it applies from the next message.
+  The Agents tab (phone) or the right pane's Agents switch (desktop) lists agents
+  with what they are doing in this vault, and shows each one's autonomy as written
+  and as each provider enforces it.
+- `GET /api/agents`, `GET /api/agents/:id`, `PUT /api/threads/:id/agent`
+  (`{"agentId": "researcher"}` or `null`), and `agentId` on `POST
+  /api/vaults/:id/threads`.
 
 #### OpenCode tests and recordings
 
@@ -166,3 +203,4 @@ design/             Claude Design mockup
 | `WIKI_AGENTS_STATIC_DIR` | unset; the packaged binary points it at the web build |
 | `WIKI_AGENTS_MIGRATIONS_DIR` | `apps/server/drizzle` |
 | `WIKI_AGENTS_OPENCODE` | `opencode` (looked up on `PATH`) |
+| `WIKI_AGENTS_CONFIG_DIR` | `$XDG_CONFIG_HOME/wiki-agents` (rules and agents) |
