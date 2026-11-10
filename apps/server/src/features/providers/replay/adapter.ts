@@ -129,6 +129,7 @@ const makeSession = Effect.gen(function* () {
   };
 
   const session: ProviderSession = {
+    nativeSessionId: null,
     startTurn: ({ turnId, text }) => {
       const transcript = chooseTranscript(text);
       return untilFinished(
@@ -154,6 +155,7 @@ const makeSession = Effect.gen(function* () {
       }),
     interrupt: () => Effect.void,
     answerRequest: (requestId, answer) => Effect.flatMap(answerFor(requestId), (deferred) => Deferred.succeed(deferred, answer)),
+    setModel: () => Effect.void,
   };
   return session;
 });
@@ -165,6 +167,8 @@ const makeSession = Effect.gen(function* () {
  */
 export const ReplayAdapter: ProviderAdapter = {
   kind: "replay",
-  capabilities: { interrupt: true, resume: true, approvals: true, questions: true },
+  capabilities: { interrupt: true, resume: true, approvals: true, questions: true, models: false },
   openSession: () => makeSession,
+  status: Effect.succeed({ _tag: "ready", version: null }),
+  listModels: () => Effect.succeed({ models: [], defaultModel: null }),
 };

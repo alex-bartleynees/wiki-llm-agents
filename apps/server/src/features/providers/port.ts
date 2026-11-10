@@ -1,4 +1,4 @@
-import type { ProviderCapabilities } from "@wiki-agents/contracts/providers/model";
+import type { ProviderCapabilities, ProviderModel, ProviderStatus } from "@wiki-agents/contracts/providers/model";
 import type { RequestAnswer, ThreadEvent } from "@wiki-agents/contracts/threads/model";
 import { Data, type Effect, type Option, type Scope, type Stream } from "effect";
 
@@ -29,6 +29,8 @@ export interface ResumeInput extends TurnInput {
 
 /** A provider conversation for one thread, owned by its ThreadActor's scope. */
 export interface ProviderSession {
+  /** The provider's id for the conversation, saved on the thread so a later run continues it. */
+  readonly nativeSessionId: string | null;
   /** Runs a turn. The stream is live: subscribe-before-send is the adapter's job. */
   readonly startTurn: (turn: TurnInput) => Stream.Stream<ProviderEvent, ProviderError>;
   /**
@@ -39,14 +41,24 @@ export interface ProviderSession {
   /** Asks the provider to stop the turn; the actor stops reading its stream either way. */
   readonly interrupt: (turnId: string) => Effect.Effect<void>;
   readonly answerRequest: (requestId: string, answer: RequestAnswer) => Effect.Effect<void, ProviderError>;
+  /** Uses `model` from the next turn on. */
+  readonly setModel: (model: string) => Effect.Effect<void, ProviderError>;
 }
 
 export interface OpenSessionInput {
   readonly threadId: string;
   /** The agent's working directory. */
   readonly cwd: string;
-  /** The provider's session id from an earlier run, to resume. */
+  /** The provider's session id from an earlier run, to continue that conversation. */
   readonly nativeSessionId: string | null;
+  /** The thread's model; null for the provider's default. */
+  readonly model: string | null;
+}
+
+export interface ModelList {
+  readonly models: ReadonlyArray<ProviderModel>;
+  /** The provider's default in that directory, if it has one. */
+  readonly defaultModel: string | null;
 }
 
 /**
@@ -58,4 +70,8 @@ export interface ProviderAdapter {
   readonly capabilities: ProviderCapabilities;
   /** Closing the scope ends the session and any process it started. */
   readonly openSession: (input: OpenSessionInput) => Effect.Effect<ProviderSession, ProviderError, Scope.Scope>;
+  /** Whether turns can run: installed, a supported version, and it starts. Opens no session. */
+  readonly status: Effect.Effect<ProviderStatus>;
+  /** Models offered in `cwd`; none when `capabilities.models` is false. */
+  readonly listModels: (cwd: string) => Effect.Effect<ModelList, ProviderError>;
 }

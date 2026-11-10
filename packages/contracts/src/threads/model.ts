@@ -136,6 +136,8 @@ export const ThreadSummary = Schema.Struct({
   /** From the first message until renaming exists; null before any message. */
   title: Schema.NullOr(Schema.String),
   providerInstanceId: Schema.String,
+  /** The model chosen for this thread; null uses the provider's default. */
+  model: Schema.NullOr(Schema.String),
   status: ThreadStatus,
   /** The last event's seq; 0 for a new thread. */
   lastSeq: Schema.Number,

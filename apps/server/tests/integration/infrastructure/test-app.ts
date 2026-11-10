@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 import { NodeHttpServer } from "@effect/platform-node";
 import { Effect, Layer } from "effect";
 import { type AppOptions, makeHttpApp } from "../../../src/app/layers.js";
+import { makeProviderRegistry } from "../../../src/features/providers/registry-live.js";
+import { ReplayAdapter } from "../../../src/features/providers/replay/adapter.js";
 import { makeSqlite, Sqlite } from "../../../src/shared/persistence/sqlite.js";
 
 const migrationsDir = fileURLToPath(new URL("../../../drizzle", import.meta.url));
@@ -21,11 +23,14 @@ export const TestSqlite = Layer.effect(
   }),
 );
 
+/** The replay provider alone, so tests never start OpenCode. */
+export const ReplayOnly = makeProviderRegistry(Effect.succeed([ReplayAdapter]));
+
 /**
  * The real HTTP app on an ephemeral port, with an HttpClient pointed at it.
  * Sqlite is exposed so tests can seed data the API can't create yet.
  */
 export const makeTestApp = (options: Partial<AppOptions> = {}) =>
-  makeHttpApp({ vaults: [], watch: false, ...options }).pipe(Layer.provideMerge(TestSqlite), Layer.provideMerge(NodeHttpServer.layerTest));
+  makeHttpApp({ vaults: [], watch: false, providers: ReplayOnly, ...options }).pipe(Layer.provideMerge(TestSqlite), Layer.provideMerge(NodeHttpServer.layerTest));
 
 export const TestApp = makeTestApp();

@@ -7,6 +7,8 @@ export const ProviderCapabilities = Schema.Struct({
   resume: Schema.Boolean,
   approvals: Schema.Boolean,
   questions: Schema.Boolean,
+  /** Offers a choice of models (`GET /api/threads/:id/models`). */
+  models: Schema.Boolean,
 });
 export type ProviderCapabilities = typeof ProviderCapabilities.Type;
 
@@ -18,3 +20,26 @@ export const ProviderInstance = Schema.Struct({
   capabilities: ProviderCapabilities,
 });
 export type ProviderInstance = typeof ProviderInstance.Type;
+
+/** The provider can run turns. `version` is the installed agent's, when it has one. */
+export const ProviderReady = Schema.TaggedStruct("ready", {
+  version: Schema.NullOr(Schema.String),
+});
+
+/** It can't, and why: not installed, an unsupported version, or it failed to start. */
+export const ProviderUnavailable = Schema.TaggedStruct("unavailable", {
+  reason: Schema.String,
+});
+
+export const ProviderStatus = Schema.Union([ProviderReady, ProviderUnavailable]);
+export type ProviderStatus = typeof ProviderStatus.Type;
+
+/** A model a provider offers. */
+export const ProviderModel = Schema.Struct({
+  /** The provider's name for it, e.g. `opencode/big-pickle`. */
+  id: Schema.String,
+  name: Schema.String,
+  /** Costs nothing per token (free tiers, local models). */
+  free: Schema.Boolean,
+});
+export type ProviderModel = typeof ProviderModel.Type;

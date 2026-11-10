@@ -14,3 +14,6 @@ export const internalError = (operation: string) => (cause: unknown) =>
 
 /** The request is valid but conflicts with the current state (a turn is running...). */
 export const conflict = (message: string) => HttpServerResponse.text(message, { status: 409 });
+
+/** The agent provider failed or isn't available; the message says why. */
+export const badGateway = (message: string) => HttpServerResponse.text(message, { status: 502 });

@@ -1,8 +1,11 @@
 import type { ProviderInstance } from "@wiki-agents/contracts/providers/model";
 import { asc, eq } from "drizzle-orm";
-import { Clock, Effect, Layer } from "effect";
+import { Clock, Effect, Layer, type Scope } from "effect";
+import { AppConfig } from "../../shared/config.js";
 import { DbError } from "../../shared/persistence/errors.js";
 import { Sqlite } from "../../shared/persistence/sqlite.js";
+import { makeOpenCodeAdapter } from "./opencode/adapter.js";
+import { binaryVersion, startServer } from "./opencode/server.js";
 import type { ProviderAdapter } from "./port.js";
 import { ProviderInstanceNotFound, ProviderRegistry } from "./registry.js";
 import { ReplayAdapter } from "./replay/adapter.js";
@@ -10,24 +13,39 @@ import { providerInstances } from "./table.js";
 
 /** The replay provider's instance, created at startup so there is always one provider. */
 export const REPLAY_INSTANCE_ID = "replay";
+export const OPENCODE_INSTANCE_ID = "opencode";
 
-/** Instances in `provider_instances`, run by the adapters given here. */
-export const makeProviderRegistry = (adapters: ReadonlyArray<ProviderAdapter>) =>
+/** Instance names, for the instance each adapter gets at startup (its id is the kind). */
+const NAMES: Readonly<Record<string, string>> = {
+  replay: "Replay (recorded, free)",
+  opencode: "OpenCode",
+};
+
+/**
+ * Instances in `provider_instances`, run by the adapters given here. Each adapter
+ * gets an instance at startup with its kind as the id. Instances are listed in the
+ * adapters' order; the first is the default for new threads.
+ */
+export const makeProviderRegistry = <E, R>(makeAdapters: Effect.Effect<ReadonlyArray<ProviderAdapter>, E, R>) =>
   Layer.effect(
     ProviderRegistry,
     Effect.gen(function* () {
+      const adapters = yield* makeAdapters;
       const { db } = yield* Sqlite;
       const query = <A>(run: () => A) => Effect.try({ try: run, catch: (cause) => new DbError({ cause }) });
       const byKind = new Map(adapters.map((adapter) => [adapter.kind, adapter]));
+      const order = (kind: string) => adapters.findIndex((adapter) => adapter.kind === kind);
 
       const now = yield* Clock.currentTimeMillis;
-      yield* query(() =>
-        db
-          .insert(providerInstances)
-          .values({ id: REPLAY_INSTANCE_ID, kind: "replay", name: "Replay (recorded, free)", createdAt: new Date(now) })
-          .onConflictDoNothing()
-          .run(),
-      );
+      for (const adapter of adapters) {
+        yield* query(() =>
+          db
+            .insert(providerInstances)
+            .values({ id: adapter.kind, kind: adapter.kind, name: NAMES[adapter.kind] ?? adapter.kind, createdAt: new Date(now) })
+            .onConflictDoNothing()
+            .run(),
+        );
+      }
 
       const toInstance = (row: typeof providerInstances.$inferSelect, adapter: ProviderAdapter): ProviderInstance => ({
         id: row.id,
@@ -38,10 +56,12 @@ export const makeProviderRegistry = (adapters: ReadonlyArray<ProviderAdapter>) =
 
       const list = query(() => db.select().from(providerInstances).orderBy(asc(providerInstances.createdAt)).all()).pipe(
         Effect.map((rows) =>
-          rows.flatMap((row) => {
-            const adapter = byKind.get(row.kind);
-            return adapter === undefined ? [] : [toInstance(row, adapter)];
-          }),
+          rows
+            .flatMap((row) => {
+              const adapter = byKind.get(row.kind);
+              return adapter === undefined ? [] : [toInstance(row, adapter)];
+            })
+            .sort((a, b) => order(a.kind) - order(b.kind)),
         ),
       );
 
@@ -62,4 +82,13 @@ export const makeProviderRegistry = (adapters: ReadonlyArray<ProviderAdapter>) =
     }),
   );
 
-export const ProviderRegistryLive = makeProviderRegistry([ReplayAdapter]);
+/** OpenCode, run from the `opencode` on PATH (or `WIKI_AGENTS_OPENCODE`). */
+export const OpenCodeAdapterLive: Effect.Effect<ProviderAdapter, never, Scope.Scope> = Effect.gen(function* () {
+  const binary = yield* AppConfig.opencodeBinary.pipe(Effect.orDie);
+  return yield* makeOpenCodeAdapter({ start: startServer({ binary }), installedVersion: binaryVersion(binary) });
+});
+
+/** OpenCode first (the default for new threads), then the replay provider. */
+export const ProviderRegistryLive = makeProviderRegistry(
+  Effect.map(OpenCodeAdapterLive, (opencode): ReadonlyArray<ProviderAdapter> => [opencode, ReplayAdapter]),
+);

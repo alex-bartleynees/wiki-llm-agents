@@ -15,7 +15,7 @@ buildNpmPackage {
 
   # Update after changing package-lock.json:
   #   nix run nixpkgs#prefetch-npm-deps package-lock.json
-  npmDepsHash = "sha256-Nby9hBMbnPG8IqnWi5Ne/Le8XcfNql0D+CCYfZ7OLHI=";
+  npmDepsHash = "sha256-gsqhGc3Lm0XnL8kxE6Q3D2wS3PYgGG49DEglUkZSm9c=";
 
   # better-sqlite3 ships prebuilt binaries; python3 is only for its node-gyp fallback.
   nativeBuildInputs = [ python3 makeWrapper ];

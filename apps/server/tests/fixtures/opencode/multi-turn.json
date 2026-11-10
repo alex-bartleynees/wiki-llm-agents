@@ -1,0 +1,612 @@
+{
+  "scenario": "multi-turn",
+  "opencodeVersion": "2.2.1",
+  "model": "opencode/big-pickle",
+  "sessionId": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+  "turns": [
+    {
+      "prompt": "Remember the word 'kiwi'. Reply with just OK.",
+      "steps": [
+        {
+          "event": {
+            "id": "evt_1c2bfb940001NdXegV7Aw1bX8l",
+            "created": 1794268707136,
+            "type": "session.created",
+            "durable": {
+              "aggregateID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "seq": 0,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "projectID": "12f98064060093486def1fa1d46a4edeeca9d6af",
+              "location": {
+                "directory": "/__vault__"
+              },
+              "subpath": "",
+              "slug": "quick-comet",
+              "permissions": [
+                {
+                  "action": "*",
+                  "resource": "*",
+                  "effect": "ask"
+                },
+                {
+                  "action": "read",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "glob",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "grep",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "list",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "lsp",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "question",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "todowrite",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "skill",
+                  "resource": "*",
+                  "effect": "allow"
+                }
+              ],
+              "version": "2.2.1"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfbaaf002OQyzXvK11xyV3E",
+            "created": 1794268707503,
+            "type": "session.inbox.enqueued",
+            "durable": {
+              "aggregateID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "seq": 1,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "inboxID": "msg_1c2bfb96d001P3rmr5p7IF49bQ",
+              "item": {
+                "type": "user",
+                "payload": {
+                  "text": "Remember the word 'kiwi'. Reply with just OK."
+                },
+                "delivery": "steer"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfbab1001QSfiouSExQvdrl",
+            "created": 1794268707505,
+            "type": "session.execution.started",
+            "durable": {
+              "aggregateID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "seq": 2,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e3d4046c8ffe8EM1D92veVFA8H"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfbabf001DsqgK0sG5Pc3G7",
+            "created": 1794268707519,
+            "metadata": {
+              "instructions": {
+                "initial": true
+              }
+            },
+            "type": "session.instructions.updated",
+            "durable": {
+              "aggregateID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "seq": 3,
+              "version": 2
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "delta": {
+                "core/codemode": "3cca2f6160e1959e237c6b88bbc49667e6b6b2041a5456468278ce5e04d8176c",
+                "core/skill-guidance": "7a5bbb2148ce6b88c4b8c09705f0f95b16b7e57695a158ae8c2ab39019889d1e",
+                "core/date": "9b4c63b67003f693d244434de4080cc42a552c634280bc3f4122cd1f1ed9d38c",
+                "core/environment": "b35238c3a9c32f6b70c333e34cb872a8f1802ff1d774301a5631fd9aab5fb4d4"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfbac1001w1LhHaJmTxx9xH",
+            "created": 1794268707521,
+            "type": "session.inbox.delivered",
+            "durable": {
+              "aggregateID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "seq": 4,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "inboxID": "msg_1c2bfb96d001P3rmr5p7IF49bQ"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfbe92001Dov7qcs5Pmfapb",
+            "created": 1794268708498,
+            "type": "session.usage.updated",
+            "data": {
+              "sessionID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "cost": 0,
+              "tokens": {
+                "input": 93,
+                "output": 6,
+                "reasoning": 36,
+                "cache": {
+                  "read": 384,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfbe93001XNktFlXFK9qLtF",
+            "created": 1794268708499,
+            "type": "session.renamed",
+            "durable": {
+              "aggregateID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "seq": 6,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "title": "Remembering kiwi"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfc307001CEbTrkzGNDfHis",
+            "created": 1794268709639,
+            "type": "session.step.started",
+            "durable": {
+              "aggregateID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "seq": 7,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "assistantMessageID": "msg_1c2bfbacc001qd4Rp9t8mf0vdY",
+              "agent": "build",
+              "model": {
+                "id": "big-pickle",
+                "providerID": "opencode"
+              },
+              "started": 1794268707534
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfc30a001WK82hbueEl9izF",
+            "created": 1794268709642,
+            "type": "session.text.started",
+            "durable": {
+              "aggregateID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "seq": 8,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "assistantMessageID": "msg_1c2bfbacc001qd4Rp9t8mf0vdY",
+              "ordinal": 0
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfc30d001i3KgrFsBl5LcH6",
+            "created": 1794268709645,
+            "type": "session.text.delta",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "assistantMessageID": "msg_1c2bfbacc001qd4Rp9t8mf0vdY",
+              "ordinal": 0,
+              "delta": "OK"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfc30d002mMQQzZFgTwwgU4",
+            "created": 1794268709645,
+            "type": "session.text.ended",
+            "durable": {
+              "aggregateID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "seq": 9,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "assistantMessageID": "msg_1c2bfbacc001qd4Rp9t8mf0vdY",
+              "ordinal": 0,
+              "text": "OK"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfc30e001wKjKxWA7F2EV4H",
+            "created": 1794268709646,
+            "type": "session.step.streamed",
+            "durable": {
+              "aggregateID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "seq": 10,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "assistantMessageID": "msg_1c2bfbacc001qd4Rp9t8mf0vdY"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfc3100012Yd73GQQAsqnZv",
+            "created": 1794268709648,
+            "type": "session.step.ended",
+            "durable": {
+              "aggregateID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "seq": 11,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "assistantMessageID": "msg_1c2bfbacc001qd4Rp9t8mf0vdY",
+              "finish": "stop",
+              "rawFinish": "stop",
+              "cost": 0,
+              "tokens": {
+                "input": 8178,
+                "output": 3,
+                "reasoning": 0,
+                "cache": {
+                  "read": 2560,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfc311001G1UBhsWk7SniGs",
+            "created": 1794268709649,
+            "type": "session.usage.updated",
+            "data": {
+              "sessionID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "cost": 0,
+              "tokens": {
+                "input": 8271,
+                "output": 9,
+                "reasoning": 36,
+                "cache": {
+                  "read": 2944,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfc312001PP4yRwbgFQKg7A",
+            "created": 1794268709650,
+            "type": "session.execution.succeeded",
+            "durable": {
+              "aggregateID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "seq": 12,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e3d4046c8ffe8EM1D92veVFA8H"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "prompt": "Which word did I ask you to remember? Reply with just the word.",
+      "steps": [
+        {
+          "event": {
+            "id": "evt_1c2bfc318002vPzmL8oSwQRW2q",
+            "created": 1794268709656,
+            "type": "session.inbox.enqueued",
+            "durable": {
+              "aggregateID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "seq": 13,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "inboxID": "msg_1c2bfc3180010CYmRBhJ7BRWcp",
+              "item": {
+                "type": "user",
+                "payload": {
+                  "text": "Which word did I ask you to remember? Reply with just the word."
+                },
+                "delivery": "steer"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfc319001wT57coPcIaXNJj",
+            "created": 1794268709658,
+            "type": "session.execution.started",
+            "durable": {
+              "aggregateID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "seq": 14,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e3d4046c8ffe8EM1D92veVFA8H"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfc31d0016nQ47mcaarz2Zh",
+            "created": 1794268709661,
+            "type": "session.inbox.delivered",
+            "durable": {
+              "aggregateID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "seq": 15,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "inboxID": "msg_1c2bfc3180010CYmRBhJ7BRWcp"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfc617001OGXiQQSmO4Szyz",
+            "created": 1794268710423,
+            "type": "session.step.started",
+            "durable": {
+              "aggregateID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "seq": 16,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "assistantMessageID": "msg_1c2bfc321001kQkPtb84xx35BJ",
+              "agent": "build",
+              "model": {
+                "id": "big-pickle",
+                "providerID": "opencode"
+              },
+              "started": 1794268709668
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfc619001Heg9JX8zImEzDR",
+            "created": 1794268710426,
+            "type": "session.text.started",
+            "durable": {
+              "aggregateID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "seq": 17,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "assistantMessageID": "msg_1c2bfc321001kQkPtb84xx35BJ",
+              "ordinal": 0
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfc61c001fStJJlVY7jhX4G",
+            "created": 1794268710428,
+            "type": "session.text.delta",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "assistantMessageID": "msg_1c2bfc321001kQkPtb84xx35BJ",
+              "ordinal": 0,
+              "delta": "kiwi"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfc61c002WOqqWWFOJL3fej",
+            "created": 1794268710428,
+            "type": "session.text.ended",
+            "durable": {
+              "aggregateID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "seq": 18,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "assistantMessageID": "msg_1c2bfc321001kQkPtb84xx35BJ",
+              "ordinal": 0,
+              "text": "kiwi"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfc61d001eW6tZKbMnItP1E",
+            "created": 1794268710429,
+            "type": "session.step.streamed",
+            "durable": {
+              "aggregateID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "seq": 19,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "assistantMessageID": "msg_1c2bfc321001kQkPtb84xx35BJ"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfc61e001BGnombM6mlNczU",
+            "created": 1794268710430,
+            "type": "session.step.ended",
+            "durable": {
+              "aggregateID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "seq": 20,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "assistantMessageID": "msg_1c2bfc321001kQkPtb84xx35BJ",
+              "finish": "stop",
+              "rawFinish": "stop",
+              "cost": 0,
+              "tokens": {
+                "input": 135,
+                "output": 4,
+                "reasoning": 0,
+                "cache": {
+                  "read": 10624,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfc61f001TDJU3Lm1NXAueC",
+            "created": 1794268710431,
+            "type": "session.usage.updated",
+            "data": {
+              "sessionID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "cost": 0,
+              "tokens": {
+                "input": 8406,
+                "output": 13,
+                "reasoning": 36,
+                "cache": {
+                  "read": 13568,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfc620001EHUd5a1Dt22u0H",
+            "created": 1794268710432,
+            "type": "session.execution.succeeded",
+            "durable": {
+              "aggregateID": "ses_e3d4046c8ffe8EM1D92veVFA8H",
+              "seq": 21,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e3d4046c8ffe8EM1D92veVFA8H"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

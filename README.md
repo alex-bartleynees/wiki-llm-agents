@@ -55,11 +55,31 @@ be rebuilt from disk: `POST /api/vaults/:id/rebuild-index`.
 
 ### Threads
 
-The right-hand pane (the Chat tab on phone) holds the vault's agent threads. For now
-the only provider is **replay**, which plays recorded turns and spends no tokens; the
-message picks the recording by keyword (`providers/replay/transcripts.ts`): *edit*
-asks for an approval, *question* (or *ask*) asks a question, *long* streams slowly
-(for trying Stop and reloads), *fail* fails, and anything else gives a plain answer.
+The right-hand pane (the Chat tab on phone) holds the vault's agent threads. Pick the
+provider for new threads next to **New thread**:
+
+- **OpenCode** (the default): your installed `opencode` 2.2.x, with your own login and
+  config. The app runs one `opencode serve` on a free localhost port with a generated
+  password, started with the first thread that needs it and stopped 5 minutes after
+  the last one closes (and with the app). Each thread is an OpenCode session in the
+  vault's folder; the thread keeps its session id, so a later message, even after a
+  restart, continues the same conversation. Pick the thread's model in its header
+  (`GET /api/threads/:id/models`, `PUT /api/threads/:id/model`).
+  **Approvals are real:** OpenCode asks before anything but reading (editing or
+  creating a file, a command, the web, any tool the app doesn't know), and approving
+  changes the files. The app answers `once`, never `always` (OpenCode would remember
+  that for every thread in the folder). A denial tells the agent why, and it carries
+  on. Develop against a copy of the vault (below).
+  `GET /api/providers/opencode/status` checks it is installed, a supported version,
+  and starts, without opening a session.
+  The app passes OpenCode a generated password in `OPENCODE_PASSWORD`. A sandbox
+  that drops it (landrun passes only the variables it is given) is fine: OpenCode
+  then prints a password of its own, and the app uses that. The sandbox has to let
+  OpenCode listen on localhost and write in the vault.
+- **Replay** plays recorded turns and spends no tokens; the message picks the
+  recording by keyword (`providers/replay/transcripts.ts`): *edit* asks for an
+  approval, *question* (or *ask*) asks a question, *long* streams slowly (for trying
+  Stop and reloads), *fail* fails, and anything else gives a plain answer.
 
 - `POST /api/vaults/:id/threads` creates a thread; `POST /api/threads/:id/messages`
   starts a turn (409 while one runs); `POST /api/threads/:id/interrupt` stops it;
@@ -71,10 +91,33 @@ asks for an approval, *question* (or *ask*) asks a question, *long* streams slow
   `seq`, then live ones; reconnecting browsers send `Last-Event-ID`, so a reload or a
   dropped connection mid-turn misses nothing and repeats nothing.
 - At startup the server wakes threads left mid-turn: a turn that never reached the
-  provider is started, one waiting on an approval or question stays answerable, and
-  one that was streaming is closed as interrupted.
+  provider is started, one waiting on an approval or question stays answerable
+  (replay), and one that was streaming is closed as interrupted. OpenCode can't
+  resume: its server stops with the app and cancels the turn and its pending
+  approvals, so an OpenCode turn cut off by a restart is closed as interrupted.
 
-The app only reads vaults until change review exists (slice 8). Dot-folders
+#### OpenCode tests and recordings
+
+The OpenCode adapter is tested against real OpenCode event streams recorded into
+`apps/server/tests/fixtures/opencode/*.json` and played back by a fake server
+(`fake-api.ts`), so tests spend nothing and need no OpenCode. To record them again
+(after upgrading OpenCode, say), on OpenCode's default model unless `--model` says
+otherwise:
+
+```bash
+nix develop -c npm run record:opencode -w @wiki-agents/server -- [scenario...]
+```
+
+One opt-in test runs a real turn on the installed OpenCode:
+`WIKI_AGENTS_LIVE_OPENCODE=1 nix develop -c npx vitest run tests/live` (in
+`apps/server`).
+
+The client library is `@opencode/client` (and `@opencode/protocol`), pinned to exactly
+the installed OpenCode's version (2.2.1); they ask for an older `effect`, which the
+root `overrides` replaces with the app's, so there is one copy.
+
+The app itself only reads vaults until change review exists (slice 8); agents
+change files when you approve. Dot-folders
 (`.git`, `.obsidian`, `.trash`, `.stfolder`...) and Syncthing conflict copies are
 hidden, and the path guard refuses anything that resolves outside the vault,
 symlinks included.
@@ -116,3 +159,4 @@ design/             Claude Design mockup
 | `WIKI_AGENTS_DATA_DIR` | `$XDG_DATA_HOME/wiki-agents` (`.data/` in `nix run .#dev`) |
 | `WIKI_AGENTS_STATIC_DIR` | unset; the packaged binary points it at the web build |
 | `WIKI_AGENTS_MIGRATIONS_DIR` | `apps/server/drizzle` |
+| `WIKI_AGENTS_OPENCODE` | `opencode` (looked up on `PATH`) |

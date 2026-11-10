@@ -14,6 +14,16 @@
     busy = false;
   };
 
+  /** A unified diff's lines, marked for colour; its file header lines are left out. Text only. */
+  const detailLines = $derived(
+    request.prompt._tag === "approval"
+      ? request.prompt.detail
+          .split("\n")
+          .filter((line) => !/^(Index: |={10,}$|--- |\+\+\+ )/.test(line))
+          .map((line) => ({ line, kind: line.startsWith("@@") ? "hunk" : line.startsWith("+") ? "ins" : line.startsWith("-") ? "del" : "same" }))
+      : [],
+  );
+
   const outcome = $derived.by(() => {
     const answer = request.answer;
     if (answer === "pending") return "";
@@ -28,7 +38,7 @@
     <p class="kind mono">Approval needed</p>
     <p class="title">{request.prompt.title}</p>
     {#if request.prompt.detail}
-      <pre class="mono">{request.prompt.detail}</pre>
+      <pre class="mono">{#each detailLines as { line, kind }, index (index)}<span data-kind={kind}>{line}</span>{"\n"}{/each}</pre>
     {/if}
     {#if pending}
       <div class="actions">
@@ -95,6 +105,15 @@
     font-size: 12px;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
+  }
+  pre [data-kind="ins"] {
+    color: var(--ins);
+  }
+  pre [data-kind="del"] {
+    color: var(--del);
+  }
+  pre [data-kind="hunk"] {
+    color: var(--ink-3);
   }
   .actions {
     display: flex;

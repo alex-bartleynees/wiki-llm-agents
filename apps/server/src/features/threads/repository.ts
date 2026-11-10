@@ -35,6 +35,12 @@ export interface RequestRecord {
 export interface ThreadRepositoryService {
   readonly insert: (thread: NewThread) => Effect.Effect<ThreadSummary, DbError>;
   readonly find: (threadId: string) => Effect.Effect<Option.Option<ThreadSummary>, DbError>;
+  /** What the provider needs to continue the thread's conversation. */
+  readonly providerSession: (
+    threadId: string,
+  ) => Effect.Effect<{ readonly nativeSessionId: string | null; readonly model: string | null }, DbError>;
+  readonly setNativeSession: (threadId: string, nativeSessionId: string | null) => Effect.Effect<void, DbError>;
+  readonly setModel: (threadId: string, model: string, at: number) => Effect.Effect<ThreadSummary, DbError>;
   /** Most recently updated first. */
   readonly listByVault: (vaultId: string) => Effect.Effect<ReadonlyArray<ThreadSummary>, DbError>;
   /** Events with a seq greater than `afterSeq`, in order. */

@@ -20,84 +20,33 @@ import { makeHttpApp } from "../../src/app/layers.js";
 import { SERVER_STOPPED } from "../../src/features/threads/thread-actor.js";
 import { ThreadBus } from "../../src/features/threads/thread-bus.js";
 import { makeSqlite, Sqlite } from "../../src/shared/persistence/sqlite.js";
-import { TestApp } from "./infrastructure/test-app.js";
+import { ReplayOnly, TestApp } from "./infrastructure/test-app.js";
 import { makeTestVault } from "./infrastructure/test-vault.js";
 
-/** Longer than any replay transcript takes. */
-const PLAY_ALL = "10 minutes";
-
-const decode = <A>(schema: Schema.ConstraintDecoder<A>) => (response: HttpClientResponse.HttpClientResponse) =>
-  HttpClientResponse.filterStatusOk(response).pipe(Effect.flatMap(HttpClientResponse.schemaBodyJson(schema)));
-
-const post = (path: string, body: unknown) =>
-  HttpClient.execute(HttpClientRequest.post(path).pipe(HttpClientRequest.bodyJsonUnsafe(body)));
-
-const newVault = Effect.gen(function* () {
-  const { root } = yield* makeTestVault({ files: { "index.md": "# Home" } });
-  const { vault } = yield* post("/api/vaults", { rootPath: root }).pipe(Effect.flatMap(decode(RegisterVaultResponse)));
-  return vault;
-});
-
-const newThread = (vaultId: string) =>
-  post(`/api/vaults/${vaultId}/threads`, {}).pipe(
-    Effect.flatMap(decode(CreateThreadResponse)),
-    Effect.map((response) => response.thread),
-  );
-
-const send = (threadId: string, text: string) => post(`/api/threads/${threadId}/messages`, { text });
-const sendOk = (threadId: string, text: string) =>
-  send(threadId, text).pipe(
-    Effect.flatMap(decode(SendMessageResponse)),
-    Effect.map((response) => response.turnId),
-  );
-const interrupt = (threadId: string) => post(`/api/threads/${threadId}/interrupt`, {});
-const answer = (threadId: string, requestId: string, value: RequestAnswer) =>
-  post(`/api/threads/${threadId}/requests/${encodeURIComponent(requestId)}`, { answer: value });
-
-const getThread = (threadId: string) => HttpClient.get(`/api/threads/${threadId}`).pipe(Effect.flatMap(decode(GetThreadResponse)));
-const tags = (events: ReadonlyArray<StoredThreadEvent>) => events.map((stored) => stored.event._tag);
-
-/**
- * Subscribes to the thread's events now; `until` then plays the replay forward on
- * the test clock (by `advance`) and collects events up to the first one matching `done`.
- */
-const watch = (threadId: string) =>
-  Effect.gen(function* () {
-    const subscription = yield* (yield* ThreadBus).subscribeEvents;
-    const until = (done: (event: ThreadEvent) => boolean, advance: Duration.Input = PLAY_ALL) =>
-      Effect.gen(function* () {
-        const collect = Effect.gen(function* () {
-          const seen: Array<ThreadEvent> = [];
-          while (true) {
-            const stored = yield* PubSub.take(subscription);
-            if (stored.threadId !== threadId) continue;
-            seen.push(stored.event);
-            if (done(stored.event)) return seen;
-          }
-        });
-        const fiber = yield* Effect.forkChild(collect);
-        yield* TestClock.adjust(advance);
-        return yield* Fiber.join(fiber);
-      });
-    return { until };
-  });
-
-const isTag = (tag: ThreadEvent["_tag"]) => (event: ThreadEvent) => event._tag === tag;
-
-const requestIdOf = (events: ReadonlyArray<ThreadEvent>) => {
-  const opened = events.find((event) => event._tag === "request.opened");
-  if (opened?._tag !== "request.opened") throw new Error("no request was opened");
-  return opened.requestId;
-};
-
-const status = (threadId: string) => Effect.map(getThread(threadId), (response) => response.thread.status);
+import {
+  answer,
+  decode,
+  getThread,
+  interrupt,
+  isTag,
+  newThread,
+  newVault,
+  PLAY_ALL,
+  post,
+  requestIdOf,
+  send,
+  sendOk,
+  status,
+  tags,
+  watch,
+} from "./infrastructure/threads.js";
 
 layer(TestApp)("threads", (it) => {
   it.effect("lists the replay provider", () =>
     Effect.gen(function* () {
       const { providers } = yield* HttpClient.get("/api/providers").pipe(Effect.flatMap(decode(ListProvidersResponse)));
       expect(providers).toEqual([
-        expect.objectContaining({ id: "replay", kind: "replay", capabilities: { interrupt: true, resume: true, approvals: true, questions: true } }),
+        expect.objectContaining({ id: "replay", kind: "replay", capabilities: { interrupt: true, resume: true, approvals: true, questions: true, models: false } }),
       ]);
     }),
   );
@@ -329,7 +278,7 @@ const migrationsDir = fileURLToPath(new URL("../../drizzle", import.meta.url));
  * part of it. Closing the scope stops it, like stopping the server.
  */
 const appOn = (file: string) =>
-  makeHttpApp({ vaults: [], watch: false }).pipe(
+  makeHttpApp({ vaults: [], watch: false, providers: ReplayOnly }).pipe(
     Layer.provideMerge(Layer.effect(Sqlite, makeSqlite({ file, migrationsDir }))),
     Layer.provideMerge(NodeHttpServer.layerTest),
   );

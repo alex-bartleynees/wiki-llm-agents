@@ -1,0 +1,731 @@
+{
+  "scenario": "question",
+  "opencodeVersion": "2.2.1",
+  "model": "opencode/big-pickle",
+  "sessionId": "ses_e3d3ff929ffed560moEISFyidj",
+  "turns": [
+    {
+      "prompt": "Use your question tool to ask me which tea I prefer, offering Earl Grey and Sencha. Then reply with one sentence about my answer. Don't edit files.",
+      "steps": [
+        {
+          "event": {
+            "id": "evt_1c2c006df001XozLTY3Ct8YKzE",
+            "created": 1794268727007,
+            "type": "session.created",
+            "durable": {
+              "aggregateID": "ses_e3d3ff929ffed560moEISFyidj",
+              "seq": 0,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3ff929ffed560moEISFyidj",
+              "projectID": "434097553bfc0d17a7c9cb79eb76b3b0f7ab0893",
+              "location": {
+                "directory": "/__vault__"
+              },
+              "subpath": "",
+              "slug": "calm-lagoon",
+              "permissions": [
+                {
+                  "action": "*",
+                  "resource": "*",
+                  "effect": "ask"
+                },
+                {
+                  "action": "read",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "glob",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "grep",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "list",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "lsp",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "question",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "todowrite",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "skill",
+                  "resource": "*",
+                  "effect": "allow"
+                }
+              ],
+              "version": "2.2.1"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c0085a002YPC0pO1zNNMrBV",
+            "created": 1794268727386,
+            "type": "session.inbox.enqueued",
+            "durable": {
+              "aggregateID": "ses_e3d3ff929ffed560moEISFyidj",
+              "seq": 1,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3ff929ffed560moEISFyidj",
+              "inboxID": "msg_1c2c0070e001uZnFawh6vFvh8R",
+              "item": {
+                "type": "user",
+                "payload": {
+                  "text": "Use your question tool to ask me which tea I prefer, offering Earl Grey and Sencha. Then reply with one sentence about my answer. Don't edit files."
+                },
+                "delivery": "steer"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c0085c001vrFHHGeTHwCbWq",
+            "created": 1794268727388,
+            "type": "session.execution.started",
+            "durable": {
+              "aggregateID": "ses_e3d3ff929ffed560moEISFyidj",
+              "seq": 2,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e3d3ff929ffed560moEISFyidj"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c0086c001fyy1OZwM0K2xOL",
+            "created": 1794268727404,
+            "metadata": {
+              "instructions": {
+                "initial": true
+              }
+            },
+            "type": "session.instructions.updated",
+            "durable": {
+              "aggregateID": "ses_e3d3ff929ffed560moEISFyidj",
+              "seq": 3,
+              "version": 2
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3ff929ffed560moEISFyidj",
+              "delta": {
+                "core/codemode": "3cca2f6160e1959e237c6b88bbc49667e6b6b2041a5456468278ce5e04d8176c",
+                "core/skill-guidance": "7a5bbb2148ce6b88c4b8c09705f0f95b16b7e57695a158ae8c2ab39019889d1e",
+                "core/date": "9b4c63b67003f693d244434de4080cc42a552c634280bc3f4122cd1f1ed9d38c",
+                "core/environment": "17dbd334564c9073f3183e812b87093ebaaf39663fd1ea9dc9c63efa45f56919"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c0086e001wN253XNEa2Gezw",
+            "created": 1794268727406,
+            "type": "session.inbox.delivered",
+            "durable": {
+              "aggregateID": "ses_e3d3ff929ffed560moEISFyidj",
+              "seq": 4,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3ff929ffed560moEISFyidj",
+              "inboxID": "msg_1c2c0070e001uZnFawh6vFvh8R"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c00b75001sZtTcYhhPMz0Ov",
+            "created": 1794268728181,
+            "type": "session.step.started",
+            "durable": {
+              "aggregateID": "ses_e3d3ff929ffed560moEISFyidj",
+              "seq": 5,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3ff929ffed560moEISFyidj",
+              "assistantMessageID": "msg_1c2c00879001xVWyTQgGr19vFy",
+              "agent": "build",
+              "model": {
+                "id": "big-pickle",
+                "providerID": "opencode"
+              },
+              "started": 1794268727420
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c00b78001xjVWsMgWqnaE4h",
+            "created": 1794268728184,
+            "type": "session.text.started",
+            "durable": {
+              "aggregateID": "ses_e3d3ff929ffed560moEISFyidj",
+              "seq": 6,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3ff929ffed560moEISFyidj",
+              "assistantMessageID": "msg_1c2c00879001xVWyTQgGr19vFy",
+              "ordinal": 0
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c00bde001GASUd3EWSS2d2b",
+            "created": 1794268728286,
+            "type": "session.text.delta",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3ff929ffed560moEISFyidj",
+              "assistantMessageID": "msg_1c2c00879001xVWyTQgGr19vFy",
+              "ordinal": 0,
+              "delta": "I'll ask you now"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c00c81001YGahsPaDUqbzIx",
+            "created": 1794268728449,
+            "type": "session.text.delta",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3ff929ffed560moEISFyidj",
+              "assistantMessageID": "msg_1c2c00879001xVWyTQgGr19vFy",
+              "ordinal": 0,
+              "delta": ".\n\n"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c00c81002FiPNc9G6bxE0iP",
+            "created": 1794268728449,
+            "type": "session.tool.input.started",
+            "durable": {
+              "aggregateID": "ses_e3d3ff929ffed560moEISFyidj",
+              "seq": 7,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3ff929ffed560moEISFyidj",
+              "assistantMessageID": "msg_1c2c00879001xVWyTQgGr19vFy",
+              "id": "chatcmpl-tool-a11ad988c8d77b2f",
+              "name": "question"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c00f12001JPQuLyahPIxMW7",
+            "created": 1794268729106,
+            "type": "session.tool.input.ended",
+            "durable": {
+              "aggregateID": "ses_e3d3ff929ffed560moEISFyidj",
+              "seq": 8,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3ff929ffed560moEISFyidj",
+              "assistantMessageID": "msg_1c2c00879001xVWyTQgGr19vFy",
+              "id": "chatcmpl-tool-a11ad988c8d77b2f",
+              "text": "{\"questions\": [{\"question\": \"Which tea do you prefer?\", \"header\": \"Tea preference\", \"options\": [{\"label\": \"Earl Grey\", \"description\": \"Black tea scented with bergamot\"}, {\"label\": \"Sencha\", \"description\": \"Japanese green tea\"}]}]}"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c00f14001rStA4zaY5aF8Pn",
+            "created": 1794268729108,
+            "type": "session.tool.called",
+            "durable": {
+              "aggregateID": "ses_e3d3ff929ffed560moEISFyidj",
+              "seq": 9,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3ff929ffed560moEISFyidj",
+              "assistantMessageID": "msg_1c2c00879001xVWyTQgGr19vFy",
+              "id": "chatcmpl-tool-a11ad988c8d77b2f",
+              "input": {
+                "questions": [
+                  {
+                    "question": "Which tea do you prefer?",
+                    "header": "Tea preference",
+                    "options": [
+                      {
+                        "label": "Earl Grey",
+                        "description": "Black tea scented with bergamot"
+                      },
+                      {
+                        "label": "Sencha",
+                        "description": "Japanese green tea"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "executed": false
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c00f15001fcGZ5vYdn4bE44",
+            "created": 1794268729109,
+            "type": "session.text.ended",
+            "durable": {
+              "aggregateID": "ses_e3d3ff929ffed560moEISFyidj",
+              "seq": 10,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3ff929ffed560moEISFyidj",
+              "assistantMessageID": "msg_1c2c00879001xVWyTQgGr19vFy",
+              "ordinal": 0,
+              "text": "I'll ask you now.\n\n"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c00f17001ESqgShjw647sDd",
+            "created": 1794268729111,
+            "type": "session.step.streamed",
+            "durable": {
+              "aggregateID": "ses_e3d3ff929ffed560moEISFyidj",
+              "seq": 11,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3ff929ffed560moEISFyidj",
+              "assistantMessageID": "msg_1c2c00879001xVWyTQgGr19vFy"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c00f1a0026eluSkCiNz9PlB",
+            "created": 1794268729114,
+            "type": "form.created",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "form": {
+                "id": "frm_1c2c00f1a001X5kawe6zwUoiBi",
+                "sessionID": "ses_e3d3ff929ffed560moEISFyidj",
+                "title": "Questions",
+                "metadata": {
+                  "kind": "question",
+                  "tool": {
+                    "messageID": "msg_1c2c00879001xVWyTQgGr19vFy",
+                    "id": "chatcmpl-tool-a11ad988c8d77b2f"
+                  }
+                },
+                "fields": [
+                  {
+                    "key": "q0",
+                    "title": "Tea preference",
+                    "description": "Which tea do you prefer?",
+                    "type": "string",
+                    "options": [
+                      {
+                        "value": "Earl Grey",
+                        "label": "Earl Grey",
+                        "description": "Black tea scented with bergamot"
+                      },
+                      {
+                        "value": "Sencha",
+                        "label": "Sencha",
+                        "description": "Japanese green tea"
+                      }
+                    ],
+                    "custom": true
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "call": "reply",
+          "requestId": "frm_1c2c00f1a001X5kawe6zwUoiBi",
+          "reply": "Sencha"
+        },
+        {
+          "event": {
+            "id": "evt_1c2c00f1f0013TH0YTib1lzV86",
+            "created": 1794268729119,
+            "type": "form.replied",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "id": "frm_1c2c00f1a001X5kawe6zwUoiBi",
+              "sessionID": "ses_e3d3ff929ffed560moEISFyidj",
+              "answer": {
+                "q0": "Sencha"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c00f1f002pINmvhXlMUGUY7",
+            "created": 1794268729119,
+            "type": "session.tool.success",
+            "durable": {
+              "aggregateID": "ses_e3d3ff929ffed560moEISFyidj",
+              "seq": 12,
+              "version": 2
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3ff929ffed560moEISFyidj",
+              "assistantMessageID": "msg_1c2c00879001xVWyTQgGr19vFy",
+              "id": "chatcmpl-tool-a11ad988c8d77b2f",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "User has answered your questions: \"Which tea do you prefer?\"=\"Sencha\". You can now continue with the user's answers in mind."
+                }
+              ],
+              "metadata": {
+                "answers": [
+                  [
+                    "Sencha"
+                  ]
+                ],
+                "truncated": false
+              },
+              "executed": false
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c00f210016gdk2LLOVGPnWr",
+            "created": 1794268729121,
+            "type": "session.step.ended",
+            "durable": {
+              "aggregateID": "ses_e3d3ff929ffed560moEISFyidj",
+              "seq": 13,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3ff929ffed560moEISFyidj",
+              "assistantMessageID": "msg_1c2c00879001xVWyTQgGr19vFy",
+              "finish": "tool-calls",
+              "rawFinish": "tool_calls",
+              "cost": 0,
+              "tokens": {
+                "input": 8197,
+                "output": 103,
+                "reasoning": 0,
+                "cache": {
+                  "read": 2560,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c00f22001v0bwvh0mo5bE4y",
+            "created": 1794268729122,
+            "type": "session.usage.updated",
+            "data": {
+              "sessionID": "ses_e3d3ff929ffed560moEISFyidj",
+              "cost": 0,
+              "tokens": {
+                "input": 8197,
+                "output": 103,
+                "reasoning": 0,
+                "cache": {
+                  "read": 2560,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c012d3001dxv8k2JJftpluw",
+            "created": 1794268730067,
+            "type": "session.usage.updated",
+            "data": {
+              "sessionID": "ses_e3d3ff929ffed560moEISFyidj",
+              "cost": 0,
+              "tokens": {
+                "input": 8311,
+                "output": 111,
+                "reasoning": 114,
+                "cache": {
+                  "read": 2944,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c012d30025RZQuRVyUq1TGZ",
+            "created": 1794268730067,
+            "type": "session.renamed",
+            "durable": {
+              "aggregateID": "ses_e3d3ff929ffed560moEISFyidj",
+              "seq": 15,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3ff929ffed560moEISFyidj",
+              "title": "Earl Grey vs Sencha"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c01301001cXh3nF99RitYvd",
+            "created": 1794268730113,
+            "type": "session.step.started",
+            "durable": {
+              "aggregateID": "ses_e3d3ff929ffed560moEISFyidj",
+              "seq": 16,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3ff929ffed560moEISFyidj",
+              "assistantMessageID": "msg_1c2c00f280013HitAJxsuulyhw",
+              "agent": "build",
+              "model": {
+                "id": "big-pickle",
+                "providerID": "opencode"
+              },
+              "started": 1794268729132
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c01302001R8gPeXArp2vstm",
+            "created": 1794268730114,
+            "type": "session.text.started",
+            "durable": {
+              "aggregateID": "ses_e3d3ff929ffed560moEISFyidj",
+              "seq": 17,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3ff929ffed560moEISFyidj",
+              "assistantMessageID": "msg_1c2c00f280013HitAJxsuulyhw",
+              "ordinal": 0
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c0130a001fp1WQUSiPygaUj",
+            "created": 1794268730122,
+            "type": "session.text.delta",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3ff929ffed560moEISFyidj",
+              "assistantMessageID": "msg_1c2c00f280013HitAJxsuulyhw",
+              "ordinal": 0,
+              "delta": "You prefer Sencha, the Japanese green tea."
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c0130a002s4eVQDIqrJyVK2",
+            "created": 1794268730122,
+            "type": "session.text.ended",
+            "durable": {
+              "aggregateID": "ses_e3d3ff929ffed560moEISFyidj",
+              "seq": 18,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3ff929ffed560moEISFyidj",
+              "assistantMessageID": "msg_1c2c00f280013HitAJxsuulyhw",
+              "ordinal": 0,
+              "text": "You prefer Sencha, the Japanese green tea."
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c0130c0019V1YHrti4HawMV",
+            "created": 1794268730124,
+            "type": "session.step.streamed",
+            "durable": {
+              "aggregateID": "ses_e3d3ff929ffed560moEISFyidj",
+              "seq": 19,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3ff929ffed560moEISFyidj",
+              "assistantMessageID": "msg_1c2c00f280013HitAJxsuulyhw"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c0130d001t6dXUB2YecRRxY",
+            "created": 1794268730125,
+            "type": "session.step.ended",
+            "durable": {
+              "aggregateID": "ses_e3d3ff929ffed560moEISFyidj",
+              "seq": 20,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3ff929ffed560moEISFyidj",
+              "assistantMessageID": "msg_1c2c00f280013HitAJxsuulyhw",
+              "finish": "stop",
+              "rawFinish": "stop",
+              "cost": 0,
+              "tokens": {
+                "input": 147,
+                "output": 12,
+                "reasoning": 0,
+                "cache": {
+                  "read": 10752,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c0130e001Sh7REdgZp3ZtNQ",
+            "created": 1794268730126,
+            "type": "session.usage.updated",
+            "data": {
+              "sessionID": "ses_e3d3ff929ffed560moEISFyidj",
+              "cost": 0,
+              "tokens": {
+                "input": 8458,
+                "output": 123,
+                "reasoning": 114,
+                "cache": {
+                  "read": 13696,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c0130f001STcQfxTxkRcozz",
+            "created": 1794268730127,
+            "type": "session.execution.succeeded",
+            "durable": {
+              "aggregateID": "ses_e3d3ff929ffed560moEISFyidj",
+              "seq": 21,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e3d3ff929ffed560moEISFyidj"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,243 @@
+{
+  "scenario": "interrupt-after-send",
+  "opencodeVersion": "2.2.1",
+  "model": "opencode/big-pickle",
+  "sessionId": "ses_e3d3feba0ffeE7r90JSsZkipzf",
+  "turns": [
+    {
+      "prompt": "Write a 500-word story about a lighthouse.",
+      "steps": [
+        {
+          "call": "interrupt",
+          "withdrawn": true,
+          "interrupted": true
+        },
+        {
+          "event": {
+            "id": "evt_1c2c01467001ZolFW3iXNJR08Z",
+            "created": 1794268730471,
+            "type": "session.created",
+            "durable": {
+              "aggregateID": "ses_e3d3feba0ffeE7r90JSsZkipzf",
+              "seq": 0,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3feba0ffeE7r90JSsZkipzf",
+              "projectID": "500626da1949d87456962158c44e260b93486a68",
+              "location": {
+                "directory": "/__vault__"
+              },
+              "subpath": "",
+              "slug": "neon-planet",
+              "permissions": [
+                {
+                  "action": "*",
+                  "resource": "*",
+                  "effect": "ask"
+                },
+                {
+                  "action": "read",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "glob",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "grep",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "list",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "lsp",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "question",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "todowrite",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "skill",
+                  "resource": "*",
+                  "effect": "allow"
+                }
+              ],
+              "version": "2.2.1"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c015e0002odzsIEqHualfSX",
+            "created": 1794268730848,
+            "type": "session.inbox.enqueued",
+            "durable": {
+              "aggregateID": "ses_e3d3feba0ffeE7r90JSsZkipzf",
+              "seq": 1,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3feba0ffeE7r90JSsZkipzf",
+              "inboxID": "msg_1c2c0148e001DKGbYzAFala1n2",
+              "item": {
+                "type": "user",
+                "payload": {
+                  "text": "Write a 500-word story about a lighthouse."
+                },
+                "delivery": "steer"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c015e3001hKwcmBDVr7l1ri",
+            "created": 1794268730851,
+            "type": "session.execution.started",
+            "durable": {
+              "aggregateID": "ses_e3d3feba0ffeE7r90JSsZkipzf",
+              "seq": 2,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e3d3feba0ffeE7r90JSsZkipzf"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c015f1001WjuwvNxBFGuDmF",
+            "created": 1794268730865,
+            "metadata": {
+              "instructions": {
+                "initial": true
+              }
+            },
+            "type": "session.instructions.updated",
+            "durable": {
+              "aggregateID": "ses_e3d3feba0ffeE7r90JSsZkipzf",
+              "seq": 3,
+              "version": 2
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3feba0ffeE7r90JSsZkipzf",
+              "delta": {
+                "core/codemode": "3cca2f6160e1959e237c6b88bbc49667e6b6b2041a5456468278ce5e04d8176c",
+                "core/skill-guidance": "7a5bbb2148ce6b88c4b8c09705f0f95b16b7e57695a158ae8c2ab39019889d1e",
+                "core/date": "9b4c63b67003f693d244434de4080cc42a552c634280bc3f4122cd1f1ed9d38c",
+                "core/environment": "232a44241042eb69dd691096f6a3ee6b2b10c51df4ad6e903370f581bc72d42d"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c015f30016221LYpDSqb8LQ",
+            "created": 1794268730867,
+            "type": "session.inbox.delivered",
+            "durable": {
+              "aggregateID": "ses_e3d3feba0ffeE7r90JSsZkipzf",
+              "seq": 4,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3feba0ffeE7r90JSsZkipzf",
+              "inboxID": "msg_1c2c0148e001DKGbYzAFala1n2"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c0160700132aMw1gcmTH3L8",
+            "created": 1794268730887,
+            "type": "session.step.started",
+            "durable": {
+              "aggregateID": "ses_e3d3feba0ffeE7r90JSsZkipzf",
+              "seq": 5,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3feba0ffeE7r90JSsZkipzf",
+              "assistantMessageID": "msg_1c2c015fe001lw4YO1xs0mQCi7",
+              "agent": "build",
+              "model": {
+                "id": "big-pickle",
+                "providerID": "opencode"
+              },
+              "started": 1794268730881
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c01608001hKK26TU3fSv3Ee",
+            "created": 1794268730888,
+            "type": "session.step.failed",
+            "durable": {
+              "aggregateID": "ses_e3d3feba0ffeE7r90JSsZkipzf",
+              "seq": 6,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3feba0ffeE7r90JSsZkipzf",
+              "assistantMessageID": "msg_1c2c015fe001lw4YO1xs0mQCi7",
+              "error": {
+                "type": "aborted",
+                "message": "Step interrupted"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c0160b001uP1eg38t3oWpGy",
+            "created": 1794268730891,
+            "type": "session.execution.interrupted",
+            "durable": {
+              "aggregateID": "ses_e3d3feba0ffeE7r90JSsZkipzf",
+              "seq": 7,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e3d3feba0ffeE7r90JSsZkipzf",
+              "reason": "user"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

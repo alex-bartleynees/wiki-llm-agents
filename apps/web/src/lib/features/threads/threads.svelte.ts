@@ -4,6 +4,7 @@ import { errorMessage, isAbort } from "#lib/api/client.ts";
 import { listen } from "#lib/api/sse.ts";
 import { createThread, listThreads, vaultThreadsEventsPath } from "./api.ts";
 import { openThread } from "./open-thread.svelte.ts";
+import { providers } from "./providers.svelte.ts";
 
 /** The thread open in each vault, remembered on this device. */
 const selectedKey = (vaultId: string) => `wiki-agents:thread:${vaultId}`;
@@ -74,7 +75,7 @@ class ThreadsStore {
     const vaultId = this.#vaultId;
     if (vaultId === undefined) return;
     try {
-      const { thread } = await createThread(vaultId);
+      const { thread } = await createThread(vaultId, providers.chosen?.id);
       this.#upsert(thread);
       this.select(thread.id);
       this.error = undefined;

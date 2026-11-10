@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
-import type { RequestAnswer, ThreadEvent, TurnOutcome, TurnUsage } from "@wiki-agents/contracts/threads/model";
+import type { RequestAnswer, ThreadEvent, ThreadSummary, TurnOutcome, TurnUsage } from "@wiki-agents/contracts/threads/model";
 import { Cause, Clock, Deferred, Effect, Exit, Fiber, Option, Queue, Scope, Stream } from "effect";
 import type { DbError } from "../../shared/persistence/errors.js";
-import type { ProviderError, ProviderEvent, ProviderSession } from "../providers/port.js";
+import { ProviderError, type ProviderEvent, type ProviderSession } from "../providers/port.js";
 import { ProviderRegistry } from "../providers/registry.js";
 import { findVault } from "../vaults/find-vault.js";
 import { NoTurnRunning, RequestClosed, RequestNotFound, ThreadBusy, ThreadNotFound, WrongAnswerKind } from "./errors.js";
@@ -20,6 +20,7 @@ type Message =
       readonly answer: RequestAnswer;
       readonly reply: Deferred.Deferred<void, AnswerError>;
     }
+  | { readonly _tag: "SetModel"; readonly model: string; readonly reply: Deferred.Deferred<ThreadSummary, DbError | ProviderError> }
   /** From the turn's provider fiber; ignored once that turn is over. */
   | { readonly _tag: "ProviderEvent"; readonly turnId: string; readonly event: ProviderEvent }
   | { readonly _tag: "ProviderEnded"; readonly turnId: string; readonly exit: Exit.Exit<void, ProviderError> };
@@ -32,6 +33,8 @@ export interface ThreadActor {
   /** Stops the running turn; returns its id. */
   readonly interrupt: Effect.Effect<string, NoTurnRunning | DbError>;
   readonly answerRequest: (requestId: string, answer: RequestAnswer) => Effect.Effect<void, AnswerError>;
+  /** Saves the thread's model and tells an open provider session to use it from the next turn. */
+  readonly setModel: (model: string) => Effect.Effect<ThreadSummary, DbError | ProviderError>;
 }
 
 interface RunningTurn {
@@ -72,9 +75,20 @@ export const makeThreadActor = Effect.fnUntraced(function* (
   let turn: RunningTurn | undefined;
   const pending = new Map<string, PendingRequest>();
 
+  /** Opens the provider session on first use, continuing the thread's earlier one if the provider still has it. */
   const openSession = Effect.gen(function* () {
-    session ??= yield* adapter.openSession({ threadId, cwd: vault.rootPath, nativeSessionId: null }).pipe(Scope.provide(actorScope));
-    return session;
+    if (session !== undefined) return session;
+    const stored = yield* repository.providerSession(threadId);
+    const opened = yield* adapter
+      .openSession({ threadId, cwd: vault.rootPath, nativeSessionId: stored.nativeSessionId, model: stored.model })
+      .pipe(Scope.provide(actorScope));
+    if (opened.nativeSessionId !== stored.nativeSessionId) {
+      yield* repository.setNativeSession(threadId, opened.nativeSessionId).pipe(
+        Effect.mapError((cause) => new ProviderError({ message: "Couldn't save the provider's session.", cause })),
+      );
+    }
+    session = opened;
+    return opened;
   });
 
   const record = Effect.fnUntraced(function* (events: ReadonlyArray<ThreadEvent>, options?: { readonly startTurn?: string }) {
@@ -178,6 +192,13 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     if (answered._tag === "Failure") yield* finish("failed", null, answered.failure.message);
   });
 
+  const setModel = Effect.fnUntraced(function* (model: string) {
+    const summary = yield* repository.setModel(threadId, model, yield* Clock.currentTimeMillis);
+    if (session !== undefined) yield* session.setModel(model);
+    yield* bus.publishThread(summary);
+    return summary;
+  });
+
   const onProviderEvent = Effect.fnUntraced(function* (event: ProviderEvent) {
     switch (event._tag) {
       case "turn.finished":
@@ -209,6 +230,8 @@ export const makeThreadActor = Effect.fnUntraced(function* (
         return Effect.asVoid(
           Effect.flatMap(Effect.exit(answerRequest(message.requestId, message.answer)), (exit) => Deferred.done(message.reply, exit)),
         );
+      case "SetModel":
+        return Effect.asVoid(Effect.flatMap(Effect.exit(setModel(message.model)), (exit) => Deferred.done(message.reply, exit)));
       case "ProviderEvent":
         return turn?.id === message.turnId ? onProviderEvent(message.event) : Effect.void;
       case "ProviderEnded":
@@ -235,6 +258,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     sendMessage: (text) => ask((reply) => ({ _tag: "SendMessage", text, reply })),
     interrupt: ask((reply) => ({ _tag: "Interrupt", reply })),
     answerRequest: (requestId, answer) => ask((reply) => ({ _tag: "AnswerRequest", requestId, answer, reply })),
+    setModel: (model) => ask((reply) => ({ _tag: "SetModel", model, reply })),
   };
   return actor;
 });

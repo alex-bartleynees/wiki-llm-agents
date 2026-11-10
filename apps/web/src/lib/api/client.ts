@@ -41,7 +41,23 @@ export const getJson = async <S extends Schema.ConstraintDecoder<unknown>>(
   decodeResponse(await fetch(path, { headers: { accept: "application/json" }, signal: signal ?? null }), schema);
 
 /** POST a request encoded with the operation's request schema; decode the response. */
-export const postJson = async <R extends Schema.ConstraintCodec<unknown, unknown>, S extends Schema.ConstraintDecoder<unknown>>(
+export const postJson = <R extends Schema.ConstraintCodec<unknown, unknown>, S extends Schema.ConstraintDecoder<unknown>>(
+  path: string,
+  request: R,
+  body: R["Type"],
+  schema: S,
+): Promise<S["Type"]> => writeJson("POST", path, request, body, schema);
+
+/** PUT, as `postJson`. */
+export const putJson = <R extends Schema.ConstraintCodec<unknown, unknown>, S extends Schema.ConstraintDecoder<unknown>>(
+  path: string,
+  request: R,
+  body: R["Type"],
+  schema: S,
+): Promise<S["Type"]> => writeJson("PUT", path, request, body, schema);
+
+const writeJson = async <R extends Schema.ConstraintCodec<unknown, unknown>, S extends Schema.ConstraintDecoder<unknown>>(
+  method: "POST" | "PUT",
   path: string,
   request: R,
   body: R["Type"],
@@ -49,7 +65,7 @@ export const postJson = async <R extends Schema.ConstraintCodec<unknown, unknown
 ): Promise<S["Type"]> => {
   const encoded = await Schema.encodeUnknownPromise(request)(body);
   const response = await send(path, {
-    method: "POST",
+    method,
     headers: { accept: "application/json", "content-type": "application/json" },
     body: JSON.stringify(encoded),
   });

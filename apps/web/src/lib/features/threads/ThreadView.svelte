@@ -2,6 +2,8 @@
   import { tick } from "svelte";
   import AgentText from "./AgentText.svelte";
   import Composer from "./Composer.svelte";
+  import ModelPicker from "./ModelPicker.svelte";
+  import { providers } from "./providers.svelte.ts";
   import RequestCard from "./RequestCard.svelte";
   import { openThread } from "./open-thread.svelte.ts";
   import { STATUS_LABEL } from "./status.ts";
@@ -27,6 +29,8 @@
     if (element) following = element.scrollHeight - element.scrollTop - element.clientHeight < 48;
   };
 
+  const provider = $derived(providers.get(openThread.thread?.providerInstanceId));
+
   const OUTCOME_LABEL = { completed: "Done", interrupted: "Stopped", failed: "Failed" } as const;
 
   /** "Done · 12.5K in · 187 out · $0.026", "Failed · <reason>" */
@@ -37,6 +41,11 @@
 <header>
   <button type="button" class="back" aria-label="All threads" onclick={() => threads.select(null)}>←</button>
   <h2 title={openThread.thread?.title ?? undefined}>{openThread.thread?.title ?? "New thread"}</h2>
+  {#if provider?.capabilities.models && openThread.threadId !== null}
+    <ModelPicker threadId={openThread.threadId} />
+  {:else if provider}
+    <span class="provider mono">{provider.name}</span>
+  {/if}
   {#if status !== "idle"}
     <span class="status mono" data-status={status}>{STATUS_LABEL[status]}</span>
   {/if}
@@ -49,8 +58,13 @@
     <p class="error" role="alert">{openThread.error}</p>
   {:else if timeline.items.length === 0}
     <div class="muted intro">
-      <p>Ask about the vault. This thread uses the replay provider, which plays recorded turns.</p>
-      <p>Include <em>edit</em> for an approval, <em>question</em> for a question, <em>long</em> for a slow answer, or <em>fail</em> for an error.</p>
+      {#if provider?.kind === "replay"}
+        <p>Ask about the vault. This thread uses the replay provider, which plays recorded turns.</p>
+        <p>Include <em>edit</em> for an approval, <em>question</em> for a question, <em>long</em> for a slow answer, or <em>fail</em> for an error.</p>
+      {:else}
+        <p>Ask {provider?.name ?? "the agent"} about the vault. It works in the vault's folder.</p>
+        <p>It asks before it edits a note, runs a command, or fetches from the web. Approvals change the files.</p>
+      {/if}
     </div>
   {/if}
 
@@ -114,6 +128,11 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+  .provider {
+    flex: 0 0 auto;
+    font-size: 11px;
+    color: var(--ink-3);
   }
   .status {
     flex: 0 0 auto;

@@ -1,0 +1,895 @@
+{
+  "scenario": "approval-denied",
+  "opencodeVersion": "2.2.1",
+  "model": "opencode/big-pickle",
+  "sessionId": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+  "turns": [
+    {
+      "prompt": "Use the edit tool to add the line 'Oolong too.' at the end of Notes/Tea.md; don't run commands. If you can't, say so in one sentence.",
+      "steps": [
+        {
+          "event": {
+            "id": "evt_1c2c05b15001stEBQIAh502IgM",
+            "created": 1794268748565,
+            "type": "session.created",
+            "durable": {
+              "aggregateID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "seq": 0,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "projectID": "da1d1e1bf681f10c86351e62ce4a9b435722afeb",
+              "location": {
+                "directory": "/__vault__"
+              },
+              "subpath": "",
+              "slug": "kind-meadow",
+              "permissions": [
+                {
+                  "action": "*",
+                  "resource": "*",
+                  "effect": "ask"
+                },
+                {
+                  "action": "read",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "glob",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "grep",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "list",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "lsp",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "question",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "todowrite",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "skill",
+                  "resource": "*",
+                  "effect": "allow"
+                }
+              ],
+              "version": "2.2.1"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c05c8d002tqn87hcrLwT4xh",
+            "created": 1794268748941,
+            "type": "session.inbox.enqueued",
+            "durable": {
+              "aggregateID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "seq": 1,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "inboxID": "msg_1c2c05b42001lB2db0J2iMiYys",
+              "item": {
+                "type": "user",
+                "payload": {
+                  "text": "Use the edit tool to add the line 'Oolong too.' at the end of Notes/Tea.md; don't run commands. If you can't, say so in one sentence."
+                },
+                "delivery": "steer"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c05c8f001oE0NJ1yKCgYGnO",
+            "created": 1794268748943,
+            "type": "session.execution.started",
+            "durable": {
+              "aggregateID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "seq": 2,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c05c9e001Nxe1emPmYFwyuT",
+            "created": 1794268748958,
+            "metadata": {
+              "instructions": {
+                "initial": true
+              }
+            },
+            "type": "session.instructions.updated",
+            "durable": {
+              "aggregateID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "seq": 3,
+              "version": 2
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "delta": {
+                "core/codemode": "3cca2f6160e1959e237c6b88bbc49667e6b6b2041a5456468278ce5e04d8176c",
+                "core/skill-guidance": "7a5bbb2148ce6b88c4b8c09705f0f95b16b7e57695a158ae8c2ab39019889d1e",
+                "core/date": "9b4c63b67003f693d244434de4080cc42a552c634280bc3f4122cd1f1ed9d38c",
+                "core/environment": "9561ab010ccf8ac0fe4a27e881166a7c5377e6a103d2041bfd6bdaba0ac84da6"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c05ca0001HgXolzXIR4qkjS",
+            "created": 1794268748960,
+            "type": "session.inbox.delivered",
+            "durable": {
+              "aggregateID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "seq": 4,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "inboxID": "msg_1c2c05b42001lB2db0J2iMiYys"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c06177001qH83SnEGh336be",
+            "created": 1794268750199,
+            "type": "session.step.started",
+            "durable": {
+              "aggregateID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "seq": 5,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "assistantMessageID": "msg_1c2c05cab001MAMDjXP9GLRBh9",
+              "agent": "build",
+              "model": {
+                "id": "big-pickle",
+                "providerID": "opencode"
+              },
+              "started": 1794268748973
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c0617a001t6MxYCAc9ZU6QT",
+            "created": 1794268750202,
+            "type": "session.tool.input.started",
+            "durable": {
+              "aggregateID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "seq": 6,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "assistantMessageID": "msg_1c2c05cab001MAMDjXP9GLRBh9",
+              "id": "chatcmpl-tool-a424249e239be9c5",
+              "name": "read"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c0617f001Uy1X4QFURvYbSL",
+            "created": 1794268750207,
+            "type": "session.tool.input.ended",
+            "durable": {
+              "aggregateID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "seq": 7,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "assistantMessageID": "msg_1c2c05cab001MAMDjXP9GLRBh9",
+              "id": "chatcmpl-tool-a424249e239be9c5",
+              "text": "{\"path\": \"Notes/Tea.md\"}"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c061800013C6NJ2PDMQs7WU",
+            "created": 1794268750209,
+            "type": "session.tool.called",
+            "durable": {
+              "aggregateID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "seq": 8,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "assistantMessageID": "msg_1c2c05cab001MAMDjXP9GLRBh9",
+              "id": "chatcmpl-tool-a424249e239be9c5",
+              "input": {
+                "path": "Notes/Tea.md"
+              },
+              "executed": false
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c06182001G4N1nXConfMYYe",
+            "created": 1794268750210,
+            "type": "session.step.streamed",
+            "durable": {
+              "aggregateID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "seq": 9,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "assistantMessageID": "msg_1c2c05cab001MAMDjXP9GLRBh9"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c0618c00132E1kTtg2p0Anz",
+            "created": 1794268750220,
+            "type": "session.tool.success",
+            "durable": {
+              "aggregateID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "seq": 10,
+              "version": 2
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "assistantMessageID": "msg_1c2c05cab001MAMDjXP9GLRBh9",
+              "id": "chatcmpl-tool-a424249e239be9c5",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Read file Notes/Tea.md, lines 1-3\n1: # Tea\n2: \n3: Green tea in the afternoon."
+                }
+              ],
+              "metadata": {
+                "truncated": false
+              },
+              "executed": false
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c0618f001oX51dCplmRthtT",
+            "created": 1794268750223,
+            "type": "session.step.ended",
+            "durable": {
+              "aggregateID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "seq": 11,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "assistantMessageID": "msg_1c2c05cab001MAMDjXP9GLRBh9",
+              "finish": "tool-calls",
+              "rawFinish": "tool_calls",
+              "cost": 0,
+              "tokens": {
+                "input": 3592,
+                "output": 42,
+                "reasoning": 0,
+                "cache": {
+                  "read": 7168,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c06190001hmGnMGY0QlYNzt",
+            "created": 1794268750224,
+            "type": "session.usage.updated",
+            "data": {
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "cost": 0,
+              "tokens": {
+                "input": 3592,
+                "output": 42,
+                "reasoning": 0,
+                "cache": {
+                  "read": 7168,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c0656a001jxRlYuZ23hSpGB",
+            "created": 1794268751210,
+            "type": "session.usage.updated",
+            "data": {
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "cost": 0,
+              "tokens": {
+                "input": 3712,
+                "output": 51,
+                "reasoning": 142,
+                "cache": {
+                  "read": 7552,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c0656b001Ia5XA8JbximVTy",
+            "created": 1794268751211,
+            "type": "session.renamed",
+            "durable": {
+              "aggregateID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "seq": 13,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "title": "Append Oolong to Tea.md"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c065dd001OhweeZrwhY7hMc",
+            "created": 1794268751325,
+            "type": "session.step.started",
+            "durable": {
+              "aggregateID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "seq": 14,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "assistantMessageID": "msg_1c2c06197001jJqu1x5e8tkCjP",
+              "agent": "build",
+              "model": {
+                "id": "big-pickle",
+                "providerID": "opencode"
+              },
+              "started": 1794268750234
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c065df001JNWg9ZsyPtnZOk",
+            "created": 1794268751327,
+            "type": "session.tool.input.started",
+            "durable": {
+              "aggregateID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "seq": 15,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "assistantMessageID": "msg_1c2c06197001jJqu1x5e8tkCjP",
+              "id": "chatcmpl-tool-aee917679683e34a",
+              "name": "edit"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c066d1001ktEzEtxqgjgE22",
+            "created": 1794268751569,
+            "type": "session.tool.input.ended",
+            "durable": {
+              "aggregateID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "seq": 16,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "assistantMessageID": "msg_1c2c06197001jJqu1x5e8tkCjP",
+              "id": "chatcmpl-tool-aee917679683e34a",
+              "text": "{\"path\": \"Notes/Tea.md\", \"oldString\": \"Green tea in the afternoon.\", \"newString\": \"Green tea in the afternoon.\\nOolong too.\"}"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c066d3001d8NA6qdd8RonPO",
+            "created": 1794268751571,
+            "type": "session.tool.called",
+            "durable": {
+              "aggregateID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "seq": 17,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "assistantMessageID": "msg_1c2c06197001jJqu1x5e8tkCjP",
+              "id": "chatcmpl-tool-aee917679683e34a",
+              "input": {
+                "path": "Notes/Tea.md",
+                "oldString": "Green tea in the afternoon.",
+                "newString": "Green tea in the afternoon.\nOolong too."
+              },
+              "executed": false
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c066d4001w75X6xWFbVCeJ1",
+            "created": 1794268751572,
+            "type": "session.step.streamed",
+            "durable": {
+              "aggregateID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "seq": 18,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "assistantMessageID": "msg_1c2c06197001jJqu1x5e8tkCjP"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c066d8002t3o4dVuoQ5Ih60",
+            "created": 1794268751576,
+            "type": "permission.asked",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "id": "per_1c2c066d8001BfmslJQhGdArUi",
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "action": "edit",
+              "resources": [
+                "Notes/Tea.md"
+              ],
+              "save": [
+                "*"
+              ],
+              "metadata": {
+                "files": [
+                  {
+                    "file": "Notes/Tea.md",
+                    "patch": "Index: Notes/Tea.md\n===================================================================\n--- Notes/Tea.md\n+++ Notes/Tea.md\n@@ -1,3 +1,4 @@\n # Tea\n \n Green tea in the afternoon.\n+Oolong too.\n",
+                    "status": "modified",
+                    "additions": 1,
+                    "deletions": 0
+                  }
+                ]
+              },
+              "source": {
+                "type": "tool",
+                "messageID": "msg_1c2c06197001jJqu1x5e8tkCjP",
+                "id": "chatcmpl-tool-aee917679683e34a"
+              }
+            }
+          }
+        },
+        {
+          "call": "reply",
+          "requestId": "per_1c2c066d8001BfmslJQhGdArUi",
+          "reply": "reject"
+        },
+        {
+          "event": {
+            "id": "evt_1c2c066db001C9bk4nZ4UB9BJH",
+            "created": 1794268751579,
+            "type": "permission.replied",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "requestID": "per_1c2c066d8001BfmslJQhGdArUi",
+              "reply": "reject"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c066dc001bxhYd3zr2OWU7F",
+            "created": 1794268751580,
+            "type": "session.tool.failed",
+            "durable": {
+              "aggregateID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "seq": 19,
+              "version": 2
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "assistantMessageID": "msg_1c2c06197001jJqu1x5e8tkCjP",
+              "id": "chatcmpl-tool-aee917679683e34a",
+              "error": {
+                "type": "permission.rejected",
+                "message": "The user denied this. Don't try it another way; say what you would have done."
+              },
+              "executed": false
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c066dd001HANCBOwf321G26",
+            "created": 1794268751581,
+            "type": "session.step.ended",
+            "durable": {
+              "aggregateID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "seq": 20,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "assistantMessageID": "msg_1c2c06197001jJqu1x5e8tkCjP",
+              "finish": "tool-calls",
+              "rawFinish": "tool_calls",
+              "cost": 0,
+              "tokens": {
+                "input": 90,
+                "output": 88,
+                "reasoning": 0,
+                "cache": {
+                  "read": 10752,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c066de001OBVLoqubiDifQu",
+            "created": 1794268751582,
+            "type": "session.usage.updated",
+            "data": {
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "cost": 0,
+              "tokens": {
+                "input": 3802,
+                "output": 139,
+                "reasoning": 142,
+                "cache": {
+                  "read": 18304,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c069de0013Jbw4HfgUMjwGl",
+            "created": 1794268752350,
+            "type": "session.step.started",
+            "durable": {
+              "aggregateID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "seq": 21,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "assistantMessageID": "msg_1c2c066e4001BPJVTeP5wxzSN5",
+              "agent": "build",
+              "model": {
+                "id": "big-pickle",
+                "providerID": "opencode"
+              },
+              "started": 1794268751591
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c069e0001zNnc7ZyeIXRFKT",
+            "created": 1794268752352,
+            "type": "session.reasoning.started",
+            "durable": {
+              "aggregateID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "seq": 22,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "assistantMessageID": "msg_1c2c066e4001BPJVTeP5wxzSN5",
+              "ordinal": 0,
+              "native": {
+                "reasoningField": "reasoning_content"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c06a41001VGTRKjOjCmpn73",
+            "created": 1794268752449,
+            "type": "session.reasoning.delta",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "assistantMessageID": "msg_1c2c066e4001BPJVTeP5wxzSN5",
+              "ordinal": 0,
+              "delta": "The edit was denied by user permission. So say in one sentence."
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c06a41002ZBxz8th8m455IO",
+            "created": 1794268752449,
+            "type": "session.text.started",
+            "durable": {
+              "aggregateID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "seq": 23,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "assistantMessageID": "msg_1c2c066e4001BPJVTeP5wxzSN5",
+              "ordinal": 0
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c06aa7001mkFkrkk2LgWcsN",
+            "created": 1794268752551,
+            "type": "session.text.delta",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "assistantMessageID": "msg_1c2c066e4001BPJVTeP5wxzSN5",
+              "ordinal": 0,
+              "delta": "You denied the edit, so I didn't change"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c06b350014a0usm1S8By5b4",
+            "created": 1794268752693,
+            "type": "session.text.delta",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "assistantMessageID": "msg_1c2c066e4001BPJVTeP5wxzSN5",
+              "ordinal": 0,
+              "delta": " Notes/Tea.md; I would have appended the line \"Oolong too.\" after \"Green tea in the afternoon.\""
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c06bd3001hatJiXdLZb61IE",
+            "created": 1794268752851,
+            "type": "session.reasoning.ended",
+            "durable": {
+              "aggregateID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "seq": 24,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "assistantMessageID": "msg_1c2c066e4001BPJVTeP5wxzSN5",
+              "ordinal": 0,
+              "text": "The edit was denied by user permission. So say in one sentence.",
+              "native": {
+                "reasoningField": "reasoning_content"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c06bd5001aGb47OcCQwNPts",
+            "created": 1794268752853,
+            "type": "session.text.ended",
+            "durable": {
+              "aggregateID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "seq": 25,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "assistantMessageID": "msg_1c2c066e4001BPJVTeP5wxzSN5",
+              "ordinal": 0,
+              "text": "You denied the edit, so I didn't change Notes/Tea.md; I would have appended the line \"Oolong too.\" after \"Green tea in the afternoon.\""
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c06bd60017XHdBI2bqXiZYF",
+            "created": 1794268752854,
+            "type": "session.step.streamed",
+            "durable": {
+              "aggregateID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "seq": 26,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "assistantMessageID": "msg_1c2c066e4001BPJVTeP5wxzSN5"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c06bd700164NVzL0v2cJyFb",
+            "created": 1794268752855,
+            "type": "session.step.ended",
+            "durable": {
+              "aggregateID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "seq": 27,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "assistantMessageID": "msg_1c2c066e4001BPJVTeP5wxzSN5",
+              "finish": "stop",
+              "rawFinish": "stop",
+              "cost": 0,
+              "tokens": {
+                "input": 97,
+                "output": 37,
+                "reasoning": 14,
+                "cache": {
+                  "read": 10880,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c06bd9001wmL09l7H5if7U0",
+            "created": 1794268752857,
+            "type": "session.usage.updated",
+            "data": {
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "cost": 0,
+              "tokens": {
+                "input": 3899,
+                "output": 176,
+                "reasoning": 156,
+                "cache": {
+                  "read": 29184,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c06bda001SF8dYvF4LjlgYy",
+            "created": 1794268752858,
+            "type": "session.execution.succeeded",
+            "durable": {
+              "aggregateID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc",
+              "seq": 28,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e3d3fa4f9ffepMJ63eoVMS44Jc"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

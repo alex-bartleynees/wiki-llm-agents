@@ -1,4 +1,4 @@
-import type { RequestAnswer } from "@wiki-agents/contracts/threads/model";
+import type { RequestAnswer, ThreadSummary } from "@wiki-agents/contracts/threads/model";
 import { Context, Effect, Layer, RcMap } from "effect";
 import { makeThreadActor, type ThreadActor } from "./thread-actor.js";
 
@@ -17,6 +17,7 @@ export interface ThreadActorsService {
     requestId: string,
     answer: RequestAnswer,
   ) => Effect.Effect<void, StartError | Effect.Error<ReturnType<ThreadActor["answerRequest"]>>>;
+  readonly setModel: (threadId: string, model: string) => Effect.Effect<ThreadSummary, StartError | Effect.Error<ReturnType<ThreadActor["setModel"]>>>;
   /** Starts the actor, which resumes or closes a turn left running by the last run. */
   readonly wake: (threadId: string) => Effect.Effect<void, StartError>;
 }
@@ -36,6 +37,7 @@ export const ThreadActorsLive = Layer.effect(
       sendMessage: (threadId, text) => withActor(threadId, (actor) => actor.sendMessage(text)),
       interrupt: (threadId) => withActor(threadId, (actor) => actor.interrupt),
       answerRequest: (threadId, requestId, answer) => withActor(threadId, (actor) => actor.answerRequest(requestId, answer)),
+      setModel: (threadId, model) => withActor(threadId, (actor) => actor.setModel(model)),
       wake: (threadId) => withActor(threadId, () => Effect.void),
     });
   }),

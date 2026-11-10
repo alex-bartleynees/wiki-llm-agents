@@ -1,0 +1,437 @@
+{
+  "scenario": "interrupt-mid-stream",
+  "opencodeVersion": "2.2.1",
+  "model": "opencode/big-pickle",
+  "sessionId": "ses_e3d3fe8d8ffelh46MNcDqOfJFI",
+  "turns": [
+    {
+      "prompt": "Write a 500-word story about a lighthouse.",
+      "steps": [
+        {
+          "event": {
+            "id": "evt_1c2c0172f001CAswWzvVL80jhy",
+            "created": 1794268731183,
+            "type": "session.created",
+            "durable": {
+              "aggregateID": "ses_e3d3fe8d8ffelh46MNcDqOfJFI",
+              "seq": 0,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fe8d8ffelh46MNcDqOfJFI",
+              "projectID": "85ce0ca6deed1ae599e9fa5cf8d973357019b611",
+              "location": {
+                "directory": "/__vault__"
+              },
+              "subpath": "",
+              "slug": "cosmic-knight",
+              "permissions": [
+                {
+                  "action": "*",
+                  "resource": "*",
+                  "effect": "ask"
+                },
+                {
+                  "action": "read",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "glob",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "grep",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "list",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "lsp",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "question",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "todowrite",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "skill",
+                  "resource": "*",
+                  "effect": "allow"
+                }
+              ],
+              "version": "2.2.1"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c018a8001SETfKQB5Gen00r",
+            "created": 1794268731560,
+            "type": "session.inbox.enqueued",
+            "durable": {
+              "aggregateID": "ses_e3d3fe8d8ffelh46MNcDqOfJFI",
+              "seq": 1,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fe8d8ffelh46MNcDqOfJFI",
+              "inboxID": "msg_1c2c0175d001ZgiH1ZkGWfI9EN",
+              "item": {
+                "type": "user",
+                "payload": {
+                  "text": "Write a 500-word story about a lighthouse."
+                },
+                "delivery": "steer"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c018aa0018F7cyl6E230qkf",
+            "created": 1794268731562,
+            "type": "session.execution.started",
+            "durable": {
+              "aggregateID": "ses_e3d3fe8d8ffelh46MNcDqOfJFI",
+              "seq": 2,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e3d3fe8d8ffelh46MNcDqOfJFI"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c018ba001zeviRfplsNny9T",
+            "created": 1794268731578,
+            "metadata": {
+              "instructions": {
+                "initial": true
+              }
+            },
+            "type": "session.instructions.updated",
+            "durable": {
+              "aggregateID": "ses_e3d3fe8d8ffelh46MNcDqOfJFI",
+              "seq": 3,
+              "version": 2
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fe8d8ffelh46MNcDqOfJFI",
+              "delta": {
+                "core/codemode": "3cca2f6160e1959e237c6b88bbc49667e6b6b2041a5456468278ce5e04d8176c",
+                "core/skill-guidance": "7a5bbb2148ce6b88c4b8c09705f0f95b16b7e57695a158ae8c2ab39019889d1e",
+                "core/date": "9b4c63b67003f693d244434de4080cc42a552c634280bc3f4122cd1f1ed9d38c",
+                "core/environment": "41b15b99a0e7ae210fb8e1a792f1cc15280e961d91ae1d16d105afb95843709c"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c018bc001Ag6Vza5j73Lu5c",
+            "created": 1794268731580,
+            "type": "session.inbox.delivered",
+            "durable": {
+              "aggregateID": "ses_e3d3fe8d8ffelh46MNcDqOfJFI",
+              "seq": 4,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fe8d8ffelh46MNcDqOfJFI",
+              "inboxID": "msg_1c2c0175d001ZgiH1ZkGWfI9EN"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c01d0b001pnOATgS7SAdLGU",
+            "created": 1794268732683,
+            "type": "session.step.started",
+            "durable": {
+              "aggregateID": "ses_e3d3fe8d8ffelh46MNcDqOfJFI",
+              "seq": 5,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fe8d8ffelh46MNcDqOfJFI",
+              "assistantMessageID": "msg_1c2c018c7001v8Oi0c4B14hS7d",
+              "agent": "build",
+              "model": {
+                "id": "big-pickle",
+                "providerID": "opencode"
+              },
+              "started": 1794268731593
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c01d0e001oaeCEQz3jvL0Jt",
+            "created": 1794268732686,
+            "type": "session.reasoning.started",
+            "durable": {
+              "aggregateID": "ses_e3d3fe8d8ffelh46MNcDqOfJFI",
+              "seq": 6,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fe8d8ffelh46MNcDqOfJFI",
+              "assistantMessageID": "msg_1c2c018c7001v8Oi0c4B14hS7d",
+              "ordinal": 0,
+              "native": {
+                "reasoningField": "reasoning_content"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c01d74001m4U4Pjb5ZQKjMp",
+            "created": 1794268732788,
+            "type": "session.reasoning.delta",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fe8d8ffelh46MNcDqOfJFI",
+              "assistantMessageID": "msg_1c2c018c7001v8Oi0c4B14hS7d",
+              "ordinal": 0,
+              "delta": "The"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c01ead001SE93oDWz7cDs0d",
+            "created": 1794268733101,
+            "type": "session.reasoning.delta",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fe8d8ffelh46MNcDqOfJFI",
+              "assistantMessageID": "msg_1c2c018c7001v8Oi0c4B14hS7d",
+              "ordinal": 0,
+              "delta": " user wants a 500-word story about a lighthouse. This is a creative writing task, no tools needed. Just write it.\n\nLet me write a good story, around 500 words."
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c01ead002wBZJSfdhaaRRMI",
+            "created": 1794268733101,
+            "type": "session.text.started",
+            "durable": {
+              "aggregateID": "ses_e3d3fe8d8ffelh46MNcDqOfJFI",
+              "seq": 7,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fe8d8ffelh46MNcDqOfJFI",
+              "assistantMessageID": "msg_1c2c018c7001v8Oi0c4B14hS7d",
+              "ordinal": 0
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c01eb6001yBFB7ObunbiFFT",
+            "created": 1794268733110,
+            "type": "session.usage.updated",
+            "data": {
+              "sessionID": "ses_e3d3fe8d8ffelh46MNcDqOfJFI",
+              "cost": 0,
+              "tokens": {
+                "input": 91,
+                "output": 5,
+                "reasoning": 91,
+                "cache": {
+                  "read": 384,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c01eb60021z1AGHQRHmQajZ",
+            "created": 1794268733110,
+            "type": "session.renamed",
+            "durable": {
+              "aggregateID": "ses_e3d3fe8d8ffelh46MNcDqOfJFI",
+              "seq": 9,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fe8d8ffelh46MNcDqOfJFI",
+              "title": "A lighthouse story"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c01f14001Tqcj1fiUy2GA1I",
+            "created": 1794268733204,
+            "type": "session.text.delta",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fe8d8ffelh46MNcDqOfJFI",
+              "assistantMessageID": "msg_1c2c018c7001v8Oi0c4B14hS7d",
+              "ordinal": 0,
+              "delta": "The lamp"
+            }
+          }
+        },
+        {
+          "call": "interrupt",
+          "withdrawn": false,
+          "interrupted": true
+        },
+        {
+          "event": {
+            "id": "evt_1c2c01f18001Adyup3tMj2OakT",
+            "created": 1794268733208,
+            "type": "session.text.ended",
+            "durable": {
+              "aggregateID": "ses_e3d3fe8d8ffelh46MNcDqOfJFI",
+              "seq": 10,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fe8d8ffelh46MNcDqOfJFI",
+              "assistantMessageID": "msg_1c2c018c7001v8Oi0c4B14hS7d",
+              "ordinal": 0,
+              "text": "The lamp"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c01f190019N5EzqbUhsbKIY",
+            "created": 1794268733209,
+            "type": "session.reasoning.ended",
+            "durable": {
+              "aggregateID": "ses_e3d3fe8d8ffelh46MNcDqOfJFI",
+              "seq": 11,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fe8d8ffelh46MNcDqOfJFI",
+              "assistantMessageID": "msg_1c2c018c7001v8Oi0c4B14hS7d",
+              "ordinal": 0,
+              "text": "The user wants a 500-word story about a lighthouse. This is a creative writing task, no tools needed. Just write it.\n\nLet me write a good story, around 500 words.",
+              "native": {
+                "reasoningField": "reasoning_content"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c01f1b001pGDaJbDv3mbwEr",
+            "created": 1794268733211,
+            "type": "session.step.streamed",
+            "durable": {
+              "aggregateID": "ses_e3d3fe8d8ffelh46MNcDqOfJFI",
+              "seq": 12,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fe8d8ffelh46MNcDqOfJFI",
+              "assistantMessageID": "msg_1c2c018c7001v8Oi0c4B14hS7d"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c01f1c001oR3Oy09g3B9sIe",
+            "created": 1794268733212,
+            "type": "session.step.failed",
+            "durable": {
+              "aggregateID": "ses_e3d3fe8d8ffelh46MNcDqOfJFI",
+              "seq": 13,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d3fe8d8ffelh46MNcDqOfJFI",
+              "assistantMessageID": "msg_1c2c018c7001v8Oi0c4B14hS7d",
+              "error": {
+                "type": "aborted",
+                "message": "Step interrupted"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2c01f1e001slQL1UgURJqpfz",
+            "created": 1794268733214,
+            "type": "session.execution.interrupted",
+            "durable": {
+              "aggregateID": "ses_e3d3fe8d8ffelh46MNcDqOfJFI",
+              "seq": 14,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e3d3fe8d8ffelh46MNcDqOfJFI",
+              "reason": "user"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -15,6 +15,8 @@ export const AppConfig = {
   ),
   /** Built web app to serve. Unset in development, where Vite serves the UI. */
   staticDir: Config.option(Config.String("WIKI_AGENTS_STATIC_DIR")),
+  /** The OpenCode executable: a path, or a name looked up on `PATH`. */
+  opencodeBinary: Config.String("WIKI_AGENTS_OPENCODE").pipe(Config.withDefault("opencode")),
   migrationsDir: Config.String("WIKI_AGENTS_MIGRATIONS_DIR").pipe(
     Config.withDefault(fileURLToPath(new URL("../../drizzle", import.meta.url))),
   ),

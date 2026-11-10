@@ -1,0 +1,708 @@
+{
+  "scenario": "simple",
+  "opencodeVersion": "2.2.1",
+  "model": "opencode/big-pickle",
+  "sessionId": "ses_e3d405932ffeWU3Z16RT93pfXo",
+  "turns": [
+    {
+      "prompt": "Which notes are in this vault? List the file names in one short sentence.",
+      "steps": [
+        {
+          "event": {
+            "id": "evt_1c2bfa6d5001ODQORccwwu2cNm",
+            "created": 1794268702421,
+            "type": "session.created",
+            "durable": {
+              "aggregateID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "seq": 0,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "projectID": "f102b43f04980c618924c09f0080ba7a8ce7cc17",
+              "location": {
+                "directory": "/__vault__"
+              },
+              "subpath": "",
+              "slug": "kind-meadow",
+              "permissions": [
+                {
+                  "action": "*",
+                  "resource": "*",
+                  "effect": "ask"
+                },
+                {
+                  "action": "read",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "glob",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "grep",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "list",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "lsp",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "question",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "todowrite",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "skill",
+                  "resource": "*",
+                  "effect": "allow"
+                }
+              ],
+              "version": "2.2.1"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfa852001PLkyFcv7fBFmxI",
+            "created": 1794268702802,
+            "type": "session.inbox.enqueued",
+            "durable": {
+              "aggregateID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "seq": 1,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "inboxID": "msg_1c2bfa703001ezDk1Pcxfc4M0Z",
+              "item": {
+                "type": "user",
+                "payload": {
+                  "text": "Which notes are in this vault? List the file names in one short sentence."
+                },
+                "delivery": "steer"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfa854001GMfMo4OEWH5RD8",
+            "created": 1794268702804,
+            "type": "session.execution.started",
+            "durable": {
+              "aggregateID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "seq": 2,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e3d405932ffeWU3Z16RT93pfXo"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfa863001v8mx9dBpMJVxwH",
+            "created": 1794268702819,
+            "metadata": {
+              "instructions": {
+                "initial": true
+              }
+            },
+            "type": "session.instructions.updated",
+            "durable": {
+              "aggregateID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "seq": 3,
+              "version": 2
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "delta": {
+                "core/codemode": "3cca2f6160e1959e237c6b88bbc49667e6b6b2041a5456468278ce5e04d8176c",
+                "core/skill-guidance": "7a5bbb2148ce6b88c4b8c09705f0f95b16b7e57695a158ae8c2ab39019889d1e",
+                "core/date": "9b4c63b67003f693d244434de4080cc42a552c634280bc3f4122cd1f1ed9d38c",
+                "core/environment": "e76c024f99dd4d8369424eb1e3dd13bbbc0823a32484d02894d61d3252e26d3a"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfa865001JD85K5g4wQI0y3",
+            "created": 1794268702821,
+            "type": "session.inbox.delivered",
+            "durable": {
+              "aggregateID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "seq": 4,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "inboxID": "msg_1c2bfa703001ezDk1Pcxfc4M0Z"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfb00d001r5w7wZMuqPiRAi",
+            "created": 1794268704781,
+            "type": "session.step.started",
+            "durable": {
+              "aggregateID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "seq": 5,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "assistantMessageID": "msg_1c2bfa871001buw62G6r5oy853",
+              "agent": "build",
+              "model": {
+                "id": "big-pickle",
+                "providerID": "opencode"
+              },
+              "started": 1794268702836
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfb00f0011eQdaw63xGrBIg",
+            "created": 1794268704783,
+            "type": "session.text.started",
+            "durable": {
+              "aggregateID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "seq": 6,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "assistantMessageID": "msg_1c2bfa871001buw62G6r5oy853",
+              "ordinal": 0
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfb011001d3fTgM51wf08kP",
+            "created": 1794268704786,
+            "type": "session.text.delta",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "assistantMessageID": "msg_1c2bfa871001buw62G6r5oy853",
+              "ordinal": 0,
+              "delta": "I'll look at the vault contents first."
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfb012001Eaf7TI0LuD3PKT",
+            "created": 1794268704786,
+            "type": "session.tool.input.started",
+            "durable": {
+              "aggregateID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "seq": 7,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "assistantMessageID": "msg_1c2bfa871001buw62G6r5oy853",
+              "id": "call_00_op1zci4799jcuqujikwgc14v",
+              "name": "glob"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfb016001ee9EG3baXT31LJ",
+            "created": 1794268704790,
+            "type": "session.tool.input.ended",
+            "durable": {
+              "aggregateID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "seq": 8,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "assistantMessageID": "msg_1c2bfa871001buw62G6r5oy853",
+              "id": "call_00_op1zci4799jcuqujikwgc14v",
+              "text": "{\"pattern\": \"**/*\"}"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfb017001cfrAtHi2LYXCgt",
+            "created": 1794268704791,
+            "type": "session.tool.called",
+            "durable": {
+              "aggregateID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "seq": 9,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "assistantMessageID": "msg_1c2bfa871001buw62G6r5oy853",
+              "id": "call_00_op1zci4799jcuqujikwgc14v",
+              "input": {
+                "pattern": "**/*"
+              },
+              "executed": false
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfb019001OjINiYGxYeDeVP",
+            "created": 1794268704793,
+            "type": "session.text.ended",
+            "durable": {
+              "aggregateID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "seq": 10,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "assistantMessageID": "msg_1c2bfa871001buw62G6r5oy853",
+              "ordinal": 0,
+              "text": "I'll look at the vault contents first."
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfb01a001WkOTC72DttTL0r",
+            "created": 1794268704794,
+            "type": "session.step.streamed",
+            "durable": {
+              "aggregateID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "seq": 11,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "assistantMessageID": "msg_1c2bfa871001buw62G6r5oy853"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfb030001dA91m25Aql8aNg",
+            "created": 1794268704816,
+            "type": "session.tool.success",
+            "durable": {
+              "aggregateID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "seq": 12,
+              "version": 2
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "assistantMessageID": "msg_1c2bfa871001buw62G6r5oy853",
+              "id": "call_00_op1zci4799jcuqujikwgc14v",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "/__vault__/index.md\n/__vault__/Notes/Coffee.md\n/__vault__/Notes/Tea.md"
+                }
+              ],
+              "metadata": {
+                "count": 3,
+                "truncated": false
+              },
+              "executed": false
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfb032001I1cym1O7mGz7KO",
+            "created": 1794268704818,
+            "type": "session.step.ended",
+            "durable": {
+              "aggregateID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "seq": 13,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "assistantMessageID": "msg_1c2bfa871001buw62G6r5oy853",
+              "finish": "tool-calls",
+              "rawFinish": "tool_calls",
+              "cost": 0,
+              "tokens": {
+                "input": 8691,
+                "output": 46,
+                "reasoning": 0,
+                "cache": {
+                  "read": 2048,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfb033001p6LEwahABJ14Sn",
+            "created": 1794268704819,
+            "type": "session.usage.updated",
+            "data": {
+              "sessionID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "cost": 0,
+              "tokens": {
+                "input": 8691,
+                "output": 46,
+                "reasoning": 0,
+                "cache": {
+                  "read": 2048,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfb17a001xrtdMzeC9gB7V7",
+            "created": 1794268705146,
+            "type": "session.usage.updated",
+            "data": {
+              "sessionID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "cost": 0,
+              "tokens": {
+                "input": 8788,
+                "output": 52,
+                "reasoning": 95,
+                "cache": {
+                  "read": 2432,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfb17b001oCNkZ2aoOmoHMt",
+            "created": 1794268705147,
+            "type": "session.renamed",
+            "durable": {
+              "aggregateID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "seq": 15,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "title": "Vault note file names"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfb6cc001TJOPRCIicB5xIV",
+            "created": 1794268706508,
+            "type": "session.step.started",
+            "durable": {
+              "aggregateID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "seq": 16,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "assistantMessageID": "msg_1c2bfb039001KSJ5en1xn6h640",
+              "agent": "build",
+              "model": {
+                "id": "big-pickle",
+                "providerID": "opencode"
+              },
+              "started": 1794268704828
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfb6ce001j15XyVb23AkE2A",
+            "created": 1794268706510,
+            "type": "session.reasoning.started",
+            "durable": {
+              "aggregateID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "seq": 17,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "assistantMessageID": "msg_1c2bfb039001KSJ5en1xn6h640",
+              "ordinal": 0,
+              "native": {
+                "reasoningField": "reasoning_content"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfb702001dKZ7u3o3aNo6RC",
+            "created": 1794268706562,
+            "type": "session.reasoning.delta",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "assistantMessageID": "msg_1c2bfb039001KSJ5en1xn6h640",
+              "ordinal": 0,
+              "delta": "Simple answer."
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfb702002FklUwbi8wFpZid",
+            "created": 1794268706562,
+            "type": "session.text.started",
+            "durable": {
+              "aggregateID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "seq": 18,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "assistantMessageID": "msg_1c2bfb039001KSJ5en1xn6h640",
+              "ordinal": 0
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfb768001KisJWvkQbVoK5H",
+            "created": 1794268706664,
+            "type": "session.text.delta",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "assistantMessageID": "msg_1c2bfb039001KSJ5en1xn6h640",
+              "ordinal": 0,
+              "delta": "The vault contains `index.md`,"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfb7cb001ZBV4ldXhK6tRp1",
+            "created": 1794268706763,
+            "type": "session.reasoning.ended",
+            "durable": {
+              "aggregateID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "seq": 19,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "assistantMessageID": "msg_1c2bfb039001KSJ5en1xn6h640",
+              "ordinal": 0,
+              "text": "Simple answer.",
+              "native": {
+                "reasoningField": "reasoning_content"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfb7cd001BYH4Wf4TBLArBb",
+            "created": 1794268706765,
+            "type": "session.text.delta",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "assistantMessageID": "msg_1c2bfb039001KSJ5en1xn6h640",
+              "ordinal": 0,
+              "delta": " `Notes/Coffee.md`, and `Notes/Tea.md`."
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfb7cd002eK6gcIgoq97Iml",
+            "created": 1794268706765,
+            "type": "session.text.ended",
+            "durable": {
+              "aggregateID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "seq": 20,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "assistantMessageID": "msg_1c2bfb039001KSJ5en1xn6h640",
+              "ordinal": 0,
+              "text": "The vault contains `index.md`, `Notes/Coffee.md`, and `Notes/Tea.md`."
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfb7ce001kpBVreId9wFcUF",
+            "created": 1794268706766,
+            "type": "session.step.streamed",
+            "durable": {
+              "aggregateID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "seq": 21,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "assistantMessageID": "msg_1c2bfb039001KSJ5en1xn6h640"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfb7cf001ZsF6y3MMXl6U9z",
+            "created": 1794268706767,
+            "type": "session.step.ended",
+            "durable": {
+              "aggregateID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "seq": 22,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "assistantMessageID": "msg_1c2bfb039001KSJ5en1xn6h640",
+              "finish": "stop",
+              "rawFinish": "stop",
+              "cost": 0,
+              "tokens": {
+                "input": 242,
+                "output": 22,
+                "reasoning": 3,
+                "cache": {
+                  "read": 10624,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfb7d0001mbWiS6wmiGbWWp",
+            "created": 1794268706768,
+            "type": "session.usage.updated",
+            "data": {
+              "sessionID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "cost": 0,
+              "tokens": {
+                "input": 9030,
+                "output": 74,
+                "reasoning": 98,
+                "cache": {
+                  "read": 13056,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1c2bfb7d1001xve3vl3OeJO5Nr",
+            "created": 1794268706769,
+            "type": "session.execution.succeeded",
+            "durable": {
+              "aggregateID": "ses_e3d405932ffeWU3Z16RT93pfXo",
+              "seq": 23,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e3d405932ffeWU3Z16RT93pfXo"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
