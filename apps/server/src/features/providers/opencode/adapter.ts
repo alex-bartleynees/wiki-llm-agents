@@ -1,7 +1,9 @@
+import { NodeFileSystem } from "@effect/platform-node";
 import { DEFAULT_AUTONOMY } from "@wiki-agents/contracts/agents/model";
 import type { ProviderStatus } from "@wiki-agents/contracts/providers/model";
 import type { RequestAnswer } from "@wiki-agents/contracts/threads/model";
-import { Duration, Effect, Exit, Option, PubSub, Queue, RcRef, Scope, Stream } from "effect";
+import { Duration, Effect, Exit, FileSystem, Option, PubSub, Queue, RcRef, Scope, Stream } from "effect";
+import { pathsWithinRoots } from "../../../shared/vault/path-scope.js";
 import { type ProviderAdapter, ProviderError, type ProviderEvent, type ProviderSession, type SessionSetup, type TurnInput } from "../port.js";
 import type { OpenCodeApi, OpenCodeError, OpenCodeEvent, OpenCodePermissionRule, OpenCodeSignal } from "./api.js";
 import { formAnswer, makeTurnMapper, sessionOf } from "./events.js";
@@ -83,7 +85,7 @@ const rulesKey = (setup: SessionSetup) => JSON.stringify(sessionRules(setup));
 /** Told to the user (not the agent) when the vault tools couldn't be given to a turn. */
 export const vaultToolsUnavailable = (reason: string) => `The vault tools aren't available to the agent this turn: ${reason}`;
 
-const makeSession = (connect: Connect, sessionId: string, cwd: string, silence: Duration.Input, applied: Applied): ProviderSession => {
+const makeSession = (connect: Connect, sessionId: string, cwd: string, silence: Duration.Input, applied: Applied, fs: FileSystem.FileSystem): ProviderSession => {
   let turn: RunningTurn | undefined;
   const requests = new Map<string, PendingRequest>();
 
@@ -132,6 +134,22 @@ const makeSession = (connect: Connect, sessionId: string, cwd: string, silence: 
       }
       return yield* applyTools(api, setup);
     }).pipe(Effect.mapError((error) => (error instanceof ProviderError ? error : toProviderError(error))));
+
+  /**
+   * OpenCode asks before the agent reaches outside the session's folder (the main
+   * working directory). In a project thread, the project's other working directories
+   * and the shared vault belong to it: allow those once, and the action itself then
+   * follows the agent's autonomy like any other. Anywhere else goes to you. True when
+   * answered here.
+   */
+  const answerInProject = (api: OpenCodeApi, setup: SessionSetup, request: { readonly id: string; readonly action: string; readonly resources: ReadonlyArray<string> }) =>
+    Effect.gen(function* () {
+      if (setup.projectRoots === null || request.action !== "external_directory") return false;
+      const inside = yield* pathsWithinRoots(setup.projectRoots, cwd, request.resources).pipe(Effect.provideService(FileSystem.FileSystem, fs));
+      if (!inside) return false;
+      yield* api.replyPermission(sessionId, request.id, "once").pipe(Effect.mapError(toProviderError));
+      return true;
+    });
 
   const startTurn = ({ turnId, text, setup }: TurnInput) =>
     Stream.callback<ProviderEvent, ProviderError>((queue) =>
@@ -195,6 +213,7 @@ const makeSession = (connect: Connect, sessionId: string, cwd: string, silence: 
               current.inboxId = undefined;
               break;
             case "permission.asked":
+              if (yield* answerInProject(api, setup, event.data)) continue;
               requests.set(event.data.id, { kind: "permission" });
               waiting.add(event.data.id);
               break;
@@ -302,6 +321,13 @@ export const makeOpenCodeAdapter = (options: OpenCodeAdapterOptions) =>
   Effect.gen(function* () {
     const server = yield* RcRef.make({ acquire: options.start, idleTimeToLive: options.idleTime ?? "5 minutes" });
     const silence = options.silence ?? Duration.seconds(45);
+    // OpenCode runs on this machine; its paths are checked on this machine's file system.
+    const fs = yield* Effect.provide(
+      Effect.gen(function* () {
+        return yield* FileSystem.FileSystem;
+      }),
+      NodeFileSystem.layer,
+    );
 
     /** The running server in the current scope; a new one if the cached one stopped (crashed). */
     const live = Effect.gen(function* () {
@@ -356,12 +382,12 @@ export const makeOpenCodeAdapter = (options: OpenCodeAdapterOptions) =>
           if (existing && nativeSessionId !== null) {
             // The session keeps the rules it was made with; bring them up to date.
             yield* api.setPermissions(nativeSessionId, rules).pipe(Effect.mapError(toProviderError));
-            return makeSession(connect, nativeSessionId, cwd, silence, applied);
+            return makeSession(connect, nativeSessionId, cwd, silence, applied, fs);
           }
           const sessionId = yield* api
             .createSession({ directory: cwd, model, permissions: rules })
             .pipe(Effect.mapError(toProviderError));
-          return makeSession(connect, sessionId, cwd, silence, applied);
+          return makeSession(connect, sessionId, cwd, silence, applied, fs);
         }),
       status,
       listModels: (cwd) =>

@@ -1,13 +1,25 @@
 <script lang="ts">
   import { agents } from "#lib/features/agents/agents.svelte.ts";
   import { timeAgo } from "#lib/features/notes/time.ts";
+  import { projects } from "#lib/features/projects/projects.svelte.ts";
+  import { vaults } from "#lib/features/vaults/vaults.svelte.ts";
   import { providers } from "./providers.svelte.ts";
   import { STATUS_LABEL } from "./status.ts";
   import { threads } from "./threads.svelte.ts";
 
+  /**
+   * The vault whose threads show, and the project they are narrowed to (null for all).
+   * Without `scopeSelect` the list stays on that project (the Projects page).
+   */
+  let { vaultId, projectId, scopeSelect = true }: { vaultId: string; projectId: string | null; scopeSelect?: boolean } = $props();
+
   $effect(() => {
     void agents.load();
   });
+
+  /** Projects that use this vault: the ones its threads can be narrowed to. */
+  const vaultProjects = $derived(projects.list.filter((project) => project.vaultId === vaultId));
+  const vaultName = $derived(vaults.byId(vaultId)?.name ?? "vault");
 
   $effect(() => {
     void providers.load().then(() => {
@@ -28,7 +40,17 @@
 </script>
 
 <header>
-  <h2 class="mono">Threads</h2>
+  {#if scopeSelect}
+  <label class="scope">
+    <span class="visually-hidden">Threads in</span>
+    <select value={projectId ?? ""} onchange={(event) => projects.select(event.currentTarget.value || null)}>
+      <option value="">{vaultName} · all threads</option>
+      {#each vaultProjects as project (project.id)}
+        <option value={project.id}>project · {project.name}</option>
+      {/each}
+    </select>
+  </label>
+  {/if}
   <div class="start">
     {#if providers.list.length > 1}
       <select
@@ -61,7 +83,7 @@
 
 {#if threads.status === "loaded" && threads.threads.length === 0}
   <div class="empty">
-    <p>No threads in this vault yet.</p>
+    <p>{projectId === null ? "No threads in this vault yet." : "No threads in this project yet."}</p>
     <p class="hint">
       New threads use {chosen?.name ?? "the first provider"}. Replay plays recorded turns and spends no tokens; OpenCode
       asks before it edits, runs a command, or fetches from the web.
@@ -99,13 +121,25 @@
     padding: 14px 16px;
     border-bottom: 1px solid var(--line-soft);
   }
-  h2 {
-    margin: 0;
-    font-size: 11px;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--ink-3);
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .scope {
+    flex: 1 1 100%;
+    display: flex;
+  }
+  .scope select {
+    flex: 1;
+    height: 36px;
+    padding: 0 8px;
+    background: var(--surface);
+    color: var(--ink);
+    font-size: 14px;
   }
   .start {
     display: flex;

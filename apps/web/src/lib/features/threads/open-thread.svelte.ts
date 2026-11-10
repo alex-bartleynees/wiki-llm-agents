@@ -44,6 +44,7 @@ class OpenThreadStore {
     this.status = "loading";
     try {
       const { thread, events } = await getThread(threadId, controller.signal);
+      if (controller.signal.aborted || threadId !== this.#threadId) return;
       const timeline = emptyTimeline();
       for (const event of events) applyEvent(timeline, event);
       this.thread = thread;

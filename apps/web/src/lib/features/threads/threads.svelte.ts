@@ -2,26 +2,26 @@ import { ThreadsStreamMessage } from "@wiki-agents/contracts/threads/event";
 import type { ThreadSummary } from "@wiki-agents/contracts/threads/model";
 import { errorMessage, isAbort } from "#lib/api/client.ts";
 import { listen } from "#lib/api/sse.ts";
-import { createThread, listThreads, vaultThreadsEventsPath } from "./api.ts";
-import { openThread } from "./open-thread.svelte.ts";
 import { agents } from "#lib/features/agents/agents.svelte.ts";
+import { projects } from "#lib/features/projects/projects.svelte.ts";
+import { createThread, getThread, listThreads, vaultThreadsEventsPath } from "./api.ts";
+import { openThread } from "./open-thread.svelte.ts";
 import { providers } from "./providers.svelte.ts";
+import { inScope, rememberedThreadKey, sameScope, type ThreadScope } from "./thread-scope.ts";
 
-/** The thread open in each vault, remembered on this device. */
-const selectedKey = (vaultId: string) => `wiki-agents:thread:${vaultId}`;
-
-const remembered = (vaultId: string) => {
+/** The thread open in each scope, remembered on this device. */
+const remembered = (scope: ThreadScope) => {
   try {
-    return localStorage.getItem(selectedKey(vaultId));
+    return localStorage.getItem(rememberedThreadKey(scope));
   } catch {
     return null;
   }
 };
 
-const remember = (vaultId: string, threadId: string | null) => {
+const remember = (scope: ThreadScope, threadId: string | null) => {
   try {
-    if (threadId === null) localStorage.removeItem(selectedKey(vaultId));
-    else localStorage.setItem(selectedKey(vaultId), threadId);
+    if (threadId === null) localStorage.removeItem(rememberedThreadKey(scope));
+    else localStorage.setItem(rememberedThreadKey(scope), threadId);
   } catch {
     // Private mode or full storage: the open thread just won't be remembered.
   }
@@ -29,29 +29,32 @@ const remember = (vaultId: string, threadId: string | null) => {
 
 const byRecent = (a: ThreadSummary, b: ThreadSummary) => b.updatedAt - a.updatedAt || b.createdAt - a.createdAt;
 
-/** The open vault's threads, kept current by GET /events/vaults/:id/threads. */
+/**
+ * The threads of the open scope (all of a vault's, or one project's), kept current
+ * by GET /events/vaults/:id/threads.
+ */
 class ThreadsStore {
   threads = $state<ReadonlyArray<ThreadSummary>>([]);
   status = $state<"loading" | "loaded" | "failed">("loading");
   error = $state<string | undefined>(undefined);
-  #vaultId: string | undefined;
+  #scope: ThreadScope | undefined;
   #controller: AbortController | undefined;
   #close: (() => void) | undefined;
 
-  connect(vaultId: string) {
-    if (vaultId === this.#vaultId) return;
+  connect(scope: ThreadScope) {
+    if (sameScope(scope, this.#scope)) return;
     this.disconnect();
-    this.#vaultId = vaultId;
-    this.#close = listen(vaultThreadsEventsPath(vaultId), ThreadsStreamMessage, {
+    this.#scope = scope;
+    this.#close = listen(vaultThreadsEventsPath(scope.vaultId), ThreadsStreamMessage, {
       onEvent: (message) => {
-        if (message.type === "thread.updated" && message.thread.vaultId === this.#vaultId) this.#upsert(message.thread);
+        if (message.type === "thread.updated" && inScope(this.#scope, message.thread)) this.#upsert(message.thread);
       },
       // Updates sent while disconnected are lost; reload the list.
-      onReconnect: () => void this.#load(vaultId),
+      onReconnect: () => void this.#load(scope),
     });
-    void this.#load(vaultId).then(() => {
-      const previous = remembered(vaultId);
-      if (vaultId === this.#vaultId && previous !== null && this.threads.some((thread) => thread.id === previous)) {
+    void this.#load(scope).then(() => {
+      const previous = remembered(scope);
+      if (this.#scope === scope && previous !== null && this.threads.some((thread) => thread.id === previous)) {
         void openThread.open(previous);
       }
     });
@@ -61,30 +64,42 @@ class ThreadsStore {
     this.#controller?.abort();
     this.#close?.();
     this.#close = undefined;
-    this.#vaultId = undefined;
+    this.#scope = undefined;
     this.threads = [];
     this.status = "loading";
     void openThread.open(null);
   }
 
-  select(threadId: string | null) {
-    if (this.#vaultId !== undefined) remember(this.#vaultId, threadId);
-    void openThread.open(threadId);
+  /**
+   * Opens a thread. One outside the project being shown (a note's linked thread)
+   * switches the list to its project, or to all threads; one from another vault
+   * can't be opened here.
+   */
+  async select(threadId: string | null) {
+    if (threadId !== null && !this.threads.some((thread) => thread.id === threadId)) {
+      try {
+        const { thread } = await getThread(threadId);
+        if (thread.vaultId !== this.#scope?.vaultId) {
+          this.error = "That thread is in another vault; open that vault to see it.";
+          return;
+        }
+        projects.select(thread.projectId);
+        this.connect({ vaultId: thread.vaultId, projectId: thread.projectId });
+      } catch (error) {
+        this.error = errorMessage(error, "Could not open thread");
+        return;
+      }
+    }
+    if (this.#scope !== undefined) remember(this.#scope, threadId);
+    await openThread.open(threadId);
   }
 
+  /** Starts a thread in the list being shown. */
   async create() {
-    const vaultId = this.#vaultId;
-    if (vaultId === undefined) return;
+    const scope = this.#scope;
+    if (scope === undefined) return;
     try {
-      const agentId = agents.chosen?.id;
-      const providerInstanceId = providers.chosen?.id;
-      const { thread } = await createThread(vaultId, {
-        ...(providerInstanceId === undefined ? {} : { providerInstanceId }),
-        ...(agentId === undefined ? {} : { agentId }),
-      });
-      this.#upsert(thread);
-      remember(vaultId, thread.id);
-      await openThread.open(thread.id);
+      const thread = await this.startIn(scope);
       this.error = undefined;
       return thread;
     } catch (error) {
@@ -92,11 +107,35 @@ class ThreadsStore {
     }
   }
 
-  async #load(vaultId: string) {
+  /**
+   * Starts a thread in `scope` with the chosen agent and provider, and makes it the
+   * scope's open thread. Fails with why it couldn't.
+   */
+  async startIn(scope: ThreadScope) {
+    const agentId = agents.chosen?.id;
+    const providerInstanceId = providers.chosen?.id;
+    const { thread } = await createThread(scope.vaultId, {
+      ...(scope.projectId === null ? {} : { projectId: scope.projectId }),
+      ...(providerInstanceId === undefined ? {} : { providerInstanceId }),
+      ...(agentId === undefined ? {} : { agentId }),
+    });
+    if (sameScope(scope, this.#scope)) this.#upsert(thread);
+    await this.show(scope, thread.id);
+    return thread;
+  }
+
+  /** Makes a thread the scope's open one: now if the scope is showing, else when it next shows. */
+  async show(scope: ThreadScope, threadId: string) {
+    remember(scope, threadId);
+    if (sameScope(scope, this.#scope)) await openThread.open(threadId);
+  }
+
+  async #load(scope: ThreadScope) {
     this.#controller?.abort();
     const controller = (this.#controller = new AbortController());
     try {
-      const { threads } = await listThreads(vaultId, controller.signal);
+      const { threads } = await listThreads(scope.vaultId, scope.projectId, controller.signal);
+      if (this.#scope !== scope) return;
       this.threads = threads;
       this.status = "loaded";
     } catch (error) {

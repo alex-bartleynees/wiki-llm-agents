@@ -8,6 +8,8 @@ import type { DbError } from "../../shared/persistence/errors.js";
  */
 export interface VaultRepositoryService {
   readonly list: Effect.Effect<ReadonlyArray<Vault>, DbError>;
+  /** The vault registered first: the shared vault that projects use (one shared vault for now). */
+  readonly firstRegistered: Effect.Effect<Option.Option<Vault>, DbError>;
   readonly findById: (id: string) => Effect.Effect<Option.Option<Vault>, DbError>;
   readonly findByRootPath: (rootPath: string) => Effect.Effect<Option.Option<Vault>, DbError>;
   readonly insert: (vault: Vault & { readonly createdAt: Date }) => Effect.Effect<void, DbError>;

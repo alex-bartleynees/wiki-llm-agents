@@ -56,7 +56,7 @@ export const AgentSummary = Schema.Struct({
   /** Knowledge sources, e.g. `vault`, `web`. Informational until the vault MCP server (slice 7). */
   sources: Schema.Array(Schema.String),
   autonomy: Autonomy,
-  /** How many background tasks it runs at once (slice 13). */
+  /** How many background tasks it runs at once (slice 14). */
   concurrency: Schema.Number,
   /** Absolute path of the agent's file. */
   path: Schema.String,

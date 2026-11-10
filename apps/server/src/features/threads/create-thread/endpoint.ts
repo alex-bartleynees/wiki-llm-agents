@@ -17,6 +17,8 @@ export const createThreadEndpoint = Effect.gen(function* () {
   Effect.catchTags({
     SchemaError: () => Effect.succeed(badRequest()),
     HttpServerError: () => Effect.succeed(badRequest()),
+    ProjectNotFound: () => Effect.succeed(notFound("Project not found")),
+    InvalidProject: (error) => Effect.succeed(badRequest(error.message)),
     VaultNotFound: () => Effect.succeed(notFound("Vault not found")),
     ProviderInstanceNotFound: () => Effect.succeed(badRequest("Unknown provider")),
     AgentNotFound: (error) => Effect.succeed(badRequest(error.reason)),

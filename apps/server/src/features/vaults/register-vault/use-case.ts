@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { homedir } from "node:os";
-import { basename, isAbsolute, join } from "node:path";
+import { basename, isAbsolute } from "node:path";
+import { expandHome } from "../../../shared/paths.js";
 import type { RegisterVaultRequest } from "@wiki-agents/contracts/vaults/register-vault/request";
 import { Clock, Data, Effect, FileSystem, Option } from "effect";
 import { trackVault } from "../../indexing/track-vault.js";
@@ -11,8 +11,7 @@ export class InvalidVaultFolder extends Data.TaggedError("InvalidVaultFolder")<{
   readonly reason: string;
 }> {}
 
-const expandHome = (path: string) =>
-  path === "~" ? homedir() : path.startsWith("~/") ? join(homedir(), path.slice(2)) : path;
+
 
 /**
  * Registers a folder as a vault, by its canonical path (symlinks resolved), so the

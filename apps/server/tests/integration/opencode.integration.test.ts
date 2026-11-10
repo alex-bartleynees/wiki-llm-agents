@@ -1,10 +1,15 @@
 import { createHash } from "node:crypto";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { NodeHttpServer } from "@effect/platform-node";
 import { describe, expect, it, layer } from "@effect/vitest";
+import { ListAgentsResponse } from "@wiki-agents/contracts/agents/list-agents/response";
+import { RegisterProjectResponse } from "@wiki-agents/contracts/projects/register-project/response";
+import { CreateThreadResponse } from "@wiki-agents/contracts/threads/create-thread/response";
+import { afterAll } from "vitest";
+import { AgentCatalog } from "../../src/features/agents/catalog.js";
 import { DEFAULT_AUTONOMY } from "@wiki-agents/contracts/agents/model";
 import { GetProviderStatusResponse } from "@wiki-agents/contracts/providers/get-provider-status/response";
 import { ListProvidersResponse } from "@wiki-agents/contracts/providers/list-providers/response";
@@ -493,6 +498,92 @@ layer(App)("OpenCode provider", (it) => {
         HttpClientRequest.put(`/api/threads/${thread.id}/model`).pipe(HttpClientRequest.bodyJsonUnsafe({ model: "opencode/big-pickle" })),
       );
       expect((yield* put).status).toBe(400);
+    }),
+  );
+});
+
+/** A shared vault registered at startup, so it is the one every project here uses. */
+const projectVault = realpathSync(mkdtempSync(join(tmpdir(), "wiki-agents-project-vault-")));
+writeFileSync(join(projectVault, "index.md"), "# Shared");
+afterAll(() => rmSync(projectVault, { recursive: true, force: true }));
+const ProjectApp = Layer.merge(makeTestApp({ providers: providersOver(FakeLive), vaults: [projectVault] }), FakeLive);
+
+layer(ProjectApp)("OpenCode in a project", (it) => {
+  /**
+   * A project with a main and an extra working directory, an OpenCode thread in it
+   * (with `agentId`), and `scenario` loaded. With `reaching`, the recording's edit
+   * approval becomes OpenCode asking to reach that path outside the main directory.
+   */
+  const projectThread = (scenario: string, options: { readonly reaching?: (folders: { readonly extra: string; readonly outside: string }) => string; readonly agentId?: string } = {}) =>
+    Effect.gen(function* () {
+      const base = yield* Effect.acquireRelease(
+        Effect.sync(() => realpathSync(mkdtempSync(join(tmpdir(), "wiki-agents-project-")))),
+        (dir) => Effect.sync(() => rmSync(dir, { recursive: true, force: true })),
+      );
+      const repo = join(base, "repo"), extra = join(base, "extra"), outside = join(base, "outside");
+      for (const dir of [repo, extra, outside]) mkdirSync(dir);
+      const { project } = yield* post("/api/projects", { name: "Repo", workingDirectories: [repo, extra] }).pipe(Effect.flatMap(decode(RegisterProjectResponse)));
+      const recorded = loadFixture(scenario);
+      const target = options.reaching?.({ extra, outside });
+      const fixture = target === undefined ? recorded : {
+        ...recorded,
+        turns: recorded.turns.map((turn) => ({
+          ...turn,
+          steps: turn.steps.map((step) => {
+            const event = "event" in step ? (step.event as { type: string; data: Record<string, unknown> }) : undefined;
+            return event?.type === "permission.asked" ? { event: { ...event, data: { ...event.data, action: "external_directory", resources: [`${target}/*`] } } } : step;
+          }),
+        })),
+      };
+      const fake = yield* Fake;
+      yield* fake.load(fixture, repo);
+      const { thread } = yield* post(`/api/vaults/${project.vaultId}/threads`, {
+        projectId: project.id,
+        providerInstanceId: "opencode",
+        ...(options.agentId === undefined ? {} : { agentId: options.agentId }),
+      }).pipe(Effect.flatMap(decode(CreateThreadResponse)));
+      return { thread, fake, prompts: fixture.turns.map((turn) => turn.prompt) };
+    });
+
+  it.effect("reaches the project's other working directories and the shared vault without asking", () =>
+    Effect.gen(function* () {
+      for (const reaching of [({ extra }: { extra: string }) => extra, () => projectVault]) {
+        const { thread, fake, prompts } = yield* projectThread("approval-approved", { reaching });
+        const events = yield* watch(thread.id);
+        yield* sendOk(thread.id, prompts[0]!);
+        const seen = yield* events.until(isTag("turn.finished"));
+        expect(seen.map((event) => event._tag)).not.toContain("request.opened");
+        expect(fake.calls).toContainEqual(expect.objectContaining({ call: "reply", reply: "once" }));
+        expect(finishedOf(seen).outcome).toBe("completed");
+      }
+    }),
+  );
+
+  it.effect("asks you before reaching anywhere outside the project", () =>
+    Effect.gen(function* () {
+      const { thread, fake, prompts } = yield* projectThread("approval-approved", { reaching: ({ outside }) => outside });
+      const events = yield* watch(thread.id);
+      yield* sendOk(thread.id, prompts[0]!);
+      const opened = yield* events.until(isTag("request.opened"));
+      expect(opened.at(-1)).toMatchObject({ prompt: { _tag: "approval" } });
+      expect(fake.calls.some((call) => call.call === "reply")).toBe(false);
+      yield* answer(thread.id, requestIdOf(opened), { _tag: "approval", decision: "approve" });
+      expect(finishedOf(yield* events.until(isTag("turn.finished"))).outcome).toBe("completed");
+      expect(fake.calls).toContainEqual({ call: "reply", requestId: requestIdOf(opened), reply: "once" });
+    }),
+  );
+
+  it.effect("lets an agent that may edit change files in the project without asking", () =>
+    Effect.gen(function* () {
+      const { configDir } = yield* HttpClient.get("/api/agents").pipe(Effect.flatMap(decode(ListAgentsResponse)));
+      writeFileSync(join(configDir, "agents", "editor.md"), "---\nautonomy:\n  create: allow\n  edit: allow\n---\nEdit freely.");
+      yield* (yield* AgentCatalog).reload;
+      const { thread, fake, prompts } = yield* projectThread("simple", { agentId: "editor" });
+      const events = yield* watch(thread.id);
+      yield* sendOk(thread.id, prompts[0]!);
+      expect(finishedOf(yield* events.until(isTag("turn.finished"))).outcome).toBe("completed");
+      const created = fake.calls.find((call) => call.call === "createSession");
+      expect(created).toMatchObject({ permissions: expect.arrayContaining([{ action: "edit", resource: "*", effect: "allow" }]) });
     }),
   );
 });

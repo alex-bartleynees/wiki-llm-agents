@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import { Effect, Layer, Option } from "effect";
 import { DbError } from "../../shared/persistence/errors.js";
 import { Sqlite } from "../../shared/persistence/sqlite.js";
@@ -14,6 +14,9 @@ export const VaultRepositoryLive = Layer.effect(
     const query = <A>(run: () => A) => Effect.try({ try: run, catch: (cause) => new DbError({ cause }) });
     return {
       list: query(() => db.select(columns).from(vaults).orderBy(asc(vaults.name)).all()),
+      firstRegistered: query(() =>
+        Option.fromNullishOr(db.select(columns).from(vaults).orderBy(asc(vaults.createdAt), sql`rowid`).limit(1).get()),
+      ),
       findById: (id) =>
         query(() => Option.fromNullishOr(db.select(columns).from(vaults).where(eq(vaults.id, id)).get())),
       findByRootPath: (rootPath) =>

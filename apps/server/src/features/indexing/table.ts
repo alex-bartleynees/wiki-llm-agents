@@ -34,7 +34,7 @@ export const notes = sqliteTable(
   (table) => [primaryKey({ columns: [table.vaultId, table.path] }), index("notes_content_hash").on(table.contentHash)],
 );
 
-/** Note contents by SHA-256, shared by identical versions; change review (slice 8) keeps old ones. */
+/** Note contents by SHA-256, shared by identical versions; change review (slice 9) keeps old ones. */
 export const blobs = sqliteTable("blobs", {
   hash: text("hash").primaryKey(),
   content: text("content").notNull(),

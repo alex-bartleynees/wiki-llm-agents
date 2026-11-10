@@ -1,6 +1,8 @@
 <script lang="ts">
   import type { Vault } from "@wiki-agents/contracts/vaults/model";
   import { errorMessage } from "#lib/api/client.ts";
+  import { machineFolders } from "#lib/features/folders/api.ts";
+  import FolderPicker from "#lib/ui/primitives/FolderPicker.svelte";
   import { vaults } from "./vaults.svelte.ts";
 
   let { onadded }: { onadded: (vault: Vault) => void } = $props();
@@ -8,6 +10,7 @@
   let rootPath = $state("");
   let name = $state("");
   let saving = $state(false);
+  let picking = $state(false);
   let error = $state<string | undefined>(undefined);
 
   const submit = async (event: SubmitEvent) => {
@@ -27,18 +30,22 @@
 </script>
 
 <form onsubmit={submit}>
-  <label>
-    <span>Folder</span>
-    <input
-      class="mono"
-      bind:value={rootPath}
-      required
-      placeholder="~/Documents/obsidian-vault"
-      autocomplete="off"
-      autocapitalize="off"
-      spellcheck="false"
-    />
-  </label>
+  <div class="field">
+    <label for="vault-folder">Folder</label>
+    <div class="path">
+      <input
+        id="vault-folder"
+        class="mono"
+        bind:value={rootPath}
+        required
+        placeholder="~/Documents/obsidian-vault"
+        autocomplete="off"
+        autocapitalize="off"
+        spellcheck="false"
+      />
+      <button type="button" class="browse" onclick={() => (picking = true)}>Browse…</button>
+    </div>
+  </div>
   <label>
     <span>Name <em>(optional)</em></span>
     <input bind:value={name} placeholder="Defaults to the folder name" autocomplete="off" />
@@ -50,20 +57,51 @@
   <p class="hint">The app only reads the vault for now; it never writes to it.</p>
 </form>
 
+<FolderPicker
+  bind:open={picking}
+  title="Choose the vault folder"
+  start={rootPath.trim() === "" ? null : rootPath.trim()}
+  load={machineFolders}
+  onchoose={(path) => (rootPath = path)}
+  typed
+/>
+
 <style>
   form {
     display: grid;
     gap: 12px;
     max-width: 520px;
   }
-  label {
+  label,
+  .field {
     display: grid;
     gap: 4px;
   }
+  .field > label,
   label span {
     font-size: 12px;
     font-weight: 500;
     color: var(--ink-2);
+  }
+  .path {
+    display: flex;
+    gap: 6px;
+  }
+  .path input {
+    flex: 1;
+    min-width: 0;
+  }
+  .browse {
+    flex: 0 0 auto;
+    height: 38px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
   }
   em {
     font-style: normal;

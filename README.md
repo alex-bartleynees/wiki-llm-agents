@@ -133,7 +133,59 @@ the note; replaying stored history never navigates the reader.
 Search evaluation fixtures and fixed relevance judgements live in
 `apps/server/tests/fixtures/search-eval/`. Run the evaluation against the real HTTP
 app with `nix develop -c npm test -w @wiki-agents/server -- search-eval`.
-Save as note remains deferred until slice 8's reviewed writes.
+Save as note remains deferred until slice 9's reviewed writes.
+
+### Projects
+
+**Projects** in the header opens `/projects`: the projects, each with its working
+directories, shared vault, threads and changed files, and a form to register one
+(an existing folder or a new empty one as the main directory, more directories,
+and an optional existing notes folder inside the shared vault). Each project has
+two views, switched with **Overview | Threads**: the overview (the default,
+`/projects/<id>`), and the project's threads with the open one in the middle and
+the project beside it (`/projects/<id>/threads`), where **New thread here** and
+**Open** go. The Projects page shows only project threads; threads without a
+project are in the wiki, whose **Threads in** select switches between all of the
+vault's threads and one project's. The shared vault is the
+vault registered first; several vaults per project, and a vault picker, are deferred.
+`/`, `/home` and the home folder itself are refused as working directories.
+
+A project's threads run in its main directory and keep their project across
+restarts. They reach the shared vault through their vault tools (MCP), supplied
+notes and the rules. The threads pane remembers the open thread separately for each
+project. With a vault open that the selected project doesn't use, all of that
+vault's threads show.
+
+- `POST /api/projects {name, workingDirectories, notesFolder?, createDirectories?}`
+  registers a project, checking everything before creating any folder;
+  `GET /api/projects` lists projects.
+- `POST /api/vaults/:id/threads` accepts `projectId`.
+  `GET /api/vaults/:id/threads?projectId=…` lists that project's threads,
+  `?projectId=none` the vault's own; without it, every thread in the vault.
+- `GET /api/projects/:id/changes` (shown on the project, **Rescan**) compares every working
+  directory with the baseline: the files when the project was registered or last
+  marked reviewed (`POST /api/projects/:id/changes/review`, **Mark all
+  reviewed**). It reports created, modified and deleted files, including changes
+  made outside the app, without saying who made them. Symlinks, version-control
+  metadata and dependency/build/cache folders (`node_modules`, `dist`, `target`,
+  `.venv`, Nix's `result`...) are left out. A scan stops at 20,000 files, and a
+  folder that has gone or moved fails the scan (409) rather than reporting every
+  file as deleted.
+- In OpenCode project sessions, everything inside the project follows the agent's
+  autonomy, as for vault threads: an agent allowed to edit edits without asking.
+  When OpenCode asks to reach outside the main directory, the app allows the
+  project's other working directories and the shared vault itself (resolving
+  symlinks) and asks you about anywhere else. Shell commands follow command
+  autonomy; this is a permission boundary, not an OS sandbox.
+- Review and undo code changes with lazygit/git. In-app project diffs/restore are
+  deferred; vault change review is slice 9.
+- Folders are chosen with **Browse…** (project directories, the vault folder) or
+  typed. A browser never gives a page a folder's real path, so the picker walks
+  the server's machine through `GET /api/folders?path=…` (default: the home
+  folder; dot-folders hidden). It lists folder names anywhere this user can read,
+  so like the rest of the API it relies on the server listening on localhost (the
+  default; mind `WIKI_AGENTS_HOST`) and checking the Origin. The notes folder
+  is picked from the shared vault's own folders.
 
 ### Agents and rules
 
@@ -195,7 +247,7 @@ The client library is `@opencode/client` (and `@opencode/protocol`), pinned to e
 the installed OpenCode's version (2.2.1); they ask for an older `effect`, which the
 root `overrides` replaces with the app's, so there is one copy.
 
-The app itself only reads vaults until change review exists (slice 8); agents
+The app itself only reads vaults until change review exists (slice 9); agents
 change files when you approve. Dot-folders
 (`.git`, `.obsidian`, `.trash`, `.stfolder`...) and Syncthing conflict copies are
 hidden, and the path guard refuses anything that resolves outside the vault,

@@ -159,6 +159,8 @@ export type ThreadStatus = typeof ThreadStatus.Type;
 export const ThreadSummary = Schema.Struct({
   id: Schema.String,
   vaultId: Schema.String,
+  /** The project the thread belongs to; null for a vault thread. */
+  projectId: Schema.NullOr(Schema.String),
   /** From the first message until renaming exists; null before any message. */
   title: Schema.NullOr(Schema.String),
   providerInstanceId: Schema.String,

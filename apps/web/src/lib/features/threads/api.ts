@@ -22,16 +22,19 @@ const NoBody = Schema.Struct({});
 
 export const listProviders = (signal?: AbortSignal) => getJson("/api/providers", ListProvidersResponse, signal);
 
-export const listThreads = (vaultId: string, signal?: AbortSignal) => getJson(vaultThreadsPath(vaultId), ListThreadsResponse, signal);
+/** One project's threads, or (for a null `projectId`) every thread in the vault. */
+export const listThreads = (vaultId: string, projectId: string | null, signal?: AbortSignal) =>
+  getJson(vaultThreadsPath(vaultId) + (projectId === null ? "" : `?projectId=${encodeURIComponent(projectId)}`), ListThreadsResponse, signal);
 
 export const getProviderStatus = (providerInstanceId: string, signal?: AbortSignal) =>
   getJson(`/api/providers/${encodeURIComponent(providerInstanceId)}/status`, GetProviderStatusResponse, signal);
 
-export const createThread = (vaultId: string, options: { readonly providerInstanceId?: string; readonly agentId?: string }) =>
+export const createThread = (vaultId: string, options: { readonly projectId?: string; readonly providerInstanceId?: string; readonly agentId?: string }) =>
   postJson(
     vaultThreadsPath(vaultId),
     CreateThreadRequest,
     {
+      ...(options.projectId === undefined ? {} : { projectId: options.projectId }),
       ...(options.providerInstanceId === undefined ? {} : { providerInstanceId: options.providerInstanceId }),
       ...(options.agentId === undefined ? {} : { agentId: options.agentId }),
     },

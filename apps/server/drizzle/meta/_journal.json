@@ -50,6 +50,20 @@
       "when": 1794300172266,
       "tag": "0006_slimy_secret_warriors",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1794303026503,
+      "tag": "0007_same_ricochet",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1794314056316,
+      "tag": "0008_lame_master_mold",
+      "breakpoints": true
     }
   ]
 }

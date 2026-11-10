@@ -14,16 +14,27 @@
     threads,
     agents,
     search,
+    full = false,
   }: {
     vault: Snippet;
     note: Snippet;
     threads: Snippet;
     agents: Snippet;
     search: Snippet;
+    /** A page of its own (Projects): the header, then `note` across the whole width. */
+    full?: boolean;
   } = $props();
 
+  // AppShell stays mounted while moving between Wiki and Projects.
+  let wikiHref = $state("/");
+
+  const onProjects = $derived(page.url.pathname.startsWith("/projects"));
+
   // Phone: opening a note (from the drawer or a link) shows it full screen.
-  afterNavigate(() => {
+  afterNavigate(({ to }) => {
+    if (to?.params?.["vaultId"] !== undefined) {
+      wikiHref = to.url.pathname + to.url.search + to.url.hash;
+    }
     shell.drawerOpen = false;
     shell.tab = "wiki";
   });
@@ -31,7 +42,7 @@
 
 <svelte:window onkeydown={(event) => event.key === "Escape" && (shell.drawerOpen = false)} />
 
-<div class="app" data-tab={shell.tab}>
+<div class="app" class:full data-tab={shell.tab}>
   <header>
     <button
       type="button"
@@ -42,13 +53,17 @@
     >
       ☰
     </button>
-    <a class="brand" href="/">
+    <a class="brand" href={wikiHref}>
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
         <rect x="1.5" y="1.5" width="17" height="17" rx="2" stroke="var(--ink)" stroke-width="1.5" />
         <path d="M6 6.5h8M6 10h5" stroke="var(--accent)" stroke-width="1.5" />
       </svg>
       wiki-agents
     </a>
+    <nav aria-label="Primary">
+      <a href={wikiHref} aria-current={onProjects ? undefined : "page"}>Wiki</a>
+      <a href="/projects" aria-current={onProjects ? "page" : undefined}>Projects</a>
+    </nav>
     <button
       type="button"
       class="search"
@@ -69,6 +84,9 @@
     </button>
   </header>
 
+  {#if full}
+    <main class="page">{@render note()}</main>
+  {:else}
   <div class="panes" style:--vault-width="{paneWidths.vault}px" style:--threads-width="{paneWidths.threads}px">
     {#if shell.drawerOpen}
       <button type="button" class="backdrop" aria-label="Close vault" onclick={() => (shell.drawerOpen = false)}></button>
@@ -101,6 +119,7 @@
   <div class="bottom-bar">
     <BottomBar active={shell.tab} onselect={(next) => ((shell.tab = next), (shell.drawerOpen = false))} />
   </div>
+  {/if}
 </div>
 
 <style>
@@ -120,6 +139,32 @@
     gap: 20px;
     background: var(--surface);
     border-bottom: 1px solid var(--line);
+  }
+  nav {
+    align-self: stretch;
+    display: flex;
+    gap: 22px;
+  }
+  nav a {
+    display: flex;
+    align-items: center;
+    border-bottom: 2px solid transparent;
+    color: var(--ink-2);
+    font-size: 14px;
+    text-decoration: none;
+  }
+  nav a:hover {
+    color: var(--ink);
+  }
+  nav a[aria-current="page"] {
+    border-bottom-color: var(--accent);
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .page {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
   }
   .brand {
     color: var(--ink);
@@ -224,6 +269,12 @@
     .drawer-toggle {
       display: block;
       margin-left: 0;
+    }
+    .full .drawer-toggle {
+      display: none;
+    }
+    nav {
+      gap: 14px;
     }
     .panes {
       position: relative;

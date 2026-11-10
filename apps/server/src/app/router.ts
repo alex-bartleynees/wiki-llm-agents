@@ -1,3 +1,5 @@
+import { foldersRouter } from "../features/folders/router.js";
+import { projectsRouter } from "../features/projects/router.js";
 import { Layer } from "effect";
 import { HttpRouter, HttpServerResponse } from "effect/http";
 import { agentsRouter } from "../features/agents/router.js";
@@ -15,6 +17,8 @@ const healthRouter = HttpRouter.add("GET", "/health", HttpServerResponse.text("o
 
 export const router = Layer.mergeAll(
   healthRouter,
+  foldersRouter,
+  projectsRouter,
   vaultsRouter,
   notesRouter,
   indexingRouter,

@@ -3,6 +3,8 @@ import type { CreateThreadRequest } from "@wiki-agents/contracts/threads/create-
 import type { CreateThreadResponse } from "@wiki-agents/contracts/threads/create-thread/response";
 import { Clock, Effect } from "effect";
 import { AgentCatalog } from "../../agents/catalog.js";
+import { InvalidProject } from "../../projects/errors.js";
+import { findProject } from "../../projects/find-project.js";
 import { ProviderRegistry } from "../../providers/registry.js";
 import { findVault } from "../../vaults/find-vault.js";
 import { ThreadRepository } from "../repository.js";
@@ -15,6 +17,8 @@ import { ThreadBus } from "../thread-bus.js";
  */
 export const createThread = Effect.fn("createThread")(function* (request: CreateThreadRequest & { readonly vaultId: string }) {
   const vault = yield* findVault(request.vaultId);
+  const project = request.projectId === undefined ? null : yield* findProject(request.projectId);
+  if (project !== null && project.vaultId !== vault.id) return yield* new InvalidProject({ message: "Project uses a different shared vault" });
   const agent = request.agentId === undefined ? null : yield* (yield* AgentCatalog).get(request.agentId);
   const registry = yield* ProviderRegistry;
   const providerInstanceId = request.providerInstanceId ?? agent?.provider ?? undefined;
@@ -23,6 +27,7 @@ export const createThread = Effect.fn("createThread")(function* (request: Create
   const thread = yield* (yield* ThreadRepository).insert({
     id: randomUUID(),
     vaultId: vault.id,
+    projectId: project?.id ?? null,
     providerInstanceId: instance.id,
     agentId: agent?.id ?? null,
     model: agentsProvider && instance.capabilities.models ? agent.model : null,

@@ -21,6 +21,7 @@ const turnStartId = (turnId: string) => `turn.start:${turnId}`;
 const summaryColumns = {
   id: threads.id,
   vaultId: threads.vaultId,
+  projectId: threads.projectId,
   title: threads.title,
   providerInstanceId: threads.providerInstanceId,
   model: threads.model,
@@ -95,12 +96,12 @@ export const ThreadRepositoryLive = Layer.effect(
           return Option.getOrThrow(findSync(threadId));
         }),
 
-      listByVault: (vaultId) =>
+      listByVault: (vaultId, scope) =>
         query(() =>
           db
             .select(summaryColumns)
             .from(threads)
-            .where(and(eq(threads.vaultId, vaultId), isNull(threads.deletedAt)))
+            .where(and(eq(threads.vaultId, vaultId), isNull(threads.deletedAt), scope === undefined ? undefined : scope.projectId === null ? isNull(threads.projectId) : eq(threads.projectId, scope.projectId)))
             .orderBy(desc(threads.updatedAt), desc(threads.createdAt))
             .all()
             .map(toSummary),

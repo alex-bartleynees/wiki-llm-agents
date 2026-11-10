@@ -12,10 +12,11 @@ import { sessionSetup } from "../agents/session-setup.js";
 import { ProviderError, type ProviderEvent, type ProviderSession, type SessionSetup } from "../providers/port.js";
 import { VaultTools } from "../mcp/vault-tools.js";
 import { ProviderRegistry } from "../providers/registry.js";
-import { findVault } from "../vaults/find-vault.js";
+import { projectInstruction, projectRoots } from "../projects/project-context.js";
 import { NoTurnRunning, RequestClosed, RequestNotFound, ThreadBusy, ThreadNotFound, WrongAnswerKind } from "./errors.js";
 import { type PendingRequest, ThreadRepository } from "./repository.js";
 import { ThreadBus } from "./thread-bus.js";
+import { threadWorkspace } from "./workspace.js";
 
 /** Messages a ThreadActor handles, one at a time, in the order they arrive. */
 type Message =
@@ -90,7 +91,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
   const bus = yield* ThreadBus;
   const thread = Option.getOrUndefined(yield* repository.find(threadId));
   if (thread === undefined) return yield* new ThreadNotFound({ threadId });
-  const vault = yield* findVault(thread.vaultId);
+  const { vault, project, cwd } = yield* threadWorkspace(thread);
   const { adapter } = yield* (yield* ProviderRegistry).get(thread.providerInstanceId);
   const catalog = yield* AgentCatalog;
   const fs = yield* FileSystem.FileSystem;
@@ -116,7 +117,12 @@ export const makeThreadActor = Effect.fnUntraced(function* (
       Effect.provideService(FileSystem.FileSystem, fs),
       Effect.mapError((error) => (error._tag === "AgentNotFound" ? new ProviderError({ message: error.reason }) : error)),
     );
-    const setup: SessionSetup = { ...agent, vaultTools: yield* vaultTools.current };
+    const setup: SessionSetup = {
+      ...agent,
+      instructions: project === null ? agent.instructions : [...agent.instructions, projectInstruction(project, vault.rootPath)],
+      projectRoots: project === null ? null : projectRoots(project, vault.rootPath),
+      vaultTools: yield* vaultTools.current,
+    };
     return setup;
   });
 
@@ -125,7 +131,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     if (session !== undefined) return session;
     const stored = yield* repository.providerSession(threadId);
     const opened = yield* adapter
-      .openSession({ threadId, cwd: vault.rootPath, nativeSessionId: stored.nativeSessionId, model: stored.model, setup })
+      .openSession({ threadId, cwd, nativeSessionId: stored.nativeSessionId, model: stored.model, setup })
       .pipe(Scope.provide(actorScope));
     if (opened.nativeSessionId !== stored.nativeSessionId) {
       yield* repository.setNativeSession(threadId, opened.nativeSessionId).pipe(

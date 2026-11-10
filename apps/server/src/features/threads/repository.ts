@@ -5,6 +5,8 @@ import type { DbError } from "../../shared/persistence/errors.js";
 export interface NewThread {
   readonly id: string;
   readonly vaultId: string;
+  /** Null for a vault thread. */
+  readonly projectId: string | null;
   readonly providerInstanceId: string;
   readonly agentId: string | null;
   /** The model to start with; null for the provider's default. */
@@ -46,8 +48,11 @@ export interface ThreadRepositoryService {
   readonly setNativeSession: (threadId: string, nativeSessionId: string | null) => Effect.Effect<void, DbError>;
   readonly setModel: (threadId: string, model: string, at: number) => Effect.Effect<ThreadSummary, DbError>;
   readonly setAgent: (threadId: string, agentId: string | null, at: number) => Effect.Effect<ThreadSummary, DbError>;
-  /** Most recently updated first. */
-  readonly listByVault: (vaultId: string) => Effect.Effect<ReadonlyArray<ThreadSummary>, DbError>;
+  /**
+   * Most recently updated first. With `scope`, only that project's threads (for a null
+   * `projectId`, the vault's own threads); without, every thread in the vault.
+   */
+  readonly listByVault: (vaultId: string, scope?: { readonly projectId: string | null }) => Effect.Effect<ReadonlyArray<ThreadSummary>, DbError>;
   /** Events with a seq greater than `afterSeq`, in order. */
   readonly events: (threadId: string, afterSeq: number) => Effect.Effect<ReadonlyArray<StoredThreadEvent>, DbError>;
   /**

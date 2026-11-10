@@ -56,6 +56,7 @@ export const vaultOpenNote = Effect.fnUntraced(function* (params: typeof VaultOp
   VaultNotFound: () => Effect.fail(new ToolFailure({ message: "This thread's vault is no longer registered." })),
   PlatformError: (error) => Effect.fail(new ToolFailure({ message: `The note couldn't be read (${error.reason._tag}).` })),
   NoTurnRunning: () => Effect.fail(new ToolFailure({ message: "Notes can only be opened during a turn." })),
+  ProjectNotFound: () => Effect.fail(new ToolFailure({ message: "This thread’s project no longer exists." })),
   ThreadNotFound: () => Effect.fail(new ToolFailure({ message: "This thread no longer exists." })),
   ProviderInstanceNotFound: () => Effect.fail(new ToolFailure({ message: "This thread's provider is no longer configured." })),
 }));

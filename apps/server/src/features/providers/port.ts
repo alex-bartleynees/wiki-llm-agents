@@ -21,8 +21,8 @@ export class ProviderError extends Data.TaggedError("ProviderError")<{
 
 /** Text the agent is told on top of the provider's own instructions. */
 export interface Instruction {
-  /** `rules`: applies to every agent; `agent`: the named agent's file; `vault`: the vault's own `AGENTS.md`. */
-  readonly source: "rules" | "agent" | "vault";
+  /** `rules`: applies to every agent; `agent`: the named agent's file; `vault`: the vault's own `AGENTS.md`; `project`: the thread's project. */
+  readonly source: "rules" | "agent" | "vault" | "project";
   /** Where it comes from, e.g. `rules/wiki-llm.md`, `Researcher agent`, `AGENTS.md in the vault`. */
   readonly title: string;
   /** Absolute path of the file it was read from. */
@@ -42,6 +42,12 @@ export interface AgentSetup {
  * new token apply from the next turn; adapters skip what hasn't changed.
  */
 export interface SessionSetup extends AgentSetup {
+  /**
+   * For a project thread, the canonical folders it may reach without asking (its
+   * working directories and the shared vault); anywhere else needs the user's
+   * approval. Null for a vault thread, which the provider's own working-folder rules cover.
+   */
+  readonly projectRoots: ReadonlyArray<string> | null;
   /**
    * The vault MCP server for this thread, which the provider registers for the
    * session; null when there is none (the replay provider ignores it). A provider

@@ -8,7 +8,7 @@ const DEFAULT_DAYS = 7;
 const DEFAULT_LIMIT = 30;
 const MAX_LIMIT = 200;
 
-/** Until change review (slice 8) records who changed what, only the file times are known. */
+/** Until change review (slice 9) records who changed what, only the file times are known. */
 export const NO_ATTRIBUTION =
   "Who changed a file isn't recorded yet: these are the files' modification times, whether you, the user, another agent or a sync changed them.";
 

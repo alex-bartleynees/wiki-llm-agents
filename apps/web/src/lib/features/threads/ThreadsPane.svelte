@@ -7,13 +7,14 @@
   import { openThread } from "./open-thread.svelte.ts";
   import { threads } from "./threads.svelte.ts";
 
-  let { vaultId }: { vaultId: string } = $props();
+  /** `projectId`: the project whose threads to show; null for the vault's own threads. */
+  let { vaultId, projectId }: { vaultId: string; projectId: string | null } = $props();
 
-  // Connecting talks to the server; the store ignores a vault it already follows.
+  // Connecting talks to the server; the store ignores a scope it already follows.
   // Untracked, so the store's own state never re-runs this effect.
   $effect(() => {
-    const id = vaultId;
-    untrack(() => threads.connect(id));
+    const scope = { vaultId, projectId };
+    untrack(() => threads.connect(scope));
   });
 
   /** Desktop shares this pane between threads and agents; phone has an Agents tab instead. */
@@ -30,7 +31,7 @@
   {#if showAgents}
     <AgentsPane />
   {:else if openThread.status === "empty"}
-    <ThreadList />
+    <ThreadList {vaultId} {projectId} />
   {:else}
     <ThreadView />
   {/if}

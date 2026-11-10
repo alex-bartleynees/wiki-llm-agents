@@ -1,3 +1,4 @@
+import { ProjectRepositoryLive } from "../features/projects/sqlite-repository.js";
 import { NodeHttpServer } from "@effect/platform-node";
 import { Effect, type FileSystem, Layer } from "effect";
 import { HttpRouter } from "effect/http";
@@ -26,7 +27,7 @@ import { type Sqlite, SqliteLive } from "../shared/persistence/sqlite.js";
 import { router } from "./router.js";
 
 /** Repositories for every feature, over one shared SQLite connection. */
-export const RepositoriesLive = Layer.mergeAll(VaultRepositoryLive, PinRepositoryLive, ThreadRepositoryLive);
+export const RepositoriesLive = Layer.mergeAll(ProjectRepositoryLive, VaultRepositoryLive, PinRepositoryLive, ThreadRepositoryLive);
 
 export interface AppOptions {
   /** Folders from `--vault`, registered before the server starts. */

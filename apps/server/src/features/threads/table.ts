@@ -1,11 +1,13 @@
 import { index, integer, primaryKey, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
-/** A conversation with an agent, working in a vault's folder. */
+/** A conversation with an agent, scoped to the vault or a project. */
 export const threads = sqliteTable(
   "threads",
   {
     id: text("id").primaryKey(),
     vaultId: text("vault_id").notNull(),
+    /** Null for a vault thread. */
+    projectId: text("project_id"),
     title: text("title"),
     providerInstanceId: text("provider_instance_id").notNull(),
     model: text("model"),
