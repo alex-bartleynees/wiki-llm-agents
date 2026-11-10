@@ -2,6 +2,7 @@ import type { Autonomy } from "@wiki-agents/contracts/agents/model";
 import type { ProviderCapabilities, ProviderModel, ProviderStatus } from "@wiki-agents/contracts/providers/model";
 import type { RequestAnswer, ThreadEvent } from "@wiki-agents/contracts/threads/model";
 import { Data, type Effect, type Option, type Scope, type Stream } from "effect";
+import type { VaultToolsEntry } from "../mcp/vault-tools.js";
 
 /**
  * What a provider reports during a turn: the thread events only an agent produces.
@@ -10,7 +11,7 @@ import { Data, type Effect, type Option, type Scope, type Stream } from "effect"
  */
 export type ProviderEvent = Extract<
   ThreadEvent,
-  { readonly _tag: "message.delta" | "tool.called" | "tool.finished" | "request.opened" | "turn.finished" }
+  { readonly _tag: "message.delta" | "tool.called" | "tool.finished" | "request.opened" | "notice" | "turn.finished" }
 >;
 
 export class ProviderError extends Data.TaggedError("ProviderError")<{
@@ -29,15 +30,24 @@ export interface Instruction {
   readonly text: string;
 }
 
-/**
- * What the app layers on a session: instructions, in order (later ones win where they
- * disagree), and the autonomy the provider enforces. Sent with every turn, so edits
- * to the rules, the agent's file, or a different agent apply from the next turn;
- * adapters skip what hasn't changed.
- */
-export interface SessionSetup {
+/** The thread's agent: instructions, in order (later ones win where they disagree), and the autonomy the provider enforces. */
+export interface AgentSetup {
   readonly instructions: ReadonlyArray<Instruction>;
   readonly autonomy: Autonomy;
+}
+
+/**
+ * What the app layers on a session: the agent's setup and the vault tools. Sent
+ * with every turn, so edits to the rules, the agent's file, a different agent, or a
+ * new token apply from the next turn; adapters skip what hasn't changed.
+ */
+export interface SessionSetup extends AgentSetup {
+  /**
+   * The vault MCP server for this thread, which the provider registers for the
+   * session; null when there is none (the replay provider ignores it). A provider
+   * that can't register it still runs the turn, without the tools.
+   */
+  readonly vaultTools: VaultToolsEntry | null;
 }
 
 export interface TurnInput {

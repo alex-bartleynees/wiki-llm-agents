@@ -43,6 +43,13 @@
       "when": 1794290243551,
       "tag": "0005_thread_agents",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1794300172266,
+      "tag": "0006_slimy_secret_warriors",
+      "breakpoints": true
     }
   ]
 }

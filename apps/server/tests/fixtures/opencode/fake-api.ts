@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { OpenCodeEvent } from "@opencode/protocol/groups/event";
 import { Deferred, Effect, Fiber, PubSub, Schema } from "effect";
-import type { OpenCodeApi, OpenCodeModel, OpenCodeOutcome, OpenCodePermissionRule, OpenCodeSignal } from "../../../src/features/providers/opencode/api.js";
+import type { OpenCodeApi, OpenCodeMcpStatus, OpenCodeModel, OpenCodeOutcome, OpenCodePermissionRule, OpenCodeSignal } from "../../../src/features/providers/opencode/api.js";
+import { OpenCodeError } from "../../../src/features/providers/opencode/api.js";
 import { type Fixture, type FixtureStep, VAULT } from "./fixture.js";
 
 const decodeEvent = Schema.decodeUnknownSync(OpenCodeEvent);
@@ -15,6 +16,8 @@ export const FAKE_MODELS: ReadonlyArray<OpenCodeModel> = [
 ];
 
 export interface PlayOptions {
+  /** Explicit app context expected after each recorded prompt. */
+  readonly promptSuffixes?: ReadonlyArray<string>;
   /** Hold the turn before OpenCode starts it, until `release` (to press Stop in between). */
   readonly holdStart?: boolean;
   /** Stop publishing after this many events, as if the stream lost the rest; the turn still runs to its end. */
@@ -29,7 +32,9 @@ export type FakeCall =
   | { readonly call: "setPermissions"; readonly permissions: ReadonlyArray<OpenCodePermissionRule> }
   | { readonly call: "setInstructions"; readonly text: string | null }
   | { readonly call: "reply"; readonly requestId: string; readonly reply: string; readonly message?: string }
-  | { readonly call: "switchModel"; readonly model: string };
+  | { readonly call: "switchModel"; readonly model: string }
+  | { readonly call: "addMcpServer"; readonly directory: string; readonly name: string; readonly url: string; readonly token: string }
+  | { readonly call: "removeMcpServer"; readonly directory: string; readonly name: string };
 
 /** One recorded conversation being played, as one OpenCode session. */
 interface Session {
@@ -67,6 +72,8 @@ export const makeFakeOpenCode = Effect.gen(function* () {
   let starts = 0;
   let loads = 0;
   const replies = new Map<string, Deferred.Deferred<string>>();
+  /** What adding an MCP server reports; `failMcp` makes OpenCode refuse it. */
+  let mcp: OpenCodeMcpStatus | "refused" = { _tag: "connected" };
 
   const sessionFor = (sessionId: string) => {
     const session = sessions.get(sessionId);
@@ -150,7 +157,8 @@ export const makeFakeOpenCode = Effect.gen(function* () {
         const session = sessionFor(sessionId);
         const turn = session.fixture.turns[session.turn++];
         if (turn === undefined) return yield* Effect.die(new Error(`fixture ${session.fixture.scenario} has no turn ${session.turn}`));
-        if (turn.prompt !== text) return yield* Effect.die(new Error(`fixture prompt was "${turn.prompt}", the adapter sent "${text}"`));
+        const expectedPrompt = turn.prompt + (session.options.promptSuffixes?.[session.turn - 1] ?? "");
+        if (expectedPrompt !== text) return yield* Effect.die(new Error(`fixture prompt was "${turn.prompt}", the adapter sent "${text}"`));
         session.stopPressed = yield* Deferred.make<void>();
         session.startGate = session.options.holdStart === true ? yield* Deferred.make<void>() : undefined;
         session.running = session.options.holdStart !== true;
@@ -195,6 +203,15 @@ export const makeFakeOpenCode = Effect.gen(function* () {
     switchModel: (_sessionId, model) =>
       Effect.sync(() => {
         calls.push({ call: "switchModel", model });
+      }),
+    addMcpServer: (directory, server) =>
+      Effect.suspend(() => {
+        calls.push({ call: "addMcpServer", directory, name: server.name, url: server.url, token: server.token });
+        return mcp === "refused" ? Effect.fail(new OpenCodeError({ message: "OpenCode didn't take the vault tools (InvalidRequestError)." })) : Effect.succeed(mcp);
+      }),
+    removeMcpServer: (directory, name) =>
+      Effect.sync(() => {
+        calls.push({ call: "removeMcpServer", directory, name });
       }),
   };
 
@@ -244,6 +261,7 @@ export const makeFakeOpenCode = Effect.gen(function* () {
         sessions.clear();
         calls.length = 0;
         replies.clear();
+        mcp = { _tag: "connected" };
         yield* add(fixture, directory, options);
       }),
     /** Plays another fixture at the same time, in a session of its own. */
@@ -268,6 +286,11 @@ export const makeFakeOpenCode = Effect.gen(function* () {
         discard: true,
       }),
     ),
+    /** How OpenCode answers when the vault tools are added from now on. */
+    setMcp: (status: OpenCodeMcpStatus | "refused") =>
+      Effect.sync(() => {
+        mcp = status;
+      }),
     /** As if the event stream dropped and came back. */
     reconnect: PubSub.publish(hub, { _tag: "reconnected" }),
   };

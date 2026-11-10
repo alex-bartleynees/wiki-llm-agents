@@ -86,7 +86,9 @@
   {/if}
 
   {#each timeline.items as item (item.kind + item.key)}
-    {#if item.kind === "user"}
+    {#if item.kind === "notice"}
+      <p class="muted">{#if item.href}<a href={item.href}>{item.text}</a>{:else if item.path && openThread.thread}<a href={`/vaults/${openThread.thread.vaultId}?note=${encodeURIComponent(item.path)}`}>{item.text}</a>{:else}{item.text}{/if}</p>
+    {:else if item.kind === "user"}
       <p class="user">{item.text}</p>
     {:else if item.kind === "agent"}
       <div class="agent"><AgentText text={item.text} /></div>

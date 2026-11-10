@@ -2,6 +2,7 @@ import type { RequestAnswer, RequestPrompt, StoredThreadEvent, TurnOutcome, Turn
 
 /** What the conversation shows, built from the thread's events in order. */
 export type TimelineItem =
+  | { readonly kind: "notice"; readonly key: string; readonly text: string; readonly href?: string; readonly path?: string }
   | { readonly kind: "user"; readonly key: string; readonly text: string }
   | { readonly kind: "agent"; readonly key: string; text: string }
   | {
@@ -50,6 +51,15 @@ export const applyEvent = (timeline: Timeline, stored: StoredThreadEvent): boole
   timeline.lastSeq = stored.seq;
   const event = stored.event;
   switch (event._tag) {
+    case "notice":
+      timeline.items.push({ kind: "notice", key: String(stored.seq), text: event.text });
+      break;
+    case "note.opened":
+      timeline.items.push({ kind: "notice", key: String(stored.seq), text: `Opened ${event.title}${event.heading ? ` · ${event.heading}` : ""}`, href: event.href });
+      break;
+    case "note.context":
+      timeline.items.push({ kind: "notice", key: String(stored.seq), path: event.note.path, text: `${event.note.reason}: ${event.note.path} · sha256 ${event.note.hash.slice(0, 12)}${event.note.notices.length ? ` · ${event.note.notices.join(" ")}` : ""}` });
+      break;
     case "user.message":
       timeline.items.push({ kind: "user", key: event.turnId, text: event.text });
       break;

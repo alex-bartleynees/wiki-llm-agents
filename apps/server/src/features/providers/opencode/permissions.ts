@@ -1,4 +1,5 @@
 import type { Autonomy, AutonomyLevel } from "@wiki-agents/contracts/agents/model";
+import { ENTRY_PREFIX } from "../../mcp/vault-tools.js";
 import type { OpenCodePermissionRule } from "./api.js";
 
 /**
@@ -24,12 +25,18 @@ const strictest = (a: AutonomyLevel, b: AutonomyLevel) => (STRICTNESS[a] >= STRI
 const fileWrites = (autonomy: Autonomy) => strictest(autonomy.create, autonomy.edit);
 
 /**
+ * OpenCode's permission action for an MCP server's tools: `<server>_<tool>`, with
+ * anything outside `[A-Za-z0-9_-]` replaced by `_` in both parts.
+ */
+export const mcpToolsAction = (server: string) => `${server.replace(/[^a-zA-Z0-9_-]/g, "_")}_*`;
+
+/**
  * Autonomy as OpenCode session rules. OpenCode applies the last rule that matches,
  * so the catch-all `ask` comes first: anything not listed (files outside the
  * working directory, subagents, MCP tools, tools this list doesn't know) asks.
  * Only `allow` and `deny` need rules of their own.
  */
-export const permissionRules = (autonomy: Autonomy): ReadonlyArray<OpenCodePermissionRule> => {
+export const permissionRules = (autonomy: Autonomy, vaultTools: string | null = null): ReadonlyArray<OpenCodePermissionRule> => {
   const levels: ReadonlyArray<readonly [ReadonlyArray<string>, AutonomyLevel]> = [
     [HARMLESS_ACTIONS, "allow"],
     [ACTIONS.read, autonomy.read],
@@ -40,6 +47,10 @@ export const permissionRules = (autonomy: Autonomy): ReadonlyArray<OpenCodePermi
   return [
     { action: "*", resource: "*", effect: "ask" },
     ...levels.flatMap(([actions, level]) => (level === "ask" ? [] : actions.map((action) => ({ action, resource: "*", effect: level }) as const))),
+    // Every thread in a folder sees every thread's vault tools entry; use only your own.
+    { action: `${ENTRY_PREFIX}*`, resource: "*", effect: "deny" },
+    // The vault tools read the vault (and open notes in the app), so they follow `read`.
+    ...(vaultTools === null ? [] : [{ action: mcpToolsAction(vaultTools), resource: "*", effect: autonomy.read } as const]),
   ];
 };
 

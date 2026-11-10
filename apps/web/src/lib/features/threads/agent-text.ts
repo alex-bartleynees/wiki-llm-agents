@@ -3,18 +3,19 @@
  * drawn with text interpolation only (never `{@html}`): paragraphs, `-`/`*` lists,
  * `**bold**`, `*italic*`, and `` `code` ``. Anything else stays as typed.
  */
-export type Inline = { readonly type: "text" | "strong" | "em" | "code"; readonly text: string };
+export type Inline = { readonly type: "text" | "strong" | "em" | "code" | "citation"; readonly text: string };
 export type Block =
   | { readonly type: "p"; readonly lines: ReadonlyArray<ReadonlyArray<Inline>> }
   | { readonly type: "ul"; readonly items: ReadonlyArray<ReadonlyArray<Inline>> };
 
-const INLINE = /(`[^`\n]+`|\*\*[^*\n]+\*\*|\*[^*\s][^*\n]*\*)/g;
+const INLINE = /(\[\[[^\]\n]+\]\]|`[^`\n]+`|\*\*[^*\n]+\*\*|\*[^*\s][^*\n]*\*)/g;
 
 export const parseInline = (text: string): Array<Inline> =>
   text
     .split(INLINE)
     .filter((part) => part !== "")
     .map((part): Inline => {
+      if (part.startsWith("[[") && part.endsWith("]]")) return { type: "citation", text: part.slice(2, -2) };
       if (part.startsWith("`") && part.endsWith("`") && part.length > 2) return { type: "code", text: part.slice(1, -1) };
       if (part.startsWith("**") && part.endsWith("**") && part.length > 4) return { type: "strong", text: part.slice(2, -2) };
       if (part.startsWith("*") && part.endsWith("*") && part.length > 2) return { type: "em", text: part.slice(1, -1) };

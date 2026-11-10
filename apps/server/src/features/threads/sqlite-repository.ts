@@ -5,7 +5,7 @@ import { DbError } from "../../shared/persistence/errors.js";
 import { Sqlite } from "../../shared/persistence/sqlite.js";
 import type { PendingRequest } from "./repository.js";
 import { ThreadRepository } from "./repository.js";
-import { outbox, runtimeRequests, threadEvents, threads, turns } from "./table.js";
+import { threadNotes, outbox, runtimeRequests, threadEvents, threads, turns } from "./table.js";
 
 const EventJson = Schema.fromJsonString(ThreadEvent);
 const encodeEvent = Schema.encodeSync(EventJson);
@@ -58,6 +58,7 @@ export const ThreadRepositoryLive = Layer.effect(
     };
 
     return ThreadRepository.of({
+      noteContext: (vaultId, path) => query(() => db.select({ threadId: threads.id, title: threads.title, turnId: threadNotes.turnId, path: threadNotes.path, reason: threadNotes.reason, hash: threadNotes.hash }).from(threadNotes).innerJoin(threads, eq(threads.id, threadNotes.threadId)).where(and(eq(threads.vaultId, vaultId), isNull(threads.deletedAt), path === undefined ? undefined : eq(threadNotes.path, path))).orderBy(desc(threads.updatedAt), asc(threadNotes.path)).all()),
       insert: (thread) =>
         query(() => {
           const at = new Date(thread.createdAt);
@@ -126,6 +127,9 @@ export const ThreadRepositoryLive = Layer.effect(
               seq += 1;
               tx.insert(threadEvents).values({ threadId, seq, type: event._tag, payload: encodeEvent(event), at: when }).run();
               switch (event._tag) {
+                case "note.context":
+                  tx.insert(threadNotes).values({ threadId, turnId: event.turnId, path: event.note.path, reason: event.note.reason, hash: event.note.hash }).onConflictDoNothing().run();
+                  break;
                 case "user.message":
                   tx.insert(turns).values({ id: event.turnId, threadId, input: event.text, status: "running", startedAt: when }).run();
                   tx.update(threads)

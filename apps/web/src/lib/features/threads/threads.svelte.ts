@@ -83,8 +83,10 @@ class ThreadsStore {
         ...(agentId === undefined ? {} : { agentId }),
       });
       this.#upsert(thread);
-      this.select(thread.id);
+      remember(vaultId, thread.id);
+      await openThread.open(thread.id);
       this.error = undefined;
+      return thread;
     } catch (error) {
       this.error = errorMessage(error, "Could not start a thread");
     }

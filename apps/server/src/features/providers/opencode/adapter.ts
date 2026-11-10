@@ -73,20 +73,49 @@ interface Applied {
   rules: string;
   /** The instructions entry; undefined until set by this run of the app. */
   instructions: string | null | undefined;
+  /** The vault tools entry OpenCode has, on which server; undefined until one is registered. */
+  tools: { readonly api: OpenCodeApi; readonly name: string; readonly key: string } | undefined;
 }
 
-const rulesKey = (setup: SessionSetup) => JSON.stringify(permissionRules(setup.autonomy));
+const sessionRules = (setup: SessionSetup) => permissionRules(setup.autonomy, setup.vaultTools?.name ?? null);
+const rulesKey = (setup: SessionSetup) => JSON.stringify(sessionRules(setup));
+
+/** Told to the user (not the agent) when the vault tools couldn't be given to a turn. */
+export const vaultToolsUnavailable = (reason: string) => `The vault tools aren't available to the agent this turn: ${reason}`;
 
 const makeSession = (connect: Connect, sessionId: string, cwd: string, silence: Duration.Input, applied: Applied): ProviderSession => {
   let turn: RunningTurn | undefined;
   const requests = new Map<string, PendingRequest>();
 
-  /** Brings the session's permissions and instructions up to date with `setup`. */
+  /**
+   * Registers the thread's vault tools with OpenCode when they are new, changed (a
+   * new token), or on a new server (after a crash). A failure leaves the turn to run
+   * without them; it returns why, for the user. The token never goes in a log.
+   */
+  const applyTools = (api: OpenCodeApi, setup: SessionSetup) =>
+    Effect.gen(function* () {
+      const tools = setup.vaultTools;
+      if (tools === null) return [];
+      const key = `${tools.name}\0${tools.url}\0${tools.token}`;
+      if (applied.tools?.api === api && applied.tools.key === key) return [];
+      const added = yield* Effect.result(api.addMcpServer(cwd, tools));
+      const rawReason = added._tag === "Failure" ? added.failure.message : added.success._tag === "failed" ? added.success.reason : undefined;
+      const reason = rawReason?.replaceAll(tools.token, "[redacted]");
+      if (reason !== undefined) {
+        applied.tools = undefined;
+        yield* Effect.logWarning(`thread vault tools (${tools.name}) not registered with OpenCode: ${reason}`);
+        return [vaultToolsUnavailable(reason)];
+      }
+      applied.tools = { api, name: tools.name, key };
+      return [];
+    });
+
+  /** Brings the session's permissions, instructions and vault tools up to date with `setup`; returns notices for the user. */
   const apply = (api: OpenCodeApi, setup: SessionSetup) =>
     Effect.gen(function* () {
       const rules = rulesKey(setup);
       if (rules !== applied.rules) {
-        yield* api.setPermissions(sessionId, permissionRules(setup.autonomy));
+        yield* api.setPermissions(sessionId, sessionRules(setup));
         applied.rules = rules;
       }
       const instructions = instructionsText(setup.instructions, cwd);
@@ -101,18 +130,20 @@ const makeSession = (connect: Connect, sessionId: string, cwd: string, silence: 
         yield* api.setInstructions(sessionId, instructions);
         applied.instructions = instructions;
       }
+      return yield* applyTools(api, setup);
     }).pipe(Effect.mapError((error) => (error instanceof ProviderError ? error : toProviderError(error))));
 
   const startTurn = ({ turnId, text, setup }: TurnInput) =>
     Stream.callback<ProviderEvent, ProviderError>((queue) =>
       Effect.gen(function* () {
         const api = yield* connect;
-        yield* apply(api, setup);
+        const notices = yield* apply(api, setup);
+        yield* Queue.offerAll(queue, notices.map((text): ProviderEvent => ({ _tag: "notice", turnId, text })));
         // Subscribe before sending: OpenCode's stream is live only.
         const subscription = yield* api.subscribe;
         const current: RunningTurn = { id: turnId, inboxId: undefined, started: false };
         turn = current;
-        current.inboxId = yield* api.prompt(sessionId, text).pipe(Effect.mapError(toProviderError));
+        current.inboxId = yield* api.prompt(sessionId, notices.length ? `${text}\n\nApp notices for this turn:\n${notices.join("\n")}` : text).pipe(Effect.mapError(toProviderError));
         const mapper = makeTurnMapper(turnId, cwd);
         const waiting = new Set<string>();
         /** Checks that found the message still queued and nothing running. */
@@ -309,8 +340,18 @@ export const makeOpenCodeAdapter = (options: OpenCodeAdapterOptions) =>
           }).pipe(Effect.mapError(toProviderError));
 
           const api = yield* connect;
-          const rules = permissionRules(setup.autonomy);
-          const applied: Applied = { rules: rulesKey(setup), instructions: undefined };
+          const rules = sessionRules(setup);
+          const applied: Applied = { rules: rulesKey(setup), instructions: undefined, tools: undefined };
+          // Added after `connect`, so it runs before the server is let go: the thread's
+          // entry goes with its actor. (A stopped server took its entries with it.)
+          yield* Effect.addFinalizer(() => {
+            const tools = applied.tools;
+            if (tools === undefined) return Effect.void;
+            return Effect.gen(function* () {
+              if (yield* tools.api.isStopped) return;
+              yield* tools.api.removeMcpServer(cwd, tools.name);
+            }).pipe(Effect.catch((error) => Effect.logWarning(`couldn't remove ${tools.name} from OpenCode: ${error.message}`)));
+          });
           const existing = nativeSessionId !== null && (yield* api.sessionExists(nativeSessionId).pipe(Effect.mapError(toProviderError)));
           if (existing && nativeSessionId !== null) {
             // The session keeps the rules it was made with; bring them up to date.

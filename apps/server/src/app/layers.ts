@@ -7,6 +7,8 @@ import { IndexerLive } from "../features/indexing/indexer-live.js";
 import { IndexStoreLive } from "../features/indexing/sqlite-store.js";
 import { IndexingStartup } from "../features/indexing/startup.js";
 import { VaultWatcherLive, VaultWatcherNoop } from "../features/indexing/watcher.js";
+import { McpTokensLive } from "../features/mcp/tokens.js";
+import { VaultToolsLive } from "../features/mcp/vault-tools-live.js";
 import { PinRepositoryLive } from "../features/pins/sqlite-repository.js";
 import type { ProviderRegistry } from "../features/providers/registry.js";
 import { ProviderRegistryLive } from "../features/providers/registry-live.js";
@@ -44,8 +46,14 @@ const indexing = (watch: boolean) =>
     Layer.provideMerge(IndexStoreLive),
   );
 
-/** ThreadActors and the bus their events go out on. */
-const threads = ThreadActorsLive.pipe(Layer.provideMerge(ThreadBusLive));
+/**
+ * ThreadActors, the bus their events go out on, and the vault tools they give their
+ * providers (tokens for `/mcp` at this server's address).
+ */
+const threads = ThreadActorsLive.pipe(
+  Layer.provideMerge(Layer.merge(ThreadBusLive, VaultToolsLive)),
+  Layer.provideMerge(McpTokensLive),
+);
 
 /**
  * The HTTP app without a listening server or database, so tests can supply both.

@@ -28,9 +28,28 @@ export interface SearchResults {
   readonly truncated: boolean;
 }
 
+/** A resolved link from one note to another (embeds and links to non-notes left out). */
+export interface NoteEdge {
+  readonly from: string;
+  readonly to: string;
+}
+
+/** A note as the index knows it, without its content. */
+export interface NoteSummary {
+  readonly path: string;
+  readonly title: string;
+  readonly tags: ReadonlyArray<string>;
+}
+
+/** A file with its title and when it last changed on disk. */
+export interface ModifiedFile extends TitledFile {
+  /** Milliseconds since the epoch. */
+  readonly modifiedAt: number;
+}
+
 /**
- * Read side of the vault index: the port other features (notes, search, pins, later
- * MCP) use instead of the SQLite adapter.
+ * Read side of the vault index: the port other features (notes, search, pins, MCP)
+ * use instead of the SQLite adapter.
  */
 export interface VaultIndexService {
   /** Every visible file in the vault, sorted by path. */
@@ -48,6 +67,18 @@ export interface VaultIndexService {
   readonly search: (vaultId: string, query: SearchQuery) => Effect.Effect<SearchResults, DbError>;
   /** Frontmatter tags with how many notes have each, most used first. */
   readonly tags: (vaultId: string) => Effect.Effect<ReadonlyArray<TagCount>, DbError>;
+  /** Resolved note-to-note links into or out of any of `paths`, excluding links of a note to itself. */
+  readonly neighbours: (vaultId: string, paths: ReadonlyArray<string>) => Effect.Effect<ReadonlyArray<NoteEdge>, DbError>;
+  /** The notes among `paths` (others are skipped), in no particular order. */
+  readonly notes: (vaultId: string, paths: ReadonlyArray<string>) => Effect.Effect<ReadonlyArray<NoteSummary>, DbError>;
+  /**
+   * Files changed on disk at or after `since` (ms), newest first, at most `limit`;
+   * `truncated` when more matched.
+   */
+  readonly recentFiles: (
+    vaultId: string,
+    query: { readonly since: number; readonly limit: number },
+  ) => Effect.Effect<{ readonly files: ReadonlyArray<ModifiedFile>; readonly truncated: boolean }, DbError>;
 }
 
 export class VaultIndex extends Context.Service<VaultIndex, VaultIndexService>()("VaultIndex") {}

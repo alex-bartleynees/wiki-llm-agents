@@ -36,6 +36,7 @@ export interface RequestRecord {
  * One writer per thread (its ThreadActor), which keeps `seq` gapless.
  */
 export interface ThreadRepositoryService {
+  readonly noteContext: (vaultId: string, path?: string) => Effect.Effect<ReadonlyArray<import("@wiki-agents/contracts/threads/list-note-context/response").NoteContextLink>, DbError>;
   readonly insert: (thread: NewThread) => Effect.Effect<ThreadSummary, DbError>;
   readonly find: (threadId: string) => Effect.Effect<Option.Option<ThreadSummary>, DbError>;
   /** What the provider needs to continue the thread's conversation, and the agent it follows. */

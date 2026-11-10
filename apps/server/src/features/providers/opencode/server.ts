@@ -2,7 +2,8 @@ import { type ChildProcess, spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { NodeHttpClient } from "@effect/platform-node";
 import { OpenCode, type OpenCodeClient } from "@opencode/client/effect";
-import { Cause, Deferred, Duration, Effect, Exit, Fiber, Layer, PubSub, Schedule, type Scope, Stream } from "effect";
+import { Mcp } from "@opencode/schema/mcp";
+import { Cause, Clock, Deferred, Duration, Effect, Exit, Fiber, Layer, Option, PubSub, Schedule, type Scope, Stream } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/http";
 import { type OpenCodeApi, OpenCodeError, type OpenCodeSignal, modelName, modelRef } from "./api.js";
 import { INSTRUCTIONS_KEY } from "./instructions.js";
@@ -224,7 +225,67 @@ const makeApi = (client: OpenCodeClient, version: string, hub: PubSub.PubSub<Ope
     if (ref === null) return Effect.fail(new OpenCodeError({ message: `Not an OpenCode model: ${model}` }));
     return call("switching the model", client.session.switchModel({ sessionID: sessionId as never, model: ref as never }));
   },
+  addMcpServer: (directory, server) =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        // Subscribe first: OpenCode connects in the background and says so with `mcp.status.changed`.
+        const subscription = yield* PubSub.subscribe(hub);
+        yield* client.experimental.mcp
+          .add({
+            server: server.name,
+            location: { directory },
+            // The Effect client encodes Schema.Class values: a plain object fails before HTTP.
+            config: new Mcp.RemoteConfig({
+              type: "remote",
+              url: server.url,
+              headers: { authorization: `Bearer ${server.token}` },
+              // No OAuth discovery on a 401, and the tools listed as tools rather than
+              // reached through code mode's `execute`, so each call shows by name.
+              oauth: false,
+              codemode: false,
+            }),
+          })
+          .pipe(
+            Effect.timeoutOrElse({ duration: CALL_TIMEOUT, orElse: () => Effect.fail({ _tag: "timeout" }) }),
+            // The request carried the token: report only what kind of failure it was.
+            Effect.mapError((cause) => new OpenCodeError({ message: `OpenCode didn't take the vault tools (${tagOf(cause)}).` })),
+          );
+        const status = call("checking the vault tools", client.mcp.list({ location: { directory } })).pipe(
+          Effect.map((list) => list.data.find((entry) => entry.name === server.name)?.status),
+        );
+        const changed = Effect.gen(function* () {
+          while (true) {
+            const signal = yield* PubSub.take(subscription);
+            if (signal._tag === "stopped") return;
+            if (signal._tag === "reconnected") return;
+            if (signal.event.type === "mcp.status.changed" && signal.event.data.server === server.name) return;
+          }
+        });
+        const deadline = (yield* Clock.currentTimeMillis) + Duration.toMillis(MCP_CONNECT_TIMEOUT);
+        while (true) {
+          const current = yield* status;
+          if (current?.status === "connected") return { _tag: "connected" } as const;
+          if (current?.status === "failed" || current?.status === "needs_auth") return { _tag: "failed", reason: current.error } as const;
+          if (current?.status === "disabled") return { _tag: "failed", reason: "OpenCode has it disabled." } as const;
+          const left = deadline - (yield* Clock.currentTimeMillis);
+          if (left <= 0 || Option.isNone(yield* Effect.timeoutOption(changed, left))) {
+            return { _tag: "failed", reason: `OpenCode didn't connect within ${Duration.format(MCP_CONNECT_TIMEOUT)}.` } as const;
+          }
+        }
+      }),
+    ),
+  removeMcpServer: (directory, name) =>
+    call("removing the vault tools", client.experimental.mcp.remove({ server: name, location: { directory } })).pipe(
+      Effect.catch((error) => (tagOf(error.cause) === "McpServerNotFoundError" ? Effect.void : Effect.fail(error))),
+    ),
 });
+
+/** How long adding an MCP server waits for OpenCode to connect to it. */
+const MCP_CONNECT_TIMEOUT = Duration.seconds(10);
+
+/** An error's `_tag`, and nothing else about it. */
+const tagOf = (cause: unknown): string =>
+  typeof cause === "object" && cause !== null && "_tag" in cause && typeof cause._tag === "string" ? cause._tag : "unknown error";
 
 /**
  * Runs one `opencode serve` for the app and returns the API over it, once its event

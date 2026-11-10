@@ -1,3 +1,5 @@
+import { goto } from "$app/navigation";
+import { shell } from "#lib/ui/layout/shell.svelte.ts";
 import { ThreadStreamMessage } from "@wiki-agents/contracts/threads/event";
 import type { RequestAnswer, ThreadSummary } from "@wiki-agents/contracts/threads/model";
 import { errorMessage, isAbort } from "#lib/api/client.ts";
@@ -52,7 +54,13 @@ class OpenThreadStore {
       this.#close = listen(() => threadEventsPath(threadId, this.timeline.lastSeq), ThreadStreamMessage, {
         onEvent: (message) => {
           if (message.type !== "event" || message.event.threadId !== this.#threadId) return;
-          if (applyEvent(this.timeline, message.event)) this.version++;
+          if (applyEvent(this.timeline, message.event)) {
+            this.version++;
+            if (message.event.event._tag === "note.opened") {
+              void goto(message.event.event.href);
+              shell.tab = "wiki";
+            }
+          }
         },
       });
     } catch (error) {
@@ -79,12 +87,12 @@ class OpenThreadStore {
     if (thread.id === this.#threadId) this.thread = thread;
   }
 
-  async send(text: string): Promise<boolean> {
+  async send(text: string, notes: import("@wiki-agents/contracts/threads/send-message/request").SendMessageRequest["notes"] = []): Promise<boolean> {
     const threadId = this.#threadId;
     if (threadId === null || this.sending) return false;
     this.sending = true;
     try {
-      await sendMessage(threadId, text);
+      await sendMessage(threadId, text, notes);
       this.error = undefined;
       return true;
     } catch (error) {

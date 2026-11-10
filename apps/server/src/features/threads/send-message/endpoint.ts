@@ -3,21 +3,23 @@ import { SendMessageResponse } from "@wiki-agents/contracts/threads/send-message
 import { Effect, Schema } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
 import { badRequest, conflict, internalError, notFound } from "../../../shared/http-errors.js";
-import { ThreadActors } from "../thread-actors.js";
+import { sendMessage } from "./use-case.js";
 
 const Params = Schema.Struct({ threadId: Schema.String });
 
 /** The thread's actor records the message and starts the turn, one at a time. */
 export const sendMessageEndpoint = Effect.gen(function* () {
   const { threadId } = yield* HttpRouter.schemaPathParams(Params);
-  const { text } = yield* HttpServerRequest.schemaBodyJson(SendMessageRequest);
-  const turnId = yield* (yield* ThreadActors).sendMessage(threadId, text);
+  const body = yield* HttpServerRequest.schemaBodyJson(SendMessageRequest);
+  const turnId = yield* sendMessage(threadId, body);
   return yield* HttpServerResponse.schemaJson(SendMessageResponse)({ turnId }, { status: 202 });
 }).pipe(
   Effect.catchTags({
     SchemaError: () => Effect.succeed(badRequest()),
     HttpServerError: () => Effect.succeed(badRequest()),
     ThreadNotFound: () => Effect.succeed(notFound("Thread not found")),
+    InvalidVaultPath: () => Effect.succeed(badRequest("Invalid note path or stale selection")),
+    VaultFileNotFound: () => Effect.succeed(notFound("Note not found")),
     ThreadBusy: () => Effect.succeed(conflict("A turn is already running")),
   }),
   Effect.catch(internalError("send message")),

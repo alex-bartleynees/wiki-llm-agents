@@ -1,13 +1,13 @@
 import { posix } from "node:path";
 import type { TagCount } from "@wiki-agents/contracts/search/list-tags/response";
-import { and, asc, count, eq, inArray, ne, notInArray, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, ne, notInArray, or, sql } from "drizzle-orm";
 import { Context, Effect, Layer } from "effect";
 import { DbError } from "../../shared/persistence/errors.js";
 import { Sqlite } from "../../shared/persistence/sqlite.js";
 import { searchNotes } from "./sqlite-search.js";
 import { IndexStore } from "./store.js";
 import { blobs, links, notes, vaultFiles } from "./table.js";
-import { VaultIndex } from "./vault-index.js";
+import { type NoteEdge, VaultIndex } from "./vault-index.js";
 
 /** SQLite allows 32766 bound parameters; stay well below it. */
 const CHUNK = 500;
@@ -200,6 +200,53 @@ const make = Effect.gen(function* () {
               ORDER BY count DESC, t.value COLLATE NOCASE`,
         ),
       ),
+
+    neighbours: (vaultId, paths) =>
+      query(() => {
+        const edges = new Map<string, NoteEdge>();
+        for (const batch of chunks([...new Set(paths)])) {
+          const rows = db
+            .selectDistinct({ from: links.srcPath, to: links.targetPath })
+            .from(links)
+            .innerJoin(notes, and(eq(notes.vaultId, links.vaultId), eq(notes.path, links.targetPath)))
+            .where(
+              and(
+                eq(links.vaultId, vaultId),
+                ne(links.kind, "embed"),
+                ne(links.srcPath, links.targetPath),
+                or(inArray(links.srcPath, batch), inArray(links.targetPath, batch)),
+              ),
+            )
+            .all();
+          for (const row of rows) if (row.to !== null) edges.set(`${row.from}\0${row.to}`, { from: row.from, to: row.to });
+        }
+        return [...edges.values()];
+      }),
+
+    notes: (vaultId, paths) =>
+      query(() =>
+        chunks([...new Set(paths)]).flatMap((batch) =>
+          db
+            .select({ path: notes.path, title: notes.title, tags: notes.tags })
+            .from(notes)
+            .where(and(eq(notes.vaultId, vaultId), inArray(notes.path, batch)))
+            .all(),
+        ),
+      ),
+
+    recentFiles: (vaultId, { since, limit }) =>
+      query(() => {
+        const rows = db
+          .select({ path: vaultFiles.path, kind: vaultFiles.kind, title: notes.title, modifiedAt: vaultFiles.mtimeMs })
+          .from(vaultFiles)
+          .leftJoin(notes, and(eq(notes.vaultId, vaultFiles.vaultId), eq(notes.path, vaultFiles.path)))
+          .where(and(eq(vaultFiles.vaultId, vaultId), gte(vaultFiles.mtimeMs, since)))
+          .orderBy(desc(vaultFiles.mtimeMs), asc(vaultFiles.path))
+          .limit(limit + 1)
+          .all()
+          .map((row) => ({ ...row, title: row.title ?? posix.basename(row.path) }));
+        return { files: rows.slice(0, limit), truncated: rows.length > limit };
+      }),
   });
 
   return { store, index };

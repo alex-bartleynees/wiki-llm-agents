@@ -1,0 +1,133 @@
+{
+  "retrieval": "FTS5 plus one link hop",
+  "noteCount": 20,
+  "cases": [
+    {
+      "question": "Which machine handles production now?",
+      "query": "roaster",
+      "fts": {
+        "paths": [
+          "Decisions/2025-03 Roaster Choice.md",
+          "Decisions/2026-01 Roaster Upgrade.md",
+          "Sourcing/Green Bean Storage.md"
+        ],
+        "recall": 1,
+        "irrelevant": 1
+      },
+      "expanded": {
+        "paths": [
+          "Decisions/2025-03 Roaster Choice.md",
+          "Decisions/2026-01 Roaster Upgrade.md",
+          "Sourcing/Green Bean Storage.md"
+        ],
+        "recall": 1,
+        "irrelevant": 1
+      },
+      "elapsedMs": 9.67
+    },
+    {
+      "question": "Where do we buy caffeine-free beans these days?",
+      "query": "decaf",
+      "fts": {
+        "paths": [
+          "Sourcing/Decaf Supplier.md",
+          "Decisions/2026-02 Decaf Supplier Change.md"
+        ],
+        "recall": 1,
+        "irrelevant": 0
+      },
+      "expanded": {
+        "paths": [
+          "Sourcing/Decaf Supplier.md",
+          "Decisions/2026-02 Decaf Supplier Change.md"
+        ],
+        "recall": 1,
+        "irrelevant": 0
+      },
+      "elapsedMs": 4.91
+    },
+    {
+      "question": "What retail pack weights do we sell?",
+      "query": "bags",
+      "fts": {
+        "paths": [
+          "Decisions/2025-11 Bag Sizes.md",
+          "Business/Packaging.md",
+          "Business/Farmers Market.md"
+        ],
+        "recall": 1,
+        "irrelevant": 0
+      },
+      "expanded": {
+        "paths": [
+          "Decisions/2025-11 Bag Sizes.md",
+          "Business/Packaging.md",
+          "Business/Farmers Market.md"
+        ],
+        "recall": 1,
+        "irrelevant": 0
+      },
+      "elapsedMs": 5.64
+    },
+    {
+      "question": "What should a café pay for our house blend?",
+      "query": "wholesale",
+      "fts": {
+        "paths": [
+          "Business/Wholesale Pricing.md"
+        ],
+        "recall": 1,
+        "irrelevant": 0
+      },
+      "expanded": {
+        "paths": [
+          "Business/Wholesale Pricing.md"
+        ],
+        "recall": 1,
+        "irrelevant": 0
+      },
+      "elapsedMs": 6.73
+    },
+    {
+      "question": "How do we keep green beans dry?",
+      "query": "storage",
+      "fts": {
+        "paths": [
+          "Sourcing/Green Bean Storage.md"
+        ],
+        "recall": 1,
+        "irrelevant": 0
+      },
+      "expanded": {
+        "paths": [
+          "Sourcing/Green Bean Storage.md"
+        ],
+        "recall": 1,
+        "irrelevant": 0
+      },
+      "elapsedMs": 5.32
+    },
+    {
+      "question": "What did we do about the neighbours complaining?",
+      "query": "flue",
+      "fts": {
+        "paths": [
+          "Roasting/Smoke and Ventilation.md",
+          "Decisions/2026-01 Roaster Upgrade.md"
+        ],
+        "recall": 1,
+        "irrelevant": 0
+      },
+      "expanded": {
+        "paths": [
+          "Roasting/Smoke and Ventilation.md",
+          "Decisions/2026-01 Roaster Upgrade.md",
+          "Decisions/2025-03 Roaster Choice.md"
+        ],
+        "recall": 1,
+        "irrelevant": 1
+      },
+      "elapsedMs": 4.24
+    }
+  ]
+}

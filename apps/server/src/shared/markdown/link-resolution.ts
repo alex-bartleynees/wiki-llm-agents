@@ -98,6 +98,20 @@ export const resolveLinkTarget = (
   return undefined;
 };
 
+/**
+ * Every file a link target matches by path suffix, the step where a link can be
+ * ambiguous (`[[Plan]]` with `A/Plan.md` and `B/Plan.md`). Shortest path first.
+ */
+export const suffixMatches = (index: LinkIndex, rawTarget: string): ReadonlyArray<string> => {
+  const target = rawTarget.trim().replace(/^\/+/, "").toLowerCase();
+  if (target === "") return [];
+  for (const candidate of [`${target}.md`, target]) {
+    const matches = index.bySuffix.get(candidate) ?? [];
+    if (matches.length > 0) return [...matches].sort(byShortestPath);
+  }
+  return [];
+};
+
 /** Markdown URLs name a file relative to their source, without wikilink fallback. */
 export const resolveMarkdownTarget = (index: LinkIndex, target: string, fromPath: string): string | undefined => {
   const path = posix.normalize(posix.join(posix.dirname(fromPath), target));

@@ -103,6 +103,38 @@ provider and the agent (below) for new threads next to **New thread**:
   resume: its server stops with the app and cancels the turn and its pending
   approvals, so an OpenCode turn cut off by a restart is closed as interrupted.
 
+### Vault context and MCP
+
+Each thread gets authenticated vault tools at `/mcp`, registered with OpenCode for
+its vault directory. Tokens expire after four hours, renew before the next turn
+when half their lifetime remains, and are revoked when the actor closes. Failed
+registration shows a notice to the user and agent; the turn can continue.
+
+Tools: `vault_search`, `vault_read_note` (optionally one heading), `vault_note_info`,
+`vault_backlinks`, `vault_resolve_link`, `vault_related`, `vault_open_note`,
+`vault_recent_changes`, and `vault_status`. Arguments are strict. Search is FTS5
+only and says so; limits and truncation are reported. Search hops and Related notes
+share graph ranking (direct links, Adamic-Adar shared neighbours, tags, folder).
+
+The composer accepts `@Folder/Note.md` references, separated by semicolons, with
+matching note suggestions. Include open note or select text in the note and choose
+Include selection. Start a thread directly from a note or inbox item. Supplied
+content and MCP reads store a SHA-256 version with the turn; context is capped at
+16,000 characters per note and ten supplied notes per message. A stale selection
+is refused rather than silently including different text. Thread context links
+back to notes, and notes list the threads using them.
+
+Replies cite `[[Folder/Note#Heading]]`, displayed as numbered links. Unresolved
+citations stay visible. Citations are recorded separately from supplied/retrieved
+context: they do not establish that the provider read that file version. File reads
+through other provider tools are not tracked. Live `vault_open_note` events open
+the note; replaying stored history never navigates the reader.
+
+Search evaluation fixtures and fixed relevance judgements live in
+`apps/server/tests/fixtures/search-eval/`. Run the evaluation against the real HTTP
+app with `nix develop -c npm test -w @wiki-agents/server -- search-eval`.
+Save as note remains deferred until slice 8's reviewed writes.
+
 ### Agents and rules
 
 Named agents and the rules every agent follows are markdown files in the app's
@@ -154,6 +186,10 @@ nix develop -c npm run record:opencode -w @wiki-agents/server -- [scenario...]
 One opt-in test runs a real turn on the installed OpenCode:
 `WIKI_AGENTS_LIVE_OPENCODE=1 nix develop -c npx vitest run tests/live` (in
 `apps/server`).
+For a model-free MCP registration smoke test, run
+`WIKI_AGENTS_LIVE_OPENCODE=1 nix develop -c npm test -w @wiki-agents/server -- tests/live/mcp-registration.live.test.ts`.
+It starts real OpenCode, connects to the authenticated app endpoint, and removes
+the registration without invoking a model.
 
 The client library is `@opencode/client` (and `@opencode/protocol`), pinned to exactly
 the installed OpenCode's version (2.2.1); they ask for an older `effect`, which the

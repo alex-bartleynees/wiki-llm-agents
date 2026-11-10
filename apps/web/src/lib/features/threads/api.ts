@@ -44,8 +44,8 @@ export const setModel = (threadId: string, model: string) => putJson(`${threadPa
 
 export const getThread = (threadId: string, signal?: AbortSignal) => getJson(threadPath(threadId), GetThreadResponse, signal);
 
-export const sendMessage = (threadId: string, text: string) =>
-  postJson(`${threadPath(threadId)}/messages`, SendMessageRequest, { text }, SendMessageResponse);
+export const sendMessage = (threadId: string, text: string, notes: SendMessageRequest["notes"] = []) =>
+  postJson(`${threadPath(threadId)}/messages`, SendMessageRequest, { text, notes }, SendMessageResponse);
 
 export const interruptTurn = (threadId: string) => postJson(`${threadPath(threadId)}/interrupt`, NoBody, {}, InterruptTurnResponse);
 

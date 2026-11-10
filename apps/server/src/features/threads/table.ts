@@ -84,3 +84,9 @@ export const outbox = sqliteTable("outbox", {
   attempts: integer("attempts").notNull().default(0),
   nextAttemptAt: integer("next_attempt_at", { mode: "timestamp_ms" }).notNull(),
 });
+
+/** Materialised note provenance, rebuilt from thread events if needed. */
+export const threadNotes = sqliteTable("thread_notes", {
+  threadId: text("thread_id").notNull(), turnId: text("turn_id").notNull(), path: text("path").notNull(),
+  reason: text("reason").notNull(), hash: text("hash").notNull(),
+}, (table) => [primaryKey({ columns: [table.threadId, table.turnId, table.path, table.reason, table.hash] }), index("thread_notes_path_idx").on(table.path)]);

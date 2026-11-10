@@ -1,3 +1,4 @@
+import { NoteContext } from "./context.js";
 import { Schema } from "effect";
 
 /**
@@ -89,6 +90,28 @@ export const RequestResolved = Schema.TaggedStruct("request.resolved", {
   answer: Schema.NullOr(RequestAnswer),
 });
 
+/**
+ * Something you should know about the turn that isn't the agent's reply, e.g. the
+ * vault tools couldn't be given to the agent. Never silently dropped.
+ */
+export const TurnNotice = Schema.TaggedStruct("notice", {
+  turnId: Schema.String,
+  text: Schema.String,
+});
+
+/**
+ * The agent opened a note for you (`vault_open_note`), at a heading if it gave one.
+ * Shown in the conversation; a browser watching live also opens it.
+ */
+export const NoteOpened = Schema.TaggedStruct("note.opened", {
+  turnId: Schema.String,
+  path: Schema.String,
+  title: Schema.String,
+  heading: Schema.NullOr(Schema.String),
+  /** Where the app shows it, at the heading. */
+  href: Schema.String,
+});
+
 export const TurnOutcome = Schema.Literals(["completed", "interrupted", "failed"]);
 export type TurnOutcome = typeof TurnOutcome.Type;
 
@@ -102,12 +125,15 @@ export const TurnFinished = Schema.TaggedStruct("turn.finished", {
 
 export const ThreadEvent = Schema.Union([
   UserMessage,
+  NoteContext,
   TurnStarted,
   MessageDelta,
   ToolCalled,
   ToolFinished,
   RequestOpened,
   RequestResolved,
+  NoteOpened,
+  TurnNotice,
   TurnFinished,
 ]);
 export type ThreadEvent = typeof ThreadEvent.Type;

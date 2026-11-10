@@ -1,13 +1,28 @@
 <script lang="ts">
+  import { ResolveLinksRequest } from "@wiki-agents/contracts/notes/resolve-links/request";
+  import { ResolveLinksResponse } from "@wiki-agents/contracts/notes/resolve-links/response";
+  import { postJson } from "#lib/api/client.ts";
+  import { openThread } from "./open-thread.svelte.ts";
   import { type Inline, parseAgentText } from "./agent-text.ts";
 
   let { text }: { text: string } = $props();
   const blocks = $derived(parseAgentText(text));
+  const citations = $derived([...new Set(blocks.flatMap((block) => block.type === "p" ? block.lines.flat() : block.items.flat()).filter((part) => part.type === "citation").map((part) => part.text))].slice(0, 100));
+  let resolved = $state<Record<string, string | null>>({});
+  $effect(() => {
+    const vaultId = openThread.thread?.vaultId;
+    const links = citations.map((link) => ({ link }));
+    let active = true;
+    if (vaultId && links.length) void postJson(`/api/vaults/${vaultId}/resolve-links`, ResolveLinksRequest, { links }, ResolveLinksResponse).then((response) => {
+      if (active) resolved = Object.fromEntries(response.links.map((link, index) => [links[index]!.link, link.href]));
+    }, () => { if (active) resolved = {}; });
+    return () => { active = false; };
+  });
 </script>
 
 {#snippet inline(parts: ReadonlyArray<Inline>)}
   {#each parts as part, index (index)}
-    {#if part.type === "strong"}<strong>{part.text}</strong>{:else if part.type === "em"}<em>{part.text}</em>{:else if part.type === "code"}<code
+    {#if part.type === "citation"}{#if resolved[part.text]}<a href={resolved[part.text]!} title={part.text}>[{citations.indexOf(part.text) + 1}]</a>{:else}<span title="Unresolved citation">[[{part.text}]]</span>{/if}{:else if part.type === "strong"}<strong>{part.text}</strong>{:else if part.type === "em"}<em>{part.text}</em>{:else if part.type === "code"}<code
         class="mono">{part.text}</code
       >{:else}{part.text}{/if}
   {/each}

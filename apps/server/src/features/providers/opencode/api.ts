@@ -88,7 +88,25 @@ export interface OpenCodeApi {
   readonly listModels: (directory: string) => Effect.Effect<ReadonlyArray<OpenCodeModel>, OpenCodeError>;
   readonly defaultModel: (directory: string) => Effect.Effect<string | null, OpenCodeError>;
   readonly switchModel: (sessionId: string, model: string) => Effect.Effect<void, OpenCodeError>;
+  /**
+   * Registers (or replaces) a remote MCP server for every session in `directory`, and
+   * waits until OpenCode has connected to it or given up, so the next prompt has its
+   * tools. Errors never include the token.
+   */
+  readonly addMcpServer: (directory: string, server: OpenCodeMcpServer) => Effect.Effect<OpenCodeMcpStatus, OpenCodeError>;
+  /** Removes a server added with `addMcpServer`; nothing happens if it is already gone. */
+  readonly removeMcpServer: (directory: string, name: string) => Effect.Effect<void, OpenCodeError>;
 }
+
+/** A remote MCP server, reached over Streamable HTTP with a bearer token. */
+export interface OpenCodeMcpServer {
+  readonly name: string;
+  readonly url: string;
+  readonly token: string;
+}
+
+/** Whether OpenCode reached an MCP server it was given. */
+export type OpenCodeMcpStatus = { readonly _tag: "connected" } | { readonly _tag: "failed"; readonly reason: string };
 
 /** `<providerID>/<modelID>`, the app's name for an OpenCode model. */
 export const modelName = (model: { readonly providerID: string; readonly id: string }) => `${model.providerID}/${model.id}`;

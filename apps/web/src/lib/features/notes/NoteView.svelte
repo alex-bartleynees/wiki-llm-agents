@@ -7,6 +7,11 @@
   import PinButton from "#lib/features/pins/PinButton.svelte";
   import { getBacklinks, getNote } from "./api.ts";
   import Backlinks from "./Backlinks.svelte";
+  import NoteThreads from "./NoteThreads.svelte";
+  import Related from "./Related.svelte";
+  import { threads } from "#lib/features/threads/threads.svelte.ts";
+  import { openThread } from "#lib/features/threads/open-thread.svelte.ts";
+  import { shell } from "#lib/ui/layout/shell.svelte.ts";
   import Outline from "./Outline.svelte";
   import { recent } from "./recent.svelte.ts";
   import { timeAgo } from "./time.ts";
@@ -120,7 +125,17 @@
     {/if}
     <!-- Rendered and sanitised on the server (rehype-sanitize). -->
     <div class="prose">{@html noteState.note.html}</div>
+    <button type="button" onpointerdown={(event) => event.preventDefault()} onclick={async () => {
+      const selection = window.getSelection()?.toString() ?? "";
+      const created = await threads.create();
+      if (created && openThread.thread?.id === created.id && created.vaultId === vaultId) {
+        await openThread.send("Help me with this note.", [{ path, ...(selection ? { selection } : {}) }]);
+        shell.sidePane = "threads"; shell.tab = "chat";
+      }
+    }}>Start thread from {path.startsWith("_Inbox/") ? "inbox item" : "note"} or selection</button>
     <Backlinks {vaultId} {backlinks} />
+    <Related {vaultId} {path} />
+    <NoteThreads {vaultId} {path} />
   {:else if noteState.status === "failed"}
     <h1 class="title">{noteState.notFound ? "Note not found" : "Couldn't open this note"}</h1>
     <p class="muted mono">{path}</p>

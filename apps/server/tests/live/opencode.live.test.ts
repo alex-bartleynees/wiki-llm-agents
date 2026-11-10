@@ -25,6 +25,7 @@ const SETUP: SessionSetup = {
     { source: "agent", title: "Test agent", path: "/nowhere/agents/test.md", text: "End every answer with the word PINEAPPLE, in capitals." },
   ],
   autonomy: DEFAULT_AUTONOMY,
+  vaultTools: null,
 };
 
 describe.skipIf(!live)("OpenCode, live", () => {

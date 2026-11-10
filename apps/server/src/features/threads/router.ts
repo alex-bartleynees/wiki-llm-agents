@@ -12,7 +12,10 @@ import { setModelEndpoint } from "./set-model/endpoint.js";
 import { streamThreadEventsEndpoint } from "./stream-thread-events/endpoint.js";
 import { streamThreadsEndpoint } from "./stream-threads/endpoint.js";
 
+import { listNoteContextEndpoint } from "./list-note-context/endpoint.js";
+
 export const threadsRouter = Layer.mergeAll(
+  HttpRouter.add("GET", "/api/vaults/:vaultId/thread-notes", listNoteContextEndpoint),
   HttpRouter.add("GET", "/api/vaults/:vaultId/threads", listThreadsEndpoint),
   HttpRouter.add("POST", "/api/vaults/:vaultId/threads", createThreadEndpoint),
   HttpRouter.add("GET", "/api/threads/:threadId", getThreadEndpoint),

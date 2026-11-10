@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { DEFAULT_AUTONOMY } from "@wiki-agents/contracts/agents/model";
 import { Effect, FileSystem } from "effect";
-import type { Instruction, SessionSetup } from "../providers/port.js";
+import type { AgentSetup, Instruction } from "../providers/port.js";
 import { AgentCatalog } from "./catalog.js";
 import { MAX_FILE_BYTES } from "./definition.js";
 
@@ -29,7 +29,7 @@ export const sessionSetup = Effect.fnUntraced(function* (agentId: string | null,
   }
   const vaultRules = yield* readVaultRules(vaultRoot);
   if (vaultRules !== null) instructions.push(vaultRules);
-  const setup: SessionSetup = { instructions, autonomy: agent?.autonomy ?? DEFAULT_AUTONOMY };
+  const setup: AgentSetup = { instructions, autonomy: agent?.autonomy ?? DEFAULT_AUTONOMY };
   return setup;
 });
 
