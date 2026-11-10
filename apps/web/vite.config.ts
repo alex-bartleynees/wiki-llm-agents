@@ -1,6 +1,8 @@
 import adapter from "@sveltejs/adapter-static";
 import { sveltekit } from "@sveltejs/kit/vite";
-import { defaultClientConditions, defaultServerConditions, defineConfig, type ProxyOptions } from "vite";
+import { playwright } from "@vitest/browser-playwright";
+import { defaultClientConditions, defaultServerConditions, type ProxyOptions } from "vite";
+import { defineConfig } from "vitest/config";
 
 /**
  * Keep the browser's Host header (Vite's shorthand `"/api": url` rewrites it to the
@@ -41,5 +43,20 @@ export default defineConfig({
       "/mcp": server,
       "/health": server,
     },
+  },
+  test: {
+    projects: [
+      // Pure logic.
+      { extends: true, test: { name: "unit", include: ["src/**/*.test.ts"], exclude: ["src/**/*.browser.test.ts"] } },
+      // Stores with real state, in a real browser (Nix's Chromium, see flake.nix).
+      {
+        extends: true,
+        test: {
+          name: "browser",
+          include: ["src/**/*.browser.test.ts"],
+          browser: { enabled: true, headless: true, provider: playwright(), instances: [{ browser: "chromium" }] },
+        },
+      },
+    ],
   },
 });

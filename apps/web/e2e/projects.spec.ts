@@ -1,0 +1,62 @@
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { expect, test } from "@playwright/test";
+import { e2eRoot, isPhone, projectFolder, useReplay } from "./app.ts";
+
+test("registers a project through the folder picker, tracks its changed files, and runs its threads", async ({ page }, info) => {
+  const folder = projectFolder(info, "app");
+  writeFileSync(join(folder, "README.md"), "# App\n");
+  const name = `App ${info.project.name}`;
+
+  await page.goto("/projects");
+  const form = page.getByRole("complementary", { name: "Register project" });
+  await form.getByLabel("Name").fill(name);
+
+  // Walk to the folder: type its parent, go, then click into it.
+  await form.getByRole("button", { name: "Browse…" }).first().click();
+  const picker = page.getByRole("dialog", { name: "Choose the main directory" });
+  await picker.getByLabel("Folder path").fill(join(e2eRoot(), "projects"));
+  await picker.getByRole("button", { name: "Go" }).click();
+  await picker.getByRole("button", { name: `app-${info.project.name}` }).click();
+  await picker.getByRole("button", { name: "Choose this folder" }).click();
+  await expect(picker).toBeHidden();
+  await expect(form.getByLabel("Directory path")).toHaveValue(folder);
+
+  await form.getByRole("button", { name: "Register" }).click();
+  await expect(page).toHaveURL(/\/projects\/[^/]+$/);
+  await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Working directories" })).toContainText(folder);
+
+  // Changed files: none at registration; a new file shows after a rescan, until reviewed.
+  const changes = page.getByRole("region", { name: "Changed files" });
+  await expect(changes.getByRole("heading")).toHaveText(/· 0 files$/);
+  writeFileSync(join(folder, "new.ts"), "export {};\n");
+  await changes.getByRole("button", { name: "Rescan" }).click();
+  await expect(changes.getByRole("heading")).toHaveText(/· 1 file$/);
+  await expect(changes).toContainText("new.ts");
+  await changes.getByRole("button", { name: "Mark all reviewed" }).click();
+  await expect(changes.getByRole("heading")).toHaveText(/· 0 files$/);
+
+  // Threads view: the project's threads, with the open one in the middle.
+  await page.getByRole("navigation", { name: "Project view" }).getByRole("link", { name: "Threads" }).click();
+  await expect(page).toHaveURL(/\/projects\/[^/]+\/threads$/);
+  await useReplay(page);
+  await page.getByRole("button", { name: "New thread", exact: true }).click();
+  const message = page.getByRole("textbox", { name: "Message" });
+  await message.fill("Hello project");
+  await message.press("Enter");
+  await expect(page.locator(".user").last()).toHaveText("Hello project");
+  await expect(page.locator(".turn-end").last()).toHaveText(/^Done/);
+
+  // On a phone the thread replaces the list; back shows the list again.
+  if (isPhone(info)) {
+    await page.getByRole("button", { name: "All threads" }).click();
+    await expect(page.getByRole("button", { name: "New thread", exact: true })).toBeVisible();
+  }
+
+  // Only this project's thread is listed, in both views.
+  await expect(page.getByRole("complementary", { name: `Threads in ${name}` }).getByRole("listitem")).toHaveCount(1);
+  await page.getByRole("navigation", { name: "Project view" }).getByRole("link", { name: "Overview" }).click();
+  await expect(page.getByRole("region", { name: "Threads" })).toContainText("threads in this project · 1");
+  await expect(page.getByRole("region", { name: "Threads" })).toContainText("Hello project");
+});

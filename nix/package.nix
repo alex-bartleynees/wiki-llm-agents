@@ -8,14 +8,14 @@ buildNpmPackage {
     src = ./..;
     filter = path: _type:
       let base = baseNameOf path; in
-      !(builtins.elem base [ "node_modules" "dist" "build" ".svelte-kit" ".data" "result" "design" ]);
+      !(builtins.elem base [ "node_modules" "dist" "build" ".svelte-kit" ".data" "result" "design" "test-results" "playwright-report" ".vitest" ]);
   };
 
   inherit nodejs;
 
   # Update after changing package-lock.json:
   #   nix run nixpkgs#prefetch-npm-deps package-lock.json
-  npmDepsHash = "sha256-n7ZWH6MDO8L6dNhTaEbKI8wWn/onNMC6E2V4Ko152ow=";
+  npmDepsHash = "sha256-A/jBwmOMEZ8LTZCZqU9ba6XF3VEPdktPE0PgIPtuQG0=";
 
   # better-sqlite3 ships prebuilt binaries; python3 is only for its node-gyp fallback.
   nativeBuildInputs = [ python3 makeWrapper ];

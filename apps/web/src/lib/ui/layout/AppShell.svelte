@@ -60,7 +60,7 @@
       </svg>
       wiki-agents
     </a>
-    <nav aria-label="Primary">
+    <nav aria-label="Sections">
       <a href={wikiHref} aria-current={onProjects ? undefined : "page"}>Wiki</a>
       <a href="/projects" aria-current={onProjects ? "page" : undefined}>Projects</a>
     </nav>

@@ -62,6 +62,12 @@
             pkgs.process-compose
             pkgs.sqlite
           ];
+          # UI tests use Nix's browsers; `@playwright/test` in apps/web must be the
+          # same version as `playwright-driver` (apps/web/e2e/playwright.config.ts checks).
+          PLAYWRIGHT_BROWSERS_PATH = "${pkgs.playwright-driver.browsers}";
+          PLAYWRIGHT_DRIVER_VERSION = pkgs.playwright-driver.version;
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
+          PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS = "true";
         };
       });
 }

@@ -20,7 +20,7 @@
   // thread last open in the project.
   $effect(() => {
     const scope = { vaultId: project.vaultId, projectId: project.id };
-    untrack(() => threads.connect(scope));
+    untrack(() => void threads.connect(scope));
   });
 
   const open = $derived(openThread.status !== "empty");

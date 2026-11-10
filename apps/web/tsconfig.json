@@ -8,6 +8,6 @@
     "verbatimModuleSyntax": true,
     "customConditions": ["source"]
   },
-  "include": ["src", "test", "*"],
+  "include": ["src", "test", "e2e", "*"],
   "exclude": ["src/service-worker"]
 }

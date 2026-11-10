@@ -41,8 +41,12 @@ class ThreadsStore {
   #controller: AbortController | undefined;
   #close: (() => void) | undefined;
 
-  connect(scope: ThreadScope) {
-    if (sameScope(scope, this.#scope)) return;
+  /**
+   * Follows a scope's threads (a scope already followed is left as it is). Settles
+   * once the list has loaded and the scope's remembered thread is open.
+   */
+  connect(scope: ThreadScope): Promise<void> {
+    if (sameScope(scope, this.#scope)) return Promise.resolve();
     this.disconnect();
     this.#scope = scope;
     this.#close = listen(vaultThreadsEventsPath(scope.vaultId), ThreadsStreamMessage, {
@@ -52,10 +56,10 @@ class ThreadsStore {
       // Updates sent while disconnected are lost; reload the list.
       onReconnect: () => void this.#load(scope),
     });
-    void this.#load(scope).then(() => {
+    return this.#load(scope).then(async () => {
       const previous = remembered(scope);
       if (this.#scope === scope && previous !== null && this.threads.some((thread) => thread.id === previous)) {
-        void openThread.open(previous);
+        await openThread.open(previous);
       }
     });
   }

@@ -14,13 +14,29 @@ All commands run through the Nix dev shell; there is no global Node.
 | Command | What it does |
 |---|---|
 | `nix run .#dev` | Server (watch mode, port 4317) and Vite (port 5173) together; open http://127.0.0.1:5173 |
-| `nix develop -c npm test` | All tests |
+| `nix develop -c npm test` | All tests, including the UI flows |
+| `nix develop -c npm run test:e2e -w @wiki-agents/web` | UI flows only (Playwright, desktop and phone widths) |
 | `nix develop -c npm run check` | Type checks (tsc, svelte-check) |
 | `nix develop -c npm run build` | Build contracts, server, and web app |
 | `nix build` | Package to `result/bin/wiki-agents` |
 | `nix develop -c npm run db:generate -w @wiki-agents/server` | Generate a Drizzle migration after changing a `table.ts` |
 
 Gate before every commit: `npm test`, `npm run check`, `npm run build`, `git diff --check`.
+
+### UI tests
+
+- **Flows** (`apps/web/e2e/`, Playwright): key flows at 1440px and 390px through the
+  real app: the server from source serving a fresh web build, on a random port, with a
+  temporary vault, data and config folder (never 4317 or `.data/`). OpenCode points at
+  a missing binary, so threads use the free replay provider. Failures keep a trace in
+  `apps/web/test-results/` (`npx playwright show-trace <trace.zip>`).
+- **Stores** (`*.browser.test.ts`, Vitest browser mode): stateful stores in a real
+  Chromium, with the API and event streams stood in for, so a test decides when
+  answers arrive. Pure logic stays in plain `*.test.ts`.
+- The browsers come from Nix (`playwright-driver.browsers`, set in the dev shell).
+  `@playwright/test` and `playwright` must be the same version as nixpkgs'
+  `playwright-driver`; the Playwright config stops with a message when they differ.
+  After a nixpkgs update, pin both to the new version and update `npmDepsHash`.
 
 ## Vaults
 

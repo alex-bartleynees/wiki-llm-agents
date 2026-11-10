@@ -31,6 +31,9 @@ Read `README.md` first. Design decisions are in the user's vault at
 - Tests: integration tests boot the real HTTP app with `TestApp`
   (`apps/server/tests/integration/infrastructure/test-app.ts`). No sleeps or
   polling in tests.
+- UI: key flows in `apps/web/e2e/` (Playwright, desktop and phone projects);
+  stateful stores in `*.browser.test.ts` (Vitest browser mode). A new screen or flow
+  gets a Playwright flow at both widths.
 - Before finishing: `npm test`, `npm run check`, `npm run build`, `git diff --check`.
 - After `package-lock.json` changes, update `npmDepsHash` in `nix/package.nix`
   (`nix run nixpkgs#prefetch-npm-deps package-lock.json`) and check `nix build`.

@@ -40,16 +40,19 @@
   let goTo = $state("");
   /** The latest request; earlier answers are ignored. */
   let request = 0;
+  /** A path typed while a folder loads stays; the folder doesn't replace it. */
+  let edited = false;
 
   async function show(path: string | null) {
     const id = ++request;
+    edited = false;
     loading = true;
     error = null;
     try {
       const next = await load(path);
       if (id !== request) return;
       listing = next;
-      goTo = next.path;
+      if (!edited) goTo = next.path;
     } catch (cause) {
       if (id === request) error = errorMessage(cause, "Could not open this folder");
     } finally {
@@ -86,7 +89,7 @@
 
     {#if typed}
       <form class="go" onsubmit={(event) => (event.preventDefault(), void show(goTo))}>
-        <input class="mono" bind:value={goTo} aria-label="Folder path" autocomplete="off" autocapitalize="off" spellcheck="false" />
+        <input class="mono" bind:value={goTo} oninput={() => (edited = true)} aria-label="Folder path" autocomplete="off" autocapitalize="off" spellcheck="false" />
         <button type="submit">Go</button>
       </form>
     {:else if listing}

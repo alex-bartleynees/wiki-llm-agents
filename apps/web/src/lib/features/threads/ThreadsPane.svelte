@@ -14,7 +14,7 @@
   // Untracked, so the store's own state never re-runs this effect.
   $effect(() => {
     const scope = { vaultId, projectId };
-    untrack(() => threads.connect(scope));
+    untrack(() => void threads.connect(scope));
   });
 
   /** Desktop shares this pane between threads and agents; phone has an Agents tab instead. */
