@@ -1,6 +1,6 @@
 import type { ProviderStatus } from "@wiki-agents/contracts/providers/model";
 import type { RequestAnswer } from "@wiki-agents/contracts/threads/model";
-import { Duration, Effect, Option, PubSub, Queue, RcRef, type Scope, Stream } from "effect";
+import { Duration, Effect, Exit, Option, PubSub, Queue, RcRef, Scope, Stream } from "effect";
 import { type ProviderAdapter, ProviderError, type ProviderEvent, type ProviderSession } from "../port.js";
 import type { OpenCodeApi, OpenCodeError, OpenCodeEvent, OpenCodePermissionRule, OpenCodeSignal } from "./api.js";
 import { formAnswer, makeTurnMapper, sessionOf } from "./events.js";
@@ -56,22 +56,32 @@ interface RunningTurn {
   started: boolean;
 }
 
-/** The next event of `sessionId` from a subscription, or a reconnect; None after `wait`. */
+/** Why a turn ended when OpenCode exited under it. */
+export const OPENCODE_STOPPED = "OpenCode stopped unexpectedly. Send a message to start it again.";
+
+/** The next event of `sessionId` from a subscription, a reconnect, or the server stopping; None after `wait`. */
 const nextSignal = (subscription: PubSub.Subscription<OpenCodeSignal>, sessionId: string, wait: Duration.Input) =>
   Effect.gen(function* () {
     while (true) {
       const signal = yield* PubSub.take(subscription);
-      if (signal._tag === "reconnected" || sessionOf(signal.event) === sessionId) return signal;
+      if (signal._tag !== "event" || sessionOf(signal.event) === sessionId) return signal;
     }
   }).pipe(Effect.timeoutOption(wait));
 
-const makeSession = (api: OpenCodeApi, sessionId: string, cwd: string, silence: Duration.Input): ProviderSession => {
+/**
+ * The OpenCode server a session uses: the shared one, held in the session's scope,
+ * or a new one when that has stopped.
+ */
+type Connect = Effect.Effect<OpenCodeApi, ProviderError>;
+
+const makeSession = (connect: Connect, sessionId: string, cwd: string, silence: Duration.Input): ProviderSession => {
   let turn: RunningTurn | undefined;
   const requests = new Map<string, PendingRequest>();
 
   const startTurn = ({ turnId, text }: { readonly turnId: string; readonly text: string }) =>
     Stream.callback<ProviderEvent, ProviderError>((queue) =>
       Effect.gen(function* () {
+        const api = yield* connect;
         // Subscribe before sending: OpenCode's stream is live only.
         const subscription = yield* api.subscribe;
         const current: RunningTurn = { id: turnId, inboxId: undefined, started: false };
@@ -111,7 +121,12 @@ const makeSession = (api: OpenCodeApi, sessionId: string, cwd: string, silence: 
 
         while (true) {
           const signal = yield* nextSignal(subscription, sessionId, silence);
-          if (Option.isNone(signal) || signal.value._tag === "reconnected") {
+          if (Option.isSome(signal) && signal.value._tag === "stopped") {
+            // OpenCode's pending approvals and questions went with it.
+            requests.clear();
+            return yield* end([{ _tag: "turn.finished", turnId, outcome: "failed", usage: mapper.usage(), reason: OPENCODE_STOPPED }]);
+          }
+          if (Option.isNone(signal) || signal.value._tag !== "event") {
             const quiet = Option.isNone(signal) && waiting.size > 0;
             if (!quiet && (yield* checkOn)) return;
             continue;
@@ -161,10 +176,13 @@ const makeSession = (api: OpenCodeApi, sessionId: string, cwd: string, silence: 
         const current = turn;
         if (current === undefined || current.id !== turnId) return;
         turn = undefined;
+        const api = yield* connect;
+        if (yield* api.isStopped) return;
         const subscription = yield* api.subscribe;
         const ended = Effect.gen(function* () {
           while (true) {
             const signal = yield* PubSub.take(subscription);
+            if (signal._tag === "stopped") return;
             if (signal._tag === "event" && sessionOf(signal.event) === sessionId && END_EVENTS.has(signal.event.type)) return;
           }
         });
@@ -194,6 +212,7 @@ const makeSession = (api: OpenCodeApi, sessionId: string, cwd: string, silence: 
       const request = requests.get(requestId);
       if (request === undefined) return yield* new ProviderError({ message: "OpenCode is no longer waiting for this answer." });
       requests.delete(requestId);
+      const api = yield* connect;
       if (request.kind === "permission") {
         const approved = answer._tag === "approval" && answer.decision === "approve";
         return yield* (approved ? api.replyPermission(sessionId, requestId, "once") : api.replyPermission(sessionId, requestId, "reject", DENIED)).pipe(
@@ -212,7 +231,7 @@ const makeSession = (api: OpenCodeApi, sessionId: string, cwd: string, silence: 
     resumeTurn: () => Effect.succeed(Option.none()),
     interrupt,
     answerRequest,
-    setModel: (model) => api.switchModel(sessionId, model).pipe(Effect.mapError(toProviderError)),
+    setModel: (model) => Effect.flatMap(connect, (api) => api.switchModel(sessionId, model).pipe(Effect.mapError(toProviderError))),
   };
 };
 
@@ -227,12 +246,20 @@ export const makeOpenCodeAdapter = (options: OpenCodeAdapterOptions) =>
     const server = yield* RcRef.make({ acquire: options.start, idleTimeToLive: options.idleTime ?? "5 minutes" });
     const silence = options.silence ?? Duration.seconds(45);
 
+    /** The running server in the current scope; a new one if the cached one stopped (crashed). */
+    const live = Effect.gen(function* () {
+      const api = yield* RcRef.get(server);
+      if (!(yield* api.isStopped)) return api;
+      yield* RcRef.invalidate(server);
+      return yield* RcRef.get(server);
+    });
+
     const status: Effect.Effect<ProviderStatus> = Effect.gen(function* () {
       const installed = yield* options.installedVersion;
       if (!isSupportedVersion(installed)) {
         return { _tag: "unavailable", reason: `OpenCode ${installed} is installed; this app supports ${CLIENT_VERSION.replace(/\.\d+$/, ".x")}.` } as const;
       }
-      const api = yield* Effect.scoped(RcRef.get(server));
+      const api = yield* Effect.scoped(live);
       return { _tag: "ready", version: api.version } as const;
     }).pipe(Effect.catch((error) => Effect.succeed({ _tag: "unavailable", reason: error.message } as const)));
 
@@ -241,21 +268,36 @@ export const makeOpenCodeAdapter = (options: OpenCodeAdapterOptions) =>
       capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: true },
       openSession: ({ cwd, nativeSessionId, model }) =>
         Effect.gen(function* () {
-          const api = yield* RcRef.get(server);
-          const existing = nativeSessionId !== null && (yield* api.sessionExists(nativeSessionId));
+          // The session holds one server at a time, in a scope of its own inside the
+          // session's, swapped for a new server when the held one has stopped.
+          const sessionScope = yield* Effect.scope;
+          let held: { readonly api: OpenCodeApi; readonly scope: Scope.Closeable } | undefined;
+          const connect: Connect = Effect.gen(function* () {
+            if (held !== undefined && !(yield* held.api.isStopped)) return held.api;
+            if (held !== undefined) yield* Scope.close(held.scope, Exit.void);
+            const scope = yield* Scope.fork(sessionScope);
+            const api = yield* live.pipe(Scope.provide(scope));
+            held = { api, scope };
+            return api;
+          }).pipe(Effect.mapError(toProviderError));
+
+          const api = yield* connect;
+          const existing = nativeSessionId !== null && (yield* api.sessionExists(nativeSessionId).pipe(Effect.mapError(toProviderError)));
           if (existing && nativeSessionId !== null) {
             // The session keeps the rules it was made with; bring them up to date.
-            yield* api.setPermissions(nativeSessionId, SESSION_PERMISSIONS);
-            return makeSession(api, nativeSessionId, cwd, silence);
+            yield* api.setPermissions(nativeSessionId, SESSION_PERMISSIONS).pipe(Effect.mapError(toProviderError));
+            return makeSession(connect, nativeSessionId, cwd, silence);
           }
-          const sessionId = yield* api.createSession({ directory: cwd, model, permissions: SESSION_PERMISSIONS });
-          return makeSession(api, sessionId, cwd, silence);
-        }).pipe(Effect.mapError(toProviderError)),
+          const sessionId = yield* api
+            .createSession({ directory: cwd, model, permissions: SESSION_PERMISSIONS })
+            .pipe(Effect.mapError(toProviderError));
+          return makeSession(connect, sessionId, cwd, silence);
+        }),
       status,
       listModels: (cwd) =>
         Effect.scoped(
           Effect.gen(function* () {
-            const api = yield* RcRef.get(server);
+            const api = yield* live;
             const [models, defaultModel] = yield* Effect.all([api.listModels(cwd), api.defaultModel(cwd)], { concurrency: 2 });
             return { models, defaultModel };
           }),

@@ -7,7 +7,7 @@ import { streamThreads } from "./use-case.js";
 
 export const streamThreadsEndpoint = Effect.gen(function* () {
   const request = yield* HttpRouter.schemaPathParams(StreamThreadsRequest);
-  return sseResponse(yield* streamThreads(request));
+  return yield* sseResponse(yield* streamThreads(request));
 }).pipe(
   Effect.catchTags({
     SchemaError: () => Effect.succeed(badRequest()),

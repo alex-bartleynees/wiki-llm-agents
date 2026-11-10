@@ -13,7 +13,7 @@ import { Context, Effect, Fiber, Layer, PubSub, type Scope } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/http";
 import { TestClock } from "effect/testing";
 import { makeHttpApp } from "../../src/app/layers.js";
-import { DENIED, makeOpenCodeAdapter, SESSION_PERMISSIONS } from "../../src/features/providers/opencode/adapter.js";
+import { DENIED, makeOpenCodeAdapter, OPENCODE_STOPPED, SESSION_PERMISSIONS } from "../../src/features/providers/opencode/adapter.js";
 import { type OpenCodeApi, OpenCodeError } from "../../src/features/providers/opencode/api.js";
 import { binaryVersion } from "../../src/features/providers/opencode/server.js";
 import { makeProviderRegistry } from "../../src/features/providers/registry-live.js";
@@ -45,8 +45,8 @@ class Fake extends Context.Service<Fake, FakeOpenCode>()("FakeOpenCode") {}
 const providersOver = (fake: Layer.Layer<Fake>) =>
   makeProviderRegistry(
     Effect.gen(function* () {
-      const { api } = yield* Fake;
-      const opencode = yield* makeOpenCodeAdapter({ start: Effect.succeed(api), installedVersion: Effect.succeed("2.2.1") });
+      const fake = yield* Fake;
+      const opencode = yield* makeOpenCodeAdapter({ start: fake.start, installedVersion: Effect.succeed("2.2.1") });
       return [opencode, ReplayAdapter];
     }),
   ).pipe(Layer.provide(fake));
@@ -204,7 +204,7 @@ layer(App)("OpenCode provider", (it) => {
   it.effect("stops a turn OpenCode has already taken, when Stop comes straight after Send", () =>
     Effect.gen(function* () {
       // Recorded: withdrawing the message said yes, but OpenCode ran it anyway.
-      const { thread, fake, prompts } = yield* setUp("interrupt-after-send");
+      const { thread, fake, prompts, fixture } = yield* setUp("interrupt-after-send");
       const events = yield* watch(thread.id);
       yield* sendOk(thread.id, prompts[0]!);
       expect((yield* interrupt(thread.id)).status).toBe(200);
@@ -212,7 +212,7 @@ layer(App)("OpenCode provider", (it) => {
 
       expect(fake.calls.map((call) => call.call)).toEqual(["createSession", "prompt", "cancelPrompt", "interrupt"]);
       yield* fake.played;
-      expect(yield* fake.api.isRunning("")).toBe(false);
+      expect(yield* fake.api.isRunning(fixture.sessionId)).toBe(false);
     }),
   );
 
@@ -317,6 +317,66 @@ layer(App)("OpenCode provider", (it) => {
       expect(fake.calls.at(-1)).toEqual({ call: "switchModel", model: "opencode/big-pickle" });
       const after = yield* HttpClient.get(`/api/threads/${thread.id}/models`).pipe(Effect.flatMap(decode(ListModelsResponse)));
       expect(after.current).toBe("opencode/big-pickle");
+    }),
+  );
+
+  it.effect("ends the turn when OpenCode crashes, and starts it again for the next message", () =>
+    Effect.gen(function* () {
+      const { thread, fake, prompts, fixture, vault } = yield* setUp("question");
+      const events = yield* watch(thread.id);
+      yield* sendOk(thread.id, prompts[0]!);
+      yield* events.until(isTag("request.opened"));
+      const startsBefore = fake.starts();
+
+      yield* fake.crash;
+      const seen = yield* events.until(isTag("turn.finished"));
+      expect(finishedOf(seen)).toMatchObject({ outcome: "failed", reason: OPENCODE_STOPPED });
+      // Its question went with it.
+      expect(seen.at(-2)).toMatchObject({ _tag: "request.resolved", answer: null });
+      expect(yield* status(thread.id)).toBe("idle");
+
+      // The same thread carries on: a new OpenCode, the same session.
+      yield* fake.load(fixture, vault.rootPath);
+      const turnId = yield* sendOk(thread.id, prompts[0]!);
+      const opened = (yield* events.until((event) => event._tag === "request.opened" && event.turnId === turnId)).at(-1);
+      if (opened?._tag !== "request.opened") throw new Error("no question");
+      const requestId = opened.requestId;
+      yield* answer(thread.id, requestId, { _tag: "question", text: "Sencha" });
+      const again = yield* events.until((event) => event._tag === "turn.finished" && event.turnId === turnId);
+      expect(finishedOf(again).outcome).toBe("completed");
+      expect(fake.starts()).toBe(startsBefore + 1);
+      expect(fake.calls.map((call) => call.call)).not.toContain("createSession");
+    }),
+  );
+
+  it.effect("runs turns in two threads at once, each in its own session", () =>
+    Effect.gen(function* () {
+      const vault = yield* newVaultWith(VAULT_FILES);
+      const fake = yield* Fake;
+      const question = loadFixture("question");
+      const simple = loadFixture("simple");
+      yield* fake.load(question, vault.rootPath);
+      yield* fake.add(simple, vault.rootPath);
+      const asking = yield* newThread(vault.id, "opencode");
+      const answering = yield* newThread(vault.id, "opencode");
+      const askingEvents = yield* watch(asking.id);
+      const answeringEvents = yield* watch(answering.id);
+
+      // The first thread waits on its question while the second runs to the end.
+      yield* sendOk(asking.id, question.turns[0]!.prompt);
+      const requestId = requestIdOf(yield* askingEvents.until(isTag("request.opened")));
+      yield* sendOk(answering.id, simple.turns[0]!.prompt);
+      const answered = yield* answeringEvents.until(isTag("turn.finished"));
+      expect(finishedOf(answered).outcome).toBe("completed");
+      expect(yield* status(asking.id)).toBe("waiting");
+
+      yield* answer(asking.id, requestId, { _tag: "question", text: "Sencha" });
+      const asked = yield* askingEvents.until(isTag("turn.finished"));
+      expect(finishedOf(asked).outcome).toBe("completed");
+      // Neither thread saw the other's events.
+      expect(textOf(answered)).not.toContain("Sencha");
+      expect(asked.filter((event) => event._tag === "tool.called").map((event) => event.name)).not.toContain("glob");
+      expect(fake.calls.filter((call) => call.call === "createSession")).toHaveLength(2);
     }),
   );
 

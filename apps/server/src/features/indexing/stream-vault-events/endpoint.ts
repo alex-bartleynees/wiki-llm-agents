@@ -7,7 +7,7 @@ import { streamVaultEvents } from "./use-case.js";
 
 export const streamVaultEventsEndpoint = Effect.gen(function* () {
   const request = yield* HttpRouter.schemaPathParams(StreamVaultEventsRequest);
-  return sseResponse(yield* streamVaultEvents(request));
+  return yield* sseResponse(yield* streamVaultEvents(request));
 }).pipe(
   Effect.catchTags({
     SchemaError: () => Effect.succeed(badRequest()),

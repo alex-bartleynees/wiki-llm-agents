@@ -76,6 +76,10 @@ provider for new threads next to **New thread**:
   that drops it (landrun passes only the variables it is given) is fine: OpenCode
   then prints a password of its own, and the app uses that. The sandbox has to let
   OpenCode listen on localhost and write in the vault.
+  If OpenCode crashes or is killed, the running turn fails with a reason (its pending
+  approvals and questions go with it), and the next message starts a new OpenCode
+  and continues the same session. Threads run turns at the same time, each in its
+  own session on the one server.
 - **Replay** plays recorded turns and spends no tokens; the message picks the
   recording by keyword (`providers/replay/transcripts.ts`): *edit* asks for an
   approval, *question* (or *ask*) asks a question, *long* streams slowly (for trying
@@ -87,6 +91,8 @@ provider for new threads next to **New thread**:
 - Each thread has a **ThreadActor** (`features/threads/thread-actor.ts`): one mailbox
   and one fiber, so sends, interrupts, answers, and provider events never race. It
   writes to SQLite before it publishes, and rebuilds its state from SQLite.
+- Event streams end when the server starts shutting down (browsers reconnect and
+  resume), so a restart doesn't wait for them.
 - `GET /events/threads/:id?after=<seq>` streams the thread's stored events after
   `seq`, then live ones; reconnecting browsers send `Last-Event-ID`, so a reload or a
   dropped connection mid-turn misses nothing and repeats nothing.

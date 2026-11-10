@@ -2,7 +2,7 @@ import { type ChildProcess, spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { NodeHttpClient } from "@effect/platform-node";
 import { OpenCode, type OpenCodeClient } from "@opencode/client/effect";
-import { Cause, Deferred, Duration, Effect, Exit, Layer, PubSub, Schedule, type Scope, Stream } from "effect";
+import { Cause, Deferred, Duration, Effect, Exit, Fiber, Layer, PubSub, Schedule, type Scope, Stream } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/http";
 import { type OpenCodeApi, OpenCodeError, type OpenCodeSignal, modelName, modelRef } from "./api.js";
 
@@ -74,6 +74,8 @@ export const printedPassword = (line: string): string | undefined => /^server pa
 interface Launched {
   readonly url: string;
   readonly printedPassword: Deferred.Deferred<string>;
+  /** Completes with how the process ended, if it ends (crashed, killed, or stopped by the app). */
+  readonly exited: Deferred.Deferred<string>;
   readonly output: () => string;
 }
 
@@ -125,22 +127,26 @@ const launch = (options: ServerOptions, password: string) =>
         ),
       ),
     );
-    child.once("exit", (code, signal) =>
-      Deferred.doneUnsafe(listening, Exit.fail(new OpenCodeError({ message: `OpenCode exited (${signal ?? `code ${code}`}) before it started: ${output()}` }))),
-    );
+    const exited = yield* Deferred.make<string>();
+    child.once("exit", (code, signal) => {
+      const how = signal ?? `code ${code}`;
+      Deferred.doneUnsafe(exited, Exit.succeed(how));
+      Deferred.doneUnsafe(listening, Exit.fail(new OpenCodeError({ message: `OpenCode exited (${how}) before it started: ${output()}` })));
+    });
     const url = yield* Deferred.await(listening).pipe(
       Effect.timeoutOrElse({
         duration: STARTUP_TIMEOUT,
         orElse: () => Effect.fail(new OpenCodeError({ message: `OpenCode didn't start within ${Duration.format(STARTUP_TIMEOUT)}: ${output()}` })),
       }),
     );
-    const launched: Launched = { url, printedPassword: printed, output };
+    const launched: Launched = { url, printedPassword: printed, exited, output };
     return launched;
   });
 
 /** The live API over a started client. */
-const makeApi = (client: OpenCodeClient, version: string, hub: PubSub.PubSub<OpenCodeSignal>): OpenCodeApi => ({
+const makeApi = (client: OpenCodeClient, version: string, hub: PubSub.PubSub<OpenCodeSignal>, isStopped: Effect.Effect<boolean>): OpenCodeApi => ({
   version,
+  isStopped,
   subscribe: PubSub.subscribe(hub),
   createSession: ({ directory, model, permissions }) => {
     const ref = model === null ? null : modelRef(model);
@@ -277,14 +283,28 @@ export const startServer = (options: ServerOptions): Effect.Effect<OpenCodeApi, 
         }),
       ),
     );
-    yield* connection.pipe(Effect.repeat(Schedule.spaced(RECONNECT_DELAY)), Effect.forkScoped);
+    const connectionFiber = yield* connection.pipe(Effect.repeat(Schedule.spaced(RECONNECT_DELAY)), Effect.forkScoped);
+    // The process ending while the app still uses it is a crash: say so, and stop
+    // reconnecting. (When the app stops it, this fiber is interrupted first.)
+    let stopped = false;
+    yield* Deferred.await(launched.exited).pipe(
+      Effect.flatMap((how) =>
+        Effect.gen(function* () {
+          stopped = true;
+          yield* Fiber.interrupt(connectionFiber);
+          yield* Effect.logWarning(`OpenCode exited (${how}); the next turn starts it again. Its output: ${launched.output()}`);
+          yield* PubSub.publish(hub, { _tag: "stopped" });
+        }),
+      ),
+      Effect.forkScoped,
+    );
     yield* Deferred.await(connected).pipe(
       Effect.timeoutOrElse({
         duration: STARTUP_TIMEOUT,
         orElse: () => Effect.fail(new OpenCodeError({ message: "OpenCode's event stream didn't connect." })),
       }),
     );
-    return makeApi(client, server.version, hub);
+    return makeApi(client, server.version, hub, Effect.sync(() => stopped));
   });
 
 /** Runs `opencode --version`, for the status check. */

@@ -1,6 +1,5 @@
-import { createServer } from "node:http";
 import { NodeHttpServer } from "@effect/platform-node";
-import { Layer } from "effect";
+import { Effect, Layer } from "effect";
 import { HttpRouter } from "effect/http";
 import { IndexerLive } from "../features/indexing/indexer-live.js";
 import { IndexStoreLive } from "../features/indexing/sqlite-store.js";
@@ -17,6 +16,7 @@ import { VaultRepositoryLive } from "../features/vaults/sqlite-repository.js";
 import { startupVaults } from "../features/vaults/startup-vaults.js";
 import { AppConfig } from "../shared/config.js";
 import { OriginGuardLive } from "../shared/origin-guard.js";
+import { makeClosingServer } from "../shared/server-closing.js";
 import type { DbError } from "../shared/persistence/errors.js";
 import { type Sqlite, SqliteLive } from "../shared/persistence/sqlite.js";
 import { router } from "./router.js";
@@ -54,10 +54,13 @@ export const makeHttpApp = (options: AppOptions) =>
     Layer.provideMerge(Layer.mergeAll(RepositoriesLive, options.providers ?? ProviderRegistryLive, indexing(options.watch))),
   );
 
-const ServerLive = NodeHttpServer.layerConfig(() => createServer(), {
-  host: AppConfig.host,
-  port: AppConfig.port,
-});
+/** The Node server, and the signal its SSE streams end on when it starts closing. */
+const ServerLive = Layer.unwrap(
+  Effect.sync(() => {
+    const { server, closing } = makeClosingServer();
+    return Layer.merge(NodeHttpServer.layerConfig(() => server, { host: AppConfig.host, port: AppConfig.port }), closing);
+  }),
+);
 
 export const makeAppLive = (options: Omit<AppOptions, "watch">) =>
   makeHttpApp({ ...options, watch: true }).pipe(Layer.provide(SqliteLive), Layer.provide(ServerLive));

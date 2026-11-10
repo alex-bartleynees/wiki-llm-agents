@@ -12,7 +12,7 @@ export const streamThreadEventsEndpoint = Effect.gen(function* () {
   const request = yield* HttpRouter.schemaParams(StreamThreadEventsRequest);
   const headers = yield* HttpServerRequest.schemaHeaders(LastEventId);
   const after = headers["last-event-id"] ?? request.after;
-  return sseResponse(yield* streamThreadEvents({ threadId: request.threadId, ...(after === undefined ? {} : { after }) }));
+  return yield* sseResponse(yield* streamThreadEvents({ threadId: request.threadId, ...(after === undefined ? {} : { after }) }));
 }).pipe(
   Effect.catchTags({
     SchemaError: () => Effect.succeed(badRequest()),

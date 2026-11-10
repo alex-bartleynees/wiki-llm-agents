@@ -15,7 +15,9 @@ export class OpenCodeError extends Data.TaggedError("OpenCodeError")<{
  */
 export type OpenCodeSignal =
   | { readonly _tag: "event"; readonly event: OpenCodeEvent }
-  | { readonly _tag: "reconnected" };
+  | { readonly _tag: "reconnected" }
+  /** The OpenCode process exited without being asked to (it crashed, or was killed). */
+  | { readonly _tag: "stopped" };
 
 /** A model OpenCode offers, as `<providerID>/<modelID>`. */
 export interface OpenCodeModel {
@@ -42,6 +44,8 @@ export interface OpenCodePermissionRule {
  */
 export interface OpenCodeApi {
   readonly version: string;
+  /** True once the server has stopped on its own; every call then fails. */
+  readonly isStopped: Effect.Effect<boolean>;
   /**
    * Every session's events. Subscribe before prompting: the stream is live only,
    * and a subscription sees only what is published after it is taken.
