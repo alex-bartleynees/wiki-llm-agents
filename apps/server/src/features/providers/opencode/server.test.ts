@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isSupportedVersion, listeningUrl, printedPassword } from "./server.js";
+import { chatModels, isSupportedVersion, listeningUrl, printedPassword, type ListedModel } from "./server.js";
 
 describe("listeningUrl", () => {
   it.each([
@@ -33,5 +33,34 @@ describe("printedPassword", () => {
     ["the server password is wrong", undefined],
   ])("%s", (line, password) => {
     expect(printedPassword(line)).toBe(password);
+  });
+});
+
+describe("chatModels", () => {
+  const model = (id: string, extra: Partial<ListedModel> = {}): ListedModel => ({
+    id,
+    providerID: "github-copilot",
+    name: id,
+    status: "active",
+    enabled: true,
+    cost: [{ input: 1, output: 4 }],
+    ...extra,
+  });
+
+  it("keeps models without a type, as GitHub Copilot's account models have none", () => {
+    expect(chatModels([model("claude-sonnet-5.5"), model("gpt-6-sol", { type: "chat" })]).map((m) => m.id)).toEqual([
+      "github-copilot/claude-sonnet-5.5",
+      "github-copilot/gpt-6-sol",
+    ]);
+  });
+
+  it("leaves out other types, disabled and deprecated models, and marks free ones", () => {
+    const listed = chatModels([
+      model("image", { type: "image" }),
+      model("off", { enabled: false }),
+      model("old", { status: "deprecated" }),
+      model("big-pickle", { providerID: "opencode", cost: [{ input: 0, output: 0 }] }),
+    ]);
+    expect(listed).toEqual([{ id: "opencode/big-pickle", name: "big-pickle", free: true }]);
   });
 });

@@ -5,7 +5,7 @@ import { OpenCode, type OpenCodeClient } from "@opencode/client/effect";
 import { Mcp } from "@opencode/schema/mcp";
 import { Cause, Clock, Deferred, Duration, Effect, Exit, Fiber, Layer, Option, PubSub, Schedule, type Scope, Stream } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/http";
-import { type OpenCodeApi, OpenCodeError, type OpenCodeSignal, modelName, modelRef } from "./api.js";
+import { type OpenCodeApi, OpenCodeError, type OpenCodeModel, type OpenCodeSignal, modelName, modelRef } from "./api.js";
 import { INSTRUCTIONS_KEY } from "./instructions.js";
 
 /**
@@ -45,52 +45,6 @@ const call = <A, E>(what: string, effect: Effect.Effect<A, E>) =>
     }),
     Effect.mapError((cause) => (cause instanceof OpenCodeError ? cause : new OpenCodeError({ message: `${what}: ${describe(cause)}`, cause }))),
   );
-
-/** Events after which a folder's model list may have changed. */
-const MODEL_EVENTS = new Set<string>([
-  "model.updated",
-  "provider.updated",
-  "models-dev.refreshed",
-  "integration.updated",
-  "credential.updated",
-  "credential.switched",
-]);
-
-export interface SettleOptions {
-  /** Done once no model event has come for this long. */
-  readonly quiet: Duration.Input;
-  /** And never later than this. */
-  readonly max: Duration.Input;
-}
-
-const SETTLE: SettleOptions = { quiet: Duration.millis(1500), max: Duration.seconds(6) };
-
-/**
- * Waits for `directory`'s models to stop changing, and says whether they changed.
- * OpenCode answers a folder's first model list before it has finished loading: the
- * model catalogue and providers that fetch their own models (GitHub Copilot) arrive
- * afterwards, each followed by a `model.updated` or `provider.updated` event.
- */
-export const settleModels = (subscription: PubSub.Subscription<OpenCodeSignal>, directory: string, options: SettleOptions = SETTLE) =>
-  Effect.gen(function* () {
-    const quiet = Duration.toMillis(Duration.fromInputUnsafe(options.quiet));
-    const start = yield* Clock.currentTimeMillis;
-    const deadline = start + Duration.toMillis(Duration.fromInputUnsafe(options.max));
-    let quietUntil = start + quiet;
-    let changed = false;
-    while (true) {
-      const now = yield* Clock.currentTimeMillis;
-      const wait = Math.min(deadline, quietUntil) - now;
-      if (wait <= 0) return changed;
-      const signal = yield* PubSub.take(subscription).pipe(Effect.timeoutOption(Duration.millis(wait)));
-      if (Option.isNone(signal) || signal.value._tag === "stopped") return changed;
-      if (signal.value._tag !== "event" || !MODEL_EVENTS.has(signal.value.event.type)) continue;
-      const location = (signal.value.event as { readonly location?: { readonly directory?: string } }).location?.directory;
-      if (location !== undefined && location !== directory) continue;
-      changed = true;
-      quietUntil = (yield* Clock.currentTimeMillis) + quiet;
-    }
-  });
 
 /** Waits for the process to exit, killing it if it ignores SIGTERM. */
 const stop = (child: ChildProcess) =>
@@ -191,24 +145,33 @@ const launch = (options: ServerOptions, password: string) =>
     return launched;
   });
 
-const listModels = (client: OpenCodeClient, directory: string) =>
-  call("listing models", client.model.list({ location: { directory } })).pipe(
-    Effect.map((list) =>
-      list.data
-        .filter((model) => model.enabled && model.status !== "deprecated" && model.type === "chat")
-        .map((model) => ({
-          id: modelName(model),
-          name: model.name,
-          free: model.cost.every((cost) => cost.input === 0 && cost.output === 0),
-        })),
-    ),
-  );
+/** What `chatModels` reads of OpenCode's model info. */
+export interface ListedModel {
+  readonly id: string;
+  readonly providerID: string;
+  readonly name: string;
+  readonly type?: string | undefined;
+  readonly status: string;
+  readonly enabled: boolean;
+  readonly cost: ReadonlyArray<{ readonly input: number; readonly output: number }>;
+}
+
+/**
+ * The models a thread can chat with. A model without a type is a chat model: GitHub
+ * Copilot's models have none once OpenCode has fetched the account's own list (about
+ * a second after it starts), replacing the catalogue's entries that had one.
+ */
+export const chatModels = (models: ReadonlyArray<ListedModel>): Array<OpenCodeModel> =>
+  models
+    .filter((model) => model.enabled && model.status !== "deprecated" && (model.type ?? "chat") === "chat")
+    .map((model) => ({
+      id: modelName(model),
+      name: model.name,
+      free: model.cost.every((cost) => cost.input === 0 && cost.output === 0),
+    }));
 
 /** The live API over a started client. */
-const makeApi = (client: OpenCodeClient, version: string, hub: PubSub.PubSub<OpenCodeSignal>, isStopped: Effect.Effect<boolean>): OpenCodeApi => {
-  /** Folders whose models this server has finished loading. */
-  const settled = new Set<string>();
-  return {
+const makeApi = (client: OpenCodeClient, version: string, hub: PubSub.PubSub<OpenCodeSignal>, isStopped: Effect.Effect<boolean>): OpenCodeApi => ({
   version,
   isStopped,
   subscribe: PubSub.subscribe(hub),
@@ -267,18 +230,7 @@ const makeApi = (client: OpenCodeClient, version: string, hub: PubSub.PubSub<Ope
   replyForm: (sessionId, formId, answer) =>
     call("answering the question", client.session.form.reply({ sessionID: sessionId, formID: formId as never, answer })),
   listModels: (directory) =>
-    settled.has(directory)
-      ? listModels(client, directory)
-      : Effect.scoped(
-          Effect.gen(function* () {
-            // Subscribed first, so no event between the list and the wait is missed.
-            const subscription = yield* PubSub.subscribe(hub);
-            const first = yield* listModels(client, directory);
-            const changed = yield* settleModels(subscription, directory);
-            settled.add(directory);
-            return changed ? yield* listModels(client, directory) : first;
-          }),
-        ),
+    call("listing models", client.model.list({ location: { directory } })).pipe(Effect.map((list) => chatModels(list.data))),
   defaultModel: (directory) =>
     call("reading the default model", client.model.default({ location: { directory } })).pipe(
       Effect.map((result) => (result.data === undefined ? null : modelName(result.data))),
@@ -341,8 +293,7 @@ const makeApi = (client: OpenCodeClient, version: string, hub: PubSub.PubSub<Ope
     call("removing the vault tools", client.experimental.mcp.remove({ server: name, location: { directory } })).pipe(
       Effect.catch((error) => (tagOf(error.cause) === "McpServerNotFoundError" ? Effect.void : Effect.fail(error))),
     ),
-  };
-};
+});
 
 /** How long adding an MCP server waits for OpenCode to connect to it. */
 const MCP_CONNECT_TIMEOUT = Duration.seconds(10);
