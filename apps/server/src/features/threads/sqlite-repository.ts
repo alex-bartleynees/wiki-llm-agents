@@ -26,6 +26,7 @@ const summaryColumns = {
   providerInstanceId: threads.providerInstanceId,
   model: threads.model,
   agentId: threads.agentId,
+  doneAt: threads.doneAt,
   createdAt: threads.createdAt,
   updatedAt: threads.updatedAt,
   status: sql<ThreadSummary["status"]>`CASE
@@ -35,8 +36,11 @@ const summaryColumns = {
   lastSeq: sql<number>`COALESCE((SELECT MAX(e.seq) FROM thread_events e WHERE e.thread_id = threads.id), 0)`,
 };
 
-const toSummary = (row: { readonly createdAt: Date; readonly updatedAt: Date } & Omit<ThreadSummary, "createdAt" | "updatedAt">): ThreadSummary => ({
+const toSummary = (
+  row: { readonly createdAt: Date; readonly updatedAt: Date; readonly doneAt: Date | null } & Omit<ThreadSummary, "createdAt" | "updatedAt" | "doneAt">,
+): ThreadSummary => ({
   ...row,
+  doneAt: row.doneAt?.getTime() ?? null,
   createdAt: row.createdAt.getTime(),
   updatedAt: row.updatedAt.getTime(),
 });
@@ -96,6 +100,16 @@ export const ThreadRepositoryLive = Layer.effect(
           return Option.getOrThrow(findSync(threadId));
         }),
 
+      setDone: (threadId, at) =>
+        query(() => {
+          // Marking a done thread done keeps the first time.
+          db.update(threads)
+            .set({ doneAt: at === null ? null : sql`COALESCE(${threads.doneAt}, ${at})` })
+            .where(eq(threads.id, threadId))
+            .run();
+          return Option.getOrThrow(findSync(threadId));
+        }),
+
       listByVault: (vaultId, scope) =>
         query(() =>
           db
@@ -134,7 +148,7 @@ export const ThreadRepositoryLive = Layer.effect(
                 case "user.message":
                   tx.insert(turns).values({ id: event.turnId, threadId, input: event.text, status: "running", startedAt: when }).run();
                   tx.update(threads)
-                    .set({ title: sql`COALESCE(${threads.title}, ${titleFrom(event.text)})` })
+                    .set({ title: sql`COALESCE(${threads.title}, ${titleFrom(event.text)})`, doneAt: null })
                     .where(eq(threads.id, threadId))
                     .run();
                   break;

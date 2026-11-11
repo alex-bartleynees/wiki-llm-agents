@@ -48,6 +48,8 @@ export interface ThreadRepositoryService {
   readonly setNativeSession: (threadId: string, nativeSessionId: string | null) => Effect.Effect<void, DbError>;
   readonly setModel: (threadId: string, model: string, at: number) => Effect.Effect<ThreadSummary, DbError>;
   readonly setAgent: (threadId: string, agentId: string | null, at: number) => Effect.Effect<ThreadSummary, DbError>;
+  /** Marks the thread done at `at` (keeping an earlier time), or reopens it with null. Leaves `updatedAt` alone. */
+  readonly setDone: (threadId: string, at: number | null) => Effect.Effect<ThreadSummary, DbError>;
   /**
    * Most recently updated first. With `scope`, only that project's threads (for a null
    * `projectId`, the vault's own threads); without, every thread in the vault.

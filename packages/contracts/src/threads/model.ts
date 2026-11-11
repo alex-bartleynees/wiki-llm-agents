@@ -193,6 +193,8 @@ export const ThreadSummary = Schema.Struct({
   /** The named agent whose instructions and autonomy the thread uses; null for none. */
   agentId: Schema.NullOr(Schema.String),
   status: ThreadStatus,
+  /** When you marked the thread done; null while it is open. A new message reopens it. */
+  doneAt: Schema.NullOr(Schema.Number),
   /** The last event's seq; 0 for a new thread. */
   lastSeq: Schema.Number,
   createdAt: Schema.Number,

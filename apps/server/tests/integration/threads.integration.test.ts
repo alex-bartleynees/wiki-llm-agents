@@ -9,11 +9,13 @@ import { ThreadStreamMessage } from "@wiki-agents/contracts/threads/event";
 import { CreateThreadResponse } from "@wiki-agents/contracts/threads/create-thread/response";
 import { GetThreadResponse } from "@wiki-agents/contracts/threads/get-thread/response";
 import { ListThreadsResponse } from "@wiki-agents/contracts/threads/list-threads/response";
+import { MarkDoneResponse } from "@wiki-agents/contracts/threads/mark-done/response";
+import { ReopenThreadResponse } from "@wiki-agents/contracts/threads/reopen-thread/response";
 import type { RequestAnswer, StoredThreadEvent, ThreadEvent, ThreadSummary } from "@wiki-agents/contracts/threads/model";
 import { SendMessageResponse } from "@wiki-agents/contracts/threads/send-message/response";
 import { RegisterVaultResponse } from "@wiki-agents/contracts/vaults/register-vault/response";
 import { sql } from "drizzle-orm";
-import { type Duration, Effect, Fiber, Layer, PubSub, Schema, type Scope, Stream } from "effect";
+import { Clock, type Duration, Effect, Fiber, Layer, PubSub, Schema, type Scope, Stream } from "effect";
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http";
 import { TestClock } from "effect/testing";
 import { makeHttpApp } from "../../src/app/layers.js";
@@ -30,10 +32,12 @@ import {
   getThread,
   interrupt,
   isTag,
+  markDone,
   newThread,
   newVault,
   PLAY_ALL,
   post,
+  reopen,
   requestIdOf,
   send,
   sendOk,
@@ -189,6 +193,60 @@ layer(TestApp)("threads", (it) => {
       const seen = yield* events.until(isTag("turn.finished"));
       expect(seen.at(-1)).toMatchObject({ outcome: "failed", reason: "The provider stopped with an error (recorded)." });
       expect(seen).toContainEqual(expect.objectContaining({ _tag: "tool.finished", status: "failed" }));
+    }),
+  );
+
+  it.effect("marks an idle thread done and reopens it, keeping its place in the list", () =>
+    Effect.gen(function* () {
+      const vault = yield* newVault;
+      const thread = yield* newThread(vault.id);
+      const threadUpdates = yield* (yield* ThreadBus).subscribeThreads;
+      yield* TestClock.adjust("1 minute");
+      const markedAt = yield* Clock.currentTimeMillis;
+
+      const marked = yield* markDone(thread.id).pipe(Effect.flatMap(decode(MarkDoneResponse)));
+      expect(marked.thread).toEqual({ ...thread, doneAt: markedAt });
+      expect(yield* PubSub.take(threadUpdates)).toEqual(marked.thread);
+      const { threads } = yield* HttpClient.get(`/api/vaults/${vault.id}/threads`).pipe(Effect.flatMap(decode(ListThreadsResponse)));
+      expect(threads).toEqual([marked.thread]);
+
+      // Marking it again keeps the first time.
+      yield* TestClock.adjust("1 minute");
+      expect((yield* markDone(thread.id).pipe(Effect.flatMap(decode(MarkDoneResponse)))).thread.doneAt).toBe(markedAt);
+
+      const reopened = yield* reopen(thread.id).pipe(Effect.flatMap(decode(ReopenThreadResponse)));
+      expect(reopened.thread).toEqual(thread);
+      expect((yield* reopen(thread.id).pipe(Effect.flatMap(decode(ReopenThreadResponse)))).thread.doneAt).toBeNull();
+      expect((yield* markDone("missing")).status).toBe(404);
+      expect((yield* reopen("missing")).status).toBe(404);
+    }),
+  );
+
+  it.effect("refuses to mark a thread done while a turn runs or waits for an answer", () =>
+    Effect.gen(function* () {
+      const thread = yield* newThread((yield* newVault).id);
+      const events = yield* watch(thread.id);
+      yield* sendOk(thread.id, "please edit the plan");
+      expect((yield* markDone(thread.id)).status).toBe(409);
+      const requestId = requestIdOf(yield* events.until(isTag("request.opened")));
+      const refused = yield* markDone(thread.id);
+      expect(refused.status).toBe(409);
+      expect(yield* refused.text).toBe("Stop the turn or answer it before marking the thread done");
+
+      yield* answer(thread.id, requestId, { _tag: "approval", decision: "deny" });
+      yield* events.until(isTag("turn.finished"));
+      expect((yield* markDone(thread.id)).status).toBe(200);
+    }),
+  );
+
+  it.effect("reopens a done thread when it gets a message", () =>
+    Effect.gen(function* () {
+      const thread = yield* newThread((yield* newVault).id);
+      yield* markDone(thread.id).pipe(Effect.flatMap(decode(MarkDoneResponse)));
+      const threadUpdates = yield* (yield* ThreadBus).subscribeThreads;
+      yield* sendOk(thread.id, "hello again");
+      expect(yield* PubSub.take(threadUpdates)).toMatchObject({ id: thread.id, doneAt: null, status: "running" });
+      expect((yield* getThread(thread.id)).thread.doneAt).toBeNull();
     }),
   );
 

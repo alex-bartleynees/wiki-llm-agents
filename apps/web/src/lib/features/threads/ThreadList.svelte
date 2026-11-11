@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { ThreadSummary } from "@wiki-agents/contracts/threads/model";
   import { agents } from "#lib/features/agents/agents.svelte.ts";
   import { timeAgo } from "#lib/features/notes/time.ts";
   import { projects } from "#lib/features/projects/projects.svelte.ts";
@@ -90,25 +91,44 @@
     </p>
   </div>
 {:else}
-  <ul>
-    {#each threads.threads as thread (thread.id)}
-      <li>
-        <button type="button" onclick={() => threads.select(thread.id)}>
-          <span class="title">{thread.title ?? "New thread"}</span>
-          <span class="meta mono">
-            {#if thread.agentId !== null}
-              <span class="agent-name">{agents.get(thread.agentId)?.name ?? thread.agentId}</span> ·
-            {/if}
-            {#if thread.status !== "idle"}
-              <span class="status" data-status={thread.status}>{STATUS_LABEL[thread.status]}</span> ·
-            {/if}
-            {timeAgo(thread.updatedAt)}
-          </span>
-        </button>
-      </li>
-    {/each}
-  </ul>
+  <div class="lists">
+    {#if threads.status === "loaded" && threads.open.length === 0}
+      <p class="all-done">Every thread here is done. Start a new one, or open a done one to carry on.</p>
+    {/if}
+    <ul aria-label="Open threads">
+      {#each threads.open as thread (thread.id)}
+        {@render item(thread)}
+      {/each}
+    </ul>
+    {#if threads.done.length > 0}
+      <details class="done" bind:open={threads.showDone}>
+        <summary class="mono">done · {threads.done.length}</summary>
+        <ul aria-label="Done threads">
+          {#each threads.done as thread (thread.id)}
+            {@render item(thread)}
+          {/each}
+        </ul>
+      </details>
+    {/if}
+  </div>
 {/if}
+
+{#snippet item(thread: ThreadSummary)}
+  <li>
+    <button type="button" onclick={() => threads.select(thread.id)}>
+      <span class="title">{thread.title ?? "New thread"}</span>
+      <span class="meta mono">
+        {#if thread.agentId !== null}
+          <span class="agent-name">{agents.get(thread.agentId)?.name ?? thread.agentId}</span> ·
+        {/if}
+        {#if thread.status !== "idle"}
+          <span class="status" data-status={thread.status}>{STATUS_LABEL[thread.status]}</span> ·
+        {/if}
+        {timeAgo(thread.doneAt ?? thread.updatedAt)}
+      </span>
+    </button>
+  </li>
+{/snippet}
 
 <style>
   header {
@@ -175,11 +195,33 @@
     font-weight: 500;
     cursor: pointer;
   }
+  .lists {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+  }
   ul {
     list-style: none;
     margin: 0;
     padding: 6px;
-    overflow: auto;
+  }
+  .all-done {
+    margin: 0;
+    padding: 16px 16px 4px;
+    font-size: 12px;
+    color: var(--ink-3);
+  }
+  .done {
+    border-top: 1px solid var(--line-soft);
+  }
+  .done summary {
+    padding: 8px 16px;
+    font-size: 12px;
+    color: var(--ink-3);
+    cursor: pointer;
+  }
+  .done .title {
+    color: var(--ink-2);
   }
   li button {
     width: 100%;

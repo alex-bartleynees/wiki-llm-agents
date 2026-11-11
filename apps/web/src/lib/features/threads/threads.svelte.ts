@@ -4,7 +4,7 @@ import { errorMessage, isAbort } from "#lib/api/client.ts";
 import { listen } from "#lib/api/sse.ts";
 import { agents } from "#lib/features/agents/agents.svelte.ts";
 import { projects } from "#lib/features/projects/projects.svelte.ts";
-import { createThread, getThread, listThreads, vaultThreadsEventsPath } from "./api.ts";
+import { createThread, getThread, listThreads, markDone, reopenThread, vaultThreadsEventsPath } from "./api.ts";
 import { openThread } from "./open-thread.svelte.ts";
 import { providers } from "./providers.svelte.ts";
 import { inScope, rememberedThreadKey, sameScope, type ThreadScope } from "./thread-scope.ts";
@@ -28,6 +28,7 @@ const remember = (scope: ThreadScope, threadId: string | null) => {
 };
 
 const byRecent = (a: ThreadSummary, b: ThreadSummary) => b.updatedAt - a.updatedAt || b.createdAt - a.createdAt;
+const byDone = (a: ThreadSummary, b: ThreadSummary) => (b.doneAt ?? 0) - (a.doneAt ?? 0) || byRecent(a, b);
 
 /**
  * The threads of the open scope (all of a vault's, or one project's), kept current
@@ -35,6 +36,12 @@ const byRecent = (a: ThreadSummary, b: ThreadSummary) => b.updatedAt - a.updated
  */
 class ThreadsStore {
   threads = $state<ReadonlyArray<ThreadSummary>>([]);
+  /** Threads not marked done, most recently updated first. */
+  open = $derived(this.threads.filter((thread) => thread.doneAt === null));
+  /** Threads marked done, most recently marked first. */
+  done = $derived(this.threads.filter((thread) => thread.doneAt !== null).sort(byDone));
+  /** Whether the thread list shows its Done group; kept while you look at a thread. */
+  showDone = $state(false);
   status = $state<"loading" | "loaded" | "failed">("loading");
   error = $state<string | undefined>(undefined);
   #scope: ThreadScope | undefined;
@@ -132,6 +139,21 @@ class ThreadsStore {
   async show(scope: ThreadScope, threadId: string) {
     remember(scope, threadId);
     if (sameScope(scope, this.#scope)) await openThread.open(threadId);
+  }
+
+  /**
+   * Marks a thread done, or reopens it. The thread stays open in the chat pane; a
+   * failure (a turn started meanwhile) shows there.
+   */
+  async setDone(threadId: string, done: boolean) {
+    try {
+      const { thread } = await (done ? markDone(threadId) : reopenThread(threadId));
+      if (inScope(this.#scope, thread)) this.#upsert(thread);
+      else openThread.updated(thread);
+      openThread.error = undefined;
+    } catch (error) {
+      openThread.error = errorMessage(error, done ? "Could not mark the thread done" : "Could not reopen the thread");
+    }
   }
 
   async #load(scope: ThreadScope) {

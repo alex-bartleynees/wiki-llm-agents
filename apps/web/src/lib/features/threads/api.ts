@@ -8,7 +8,9 @@ import { GetThreadResponse } from "@wiki-agents/contracts/threads/get-thread/res
 import { InterruptTurnResponse } from "@wiki-agents/contracts/threads/interrupt-turn/response";
 import { ListModelsResponse } from "@wiki-agents/contracts/threads/list-models/response";
 import { ListThreadsResponse } from "@wiki-agents/contracts/threads/list-threads/response";
+import { MarkDoneResponse } from "@wiki-agents/contracts/threads/mark-done/response";
 import type { RequestAnswer } from "@wiki-agents/contracts/threads/model";
+import { ReopenThreadResponse } from "@wiki-agents/contracts/threads/reopen-thread/response";
 import { SendMessageRequest } from "@wiki-agents/contracts/threads/send-message/request";
 import { SendMessageResponse } from "@wiki-agents/contracts/threads/send-message/response";
 import { SetModelRequest } from "@wiki-agents/contracts/threads/set-model/request";
@@ -51,6 +53,11 @@ export const sendMessage = (threadId: string, text: string, notes: SendMessageRe
   postJson(`${threadPath(threadId)}/messages`, SendMessageRequest, { text, notes }, SendMessageResponse);
 
 export const interruptTurn = (threadId: string) => postJson(`${threadPath(threadId)}/interrupt`, NoBody, {}, InterruptTurnResponse);
+
+/** Moves the thread to the Done group; 409 while a turn runs or waits for you. */
+export const markDone = (threadId: string) => postJson(`${threadPath(threadId)}/done`, NoBody, {}, MarkDoneResponse);
+
+export const reopenThread = (threadId: string) => postJson(`${threadPath(threadId)}/reopen`, NoBody, {}, ReopenThreadResponse);
 
 export const answerRequest = (threadId: string, requestId: string, answer: RequestAnswer) =>
   postJson(`${threadPath(threadId)}/requests/${encodeURIComponent(requestId)}`, AnswerRequestRequest, { answer }, AnswerRequestResponse);

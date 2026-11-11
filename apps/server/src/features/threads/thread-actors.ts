@@ -20,7 +20,8 @@ export interface ThreadActorsService {
   ) => Effect.Effect<void, StartError | Effect.Error<ReturnType<ThreadActor["answerRequest"]>>>;
   readonly setModel: (threadId: string, model: string) => Effect.Effect<ThreadSummary, StartError | Effect.Error<ReturnType<ThreadActor["setModel"]>>>;
   readonly setAgent: (threadId: string, agentId: string | null) => Effect.Effect<ThreadSummary, StartError | Effect.Error<ReturnType<ThreadActor["setAgent"]>>>;
-  readonly recordContext: (threadId: string, note: ContextNote) => Effect.Effect<void, StartError | Effect.Error<ReturnType<ThreadActor["recordContext"]>>>;
+  readonly setDone: (threadId: string, done: boolean) => Effect.Effect<ThreadSummary, StartError | Effect.Error<ReturnType<ThreadActor["setDone"]>>>;
+  readonly recordContext:(threadId: string, note: ContextNote) => Effect.Effect<void, StartError | Effect.Error<ReturnType<ThreadActor["recordContext"]>>>;
   readonly openNote: (threadId: string, note: OpenedNote) => Effect.Effect<void, StartError | Effect.Error<ReturnType<ThreadActor["openNote"]>>>;
   readonly changeUndone: (threadId: string, turnId: string, changeId: string) => Effect.Effect<void, StartError | Effect.Error<ReturnType<ThreadActor["changeUndone"]>>>;
   /** Starts the actor, which resumes or closes a turn left running by the last run. */
@@ -44,6 +45,7 @@ export const ThreadActorsLive = Layer.effect(
       answerRequest: (threadId, requestId, answer) => withActor(threadId, (actor) => actor.answerRequest(requestId, answer)),
       setModel: (threadId, model) => withActor(threadId, (actor) => actor.setModel(model)),
       setAgent: (threadId, agentId) => withActor(threadId, (actor) => actor.setAgent(agentId)),
+      setDone: (threadId, done) => withActor(threadId, (actor) => actor.setDone(done)),
       recordContext: (threadId, note) => withActor(threadId, (actor) => actor.recordContext(note)),
       openNote: (threadId, note) => withActor(threadId, (actor) => actor.openNote(note)),
       changeUndone: (threadId, turnId, changeId) => withActor(threadId, (actor) => actor.changeUndone(turnId, changeId)),

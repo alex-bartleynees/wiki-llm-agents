@@ -107,6 +107,10 @@ provider and the agent (below) for new threads next to **New thread**:
 - `POST /api/vaults/:id/threads` creates a thread; `POST /api/threads/:id/messages`
   starts a turn (409 while one runs); `POST /api/threads/:id/interrupt` stops it;
   `POST /api/threads/:id/requests/:requestId` answers an approval or question.
+- **Mark done** (in the thread's header) moves an idle thread to the collapsed
+  **done** group at the bottom of the list (`POST /api/threads/:id/done`; 409 while a
+  turn runs or waits for you). **Reopen** moves it back (`POST /api/threads/:id/reopen`),
+  and so does sending it a message.
 - Each thread has a **ThreadActor** (`features/threads/thread-actor.ts`): one mailbox
   and one fiber, so sends, interrupts, answers, and provider events never race. It
   writes to SQLite before it publishes, and rebuilds its state from SQLite.

@@ -41,6 +41,8 @@ export const sendOk = (threadId: string, text: string) =>
     Effect.map((response) => response.turnId),
   );
 export const interrupt = (threadId: string) => post(`/api/threads/${threadId}/interrupt`, {});
+export const markDone = (threadId: string) => post(`/api/threads/${threadId}/done`, {});
+export const reopen = (threadId: string) => post(`/api/threads/${threadId}/reopen`, {});
 export const answer = (threadId: string, requestId: string, value: RequestAnswer) =>
   post(`/api/threads/${threadId}/requests/${encodeURIComponent(requestId)}`, { answer: value });
 

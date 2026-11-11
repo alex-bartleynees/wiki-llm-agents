@@ -202,7 +202,7 @@
             <span class="mono agent">{thread.agentId === null ? "" : (agents.get(thread.agentId)?.name ?? thread.agentId)}</span>
             <span class="mono muted cwd">cwd {folderName(selected.workingDirectories[0] ?? "")}</span>
             <span class="mono status" data-status={thread.status}>
-              {thread.status === "running" ? "● running" : thread.status === "waiting" ? "▲ needs you" : timeAgo(thread.updatedAt)}
+              {thread.status === "running" ? "● running" : thread.status === "waiting" ? "▲ needs you" : thread.doneAt !== null ? `✓ done ${timeAgo(thread.doneAt)}` : timeAgo(thread.updatedAt)}
             </span>
             <button type="button" class="link" onclick={() => openThreadOf(selected, thread.id)}>Open</button>
           </div>

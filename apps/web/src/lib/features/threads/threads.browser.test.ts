@@ -10,6 +10,8 @@ const api = vi.hoisted(() => ({
   listThreads: vi.fn(),
   getThread: vi.fn(),
   createThread: vi.fn(),
+  markDone: vi.fn(),
+  reopenThread: vi.fn(),
 }));
 vi.mock("./api.ts", () => ({
   ...api,
@@ -47,6 +49,7 @@ const summary = (id: string, projectId: string | null, vaultId = "v1"): ThreadSu
   model: null,
   agentId: null,
   status: "idle",
+  doneAt: null,
   lastSeq: 0,
   createdAt: 1,
   updatedAt: 1,
@@ -137,5 +140,53 @@ describe("open thread", () => {
     await openingFirst;
     expect(openThread.thread?.id).toBe("second");
     expect(openThread.status).toBe("loaded");
+  });
+});
+
+describe("done threads", () => {
+  const done = (id: string, doneAt: number, updatedAt = 1): ThreadSummary => ({ ...summary(id, null), doneAt, updatedAt });
+  const openIds = () => threads.open.map((thread) => thread.id);
+  const doneIds = () => threads.done.map((thread) => thread.id);
+
+  it("splits the list into open threads and done ones, most recently done first", async () => {
+    api.listThreads.mockResolvedValue({ threads: [summary("open", null), done("older", 10, 5), done("newer", 20, 2)] });
+    await threads.connect({ vaultId: "v1", projectId: null });
+    expect(openIds()).toEqual(["open"]);
+    expect(doneIds()).toEqual(["newer", "older"]);
+  });
+
+  it("moves a thread between the groups when it is marked done or reopened", async () => {
+    api.listThreads.mockResolvedValue({ threads: [summary("a", null)] });
+    await threads.connect({ vaultId: "v1", projectId: null });
+    await threads.select("a");
+
+    api.markDone.mockResolvedValue({ thread: done("a", 30) });
+    await threads.setDone("a", true);
+    expect(api.markDone).toHaveBeenCalledWith("a");
+    expect([openIds(), doneIds()]).toEqual([[], ["a"]]);
+    expect(openThread.thread?.doneAt).toBe(30);
+
+    api.reopenThread.mockResolvedValue({ thread: summary("a", null) });
+    await threads.setDone("a", false);
+    expect([openIds(), doneIds()]).toEqual([["a"], []]);
+    expect(openThread.thread?.doneAt).toBeNull();
+  });
+
+  it("shows why a thread couldn't be marked done, and leaves it open", async () => {
+    api.listThreads.mockResolvedValue({ threads: [summary("a", null)] });
+    await threads.connect({ vaultId: "v1", projectId: null });
+    await threads.select("a");
+    api.markDone.mockRejectedValue(new Error("Stop the turn or answer it before marking the thread done"));
+    await threads.setDone("a", true);
+    expect(openThread.error).toContain("Stop the turn");
+    expect(openIds()).toEqual(["a"]);
+  });
+
+  it("moves a done thread back to the open ones when another device sends it a message", async () => {
+    api.listThreads.mockResolvedValue({ threads: [done("a", 10)] });
+    await threads.connect({ vaultId: "v1", projectId: null });
+    const stream = streams.find((candidate) => candidate.path === "/events/vaults/v1/threads" && !candidate.closed)!;
+    stream.onEvent({ type: "thread.updated", thread: { ...summary("a", null), status: "running", updatedAt: 40 } });
+    expect([openIds(), doneIds()]).toEqual([["a"], []]);
   });
 });

@@ -53,6 +53,21 @@
   {#if status !== "idle"}
     <span class="status mono" data-status={status}>{STATUS_LABEL[status]}</span>
   {/if}
+  {#if openThread.thread}
+    {@const thread = openThread.thread}
+    {#if thread.doneAt === null}
+      <button
+        type="button"
+        class="done-action"
+        disabled={status !== "idle"}
+        title={status === "idle" ? "Move this thread to the Done group" : "Stop the turn or answer it first"}
+        onclick={() => threads.setDone(thread.id, true)}>Mark done</button
+      >
+    {:else}
+      <span class="done-label mono">✓ done</span>
+      <button type="button" class="done-action" onclick={() => threads.setDone(thread.id, false)}>Reopen</button>
+    {/if}
+  {/if}
   <div class="controls">
     {#if openThread.thread}
       <AgentPicker thread={openThread.thread} onchange={(thread) => openThread.updated(thread)} />
@@ -161,6 +176,27 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+  .done-label {
+    flex: 0 0 auto;
+    font-size: 11px;
+    color: var(--ink-3);
+  }
+  .done-action {
+    flex: 0 0 auto;
+    height: 28px;
+    padding: 0 10px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--ink-2);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .done-action:disabled {
+    opacity: 0.5;
+    cursor: default;
   }
   .provider {
     flex: 0 0 auto;

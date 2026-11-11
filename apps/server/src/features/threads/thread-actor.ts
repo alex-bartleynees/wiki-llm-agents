@@ -36,6 +36,7 @@ type Message =
     }
   | { readonly _tag: "SetModel"; readonly model: string; readonly reply: Deferred.Deferred<ThreadSummary, DbError | ProviderError> }
   | { readonly _tag: "SetAgent"; readonly agentId: string | null; readonly reply: Deferred.Deferred<ThreadSummary, DbError> }
+  | { readonly _tag: "SetDone"; readonly done: boolean; readonly reply: Deferred.Deferred<ThreadSummary, ThreadBusy | DbError> }
   | { readonly _tag: "OpenNote"; readonly note: OpenedNote; readonly reply: Deferred.Deferred<void, NoTurnRunning | DbError> }
   | { readonly _tag: "ChangeUndone"; readonly turnId: string; readonly changeId: string; readonly reply: Deferred.Deferred<void, DbError> }
   /** From the turn's provider fiber; ignored once that turn is over. */
@@ -63,6 +64,8 @@ export interface ThreadActor {
   readonly setModel: (model: string) => Effect.Effect<ThreadSummary, DbError | ProviderError>;
   /** Saves the thread's agent; its instructions and autonomy apply from the next turn. */
   readonly setAgent: (agentId: string | null) => Effect.Effect<ThreadSummary, DbError>;
+  /** Marks the thread done (refused while a turn runs or waits for you), or reopens it. */
+  readonly setDone: (done: boolean) => Effect.Effect<ThreadSummary, ThreadBusy | DbError>;
   /** Records that the agent opened a note, in the running turn (the UI opens it). */
   readonly openNote: (note: OpenedNote) => Effect.Effect<void, NoTurnRunning | DbError>;
   /** Records that a change the thread's turn made was undone. */
@@ -309,6 +312,14 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     return summary;
   });
 
+  const setDone = Effect.fnUntraced(function* (done: boolean) {
+    // A pending request belongs to the running turn, so this also covers "waiting".
+    if (done && turn !== undefined) return yield* new ThreadBusy({ threadId });
+    const summary = yield* repository.setDone(threadId, done ? yield* Clock.currentTimeMillis : null);
+    yield* bus.publishThread(summary);
+    return summary;
+  });
+
   const openNote = Effect.fnUntraced(function* (note: OpenedNote) {
     const current = turn;
     if (current === undefined) return yield* new NoTurnRunning({ threadId });
@@ -356,6 +367,8 @@ export const makeThreadActor = Effect.fnUntraced(function* (
         return Effect.asVoid(Effect.flatMap(Effect.exit(setModel(message.model)), (exit) => Deferred.done(message.reply, exit)));
       case "SetAgent":
         return Effect.asVoid(Effect.flatMap(Effect.exit(setAgent(message.agentId)), (exit) => Deferred.done(message.reply, exit)));
+      case "SetDone":
+        return Effect.asVoid(Effect.flatMap(Effect.exit(setDone(message.done)), (exit) => Deferred.done(message.reply, exit)));
       case "Context":
         return Effect.asVoid(Effect.flatMap(Effect.exit(Effect.gen(function* () {
           if (turn === undefined) return yield* new NoTurnRunning({ threadId });
@@ -400,6 +413,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     answerRequest: (requestId, answer) => ask((reply) => ({ _tag: "AnswerRequest", requestId, answer, reply })),
     setModel: (model) => ask((reply) => ({ _tag: "SetModel", model, reply })),
     setAgent: (agentId) => ask((reply) => ({ _tag: "SetAgent", agentId, reply })),
+    setDone: (done) => ask((reply) => ({ _tag: "SetDone", done, reply })),
     openNote: (note) => ask((reply) => ({ _tag: "OpenNote", note, reply })),
     changeUndone: (turnId, changeId) => ask((reply) => ({ _tag: "ChangeUndone", turnId, changeId, reply })),
   };

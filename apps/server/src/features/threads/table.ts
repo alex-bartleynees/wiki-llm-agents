@@ -15,6 +15,8 @@ export const threads = sqliteTable(
     agentId: text("agent_id"),
     /** The provider's own session id, for resuming (OpenCode session, Claude session). */
     nativeSessionId: text("native_session_id"),
+    /** When you marked the thread done; cleared by its next message. */
+    doneAt: integer("done_at", { mode: "timestamp_ms" }),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
     deletedAt: integer("deleted_at", { mode: "timestamp_ms" }),
