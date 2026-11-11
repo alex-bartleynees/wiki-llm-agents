@@ -95,6 +95,15 @@ in
       '';
     };
 
+    claudeCode = mkOption {
+      type = types.nullOr types.package;
+      default = null;
+      description = ''
+        Claude Code package for the Claude Code provider. Null uses `claude` from your
+        user profile, with your login. The app needs Claude Code 2.1.x.
+      '';
+    };
+
     environment = mkOption {
       type = types.attrsOf types.str;
       default = { };
@@ -152,6 +161,7 @@ in
           }
           // lib.optionalAttrs (cfg.watchPollMs != null) { WIKI_AGENTS_WATCH_POLL_MS = toString cfg.watchPollMs; }
           // lib.optionalAttrs (cfg.opencode != null) { WIKI_AGENTS_OPENCODE = lib.getExe cfg.opencode; }
+          // lib.optionalAttrs (cfg.claudeCode != null) { WIKI_AGENTS_CLAUDE = lib.getExe cfg.claudeCode; }
           // cfg.environment
         );
         Restart = "on-failure";

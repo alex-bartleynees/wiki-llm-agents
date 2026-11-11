@@ -21,9 +21,13 @@ export const ProviderInstance = Schema.Struct({
 });
 export type ProviderInstance = typeof ProviderInstance.Type;
 
-/** The provider can run turns. `version` is the installed agent's, when it has one. */
+/**
+ * The provider can run turns. `version` is the installed agent's, when it has one;
+ * `account` is who it is signed in as (e.g. `you@example.com (pro)`), when it says.
+ */
 export const ProviderReady = Schema.TaggedStruct("ready", {
   version: Schema.NullOr(Schema.String),
+  account: Schema.NullOr(Schema.String),
 });
 
 /** It can't, and why: not installed, an unsupported version, or it failed to start. */

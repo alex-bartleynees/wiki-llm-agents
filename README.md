@@ -40,7 +40,8 @@ Gate before every commit: `npm test`, `npm run check`, `npm run build`, `git dif
 
 ## Vaults
 
-Register a vault on the settings screen (⚙ in the vault pane), with
+Register a vault on the settings screen (⚙ in the vault pane; it also lists the
+providers, whether each is installed, signed in, and its version), with
 `POST /api/vaults {"rootPath": "..."}`, or at startup with `--vault <path>` (repeatable;
 registering is idempotent). In development, work on a copy so the real vault stays
 untouched:
@@ -97,6 +98,29 @@ provider and the agent (below) for new threads next to **New thread**:
   approvals and questions go with it), and the next message starts a new OpenCode
   and continues the same session. Threads run turns at the same time, each in its
   own session on the one server.
+- **Claude Code**: your installed `claude` 2.1.x, with your own login, settings,
+  skills, MCP servers and `CLAUDE.md`/`AGENTS.md`, run through the Claude Agent SDK
+  (`@anthropic-ai/claude-agent-sdk`, pinned to the version that matches 2.1.316). Each
+  thread is one Claude Code session in its working folder, with an id the app chooses;
+  one `claude` process serves it while the thread is open (closed 5 minutes after it
+  goes idle, and with the app), and a later message, even after a restart, resumes the
+  session. Pick the model in the thread's header (Claude Code's own list: `default`,
+  `opus`, `sonnet`, `haiku`...).
+  **Approvals:** an app hook answers every tool call from the agent's autonomy, ahead
+  of Claude Code's own rules and your settings' allow rules; "ask" becomes an approval
+  (edits show their diff), and `AskUserQuestion` becomes a question. `Write` to a file
+  that doesn't exist yet is *create*, anything else *edit*. Files outside the working
+  folders always ask. Claude Code has no Glob or Grep: it lists and searches files with
+  shell commands, so while commands ask, the hook leaves commands to Claude Code, which
+  runs the ones it judges read-only (`ls`, `find`, `grep`...) without asking.
+  Usage is reported per turn; cost only when you pay per token (an API key), not on a
+  claude.ai plan. The vault tools' token goes to Claude Code over its control channel,
+  never on its command line. Stop asks Claude Code to stop and waits up to 5 s for it
+  to confirm, otherwise closes the process (the next message resumes the session); a
+  crash fails the turn with the reason and the next message starts a new process. A
+  running Claude Code turn can't survive an app restart (it is a child process), so it
+  is closed as interrupted. Stopping the app with an open Claude Code session takes a
+  few seconds: the SDK gives `claude` 2 s to exit before it sends SIGTERM.
 - **Replay** plays recorded turns and spends no tokens; the message picks the
   recording by keyword (`providers/replay/transcripts.ts`): *edit* proposes an edit
   to `Replay note.md` in the thread's folder and, once you apply it, really appends a
@@ -244,7 +268,9 @@ that machine's fresh defaults would win over your edits. A Syncthing conflict co
   key="wiki-agents">`) and session permission rules, sent only when they change; it
   reads `AGENTS.md` itself, so the app doesn't send it twice. OpenCode can't tell
   creating a file from editing one: both get the stricter level, and the agent screen
-  says so.
+  says so. Claude Code gets them appended to its system prompt (rebuilt every request,
+  so a change applies from the next turn on the same session) and the autonomy through
+  the app's hook; it reads `AGENTS.md` and `CLAUDE.md` itself, so those aren't sent.
 - Pick a thread's agent in its header; it applies from the next message.
   The Agents tab (phone) or the right pane's Agents switch (desktop) lists agents
   with what they are doing in this vault, and shows each one's autonomy as written
@@ -272,6 +298,32 @@ For a model-free MCP registration smoke test, run
 `WIKI_AGENTS_LIVE_OPENCODE=1 nix develop -c npm test -w @wiki-agents/server -- tests/live/mcp-registration.live.test.ts`.
 It starts real OpenCode, connects to the authenticated app endpoint, and removes
 the registration without invoking a model.
+
+#### Claude Code tests and recordings
+
+The Claude Code adapter is tested the same way: real conversations recorded through
+the real adapter and SDK into `apps/server/tests/fixtures/claude-code/*.json` (Claude
+Code's messages, cut down, and what the app's hook and `canUseTool` answered), played
+back by a fake SDK (`fake-sdk.ts`) that checks the adapter answers as it did when
+recorded. Scenarios: as for OpenCode, plus create vs edit and a command the autonomy
+denies. To record them again, on Haiku unless `--model` says otherwise (this spends a
+little of your plan or credit):
+
+```bash
+nix develop -c npm run record:claude-code -w @wiki-agents/server -- [scenario...]
+```
+
+One opt-in test runs a real turn on the installed Claude Code:
+`WIKI_AGENTS_LIVE_CLAUDE=1 nix develop -c npx vitest run tests/live/claude-code.live.test.ts`
+(in `apps/server`).
+
+The SDK lists a `claude` binary for every platform (about 330 MB each) as optional
+dependencies. The root `overrides` point them at an empty stand-in
+(`nix/claude-agent-sdk-no-binary`), so neither npm nor Nix downloads them; the app runs
+your installed `claude`. When upgrading the SDK, keep it on the version whose
+`claudeCodeVersion` matches the installed Claude Code.
+
+#### OpenCode client
 
 The client library is `@opencode/client` (and `@opencode/protocol`), pinned to exactly
 the installed OpenCode's version (2.2.1); they ask for an older `effect`, which the
@@ -355,6 +407,7 @@ design/             Claude Design mockup
 | `WIKI_AGENTS_STATIC_DIR` | unset; the packaged binary points it at the web build |
 | `WIKI_AGENTS_MIGRATIONS_DIR` | `apps/server/drizzle` |
 | `WIKI_AGENTS_OPENCODE` | `opencode` (looked up on `PATH`) |
+| `WIKI_AGENTS_CLAUDE` | `claude` (looked up on `PATH`) |
 | `WIKI_AGENTS_CONFIG_DIR` | `$XDG_CONFIG_HOME/wiki-agents` (rules and agents) |
 | `WIKI_AGENTS_WATCH_POLL_MS` | unset (file system events); set to poll vault files, e.g. `2000`, when the vault is a virtiofs or SSHFS mount whose changes the OS doesn't report |
 
@@ -387,7 +440,8 @@ services.wiki-agents = {
 
 Options: `vaults`, `host` (default `127.0.0.1`), `port` (default `4317`), `dataDir`,
 `configDir` (rules and agents; never written by Nix), `watchPollMs`, `opencode` (a
-package; default: `opencode` from your user profile, which must be 2.2.x),
+package; default: `opencode` from your user profile, which must be 2.2.x), `claudeCode`
+(a package; default: `claude` from your user profile, which must be 2.1.x),
 `environment`, `enableLinger` and `desktopEntry` (default off). `nix flake check`
 builds a home-manager configuration with the module (`checks.hm-module`).
 

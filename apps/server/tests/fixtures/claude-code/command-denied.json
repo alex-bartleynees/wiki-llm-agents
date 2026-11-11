@@ -1,0 +1,1203 @@
+{
+  "scenario": "command-denied",
+  "claudeCodeVersion": "2.1.316",
+  "model": "haiku",
+  "autonomy": {
+    "read": "allow",
+    "create": "allow",
+    "edit": "ask",
+    "commands": "deny",
+    "web": "allow"
+  },
+  "turns": [
+    {
+      "prompt": "Use the Bash tool to run `ls`. If you can't, say so in one sentence and don't try anything else.",
+      "steps": [
+        {
+          "message": {
+            "type": "system",
+            "subtype": "init",
+            "session_id": "__session__",
+            "apiKeySource": "none",
+            "claude_code_version": "2.1.316",
+            "cwd": "/__vault__",
+            "model": "claude-haiku-5-5",
+            "permissionMode": "default",
+            "mcp_servers": [],
+            "uuid": "661ebefc-9673-4ebd-ac64-74187d9aea09"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "message_start",
+              "message": {
+                "model": "claude-haiku-5-5",
+                "id": "msg_011CgvvCVcEBVtqyVD1DAFtp",
+                "type": "message",
+                "role": "assistant",
+                "content": [],
+                "container": null,
+                "stop_reason": null,
+                "stop_sequence": null,
+                "stop_details": null,
+                "usage": {
+                  "input_tokens": 2,
+                  "cache_creation_input_tokens": 11176,
+                  "cache_read_input_tokens": 10562,
+                  "cache_creation": {
+                    "ephemeral_5m_input_tokens": 0,
+                    "ephemeral_1h_input_tokens": 11176
+                  },
+                  "output_tokens": 16,
+                  "service_tier": "standard",
+                  "inference_geo": "global",
+                  "speed": "standard"
+                },
+                "input_transformations": [],
+                "diagnostics": null,
+                "context_management": null
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "2d66ec0e-b7be-436a-b213-548d3be5d3fe",
+            "ttft_ms": 1023,
+            "thinking_display": "updates",
+            "api_message_id": "msg_011CgvvCVcEBVtqyVD1DAFtp"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_start",
+              "index": 0,
+              "content_block": {
+                "type": "tool_use",
+                "id": "toolu_015g8cBv6zNM2ZEdQwT2Bh3i",
+                "name": "Bash",
+                "input": {},
+                "caller": {
+                  "type": "direct"
+                }
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "4a3d6050-01b1-48b0-81f6-c904d2060971",
+            "api_message_id": "msg_011CgvvCVcEBVtqyVD1DAFtp"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": ""
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "7ddaaff8-612d-45d7-8bb6-56bc7bcb24bd",
+            "api_message_id": "msg_011CgvvCVcEBVtqyVD1DAFtp"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "{\"command\": \"ls"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "9da3a188-f2d7-42f1-a70a-fef28ee46572",
+            "api_message_id": "msg_011CgvvCVcEBVtqyVD1DAFtp"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "\", \"description\": \"List"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "616c63b0-f7c1-4096-9356-dbfee96b9704",
+            "api_message_id": "msg_011CgvvCVcEBVtqyVD1DAFtp"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": " files"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "ef2c7521-e82c-49ae-a0df-440dc7e7d090",
+            "api_message_id": "msg_011CgvvCVcEBVtqyVD1DAFtp"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": " in current directory"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "bbccacf7-f971-4b1c-8137-d7a49e445147",
+            "api_message_id": "msg_011CgvvCVcEBVtqyVD1DAFtp"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "\"}"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "03c37fcd-9704-4315-a4e7-e6543bbe497a",
+            "api_message_id": "msg_011CgvvCVcEBVtqyVD1DAFtp"
+          }
+        },
+        {
+          "message": {
+            "type": "assistant",
+            "message": {
+              "model": "claude-haiku-5-5",
+              "id": "msg_011CgvvCVcEBVtqyVD1DAFtp",
+              "type": "message",
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "tool_use",
+                  "id": "toolu_015g8cBv6zNM2ZEdQwT2Bh3i",
+                  "name": "Bash",
+                  "input": {
+                    "command": "ls",
+                    "description": "List files in current directory"
+                  },
+                  "caller": {
+                    "type": "direct"
+                  }
+                }
+              ],
+              "container": null,
+              "stop_reason": null,
+              "stop_sequence": null,
+              "stop_details": null,
+              "usage": {
+                "input_tokens": 2,
+                "cache_creation_input_tokens": 11176,
+                "cache_read_input_tokens": 10562,
+                "cache_creation": {
+                  "ephemeral_5m_input_tokens": 0,
+                  "ephemeral_1h_input_tokens": 11176
+                },
+                "output_tokens": 16,
+                "service_tier": "standard",
+                "inference_geo": "global",
+                "speed": "standard"
+              },
+              "input_transformations": [],
+              "diagnostics": null,
+              "context_management": null
+            },
+            "parent_tool_use_id": null,
+            "session_id": "__session__",
+            "uuid": "ec24d406-a24b-4bb0-b208-21eff78dffe9",
+            "timestamp": "2026-11-11T09:39:00.951Z",
+            "request_id": "req_011CgvvCVTnoL5mTXpKoCnSv",
+            "wire_tool_inputs": {
+              "toolu_015g8cBv6zNM2ZEdQwT2Bh3i": {
+                "command": "ls",
+                "description": "List files in current directory"
+              }
+            }
+          }
+        },
+        {
+          "hook": {
+            "toolName": "Bash",
+            "toolInput": {
+              "command": "ls",
+              "description": "List files in current directory"
+            },
+            "toolUseId": "toolu_015g8cBv6zNM2ZEdQwT2Bh3i"
+          },
+          "decision": "deny"
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_stop",
+              "index": 0
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "897af1b0-b61c-46ec-b610-fd2be9b909c5",
+            "api_message_id": "msg_011CgvvCVcEBVtqyVD1DAFtp"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "message_delta",
+              "delta": {
+                "stop_reason": "tool_use",
+                "stop_sequence": null,
+                "stop_details": null,
+                "container": null
+              },
+              "usage": {
+                "input_tokens": 2,
+                "cache_creation_input_tokens": 11176,
+                "cache_read_input_tokens": 10562,
+                "output_tokens": 74,
+                "output_tokens_details": {
+                  "thinking_tokens": 0
+                },
+                "iterations": [
+                  {
+                    "input_tokens": 2,
+                    "output_tokens": 74,
+                    "cache_read_input_tokens": 10562,
+                    "cache_creation_input_tokens": 11176,
+                    "cache_creation": {
+                      "ephemeral_5m_input_tokens": 0,
+                      "ephemeral_1h_input_tokens": 11176
+                    },
+                    "type": "message"
+                  }
+                ]
+              },
+              "context_management": {
+                "applied_edits": []
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "33531229-5fe4-4e8e-b6c4-b4e2a0338f3e",
+            "api_message_id": "msg_011CgvvCVcEBVtqyVD1DAFtp"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "message_stop"
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "8ab64c52-98b6-4179-8d2c-d6e77349a460",
+            "api_message_id": "msg_011CgvvCVcEBVtqyVD1DAFtp"
+          }
+        },
+        {
+          "message": {
+            "type": "user",
+            "message": {
+              "role": "user",
+              "content": [
+                {
+                  "type": "tool_result",
+                  "content": "PreToolUse:Bash hook error: The agent's autonomy in this app doesn't allow this. Don't try it another way; say what you would have done.",
+                  "is_error": true,
+                  "tool_use_id": "toolu_015g8cBv6zNM2ZEdQwT2Bh3i"
+                }
+              ]
+            },
+            "parent_tool_use_id": null,
+            "session_id": "__session__",
+            "uuid": "56aaa23c-7fb7-4cc4-8e5b-5da93da3385a",
+            "timestamp": "2026-11-11T09:39:00.967Z",
+            "tool_use_result": "Error: PreToolUse:Bash hook error: The agent's autonomy in this app doesn't allow this. Don't try it another way; say what you would have done.",
+            "tool_result_meta": [
+              {
+                "id": "toolu_015g8cBv6zNM2ZEdQwT2Bh3i",
+                "non_execution_kind": "permission-rule",
+                "permission_decision": {
+                  "decision": "reject",
+                  "source": "hook",
+                  "reason_type": "hook"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "message_start",
+              "message": {
+                "model": "claude-haiku-5-5",
+                "id": "msg_011CgvvCawwpqiU4riNgUHbL",
+                "type": "message",
+                "role": "assistant",
+                "content": [],
+                "container": null,
+                "stop_reason": null,
+                "stop_sequence": null,
+                "stop_details": null,
+                "usage": {
+                  "input_tokens": 2,
+                  "cache_creation_input_tokens": 2167,
+                  "cache_read_input_tokens": 21738,
+                  "cache_creation": {
+                    "ephemeral_5m_input_tokens": 0,
+                    "ephemeral_1h_input_tokens": 2167
+                  },
+                  "output_tokens": 3,
+                  "service_tier": "standard",
+                  "inference_geo": "global",
+                  "speed": "standard"
+                },
+                "input_transformations": [],
+                "diagnostics": null,
+                "context_management": null
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "46c0282c-f97a-4d09-9568-e983d2d9acfc",
+            "ttft_ms": 786,
+            "thinking_display": "updates",
+            "api_message_id": "msg_011CgvvCawwpqiU4riNgUHbL"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_start",
+              "index": 0,
+              "content_block": {
+                "type": "thinking",
+                "thinking": "",
+                "signature": ""
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "9289bdf4-f3b1-47e4-a51c-9f3355beee53",
+            "thinking_display": "updates",
+            "api_message_id": "msg_011CgvvCawwpqiU4riNgUHbL"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "thinking_delta",
+                "thinking": "",
+                "estimated_tokens": 50
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "6dc22f66-356a-44db-8856-5a88c5d2770a",
+            "thinking_display": "updates",
+            "api_message_id": "msg_011CgvvCawwpqiU4riNgUHbL"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "thinking_delta",
+                "thinking": "",
+                "estimated_tokens": null
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "6255a804-d7c1-4be4-8a06-3f69d3f8a03f",
+            "thinking_display": "updates",
+            "api_message_id": "msg_011CgvvCawwpqiU4riNgUHbL"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "signature_delta",
+                "signature": "CAQSyQgKEAgTGAI4AUIIdGhpbmtpbmcSDOKSNArQ1Ip4a3gg3xoMEHoYzyp0Nd1M1LW1IjAOZy2TapswwYyyqp6We0L9tJv+ZYOBk7yL9txcxE+3nsD0PJVApgKY1OjdsGYPbjIq5gcuz99ZwFbouuKY2aZt7yylzlqD8Ma1HBaryzkIfoq77qB5RPL/Qwi7MLd0aYZXrjdqJyKt8KsJ/IB0iPUY9jMrnDqnI/aAf8u3U0j73YpOVkJJtlZenfN2d0z8c4jIbtzft4IhPl56CeNlEGLuzPXdmrMGd7xM7VfBVLDV8YABri7ZmZ4a3b4Rz+UGpVkZg1O4DadEX4hyDpVtx9DnF7OrUrUIiLZCSKaJC3BOhuAe4/KtIZwiWTlN6ichCBzk2EZzRb1AvZRNc+2vZkh7BAb4Ny0InB3HomTYOaWCLZO6PRe80eHe/kYNsog/i8P6Fz9iJpoc1ajCaP3o+pWyV4vPv3G30sywi8/Gq50tqA+PLzKhJeIwsBDR+mHOceO4bon0XVxhcLQAn+GBOzuq9IxuqeMTPlRH/HtD/xdKgyITQdld4ZdyyaeA4cQGxkx8DBm4nfUQfIzligiIBCtL/h52XMddbO34z8PjzqVUm4VkwDjDCEFJ4O80mNas/dkYaS5a36XnKsRo9kRUdEIrDXk5KTwX6rVOnOxbTdGEHV2OcFP+lYpq4JfCnzVotgD2v4WM6B2j2feLYbINAZmuD2XIvHMUfLaI5h3T7k5BEU35zcW6O/gjNyGZBICWoE29f5ZZ8POqNc6SOqJSa/9k9/VQdTU8jV+ma5mID09bdQYpTQnbXdohMKv+oCTB7kLhgV/nvBIT0g2a6FZpkulKl9yNKcxXffAmy0rjwHy1NCjbSEQbX3U9+zMnmmqlwtB9e1zfSp+0byjnX6cft4CnerCpwZcfWpRLaybKGJU1j51iazQgiER+7cCCZK/z+Obql6N5rLdMmVxsXIDwK2u4AtyNCR7cT0BaKRaejkLrVUmfKGnC914JIyej/OM3wADpdUWkOdCFi74ECWHVZYeDtsxLOKTao2ksFVw2SAkF2pjg+4SKDFoJoF3x6fxv6+OjNGy/48ScO/zs2eLKn72xpZu2F3ZoVgThoMttY4ZdOV20/UsR2X78dRRy3ooaEezYgIzLCg09pHYJFCWq+kaNPVyvdi9E+WGKUMxc0cRjFUG/n9I7SFyyJ0ThQl17zdwvaUcllIWsPzU0iJlI1d5hS/lQMkbVZnfQHW007nrLQyBAcsvDsB/U2iHxB/M+ePGiCQdzzfx2ga0WI1xWOOWxFRaoOYuACSIHzOR6kG5dvqet+esoDPmcqPHa9KqZgOJALnJq10mzJFoAjnQLNLA8PZV+wSPJR+vW8UcU7zxLVkQLVD/vJKyEmL5x0PdutMzHXFfWQDyuQBXoe99PyEurOY0UEBQnbQTDoBCIP/VJKfHgLk/cnKZEhxgB"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "90921004-f0cd-44f1-849f-306167720dd5",
+            "api_message_id": "msg_011CgvvCawwpqiU4riNgUHbL"
+          }
+        },
+        {
+          "message": {
+            "type": "assistant",
+            "message": {
+              "model": "claude-haiku-5-5",
+              "id": "msg_011CgvvCawwpqiU4riNgUHbL",
+              "type": "message",
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "thinking",
+                  "thinking": "",
+                  "signature": "CAQSyQgKEAgTGAI4AUIIdGhpbmtpbmcSDOKSNArQ1Ip4a3gg3xoMEHoYzyp0Nd1M1LW1IjAOZy2TapswwYyyqp6We0L9tJv+ZYOBk7yL9txcxE+3nsD0PJVApgKY1OjdsGYPbjIq5gcuz99ZwFbouuKY2aZt7yylzlqD8Ma1HBaryzkIfoq77qB5RPL/Qwi7MLd0aYZXrjdqJyKt8KsJ/IB0iPUY9jMrnDqnI/aAf8u3U0j73YpOVkJJtlZenfN2d0z8c4jIbtzft4IhPl56CeNlEGLuzPXdmrMGd7xM7VfBVLDV8YABri7ZmZ4a3b4Rz+UGpVkZg1O4DadEX4hyDpVtx9DnF7OrUrUIiLZCSKaJC3BOhuAe4/KtIZwiWTlN6ichCBzk2EZzRb1AvZRNc+2vZkh7BAb4Ny0InB3HomTYOaWCLZO6PRe80eHe/kYNsog/i8P6Fz9iJpoc1ajCaP3o+pWyV4vPv3G30sywi8/Gq50tqA+PLzKhJeIwsBDR+mHOceO4bon0XVxhcLQAn+GBOzuq9IxuqeMTPlRH/HtD/xdKgyITQdld4ZdyyaeA4cQGxkx8DBm4nfUQfIzligiIBCtL/h52XMddbO34z8PjzqVUm4VkwDjDCEFJ4O80mNas/dkYaS5a36XnKsRo9kRUdEIrDXk5KTwX6rVOnOxbTdGEHV2OcFP+lYpq4JfCnzVotgD2v4WM6B2j2feLYbINAZmuD2XIvHMUfLaI5h3T7k5BEU35zcW6O/gjNyGZBICWoE29f5ZZ8POqNc6SOqJSa/9k9/VQdTU8jV+ma5mID09bdQYpTQnbXdohMKv+oCTB7kLhgV/nvBIT0g2a6FZpkulKl9yNKcxXffAmy0rjwHy1NCjbSEQbX3U9+zMnmmqlwtB9e1zfSp+0byjnX6cft4CnerCpwZcfWpRLaybKGJU1j51iazQgiER+7cCCZK/z+Obql6N5rLdMmVxsXIDwK2u4AtyNCR7cT0BaKRaejkLrVUmfKGnC914JIyej/OM3wADpdUWkOdCFi74ECWHVZYeDtsxLOKTao2ksFVw2SAkF2pjg+4SKDFoJoF3x6fxv6+OjNGy/48ScO/zs2eLKn72xpZu2F3ZoVgThoMttY4ZdOV20/UsR2X78dRRy3ooaEezYgIzLCg09pHYJFCWq+kaNPVyvdi9E+WGKUMxc0cRjFUG/n9I7SFyyJ0ThQl17zdwvaUcllIWsPzU0iJlI1d5hS/lQMkbVZnfQHW007nrLQyBAcsvDsB/U2iHxB/M+ePGiCQdzzfx2ga0WI1xWOOWxFRaoOYuACSIHzOR6kG5dvqet+esoDPmcqPHa9KqZgOJALnJq10mzJFoAjnQLNLA8PZV+wSPJR+vW8UcU7zxLVkQLVD/vJKyEmL5x0PdutMzHXFfWQDyuQBXoe99PyEurOY0UEBQnbQTDoBCIP/VJKfHgLk/cnKZEhxgB"
+                }
+              ],
+              "container": null,
+              "stop_reason": null,
+              "stop_sequence": null,
+              "stop_details": null,
+              "usage": {
+                "input_tokens": 2,
+                "cache_creation_input_tokens": 2167,
+                "cache_read_input_tokens": 21738,
+                "cache_creation": {
+                  "ephemeral_5m_input_tokens": 0,
+                  "ephemeral_1h_input_tokens": 2167
+                },
+                "output_tokens": 3,
+                "service_tier": "standard",
+                "inference_geo": "global",
+                "speed": "standard"
+              },
+              "input_transformations": [],
+              "diagnostics": null,
+              "context_management": null
+            },
+            "parent_tool_use_id": null,
+            "session_id": "__session__",
+            "uuid": "32457ba9-1ac5-4254-9695-de0eb6591f39",
+            "timestamp": "2026-11-11T09:39:02.736Z",
+            "request_id": "req_011CgvvCamnCBMS6VhZiMCDh",
+            "thinking_duration_ms": 970,
+            "thinking_display": "updates"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_stop",
+              "index": 0
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "7652377e-a785-4457-bcfe-ca3dfca0d44a",
+            "api_message_id": "msg_011CgvvCawwpqiU4riNgUHbL"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_start",
+              "index": 1,
+              "content_block": {
+                "type": "text",
+                "text": ""
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "f8df292a-56ca-4f5b-b26f-6c0c6f6b3c4e",
+            "api_message_id": "msg_011CgvvCawwpqiU4riNgUHbL"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "text_delta",
+                "text": "I couldn't run"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "1a987dd2-f39d-47ab-8db1-9cb2ac6e0eb1",
+            "api_message_id": "msg_011CgvvCawwpqiU4riNgUHbL"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "text_delta",
+                "text": " `ls`: a Pre"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "87aceebf-9fb6-4ae1-a5b1-8f92182c6db6",
+            "api_message_id": "msg_011CgvvCawwpqiU4riNgUHbL"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "text_delta",
+                "text": "ToolUse hook bloc"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "a6d18a89-7c42-4ed4-871f-85dc863d3d8a",
+            "api_message_id": "msg_011CgvvCawwpqiU4riNgUHbL"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "text_delta",
+                "text": "ked the Bash call, and"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "a3cf80e1-bf5f-4bdd-91b5-bd75b20ea13d",
+            "api_message_id": "msg_011CgvvCawwpqiU4riNgUHbL"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "text_delta",
+                "text": " its"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "5df9c173-a62b-49c1-95e9-782172118bb3",
+            "api_message_id": "msg_011CgvvCawwpqiU4riNgUHbL"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "text_delta",
+                "text": " message says this"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "9e6a63ba-8ead-45be-868a-91bb8a29d15b",
+            "api_message_id": "msg_011CgvvCawwpqiU4riNgUHbL"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "text_delta",
+                "text": " session"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "97e6e419-be99-4ca7-baff-8f82ead3088c",
+            "api_message_id": "msg_011CgvvCawwpqiU4riNgUHbL"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "text_delta",
+                "text": "'s"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "ea4981ff-f6e4-4728-9460-bb7e6ec07791",
+            "api_message_id": "msg_011CgvvCawwpqiU4riNgUHbL"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "text_delta",
+                "text": " autonomy doesn't"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "7001c689-e17c-4633-942e-dd22d3a82471",
+            "api_message_id": "msg_011CgvvCawwpqiU4riNgUHbL"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "text_delta",
+                "text": " allow it. I didn't"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "e64539b2-57a8-40d2-aa7d-bb87248a2082",
+            "api_message_id": "msg_011CgvvCawwpqiU4riNgUHbL"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "text_delta",
+                "text": " try another route"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "7dcf5634-94f6-48bd-b670-1d95054e7a16",
+            "api_message_id": "msg_011CgvvCawwpqiU4riNgUHbL"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "text_delta",
+                "text": "."
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "29f16db7-6490-4605-927a-67b90cebc0ed",
+            "api_message_id": "msg_011CgvvCawwpqiU4riNgUHbL"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "text_delta",
+                "text": " Without"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "7a724187-d39e-44d6-bf3d-b5854ef8fb6c",
+            "api_message_id": "msg_011CgvvCawwpqiU4riNgUHbL"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "text_delta",
+                "text": " the hook, I would have run"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "cd9ef9f0-0ff5-4452-ad3a-26edd279d0c6",
+            "api_message_id": "msg_011CgvvCawwpqiU4riNgUHbL"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "text_delta",
+                "text": " `ls` in `"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "3f9ae4da-12fd-4e3f-87fd-4e3913ec2af0",
+            "api_message_id": "msg_011CgvvCawwpqiU4riNgUHbL"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "text_delta",
+                "text": "/tmp/nix-"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "af65cc7f-7b49-43f2-9b3a-05896ea845f9",
+            "api_message_id": "msg_011CgvvCawwpqiU4riNgUHbL"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "text_delta",
+                "text": "shell.f6WRP"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "f33d69b6-0279-4587-86ac-903e713ba1dc",
+            "api_message_id": "msg_011CgvvCawwpqiU4riNgUHbL"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "text_delta",
+                "text": "g"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "f20eb46a-0b2a-4136-bd1d-a6e68928d039",
+            "api_message_id": "msg_011CgvvCawwpqiU4riNgUHbL"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "text_delta",
+                "text": "/"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "2d6c791b-7f41-467c-900d-27a25ee8a165",
+            "api_message_id": "msg_011CgvvCawwpqiU4riNgUHbL"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "text_delta",
+                "text": "wiki-agents-record"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "28d64ede-4460-4626-bd6c-95b24c857efe",
+            "api_message_id": "msg_011CgvvCawwpqiU4riNgUHbL"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "text_delta",
+                "text": "-gDJ3Z"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "96441969-c3a5-48ba-98fa-5a16502202bd",
+            "api_message_id": "msg_011CgvvCawwpqiU4riNgUHbL"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "text_delta",
+                "text": "8` and list"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "3d2ba88f-6c7b-43c3-ba97-6083b56474a9",
+            "api_message_id": "msg_011CgvvCawwpqiU4riNgUHbL"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "text_delta",
+                "text": "ed the output"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "5feea14b-9ee3-4f1e-a617-4c775b2386dc",
+            "api_message_id": "msg_011CgvvCawwpqiU4riNgUHbL"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "text_delta",
+                "text": "."
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "52966bcb-5ea1-4acd-91b1-27e7054fc3db",
+            "api_message_id": "msg_011CgvvCawwpqiU4riNgUHbL"
+          }
+        },
+        {
+          "message": {
+            "type": "assistant",
+            "message": {
+              "model": "claude-haiku-5-5",
+              "id": "msg_011CgvvCawwpqiU4riNgUHbL",
+              "type": "message",
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "I couldn't run `ls`: a PreToolUse hook blocked the Bash call, and its message says this session's autonomy doesn't allow it. I didn't try another route. Without the hook, I would have run `ls` in `/__vault__` and listed the output."
+                }
+              ],
+              "container": null,
+              "stop_reason": null,
+              "stop_sequence": null,
+              "stop_details": null,
+              "usage": {
+                "input_tokens": 2,
+                "cache_creation_input_tokens": 2167,
+                "cache_read_input_tokens": 21738,
+                "cache_creation": {
+                  "ephemeral_5m_input_tokens": 0,
+                  "ephemeral_1h_input_tokens": 2167
+                },
+                "output_tokens": 3,
+                "service_tier": "standard",
+                "inference_geo": "global",
+                "speed": "standard"
+              },
+              "input_transformations": [],
+              "diagnostics": null,
+              "context_management": null
+            },
+            "parent_tool_use_id": null,
+            "session_id": "__session__",
+            "uuid": "7531bcb0-2410-42ed-bae7-afc530807382",
+            "timestamp": "2026-11-11T09:39:03.249Z",
+            "request_id": "req_011CgvvCamnCBMS6VhZiMCDh"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_stop",
+              "index": 1
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "065d5e51-c636-4f7b-aa34-23427ebc4b0a",
+            "api_message_id": "msg_011CgvvCawwpqiU4riNgUHbL"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "message_delta",
+              "delta": {
+                "stop_reason": "end_turn",
+                "stop_sequence": null,
+                "stop_details": null,
+                "container": null
+              },
+              "usage": {
+                "input_tokens": 2,
+                "cache_creation_input_tokens": 2167,
+                "cache_read_input_tokens": 21738,
+                "output_tokens": 319,
+                "output_tokens_details": {
+                  "thinking_tokens": 203
+                },
+                "iterations": [
+                  {
+                    "input_tokens": 2,
+                    "output_tokens": 319,
+                    "cache_read_input_tokens": 21738,
+                    "cache_creation_input_tokens": 2167,
+                    "cache_creation": {
+                      "ephemeral_5m_input_tokens": 0,
+                      "ephemeral_1h_input_tokens": 2167
+                    },
+                    "type": "message"
+                  }
+                ]
+              },
+              "context_management": {
+                "applied_edits": []
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "b4a4c82e-6149-4aae-adc1-b082f18da37e",
+            "api_message_id": "msg_011CgvvCawwpqiU4riNgUHbL"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "message_stop"
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "6cab5d0f-a5b1-44aa-a7fd-2b19ef25e9b5",
+            "api_message_id": "msg_011CgvvCawwpqiU4riNgUHbL"
+          }
+        },
+        {
+          "message": {
+            "duration_api_ms": 4581,
+            "stop_reason": "end_turn",
+            "session_id": "__session__",
+            "total_cost_usd": 0.0033169000000000002,
+            "usage": {
+              "input_tokens": 4,
+              "cache_creation_input_tokens": 13343,
+              "cache_read_input_tokens": 32300,
+              "output_tokens": 393,
+              "output_tokens_details": {
+                "thinking_tokens": 203
+              },
+              "server_tool_use": {
+                "web_search_requests": 0,
+                "web_fetch_requests": 0
+              },
+              "service_tier": "standard",
+              "cache_creation": {
+                "ephemeral_1h_input_tokens": 13343,
+                "ephemeral_5m_input_tokens": 0
+              },
+              "inference_geo": "global",
+              "iterations": [
+                {
+                  "input_tokens": 2,
+                  "output_tokens": 319,
+                  "cache_read_input_tokens": 21738,
+                  "cache_creation_input_tokens": 2167,
+                  "cache_creation": {
+                    "ephemeral_5m_input_tokens": 0,
+                    "ephemeral_1h_input_tokens": 2167
+                  },
+                  "type": "message"
+                }
+              ],
+              "speed": "standard",
+              "fallback_credit": null
+            },
+            "modelUsage": {
+              "claude-haiku-5-5": {
+                "inputTokens": 1203,
+                "outputTokens": 410,
+                "cacheReadInputTokens": 32300,
+                "cacheCreationInputTokens": 13343,
+                "webSearchRequests": 0,
+                "costUSD": 0.0033169000000000002,
+                "contextWindow": 1000000,
+                "maxOutputTokens": 128000,
+                "thinkingTokens": 203,
+                "cacheCreationEphemeral5mInputTokens": 0,
+                "cacheCreationEphemeral1hInputTokens": 13343,
+                "canonicalModel": "claude-haiku-5-5",
+                "provider": "firstParty",
+                "costBasis": "list"
+              }
+            },
+            "permission_denials": [
+              {
+                "tool_name": "Bash",
+                "tool_use_id": "toolu_015g8cBv6zNM2ZEdQwT2Bh3i",
+                "tool_input": {
+                  "command": "ls",
+                  "description": "List files in current directory"
+                }
+              }
+            ],
+            "terminal_reason": "completed",
+            "fast_mode_state": "off",
+            "fast_mode_disabled_reason": "sdk_opt_in_required",
+            "subagent_stats": {
+              "spawned": 0,
+              "requested": {
+                "background": 0,
+                "foreground": 0,
+                "unset": 0
+              },
+              "started_in_background": 0,
+              "max_depth": 0,
+              "spawned_by_subagents": 0,
+              "completed": 0,
+              "failed": 0,
+              "killed": {
+                "parent": 0,
+                "user": 0,
+                "system": 0
+              },
+              "refused": {
+                "depth_limit": 0,
+                "concurrency_limit": 0,
+                "budget": 0
+              },
+              "by_type": {}
+            },
+            "safety_stops": 0,
+            "is_error": false,
+            "num_turns": 2,
+            "subtype": "success",
+            "api_error_status": null,
+            "result": "I couldn't run `ls`: a PreToolUse hook blocked the Bash call, and its message says this session's autonomy doesn't allow it. I didn't try another route. Without the hook, I would have run `ls` in `/__vault__` and listed the output.",
+            "ttft_ms": 1604,
+            "type": "result",
+            "duration_ms": 3914,
+            "uuid": "47cf5e28-7c6e-43b2-8650-7d01a1854b85",
+            "ttft_stream_ms": 1363,
+            "time_to_request_ms": 342,
+            "first_content_frame_ms": 1363,
+            "queued_turn_count": 0,
+            "result_index": 0,
+            "model_usage_since_last_result": {
+              "claude-haiku-5-5": {
+                "inputTokens": 1203,
+                "outputTokens": 410,
+                "cacheReadInputTokens": 32300,
+                "cacheCreationInputTokens": 13343,
+                "webSearchRequests": 0,
+                "costUSD": 0.0033169000000000002,
+                "contextWindow": 1000000,
+                "maxOutputTokens": 128000,
+                "thinkingTokens": 203,
+                "cacheCreationEphemeral5mInputTokens": 0,
+                "cacheCreationEphemeral1hInputTokens": 13343,
+                "canonicalModel": "claude-haiku-5-5",
+                "provider": "firstParty",
+                "costBasis": "list"
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

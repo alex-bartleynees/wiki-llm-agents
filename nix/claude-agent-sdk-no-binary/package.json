@@ -1,0 +1,6 @@
+{
+  "name": "claude-agent-sdk-no-binary",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Stands in for the Claude Agent SDK's bundled claude binaries (about 330 MB each, one per platform). The app runs the installed claude instead; see the root package.json overrides."
+}

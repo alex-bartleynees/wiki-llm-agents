@@ -15,7 +15,7 @@ buildNpmPackage {
 
   # Update after changing package-lock.json:
   #   nix run nixpkgs#prefetch-npm-deps package-lock.json
-  npmDepsHash = "sha256-3G47vpZQF3yT0f5xY0D9/W0a7V0PyEEwBEMa8nm/61M=";
+  npmDepsHash = "sha256-xoRmq1L0QP5XPpvfCpYMFTVASACp7OtPfMGexCYymEo=";
 
   # better-sqlite3 ships prebuilt binaries; python3 is only for its node-gyp fallback.
   nativeBuildInputs = [ python3 makeWrapper ];
@@ -36,6 +36,9 @@ buildNpmPackage {
 
     # Production dependencies only (workspace links included).
     npm prune --omit=dev --no-audit --no-fund
+    # The Claude Agent SDK's per-platform claude binaries are links to an empty stand-in
+    # (see the root package.json overrides); the app runs the installed claude.
+    rm -f node_modules/@anthropic-ai/claude-agent-sdk-*
     cp -r node_modules $app/
     # npm nests a dependency in a workspace when the root holds another version of it
     # (chokidar 6 for the server, while a dev tool hoists chokidar 4), so copy those too.

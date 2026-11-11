@@ -4,7 +4,7 @@ import type { ProviderStatus } from "@wiki-agents/contracts/providers/model";
 import type { RequestAnswer } from "@wiki-agents/contracts/threads/model";
 import { Duration, Effect, Exit, FileSystem, Option, PubSub, Queue, RcRef, Scope, Stream } from "effect";
 import { pathsWithinRoots } from "../../../shared/vault/path-scope.js";
-import { type ProviderAdapter, ProviderError, type ProviderEvent, type ProviderSession, type SessionSetup, type TurnInput } from "../port.js";
+import { type ProviderAdapter, ProviderError, type ProviderEvent, type ProviderSession, type SessionSetup, type TurnInput, DENIED, vaultToolsUnavailable } from "../port.js";
 import type { OpenCodeApi, OpenCodeError, OpenCodeEvent, OpenCodePermissionRule, OpenCodeSignal } from "./api.js";
 import { formAnswer, makeTurnMapper, sessionOf } from "./events.js";
 import { instructionsText, MAX_INSTRUCTIONS_BYTES } from "./instructions.js";
@@ -33,8 +33,7 @@ const toProviderError = (error: OpenCodeError) => new ProviderError({ message: e
 
 const END_EVENTS = new Set<string>(["session.execution.succeeded", "session.execution.failed", "session.execution.interrupted"]);
 
-/** Sent with a denial, so the agent carries on instead of the turn ending. */
-export const DENIED = "The user denied this. Don't try it another way; say what you would have done.";
+export { DENIED } from "../port.js";
 
 /** How long Stop waits for OpenCode to confirm the turn ended. */
 const STOP_WAIT = Duration.seconds(5);
@@ -82,8 +81,7 @@ interface Applied {
 const sessionRules = (setup: SessionSetup) => permissionRules(setup.autonomy, setup.vaultTools?.name ?? null);
 const rulesKey = (setup: SessionSetup) => JSON.stringify(sessionRules(setup));
 
-/** Told to the user (not the agent) when the vault tools couldn't be given to a turn. */
-export const vaultToolsUnavailable = (reason: string) => `The vault tools aren't available to the agent this turn: ${reason}`;
+export { vaultToolsUnavailable } from "../port.js";
 
 const makeSession = (connect: Connect, sessionId: string, cwd: string, silence: Duration.Input, applied: Applied, fs: FileSystem.FileSystem): ProviderSession => {
   let turn: RunningTurn | undefined;
@@ -343,7 +341,7 @@ export const makeOpenCodeAdapter = (options: OpenCodeAdapterOptions) =>
         return { _tag: "unavailable", reason: `OpenCode ${installed} is installed; this app supports ${CLIENT_VERSION.replace(/\.\d+$/, ".x")}.` } as const;
       }
       const api = yield* Effect.scoped(live);
-      return { _tag: "ready", version: api.version } as const;
+      return { _tag: "ready", version: api.version, account: null } as const;
     }).pipe(Effect.catch((error) => Effect.succeed({ _tag: "unavailable", reason: error.message } as const)));
 
     const adapter: ProviderAdapter = {

@@ -25,6 +25,8 @@ export const AppConfig = {
   watchPollMs: Config.option(Config.Int("WIKI_AGENTS_WATCH_POLL_MS")),
   /** The OpenCode executable: a path, or a name looked up on `PATH`. */
   opencodeBinary: Config.String("WIKI_AGENTS_OPENCODE").pipe(Config.withDefault("opencode")),
+  /** The Claude Code executable: a path, or a name looked up on `PATH`. */
+  claudeBinary: Config.String("WIKI_AGENTS_CLAUDE").pipe(Config.withDefault("claude")),
   migrationsDir: Config.String("WIKI_AGENTS_MIGRATIONS_DIR").pipe(
     Config.withDefault(fileURLToPath(new URL("../../drizzle", import.meta.url))),
   ),

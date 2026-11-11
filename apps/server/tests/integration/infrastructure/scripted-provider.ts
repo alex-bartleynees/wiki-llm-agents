@@ -41,7 +41,7 @@ export const makeScriptedProvider = () => {
         setModel: () => Effect.void,
       }),
     enforcement: () => ({ autonomy: null, notes: [] }),
-    status: Effect.succeed({ _tag: "ready", version: null }),
+    status: Effect.succeed({ _tag: "ready", version: null, account: null }),
     listModels: () => Effect.succeed({ models: [], defaultModel: null }),
   };
   /** Replay first (the default), then the scripted provider (instance id `scripted`). */

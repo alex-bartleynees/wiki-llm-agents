@@ -3,7 +3,7 @@ import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 /** Configured providers. Per-account state belongs to an instance, not to a kind. */
 export const providerInstances = sqliteTable("provider_instances", {
   id: text("id").primaryKey(),
-  /** Which adapter runs it: `replay`, later `opencode` and `claude-code`. */
+  /** Which adapter runs it: `opencode`, `claude-code` or `replay`. */
   kind: text("kind").notNull(),
   name: text("name").notNull(),
   /** Adapter settings as JSON (binary path, model...). */

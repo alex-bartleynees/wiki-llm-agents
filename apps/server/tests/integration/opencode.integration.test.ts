@@ -127,7 +127,7 @@ layer(App)("OpenCode provider", (it) => {
       expect(providers.map((provider) => provider.id)).toEqual(["opencode", "replay"]);
       expect(providers[0]?.capabilities).toEqual({ interrupt: true, resume: false, approvals: true, questions: true, models: true });
       const { status: ready } = yield* HttpClient.get("/api/providers/opencode/status").pipe(Effect.flatMap(decode(GetProviderStatusResponse)));
-      expect(ready).toEqual({ _tag: "ready", version: "2.2.1" });
+      expect(ready).toEqual({ _tag: "ready", version: "2.2.1", account: null });
       expect((yield* HttpClient.get("/api/providers/nope/status")).status).toBe(404);
     }),
   );

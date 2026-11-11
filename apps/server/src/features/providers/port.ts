@@ -119,3 +119,9 @@ export interface ProviderAdapter {
   /** Models offered in `cwd`; none when `capabilities.models` is false. */
   readonly listModels: (cwd: string) => Effect.Effect<ModelList, ProviderError>;
 }
+
+/** Told to the user (not the agent) when the vault tools couldn't be given to a turn. */
+export const vaultToolsUnavailable = (reason: string) => `The vault tools aren't available to the agent this turn: ${reason}`;
+
+/** Sent with a denial, so the agent carries on instead of the turn ending. */
+export const DENIED = "The user denied this. Don't try it another way; say what you would have done.";

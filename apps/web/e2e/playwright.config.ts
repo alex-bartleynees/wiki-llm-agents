@@ -74,6 +74,7 @@ export default defineConfig({
       WIKI_AGENTS_CONFIG_DIR: join(root, "config"),
       WIKI_AGENTS_STATIC_DIR: join(web, "build"),
       WIKI_AGENTS_OPENCODE: "wiki-agents-e2e-no-opencode",
+      WIKI_AGENTS_CLAUDE: "wiki-agents-e2e-no-claude",
     },
   },
 });

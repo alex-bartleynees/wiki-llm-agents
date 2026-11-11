@@ -87,7 +87,7 @@
     <p>{projectId === null ? "No threads in this vault yet." : "No threads in this project yet."}</p>
     <p class="hint">
       New threads use {chosen?.name ?? "the first provider"}. Replay plays recorded turns and spends no tokens; OpenCode
-      asks before it edits, runs a command, or fetches from the web.
+      and Claude Code ask before they edit, run a command, or fetch from the web, unless the agent allows it.
     </p>
   </div>
 {:else}

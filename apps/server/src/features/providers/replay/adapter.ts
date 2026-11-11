@@ -234,6 +234,6 @@ export const ReplayAdapter: ProviderAdapter = {
     autonomy: null,
     notes: ["Replay plays recorded turns, so autonomy doesn't apply. Its only real tool call is the edit to Replay note.md, which it always asks before making."],
   }),
-  status: Effect.succeed({ _tag: "ready", version: null }),
+  status: Effect.succeed({ _tag: "ready", version: null, account: null }),
   listModels: () => Effect.succeed({ models: [], defaultModel: null }),
 };

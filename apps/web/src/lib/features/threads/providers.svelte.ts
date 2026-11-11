@@ -53,8 +53,9 @@ class ProvidersStore {
     void this.check(id);
   }
 
-  async check(id: string) {
-    if (this.statuses[id] !== undefined) return;
+  /** Checks `id` once; `again` checks it even if it was checked before. */
+  async check(id: string, again = false) {
+    if (this.statuses[id] === "checking" || (this.statuses[id] !== undefined && !again)) return;
     this.statuses[id] = "checking";
     try {
       this.statuses[id] = (await getProviderStatus(id)).status;

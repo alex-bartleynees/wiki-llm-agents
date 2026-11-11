@@ -1,0 +1,1858 @@
+{
+  "scenario": "create-and-edit",
+  "claudeCodeVersion": "2.1.316",
+  "model": "haiku",
+  "autonomy": {
+    "read": "allow",
+    "create": "allow",
+    "edit": "ask",
+    "commands": "deny",
+    "web": "allow"
+  },
+  "turns": [
+    {
+      "prompt": "Do both, in this order: 1. Use the Write tool to create Notes/Oolong.md containing exactly '# Oolong'. 2. Use the Edit tool to add the line 'See [[Oolong]].' at the end of Notes/Tea.md. Then reply in one sentence.",
+      "steps": [
+        {
+          "message": {
+            "type": "system",
+            "subtype": "init",
+            "session_id": "__session__",
+            "apiKeySource": "none",
+            "claude_code_version": "2.1.316",
+            "cwd": "/__vault__",
+            "model": "claude-haiku-5-5",
+            "permissionMode": "default",
+            "mcp_servers": [],
+            "uuid": "193864f8-76be-4f67-8ae2-74ae9e5bd52b"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "message_start",
+              "message": {
+                "model": "claude-haiku-5-5",
+                "id": "msg_011CgvvC5fa4GQqbqYsUbMjF",
+                "type": "message",
+                "role": "assistant",
+                "content": [],
+                "container": null,
+                "stop_reason": null,
+                "stop_sequence": null,
+                "stop_details": null,
+                "usage": {
+                  "input_tokens": 2,
+                  "cache_creation_input_tokens": 11231,
+                  "cache_read_input_tokens": 10562,
+                  "cache_creation": {
+                    "ephemeral_5m_input_tokens": 0,
+                    "ephemeral_1h_input_tokens": 11231
+                  },
+                  "output_tokens": 16,
+                  "service_tier": "standard",
+                  "inference_geo": "global",
+                  "speed": "standard"
+                },
+                "input_transformations": [],
+                "diagnostics": null,
+                "context_management": null
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "46d30d22-9771-4805-a8c5-996f1c53288c",
+            "ttft_ms": 835,
+            "thinking_display": "updates",
+            "api_message_id": "msg_011CgvvC5fa4GQqbqYsUbMjF"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_start",
+              "index": 0,
+              "content_block": {
+                "type": "tool_use",
+                "id": "toolu_01SywTpXAMz9bcZoJx9zFqYy",
+                "name": "Write",
+                "input": {},
+                "caller": {
+                  "type": "direct"
+                }
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "6b745b5e-7828-44a1-92a7-7dac2a6aca30",
+            "api_message_id": "msg_011CgvvC5fa4GQqbqYsUbMjF"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": ""
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "1c7bb69f-b192-4f63-a990-c4964bdb33c6",
+            "api_message_id": "msg_011CgvvC5fa4GQqbqYsUbMjF"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "{\"file_path\": \"/tmp"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "ebb46c3d-c044-48a5-9935-828b841fadca",
+            "api_message_id": "msg_011CgvvC5fa4GQqbqYsUbMjF"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "/nix-shell."
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "15e44c25-4461-4687-9044-d54c1bd5b6f6",
+            "api_message_id": "msg_011CgvvC5fa4GQqbqYsUbMjF"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "f6WRP"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "41e45b50-52c4-4b85-8cbe-9553e5dbce33",
+            "api_message_id": "msg_011CgvvC5fa4GQqbqYsUbMjF"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "g"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "811cfadd-541c-4535-bc1a-450d1c983be2",
+            "api_message_id": "msg_011CgvvC5fa4GQqbqYsUbMjF"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "/wiki-agents-"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "dd379fab-1614-4638-a250-b2276e70356b",
+            "api_message_id": "msg_011CgvvC5fa4GQqbqYsUbMjF"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "record-NWxUt"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "f19e6d89-fd03-4f6c-b6ab-0ec1aa0a7714",
+            "api_message_id": "msg_011CgvvC5fa4GQqbqYsUbMjF"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "c/Notes/O"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "ad6e7865-89e6-4e92-afd2-ae01fe5a0b67",
+            "api_message_id": "msg_011CgvvC5fa4GQqbqYsUbMjF"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "olong.md"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "e3bb1ad9-f47f-46d0-994e-f42665a88b8f",
+            "api_message_id": "msg_011CgvvC5fa4GQqbqYsUbMjF"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "\", \"content\": \"# Oolong"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "3ec06c71-9b4a-4706-af60-e12af577f142",
+            "api_message_id": "msg_011CgvvC5fa4GQqbqYsUbMjF"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "\"}"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "a16f5ebd-4cce-40dc-8b34-b3502594e3b3",
+            "api_message_id": "msg_011CgvvC5fa4GQqbqYsUbMjF"
+          }
+        },
+        {
+          "message": {
+            "type": "assistant",
+            "message": {
+              "model": "claude-haiku-5-5",
+              "id": "msg_011CgvvC5fa4GQqbqYsUbMjF",
+              "type": "message",
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "tool_use",
+                  "id": "toolu_01SywTpXAMz9bcZoJx9zFqYy",
+                  "name": "Write",
+                  "input": {
+                    "file_path": "/__vault__/Notes/Oolong.md",
+                    "content": "# Oolong"
+                  },
+                  "caller": {
+                    "type": "direct"
+                  }
+                }
+              ],
+              "container": null,
+              "stop_reason": null,
+              "stop_sequence": null,
+              "stop_details": null,
+              "usage": {
+                "input_tokens": 2,
+                "cache_creation_input_tokens": 11231,
+                "cache_read_input_tokens": 10562,
+                "cache_creation": {
+                  "ephemeral_5m_input_tokens": 0,
+                  "ephemeral_1h_input_tokens": 11231
+                },
+                "output_tokens": 16,
+                "service_tier": "standard",
+                "inference_geo": "global",
+                "speed": "standard"
+              },
+              "input_transformations": [],
+              "diagnostics": null,
+              "context_management": null
+            },
+            "parent_tool_use_id": null,
+            "session_id": "__session__",
+            "uuid": "e3a22c6e-3931-41bb-9590-9e8220fb3aa5",
+            "timestamp": "2026-11-11T09:38:55.696Z",
+            "request_id": "req_011CgvvC5X8YjmfUneb1zaRn",
+            "wire_tool_inputs": {
+              "toolu_01SywTpXAMz9bcZoJx9zFqYy": {
+                "file_path": "/__vault__/Notes/Oolong.md",
+                "content": "# Oolong"
+              }
+            }
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_stop",
+              "index": 0
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "28ffd57c-efd5-4afa-8444-8c3670139053",
+            "api_message_id": "msg_011CgvvC5fa4GQqbqYsUbMjF"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_start",
+              "index": 1,
+              "content_block": {
+                "type": "tool_use",
+                "id": "toolu_01C5GMmZi7gr6YptSzCPP5NJ",
+                "name": "Read",
+                "input": {},
+                "caller": {
+                  "type": "direct"
+                }
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "cfaad25a-8b29-44ec-8463-def7795fbfa2",
+            "api_message_id": "msg_011CgvvC5fa4GQqbqYsUbMjF"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": ""
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "24d9a11f-6757-40e2-86ee-332bf67f4b21",
+            "api_message_id": "msg_011CgvvC5fa4GQqbqYsUbMjF"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "{\"file_path\": \"/tmp/nix"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "e4a23e82-c270-41c9-bed9-16786342bbb6",
+            "api_message_id": "msg_011CgvvC5fa4GQqbqYsUbMjF"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "-shell.f6WR"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "b80e44d5-36d9-48b9-9ae4-0f18ffa35266",
+            "api_message_id": "msg_011CgvvC5fa4GQqbqYsUbMjF"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "Pg/wiki-ag"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "b3d6f2f8-1629-4655-864e-bb8c422435a4",
+            "api_message_id": "msg_011CgvvC5fa4GQqbqYsUbMjF"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "ents-record-NWxU"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "d0660b2d-17b9-40c9-81b7-a8228f5f26d2",
+            "api_message_id": "msg_011CgvvC5fa4GQqbqYsUbMjF"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "tc/Notes/"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "8c54c1d8-23d5-48b2-bcd3-f84e54f26753",
+            "api_message_id": "msg_011CgvvC5fa4GQqbqYsUbMjF"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "Tea.md"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "cba31285-0eb6-46b8-946f-b3fe21335133",
+            "api_message_id": "msg_011CgvvC5fa4GQqbqYsUbMjF"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "\"}"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "12c6eaf7-eb82-44f7-a1e6-0348a802f283",
+            "api_message_id": "msg_011CgvvC5fa4GQqbqYsUbMjF"
+          }
+        },
+        {
+          "message": {
+            "type": "assistant",
+            "message": {
+              "model": "claude-haiku-5-5",
+              "id": "msg_011CgvvC5fa4GQqbqYsUbMjF",
+              "type": "message",
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "tool_use",
+                  "id": "toolu_01C5GMmZi7gr6YptSzCPP5NJ",
+                  "name": "Read",
+                  "input": {
+                    "file_path": "/__vault__/Notes/Tea.md"
+                  },
+                  "caller": {
+                    "type": "direct"
+                  }
+                }
+              ],
+              "container": null,
+              "stop_reason": null,
+              "stop_sequence": null,
+              "stop_details": null,
+              "usage": {
+                "input_tokens": 2,
+                "cache_creation_input_tokens": 11231,
+                "cache_read_input_tokens": 10562,
+                "cache_creation": {
+                  "ephemeral_5m_input_tokens": 0,
+                  "ephemeral_1h_input_tokens": 11231
+                },
+                "output_tokens": 16,
+                "service_tier": "standard",
+                "inference_geo": "global",
+                "speed": "standard"
+              },
+              "input_transformations": [],
+              "diagnostics": null,
+              "context_management": null
+            },
+            "parent_tool_use_id": null,
+            "session_id": "__session__",
+            "uuid": "55b254f3-afc3-459c-acab-37c7114afc5f",
+            "timestamp": "2026-11-11T09:38:55.702Z",
+            "request_id": "req_011CgvvC5X8YjmfUneb1zaRn",
+            "wire_tool_inputs": {
+              "toolu_01C5GMmZi7gr6YptSzCPP5NJ": {
+                "file_path": "/__vault__/Notes/Tea.md"
+              }
+            }
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_stop",
+              "index": 1
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "359158ed-d405-481f-bf5b-aa190b88ff54",
+            "api_message_id": "msg_011CgvvC5fa4GQqbqYsUbMjF"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "message_delta",
+              "delta": {
+                "stop_reason": "tool_use",
+                "stop_sequence": null,
+                "stop_details": null,
+                "container": null
+              },
+              "usage": {
+                "input_tokens": 2,
+                "cache_creation_input_tokens": 11231,
+                "cache_read_input_tokens": 10562,
+                "output_tokens": 203,
+                "output_tokens_details": {
+                  "thinking_tokens": 0
+                },
+                "iterations": [
+                  {
+                    "input_tokens": 2,
+                    "output_tokens": 203,
+                    "cache_read_input_tokens": 10562,
+                    "cache_creation_input_tokens": 11231,
+                    "cache_creation": {
+                      "ephemeral_5m_input_tokens": 0,
+                      "ephemeral_1h_input_tokens": 11231
+                    },
+                    "type": "message"
+                  }
+                ]
+              },
+              "context_management": {
+                "applied_edits": []
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "193e1694-f821-4901-a379-c0fbe78986ec",
+            "api_message_id": "msg_011CgvvC5fa4GQqbqYsUbMjF"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "message_stop"
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "d4983ba2-b397-4f73-a961-0f1eae03e76b",
+            "api_message_id": "msg_011CgvvC5fa4GQqbqYsUbMjF"
+          }
+        },
+        {
+          "hook": {
+            "toolName": "Write",
+            "toolInput": {
+              "file_path": "/__vault__/Notes/Oolong.md",
+              "content": "# Oolong"
+            },
+            "toolUseId": "toolu_01SywTpXAMz9bcZoJx9zFqYy"
+          },
+          "decision": "allow"
+        },
+        {
+          "message": {
+            "type": "user",
+            "message": {
+              "role": "user",
+              "content": [
+                {
+                  "tool_use_id": "toolu_01SywTpXAMz9bcZoJx9zFqYy",
+                  "type": "tool_result",
+                  "content": "File created successfully at: /__vault__/Notes/Oolong.md (file state is current in your context — no need to Read it back)"
+                }
+              ]
+            },
+            "parent_tool_use_id": null,
+            "session_id": "__session__",
+            "uuid": "43129675-a16e-4201-8ac9-0e9ac6fa8aba",
+            "timestamp": "2026-11-11T09:38:55.724Z",
+            "tool_use_result": {
+              "type": "create",
+              "filePath": "/__vault__/Notes/Oolong.md",
+              "content": "# Oolong",
+              "structuredPatch": [],
+              "originalFile": null,
+              "userModified": false
+            },
+            "tool_result_meta": [
+              {
+                "id": "toolu_01SywTpXAMz9bcZoJx9zFqYy",
+                "permission_decision": {
+                  "decision": "accept",
+                  "source": "hook",
+                  "reason_type": "hook"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "hook": {
+            "toolName": "Read",
+            "toolInput": {
+              "file_path": "/__vault__/Notes/Tea.md"
+            },
+            "toolUseId": "toolu_01C5GMmZi7gr6YptSzCPP5NJ"
+          },
+          "decision": "allow"
+        },
+        {
+          "message": {
+            "type": "user",
+            "message": {
+              "role": "user",
+              "content": [
+                {
+                  "tool_use_id": "toolu_01C5GMmZi7gr6YptSzCPP5NJ",
+                  "type": "tool_result",
+                  "content": "1\t# Tea\n2\t\n3\tGreen tea in the afternoon.\n4\t"
+                }
+              ]
+            },
+            "parent_tool_use_id": null,
+            "session_id": "__session__",
+            "uuid": "deaf9661-5119-4e06-a8fb-daa1af6af5d4",
+            "timestamp": "2026-11-11T09:38:55.734Z",
+            "tool_use_result": {
+              "type": "text",
+              "file": {
+                "filePath": "/__vault__/Notes/Tea.md",
+                "content": "# Tea\n\nGreen tea in the afternoon.\n",
+                "numLines": 4,
+                "startLine": 1,
+                "totalLines": 4
+              }
+            },
+            "tool_result_meta": [
+              {
+                "id": "toolu_01C5GMmZi7gr6YptSzCPP5NJ",
+                "permission_decision": {
+                  "decision": "accept",
+                  "source": "hook",
+                  "reason_type": "hook"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "message_start",
+              "message": {
+                "model": "claude-haiku-5-5",
+                "id": "msg_011CgvvCCaYTPzTSUdHKy4HH",
+                "type": "message",
+                "role": "assistant",
+                "content": [],
+                "container": null,
+                "stop_reason": null,
+                "stop_sequence": null,
+                "stop_details": null,
+                "usage": {
+                  "input_tokens": 2,
+                  "cache_creation_input_tokens": 2385,
+                  "cache_read_input_tokens": 21793,
+                  "cache_creation": {
+                    "ephemeral_5m_input_tokens": 0,
+                    "ephemeral_1h_input_tokens": 2385
+                  },
+                  "output_tokens": 3,
+                  "service_tier": "standard",
+                  "inference_geo": "global",
+                  "speed": "standard"
+                },
+                "input_transformations": [],
+                "diagnostics": null,
+                "context_management": null
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "231dac2b-2d74-410b-8018-6f7ac73e6554",
+            "ttft_ms": 850,
+            "thinking_display": "updates",
+            "api_message_id": "msg_011CgvvCCaYTPzTSUdHKy4HH"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_start",
+              "index": 0,
+              "content_block": {
+                "type": "thinking",
+                "thinking": "",
+                "signature": ""
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "2eea5cfe-0537-49f7-9754-8742dc29feee",
+            "thinking_display": "updates",
+            "api_message_id": "msg_011CgvvCCaYTPzTSUdHKy4HH"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "thinking_delta",
+                "thinking": "",
+                "estimated_tokens": 50
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "2476bad0-7907-4a7d-ac86-812f11d510e0",
+            "thinking_display": "updates",
+            "api_message_id": "msg_011CgvvCCaYTPzTSUdHKy4HH"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "thinking_delta",
+                "thinking": "",
+                "estimated_tokens": null
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "431a9a76-7e5a-4590-9bf1-cc485d54a938",
+            "thinking_display": "updates",
+            "api_message_id": "msg_011CgvvCCaYTPzTSUdHKy4HH"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "signature_delta",
+                "signature": "CAQS0QgKEAgTGAI4AUIIdGhpbmtpbmcSDHFt+GreSAQY9h5G6BoMoarKxGN6u2NjtW9ZIjB5nLVRvDzhGjbPku0IwyiDTBfSb7cPSy1TXvmYVFFfaOxAyyeAlwyfP0P/NubeFmQq7gcJx5h1vGv0W4LVUGhR/ZAtRmEgdHzjtpB6Sq2uQPHh2DsOe0mjNBd2s4e5RajKuqqlQFtJiS4yJbvbZ/5PG6EFQctekU12g8sefKyan+XNr64UcO/r3Twu3WDy5Qee9XRDWcr3mWwFQb6KM0IWpZNRYivLv4cDjVj/6GVPsHHKg39o5hawB1elxtLIjVijYbieMv3yTWYPrcjK7bQP3cvLdkIFG9wHhZsPWS9Y3mrA28TiLw1tKZNlteSvPZYRXrZudSi1V6MAEIf+2qLgsmH7eYui7az9eIjxYlt2VHKc3nE/7Mc2ll77qW0YD91M0n7jxULEWa+pAmrxjCDWEBcm+5CLOatcALbzzQXU7+9NN8ZwNoLIqAH9TFEsfcVXJNqISr1Knu5XOYL6td3qS1BxtX3mjcaFcaCwH05ZGN/SzfjDCMddsPVbCud0KJ40jHdm36WaBARB4u4c80ZP+bsN2kp0AOP+kSROIabDGxia/OlOr0K/2Ue0Ny3St+xZ6jZyrKE/lRNcSyRaSajrnccSOZEvJdPuYMA7RPTX/nmlMeLMzrRTFHO6WTDOA182qkIlhQ0MqjZzlIefZXNse5IaWF+Fsy+B9sPy8H4ujma2rOFiGXs1rzz6VNVQu2epCGwWVZHaAXDbmXxgzSgIByBtBCOlSUnfjrCFzQeeXQrYqLkDI8cBzSQIiAww76OZANI/hLkEXK6l9vfaYcfxYD5f7QNvagt1H5zvbjW5RLwcXb1Dez5g5OZFmNLmyOw01cZAEufMKTUFUJa4CfVMjtPGJgh44Gb03MUQwCRrhJOjGwRvABxIT0DYzMKCeXXH2kzu0vg2kvKfUnF8V/J/gR3o+wkX7XKPaXbIQFjk2WfM50FKA9h1DCdC9q4Zl6gOPAnpoSSFVSBC4jPMQaimmbwBlvUxg9RyBXRgmZ435zzUHSqQaxibv3yrzVMErlzUIxGg/Rp/UKWH/BGmwv/1SJQk3hMvHr61IZc/yVL4pgI49rQDeazvISYewPwhE+wdLxitSq4T9MUPLBDqpMC/aQl/pXwYGSEeLaepbS9JspB9SE9mn44L/YxQu7wQGEqE+ldOcDIDNZxmZhZIBmEvDTk30v18VXYzO+cIrcsjEDavokTP+4yIdMmCRz2AEzgfFLprMYWyB8SRdpbtf6QUkEMjNZBSScRDBfvG9hjyS/IN+uocWCPtnIAv6wpRqKnlOSe1kfddTH74CVqpW6HzS8KQ5yoxlNjUrx5Vn2c2jTTKtRBcowHewBiN99YlMu3GHnwi1vMDKfAVM8eF83IhCcmft9/BRMNVxoxM6qdw+0tjcD+/sBva/FFzM5ljsgacGAE="
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "4d35a608-7de5-4f6d-a93b-615b6bcfe470",
+            "api_message_id": "msg_011CgvvCCaYTPzTSUdHKy4HH"
+          }
+        },
+        {
+          "message": {
+            "type": "assistant",
+            "message": {
+              "model": "claude-haiku-5-5",
+              "id": "msg_011CgvvCCaYTPzTSUdHKy4HH",
+              "type": "message",
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "thinking",
+                  "thinking": "",
+                  "signature": "CAQS0QgKEAgTGAI4AUIIdGhpbmtpbmcSDHFt+GreSAQY9h5G6BoMoarKxGN6u2NjtW9ZIjB5nLVRvDzhGjbPku0IwyiDTBfSb7cPSy1TXvmYVFFfaOxAyyeAlwyfP0P/NubeFmQq7gcJx5h1vGv0W4LVUGhR/ZAtRmEgdHzjtpB6Sq2uQPHh2DsOe0mjNBd2s4e5RajKuqqlQFtJiS4yJbvbZ/5PG6EFQctekU12g8sefKyan+XNr64UcO/r3Twu3WDy5Qee9XRDWcr3mWwFQb6KM0IWpZNRYivLv4cDjVj/6GVPsHHKg39o5hawB1elxtLIjVijYbieMv3yTWYPrcjK7bQP3cvLdkIFG9wHhZsPWS9Y3mrA28TiLw1tKZNlteSvPZYRXrZudSi1V6MAEIf+2qLgsmH7eYui7az9eIjxYlt2VHKc3nE/7Mc2ll77qW0YD91M0n7jxULEWa+pAmrxjCDWEBcm+5CLOatcALbzzQXU7+9NN8ZwNoLIqAH9TFEsfcVXJNqISr1Knu5XOYL6td3qS1BxtX3mjcaFcaCwH05ZGN/SzfjDCMddsPVbCud0KJ40jHdm36WaBARB4u4c80ZP+bsN2kp0AOP+kSROIabDGxia/OlOr0K/2Ue0Ny3St+xZ6jZyrKE/lRNcSyRaSajrnccSOZEvJdPuYMA7RPTX/nmlMeLMzrRTFHO6WTDOA182qkIlhQ0MqjZzlIefZXNse5IaWF+Fsy+B9sPy8H4ujma2rOFiGXs1rzz6VNVQu2epCGwWVZHaAXDbmXxgzSgIByBtBCOlSUnfjrCFzQeeXQrYqLkDI8cBzSQIiAww76OZANI/hLkEXK6l9vfaYcfxYD5f7QNvagt1H5zvbjW5RLwcXb1Dez5g5OZFmNLmyOw01cZAEufMKTUFUJa4CfVMjtPGJgh44Gb03MUQwCRrhJOjGwRvABxIT0DYzMKCeXXH2kzu0vg2kvKfUnF8V/J/gR3o+wkX7XKPaXbIQFjk2WfM50FKA9h1DCdC9q4Zl6gOPAnpoSSFVSBC4jPMQaimmbwBlvUxg9RyBXRgmZ435zzUHSqQaxibv3yrzVMErlzUIxGg/Rp/UKWH/BGmwv/1SJQk3hMvHr61IZc/yVL4pgI49rQDeazvISYewPwhE+wdLxitSq4T9MUPLBDqpMC/aQl/pXwYGSEeLaepbS9JspB9SE9mn44L/YxQu7wQGEqE+ldOcDIDNZxmZhZIBmEvDTk30v18VXYzO+cIrcsjEDavokTP+4yIdMmCRz2AEzgfFLprMYWyB8SRdpbtf6QUkEMjNZBSScRDBfvG9hjyS/IN+uocWCPtnIAv6wpRqKnlOSe1kfddTH74CVqpW6HzS8KQ5yoxlNjUrx5Vn2c2jTTKtRBcowHewBiN99YlMu3GHnwi1vMDKfAVM8eF83IhCcmft9/BRMNVxoxM6qdw+0tjcD+/sBva/FFzM5ljsgacGAE="
+                }
+              ],
+              "container": null,
+              "stop_reason": null,
+              "stop_sequence": null,
+              "stop_details": null,
+              "usage": {
+                "input_tokens": 2,
+                "cache_creation_input_tokens": 2385,
+                "cache_read_input_tokens": 21793,
+                "cache_creation": {
+                  "ephemeral_5m_input_tokens": 0,
+                  "ephemeral_1h_input_tokens": 2385
+                },
+                "output_tokens": 3,
+                "service_tier": "standard",
+                "inference_geo": "global",
+                "speed": "standard"
+              },
+              "input_transformations": [],
+              "diagnostics": null,
+              "context_management": null
+            },
+            "parent_tool_use_id": null,
+            "session_id": "__session__",
+            "uuid": "ff326fc4-8979-4f53-a9f4-a0f69af6bc00",
+            "timestamp": "2026-11-11T09:38:57.505Z",
+            "request_id": "req_011CgvvCCS796WQFRmaeuBqg",
+            "thinking_duration_ms": 903,
+            "thinking_display": "updates"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_stop",
+              "index": 0
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "fd688444-49e7-4805-b745-12df9e9f711e",
+            "api_message_id": "msg_011CgvvCCaYTPzTSUdHKy4HH"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_start",
+              "index": 1,
+              "content_block": {
+                "type": "tool_use",
+                "id": "toolu_01LnQ2ihik6Jsoa4uvM3zH5v",
+                "name": "Edit",
+                "input": {},
+                "caller": {
+                  "type": "direct"
+                }
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "e99f33a4-9a7f-40b3-b13b-ba65ec53e8d8",
+            "api_message_id": "msg_011CgvvCCaYTPzTSUdHKy4HH"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": ""
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "5ecdd809-91d0-4887-846c-4b171a177525",
+            "api_message_id": "msg_011CgvvCCaYTPzTSUdHKy4HH"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "{\"file_path\": \"/tm"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "69928d52-3cd6-4581-8830-49a1d17ded35",
+            "api_message_id": "msg_011CgvvCCaYTPzTSUdHKy4HH"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "p/nix-shell."
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "512066ce-adda-4257-82bc-3dc426622e4f",
+            "api_message_id": "msg_011CgvvCCaYTPzTSUdHKy4HH"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "f6WRP"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "b2ba3a7e-8ddf-48fc-9a0b-834e91b60daf",
+            "api_message_id": "msg_011CgvvCCaYTPzTSUdHKy4HH"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "g"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "5bd10ec5-bf0e-4a73-ba83-3fbd481b6191",
+            "api_message_id": "msg_011CgvvCCaYTPzTSUdHKy4HH"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "/wiki-agents-"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "6c3d64b1-9a41-4267-8f41-f0974f24bced",
+            "api_message_id": "msg_011CgvvCCaYTPzTSUdHKy4HH"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "record-NWxUtc"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "fa34a18e-08ee-457a-b170-8ecb88eb0468",
+            "api_message_id": "msg_011CgvvCCaYTPzTSUdHKy4HH"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "/Notes/Tea"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "b5db5c39-8d7b-426c-bf65-d8271f4deed0",
+            "api_message_id": "msg_011CgvvCCaYTPzTSUdHKy4HH"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": ".md"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "4959c471-aed8-4456-adc4-800efe271e0a",
+            "api_message_id": "msg_011CgvvCCaYTPzTSUdHKy4HH"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "\", \"old_string\": \"Green tea in the aftern"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "4892d81b-9853-445e-9496-2c08b9bc6f38",
+            "api_message_id": "msg_011CgvvCCaYTPzTSUdHKy4HH"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "oon.\\n"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "91399b7b-4312-425a-b635-cadf6955302f",
+            "api_message_id": "msg_011CgvvCCaYTPzTSUdHKy4HH"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "\", \"new_string\": \"Green tea in the"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "a67c463d-3e5d-4452-bb54-1969f95e83c9",
+            "api_message_id": "msg_011CgvvCCaYTPzTSUdHKy4HH"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": " afternoon.\\nSee ["
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "1da4dc23-ab6d-4750-b4ce-b74f6fa4bc80",
+            "api_message_id": "msg_011CgvvCCaYTPzTSUdHKy4HH"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "[Oolong]]."
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "d6f34a27-78ae-4176-b82e-d313cfcfe971",
+            "api_message_id": "msg_011CgvvCCaYTPzTSUdHKy4HH"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "\\n"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "cc7f71b9-870f-4f06-8ebf-fd22d21dee96",
+            "api_message_id": "msg_011CgvvCCaYTPzTSUdHKy4HH"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "\"}"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "e1e13fb4-a2f7-4250-b053-80dcbb1fd989",
+            "api_message_id": "msg_011CgvvCCaYTPzTSUdHKy4HH"
+          }
+        },
+        {
+          "message": {
+            "type": "assistant",
+            "message": {
+              "model": "claude-haiku-5-5",
+              "id": "msg_011CgvvCCaYTPzTSUdHKy4HH",
+              "type": "message",
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "tool_use",
+                  "id": "toolu_01LnQ2ihik6Jsoa4uvM3zH5v",
+                  "name": "Edit",
+                  "input": {
+                    "replace_all": false,
+                    "file_path": "/__vault__/Notes/Tea.md",
+                    "old_string": "Green tea in the afternoon.\n",
+                    "new_string": "Green tea in the afternoon.\nSee [[Oolong]].\n"
+                  },
+                  "caller": {
+                    "type": "direct"
+                  }
+                }
+              ],
+              "container": null,
+              "stop_reason": null,
+              "stop_sequence": null,
+              "stop_details": null,
+              "usage": {
+                "input_tokens": 2,
+                "cache_creation_input_tokens": 2385,
+                "cache_read_input_tokens": 21793,
+                "cache_creation": {
+                  "ephemeral_5m_input_tokens": 0,
+                  "ephemeral_1h_input_tokens": 2385
+                },
+                "output_tokens": 3,
+                "service_tier": "standard",
+                "inference_geo": "global",
+                "speed": "standard"
+              },
+              "input_transformations": [],
+              "diagnostics": null,
+              "context_management": null
+            },
+            "parent_tool_use_id": null,
+            "session_id": "__session__",
+            "uuid": "2f3ed203-bfcb-4d2a-8970-205326c568f5",
+            "timestamp": "2026-11-11T09:38:57.936Z",
+            "request_id": "req_011CgvvCCS796WQFRmaeuBqg",
+            "wire_tool_inputs": {
+              "toolu_01LnQ2ihik6Jsoa4uvM3zH5v": {
+                "file_path": "/__vault__/Notes/Tea.md",
+                "old_string": "Green tea in the afternoon.\n",
+                "new_string": "Green tea in the afternoon.\nSee [[Oolong]].\n"
+              }
+            }
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_stop",
+              "index": 1
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "af33c109-bd82-476b-a38a-cf986120af86",
+            "api_message_id": "msg_011CgvvCCaYTPzTSUdHKy4HH"
+          }
+        },
+        {
+          "hook": {
+            "toolName": "Edit",
+            "toolInput": {
+              "file_path": "/__vault__/Notes/Tea.md",
+              "old_string": "Green tea in the afternoon.\n",
+              "new_string": "Green tea in the afternoon.\nSee [[Oolong]].\n",
+              "replace_all": false
+            },
+            "toolUseId": "toolu_01LnQ2ihik6Jsoa4uvM3zH5v"
+          },
+          "decision": "ask"
+        },
+        {
+          "permission": {
+            "toolName": "Edit",
+            "toolInput": {
+              "file_path": "/__vault__/Notes/Tea.md",
+              "old_string": "Green tea in the afternoon.\n",
+              "new_string": "Green tea in the afternoon.\nSee [[Oolong]].\n",
+              "replace_all": false
+            },
+            "toolUseId": "toolu_01LnQ2ihik6Jsoa4uvM3zH5v"
+          },
+          "behavior": "allow"
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "message_delta",
+              "delta": {
+                "stop_reason": "tool_use",
+                "stop_sequence": null,
+                "stop_details": null,
+                "container": null
+              },
+              "usage": {
+                "input_tokens": 2,
+                "cache_creation_input_tokens": 2385,
+                "cache_read_input_tokens": 21793,
+                "output_tokens": 399,
+                "output_tokens_details": {
+                  "thinking_tokens": 229
+                },
+                "iterations": [
+                  {
+                    "input_tokens": 2,
+                    "output_tokens": 399,
+                    "cache_read_input_tokens": 21793,
+                    "cache_creation_input_tokens": 2385,
+                    "cache_creation": {
+                      "ephemeral_5m_input_tokens": 0,
+                      "ephemeral_1h_input_tokens": 2385
+                    },
+                    "type": "message"
+                  }
+                ]
+              },
+              "context_management": {
+                "applied_edits": []
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "709cdabf-f0b2-4615-af47-835055faf1a3",
+            "api_message_id": "msg_011CgvvCCaYTPzTSUdHKy4HH"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "message_stop"
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "7310f0b3-73e4-4082-909f-f7a54736c176",
+            "api_message_id": "msg_011CgvvCCaYTPzTSUdHKy4HH"
+          }
+        },
+        {
+          "message": {
+            "type": "user",
+            "message": {
+              "role": "user",
+              "content": [
+                {
+                  "tool_use_id": "toolu_01LnQ2ihik6Jsoa4uvM3zH5v",
+                  "type": "tool_result",
+                  "content": "The file /__vault__/Notes/Tea.md has been updated successfully. (file state is current in your context — no need to Read it back)"
+                }
+              ]
+            },
+            "parent_tool_use_id": null,
+            "session_id": "__session__",
+            "uuid": "140cf4b3-8458-4260-842b-323e4171a72e",
+            "timestamp": "2026-11-11T09:38:57.953Z",
+            "tool_use_result": {
+              "filePath": "/__vault__/Notes/Tea.md",
+              "oldString": "Green tea in the afternoon.\n",
+              "newString": "Green tea in the afternoon.\nSee [[Oolong]].\n",
+              "originalFile": "# Tea\n\nGreen tea in the afternoon.\n",
+              "structuredPatch": [
+                {
+                  "oldStart": 1,
+                  "oldLines": 3,
+                  "newStart": 1,
+                  "newLines": 4,
+                  "lines": [
+                    " # Tea",
+                    " ",
+                    " Green tea in the afternoon.",
+                    "+See [[Oolong]]."
+                  ]
+                }
+              ],
+              "userModified": false,
+              "replaceAll": false
+            },
+            "tool_result_meta": [
+              {
+                "id": "toolu_01LnQ2ihik6Jsoa4uvM3zH5v",
+                "permission_decision": {
+                  "decision": "accept",
+                  "source": "user_temporary"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "message_start",
+              "message": {
+                "model": "claude-haiku-5-5",
+                "id": "msg_011CgvvCN2KkgjvxhozU91n9",
+                "type": "message",
+                "role": "assistant",
+                "content": [],
+                "container": null,
+                "stop_reason": null,
+                "stop_sequence": null,
+                "stop_details": null,
+                "usage": {
+                  "input_tokens": 2,
+                  "cache_creation_input_tokens": 498,
+                  "cache_read_input_tokens": 24178,
+                  "cache_creation": {
+                    "ephemeral_5m_input_tokens": 0,
+                    "ephemeral_1h_input_tokens": 498
+                  },
+                  "output_tokens": 3,
+                  "service_tier": "standard",
+                  "inference_geo": "global",
+                  "speed": "standard"
+                },
+                "input_transformations": [],
+                "diagnostics": null,
+                "context_management": null
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "6c8d386e-fa79-4f00-a0c4-b306d75118e1",
+            "ttft_ms": 811,
+            "thinking_display": "updates",
+            "api_message_id": "msg_011CgvvCN2KkgjvxhozU91n9"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_start",
+              "index": 0,
+              "content_block": {
+                "type": "text",
+                "text": ""
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "d9d0b785-b7a3-45e6-ae7b-cc0c15705fbe",
+            "api_message_id": "msg_011CgvvCN2KkgjvxhozU91n9"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "text_delta",
+                "text": "I created"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "3e22977a-b9dc-427b-8b30-ae6b15249a77",
+            "api_message_id": "msg_011CgvvCN2KkgjvxhozU91n9"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "text_delta",
+                "text": " Notes/Oolong."
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "cd722a24-e61b-4d7d-8517-d0802ea225b1",
+            "api_message_id": "msg_011CgvvCN2KkgjvxhozU91n9"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "text_delta",
+                "text": "md contain"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "945eef3e-373b-408d-8843-d9b34d234949",
+            "api_message_id": "msg_011CgvvCN2KkgjvxhozU91n9"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "text_delta",
+                "text": "ing `"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "db21bf53-6d00-4345-a68c-f544ab81aed7",
+            "api_message_id": "msg_011CgvvCN2KkgjvxhozU91n9"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "text_delta",
+                "text": "# Oolong` and added"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "f1d49fc4-3d23-4e48-b3cd-f0f7351f7dcb",
+            "api_message_id": "msg_011CgvvCN2KkgjvxhozU91n9"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "text_delta",
+                "text": " `"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "deae487e-263d-4a77-98b1-1545076b8dc1",
+            "api_message_id": "msg_011CgvvCN2KkgjvxhozU91n9"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "text_delta",
+                "text": "See [[Oolong]"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "73292ee2-def3-44eb-8e6e-64068604f9bb",
+            "api_message_id": "msg_011CgvvCN2KkgjvxhozU91n9"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "text_delta",
+                "text": "].` as the last line of"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "d3e244e7-873c-42f7-b8b8-ae2d95997a98",
+            "api_message_id": "msg_011CgvvCN2KkgjvxhozU91n9"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "text_delta",
+                "text": " Notes/Tea.md"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "56d64a18-903f-4b6a-a432-c879b2a2a6c4",
+            "api_message_id": "msg_011CgvvCN2KkgjvxhozU91n9"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "text_delta",
+                "text": "."
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "9cb5f7c1-4284-4a12-a352-b82bbd1d84f0",
+            "api_message_id": "msg_011CgvvCN2KkgjvxhozU91n9"
+          }
+        },
+        {
+          "message": {
+            "type": "assistant",
+            "message": {
+              "model": "claude-haiku-5-5",
+              "id": "msg_011CgvvCN2KkgjvxhozU91n9",
+              "type": "message",
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "I created Notes/Oolong.md containing `# Oolong` and added `See [[Oolong]].` as the last line of Notes/Tea.md."
+                }
+              ],
+              "container": null,
+              "stop_reason": null,
+              "stop_sequence": null,
+              "stop_details": null,
+              "usage": {
+                "input_tokens": 2,
+                "cache_creation_input_tokens": 498,
+                "cache_read_input_tokens": 24178,
+                "cache_creation": {
+                  "ephemeral_5m_input_tokens": 0,
+                  "ephemeral_1h_input_tokens": 498
+                },
+                "output_tokens": 3,
+                "service_tier": "standard",
+                "inference_geo": "global",
+                "speed": "standard"
+              },
+              "input_transformations": [],
+              "diagnostics": null,
+              "context_management": null
+            },
+            "parent_tool_use_id": null,
+            "session_id": "__session__",
+            "uuid": "01de71c6-9ec7-4965-ab9d-cbba9122ffb9",
+            "timestamp": "2026-11-11T09:38:58.963Z",
+            "request_id": "req_011CgvvCMru4PpNxH5DUEEWH"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_stop",
+              "index": 0
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "b3b8baa8-e5b4-4685-8a5d-60614318f327",
+            "api_message_id": "msg_011CgvvCN2KkgjvxhozU91n9"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "message_delta",
+              "delta": {
+                "stop_reason": "end_turn",
+                "stop_sequence": null,
+                "stop_details": null,
+                "container": null
+              },
+              "usage": {
+                "input_tokens": 2,
+                "cache_creation_input_tokens": 498,
+                "cache_read_input_tokens": 24178,
+                "output_tokens": 51,
+                "output_tokens_details": {
+                  "thinking_tokens": 0
+                },
+                "iterations": [
+                  {
+                    "input_tokens": 2,
+                    "output_tokens": 51,
+                    "cache_read_input_tokens": 24178,
+                    "cache_creation_input_tokens": 498,
+                    "cache_creation": {
+                      "ephemeral_5m_input_tokens": 0,
+                      "ephemeral_1h_input_tokens": 498
+                    },
+                    "type": "message"
+                  }
+                ]
+              },
+              "context_management": {
+                "applied_edits": []
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "1d36e894-f66d-4963-a886-b2e90bd25e0d",
+            "api_message_id": "msg_011CgvvCN2KkgjvxhozU91n9"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "message_stop"
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "867aa571-420e-4e9e-92a6-2a17414b358f",
+            "api_message_id": "msg_011CgvvCN2KkgjvxhozU91n9"
+          }
+        },
+        {
+          "message": {
+            "duration_api_ms": 5930,
+            "stop_reason": "end_turn",
+            "session_id": "__session__",
+            "total_cost_usd": 0.00385053,
+            "usage": {
+              "input_tokens": 6,
+              "cache_creation_input_tokens": 14114,
+              "cache_read_input_tokens": 56533,
+              "output_tokens": 653,
+              "output_tokens_details": {
+                "thinking_tokens": 229
+              },
+              "server_tool_use": {
+                "web_search_requests": 0,
+                "web_fetch_requests": 0
+              },
+              "service_tier": "standard",
+              "cache_creation": {
+                "ephemeral_1h_input_tokens": 14114,
+                "ephemeral_5m_input_tokens": 0
+              },
+              "inference_geo": "global",
+              "iterations": [
+                {
+                  "input_tokens": 2,
+                  "output_tokens": 51,
+                  "cache_read_input_tokens": 24178,
+                  "cache_creation_input_tokens": 498,
+                  "cache_creation": {
+                    "ephemeral_5m_input_tokens": 0,
+                    "ephemeral_1h_input_tokens": 498
+                  },
+                  "type": "message"
+                }
+              ],
+              "speed": "standard",
+              "fallback_credit": null
+            },
+            "modelUsage": {
+              "claude-haiku-5-5": {
+                "inputTokens": 1264,
+                "outputTokens": 672,
+                "cacheReadInputTokens": 56533,
+                "cacheCreationInputTokens": 14114,
+                "webSearchRequests": 0,
+                "costUSD": 0.00385053,
+                "contextWindow": 1000000,
+                "maxOutputTokens": 128000,
+                "thinkingTokens": 229,
+                "cacheCreationEphemeral5mInputTokens": 0,
+                "cacheCreationEphemeral1hInputTokens": 14114,
+                "canonicalModel": "claude-haiku-5-5",
+                "provider": "firstParty",
+                "costBasis": "list"
+              }
+            },
+            "permission_denials": [],
+            "terminal_reason": "completed",
+            "fast_mode_state": "off",
+            "fast_mode_disabled_reason": "sdk_opt_in_required",
+            "subagent_stats": {
+              "spawned": 0,
+              "requested": {
+                "background": 0,
+                "foreground": 0,
+                "unset": 0
+              },
+              "started_in_background": 0,
+              "max_depth": 0,
+              "spawned_by_subagents": 0,
+              "completed": 0,
+              "failed": 0,
+              "killed": {
+                "parent": 0,
+                "user": 0,
+                "system": 0
+              },
+              "refused": {
+                "depth_limit": 0,
+                "concurrency_limit": 0,
+                "budget": 0
+              },
+              "by_type": {}
+            },
+            "safety_stops": 0,
+            "is_error": false,
+            "num_turns": 4,
+            "subtype": "success",
+            "api_error_status": null,
+            "result": "I created Notes/Oolong.md containing `# Oolong` and added `See [[Oolong]].` as the last line of Notes/Tea.md.",
+            "ttft_ms": 1801,
+            "type": "result",
+            "duration_ms": 5082,
+            "uuid": "48e86631-e0ee-49c9-84ba-3b824af3be0a",
+            "ttft_stream_ms": 1035,
+            "time_to_request_ms": 200,
+            "first_content_frame_ms": 1035,
+            "queued_turn_count": 0,
+            "result_index": 0,
+            "model_usage_since_last_result": {
+              "claude-haiku-5-5": {
+                "inputTokens": 1264,
+                "outputTokens": 672,
+                "cacheReadInputTokens": 56533,
+                "cacheCreationInputTokens": 14114,
+                "webSearchRequests": 0,
+                "costUSD": 0.00385053,
+                "contextWindow": 1000000,
+                "maxOutputTokens": 128000,
+                "thinkingTokens": 229,
+                "cacheCreationEphemeral5mInputTokens": 0,
+                "cacheCreationEphemeral1hInputTokens": 14114,
+                "canonicalModel": "claude-haiku-5-5",
+                "provider": "firstParty",
+                "costBasis": "list"
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
