@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none">
+  <!-- The brand mark from AppShell.svelte; colours follow --bg, --ink and --accent in tokens.css. -->
+  <style>
+    .page { fill: #ffffff; stroke: #14161a; }
+    .lines { stroke: #0f6e6a; }
+    @media (prefers-color-scheme: dark) {
+      .page { fill: #0d0e11; stroke: #e8eaed; }
+      .lines { stroke: #4fc1b8; }
+    }
+  </style>
+  <rect class="page" x="1.5" y="1.5" width="17" height="17" rx="2" stroke-width="1.5" />
+  <path class="lines" d="M6 6.5h8M6 10h5" stroke-width="1.75" />
+</svg>
