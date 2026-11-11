@@ -20,6 +20,8 @@ export interface ProjectRepositoryService {
   readonly list: Effect.Effect<ReadonlyArray<Project>, DbError>;
   readonly find: (id: string) => Effect.Effect<Option.Option<Project>, DbError>;
   readonly insert: (project: Project, baseline: ReadonlyArray<FileVersion>, at: number) => Effect.Effect<void, DbError>;
+  /** Archives the project at `at`, or restores it with null. */
+  readonly setArchivedAt: (id: string, at: number | null) => Effect.Effect<void, DbError>;
   /** The files the changed-file list compares with. */
   readonly baseline: (id: string) => Effect.Effect<ReadonlyArray<FileVersion>, DbError>;
   readonly replaceBaseline: (id: string, baseline: ReadonlyArray<FileVersion>) => Effect.Effect<void, DbError>;

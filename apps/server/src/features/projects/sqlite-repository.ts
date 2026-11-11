@@ -11,6 +11,7 @@ const columns = {
   vaultId: projects.vaultId,
   workingDirectories: projects.workingDirectories,
   notesFolder: projects.notesFolder,
+  archivedAt: projects.archivedAt,
 };
 
 /** Six variables a row, well below SQLite's limit of 32766 per statement. */
@@ -39,6 +40,7 @@ export const ProjectRepositoryLive = Layer.effect(
             insertFiles(tx, project.id, baseline);
           }),
         ),
+      setArchivedAt: (id, at) => query(() => void db.update(projects).set({ archivedAt: at }).where(eq(projects.id, id)).run()),
       baseline: (id) =>
         query(() =>
           db

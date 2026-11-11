@@ -10,6 +10,11 @@ export const Project = Schema.Struct({
   workingDirectories: Schema.Array(Schema.String),
   /** A folder inside the shared vault for this project's notes. */
   notesFolder: Schema.NullOr(Schema.String),
+  /**
+   * When it was archived (milliseconds since the epoch); null while active. Archived
+   * projects leave the project switchers and take no new threads.
+   */
+  archivedAt: Schema.NullOr(Schema.Number),
 });
 export type Project = typeof Project.Type;
 

@@ -8,6 +8,8 @@ export const projects = sqliteTable("projects", {
   /** Canonical paths on this machine. */
   workingDirectories: text("working_directories", { mode: "json" }).$type<ReadonlyArray<string>>().notNull(),
   notesFolder: text("notes_folder"),
+  /** Milliseconds since the epoch; null while active. */
+  archivedAt: integer("archived_at"),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
 });
 

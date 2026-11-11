@@ -19,6 +19,7 @@ export const createThread = Effect.fn("createThread")(function* (request: Create
   const vault = yield* findVault(request.vaultId);
   const project = request.projectId === undefined ? null : yield* findProject(request.projectId);
   if (project !== null && project.vaultId !== vault.id) return yield* new InvalidProject({ message: "Project uses a different shared vault" });
+  if (project?.archivedAt != null) return yield* new InvalidProject({ message: "Project is archived; restore it to start new threads" });
   const agent = request.agentId === undefined ? null : yield* (yield* AgentCatalog).get(request.agentId);
   const registry = yield* ProviderRegistry;
   const providerInstanceId = request.providerInstanceId ?? agent?.provider ?? undefined;

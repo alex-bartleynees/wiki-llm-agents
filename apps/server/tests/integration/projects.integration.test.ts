@@ -6,9 +6,11 @@ import { fileURLToPath } from "node:url";
 import { NodeHttpServer } from "@effect/platform-node";
 import { describe, expect, it, layer } from "@effect/vitest";
 import { afterAll } from "vitest";
+import { ArchiveProjectResponse } from "@wiki-agents/contracts/projects/archive-project/response";
 import { ListChangesResponse } from "@wiki-agents/contracts/projects/list-changes/response";
 import { ListProjectsResponse } from "@wiki-agents/contracts/projects/list-projects/response";
 import { RegisterProjectResponse } from "@wiki-agents/contracts/projects/register-project/response";
+import { RestoreProjectResponse } from "@wiki-agents/contracts/projects/restore-project/response";
 import { ReviewChangesResponse } from "@wiki-agents/contracts/projects/review-changes/response";
 import { CreateThreadResponse } from "@wiki-agents/contracts/threads/create-thread/response";
 import { ListThreadsResponse } from "@wiki-agents/contracts/threads/list-threads/response";
@@ -166,6 +168,36 @@ layer(makeTestApp({ providers, vaults: [sharedRoot] }))("projects", (test) => {
     expect((yield* post(`/api/vaults/${vault.id}/threads`, { projectId: "missing" })).status).toBe(404);
     const otherVault = yield* newVault;
     expect((yield* post(`/api/vaults/${otherVault.id}/threads`, { projectId: project.id })).status).toBe(400);
+  }));
+
+  test.effect("archives a project, keeping its threads and changes but refusing new threads, until restored", () => Effect.gen(function* () {
+    const vault = yield* shared;
+    const dir = yield* temp;
+    const [repo] = folders(dir, "repo");
+    writeFileSync(join(repo, "app.ts"), "before");
+    const project = yield* register({ name: "Old", workingDirectories: [repo] });
+    expect(project.archivedAt).toBeNull();
+    const thread = yield* createThread(vault.id, { projectId: project.id });
+
+    const archived = yield* post(`/api/projects/${project.id}/archive`, {}).pipe(Effect.flatMap(decode(ArchiveProjectResponse)));
+    expect(archived.project).toMatchObject({ id: project.id, archivedAt: expect.any(Number) });
+    // Archiving again keeps the first time.
+    expect((yield* post(`/api/projects/${project.id}/archive`, {}).pipe(Effect.flatMap(decode(ArchiveProjectResponse)))).project).toEqual(archived.project);
+    const { projects } = yield* HttpClient.get("/api/projects").pipe(Effect.flatMap(decode(ListProjectsResponse)));
+    expect(projects).toContainEqual(archived.project);
+
+    const refused = yield* post(`/api/vaults/${vault.id}/threads`, { projectId: project.id });
+    expect(refused.status).toBe(400);
+    expect(yield* refused.text).toMatch(/archived/);
+    expect(yield* listThreads(vault.id, `?projectId=${project.id}`)).toEqual([thread.id]);
+    writeFileSync(join(repo, "app.ts"), "after");
+    expect(yield* changes(project.id)).toEqual([{ directory: repo, path: "app.ts", status: "modified" }]);
+
+    const restored = yield* post(`/api/projects/${project.id}/restore`, {}).pipe(Effect.flatMap(decode(RestoreProjectResponse)));
+    expect(restored.project).toEqual({ ...project, archivedAt: null });
+    expect((yield* createThread(vault.id, { projectId: project.id })).projectId).toBe(project.id);
+    expect((yield* post("/api/projects/missing/archive", {})).status).toBe(404);
+    expect((yield* post("/api/projects/missing/restore", {})).status).toBe(404);
   }));
 
   test.effect("lists changed files in every folder, without symlinks or Git metadata, until marked reviewed", () => Effect.gen(function* () {

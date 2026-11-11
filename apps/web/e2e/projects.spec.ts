@@ -60,3 +60,30 @@ test("registers a project through the folder picker, tracks its changed files, a
   await expect(page.getByRole("region", { name: "Threads" })).toContainText("threads in this project · 1");
   await expect(page.getByRole("region", { name: "Threads" })).toContainText("Hello project");
 });
+
+test("archives a project out of the way and restores it", async ({ page }, info) => {
+  const folder = projectFolder(info, "old");
+  const name = `Old ${info.project.name}`;
+  const response = await page.request.post("/api/projects", { data: { name, workingDirectories: [folder] } });
+  expect(response.status()).toBe(201);
+  const { project } = (await response.json()) as { project: { id: string } };
+
+  await page.goto(`/projects/${project.id}`);
+  await page.getByRole("button", { name: "Archive" }).click();
+  await expect(page.getByText("archived project")).toBeVisible();
+  await expect(page.getByRole("status")).toContainText("Archived");
+  await expect(page.getByRole("button", { name: "New thread here" })).toBeHidden();
+  const list = page.getByRole("complementary", { name: "Projects" });
+  await expect(list.locator("details.archived").getByRole("link", { name })).toBeVisible();
+
+  // The threads view no longer offers it to switch to, except as the open one.
+  await page.getByRole("navigation", { name: "Project view" }).getByRole("link", { name: "Threads" }).click();
+  const switcher = page.getByRole("combobox", { name: "project", exact: true });
+  await expect(switcher.locator("option", { hasText: `${name} (archived)` })).toHaveCount(1);
+  await expect(switcher.locator("option", { hasText: new RegExp(`^${name}$`) })).toHaveCount(0);
+  await page.getByRole("navigation", { name: "Project view" }).getByRole("link", { name: "Overview" }).click();
+
+  await page.getByRole("button", { name: "Restore project" }).click();
+  await expect(page.getByRole("button", { name: "New thread here" })).toBeVisible();
+  await expect(list.locator("details.archived").getByRole("link", { name })).toHaveCount(0);
+});

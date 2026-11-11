@@ -174,7 +174,11 @@ vault's threads show.
 
 - `POST /api/projects {name, workingDirectories, notesFolder?, createDirectories?}`
   registers a project, checking everything before creating any folder;
-  `GET /api/projects` lists projects.
+  `GET /api/projects` lists projects, archived ones included (`archivedAt`).
+- `POST /api/projects/:id/archive` (**Archive** on the project) moves a project out of
+  the project switchers into the list's **archived** group and refuses new threads
+  in it; its threads and changed-file baseline are kept.
+  `POST /api/projects/:id/restore` (**Restore project**) makes it active again.
 - `POST /api/vaults/:id/threads` accepts `projectId`.
   `GET /api/vaults/:id/threads?projectId=…` lists that project's threads,
   `?projectId=none` the vault's own; without it, every thread in the vault.

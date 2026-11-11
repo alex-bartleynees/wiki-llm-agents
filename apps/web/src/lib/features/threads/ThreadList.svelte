@@ -17,8 +17,8 @@
     void agents.load();
   });
 
-  /** Projects that use this vault: the ones its threads can be narrowed to. */
-  const vaultProjects = $derived(projects.list.filter((project) => project.vaultId === vaultId));
+  /** Active projects that use this vault: the ones its threads can be narrowed to. */
+  const vaultProjects = $derived(projects.active.filter((project) => project.vaultId === vaultId));
   const vaultName = $derived(vaults.byId(vaultId)?.name ?? "vault");
 
   $effect(() => {

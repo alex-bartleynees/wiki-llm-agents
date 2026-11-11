@@ -71,7 +71,7 @@ export const registerProject = Effect.fn("registerProject")(function* (request: 
     if (!directories.includes(canonical)) directories.push(canonical);
   }
 
-  const project = { id: randomUUID(), name, vaultId: vault.value.id, workingDirectories: directories, notesFolder };
+  const project = { id: randomUUID(), name, vaultId: vault.value.id, workingDirectories: directories, notesFolder, archivedAt: null };
   yield* (yield* ProjectRepository).insert(project, baseline, yield* Clock.currentTimeMillis);
   return { project } satisfies RegisterProjectResponse;
 });

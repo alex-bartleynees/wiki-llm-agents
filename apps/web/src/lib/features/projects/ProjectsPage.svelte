@@ -9,6 +9,7 @@
   import { listThreads } from "#lib/features/threads/api.ts";
   import { threads } from "#lib/features/threads/threads.svelte.ts";
   import { vaults } from "#lib/features/vaults/vaults.svelte.ts";
+  import ArchivedNotice from "./ArchivedNotice.svelte";
   import ChangedFiles from "./ChangedFiles.svelte";
   import ProjectThreads from "./ProjectThreads.svelte";
   import ProjectViewSwitch from "./ProjectViewSwitch.svelte";
@@ -16,7 +17,7 @@
   import RegisterProjectForm from "./RegisterProjectForm.svelte";
 
   /**
-   * The project to show (null: the first), as an overview with the project in the
+   * The project to show (null: the first active one), as an overview with the project in the
    * middle, or with its threads in the middle.
    */
   let { projectId, view = "overview" }: { projectId: string | null; view?: "overview" | "threads" } = $props();
@@ -26,7 +27,7 @@
   /** Every thread of the projects' vaults, by project. */
   let projectThreads = $state<ReadonlyMap<string, ReadonlyArray<ThreadSummary>>>(new Map());
 
-  const selected = $derived(projectId === null ? (projects.list[0] ?? null) : (projects.list.find((project) => project.id === projectId) ?? null));
+  const selected = $derived(projectId === null ? (projects.active[0] ?? null) : (projects.list.find((project) => project.id === projectId) ?? null));
   const selectedThreads = $derived(selected === null ? [] : (projectThreads.get(selected.id) ?? []));
   const vault = $derived(selected === null ? undefined : vaults.byId(selected.vaultId));
   /** The shared vault new projects use: the one existing projects use, or the only vault. */
@@ -81,6 +82,20 @@
   }
 
   const focusForm = () => document.getElementById("project-name")?.focus();
+
+  let archiving = $state(false);
+  /** Archives the project and stays on it, so Restore is one click away. */
+  async function archive(project: Project) {
+    archiving = true;
+    error = null;
+    try {
+      await projects.archive(project.id);
+    } catch (cause) {
+      error = errorMessage(cause, "Could not archive the project");
+    } finally {
+      archiving = false;
+    }
+  }
 </script>
 
 <svelte:head>
@@ -103,12 +118,23 @@
       <div class="switch"><ProjectViewSwitch projectId={selected.id} view="overview" /></div>
     {/if}
     <div class="label mono">projects</div>
-    {#each projects.list as project (project.id)}
+    {#each projects.active as project (project.id)}
       <a href="/projects/{project.id}" aria-current={project.id === selected?.id ? "page" : undefined}>
         <span>{project.name}</span>
         <span class="meta mono">{summary(project)}</span>
       </a>
     {/each}
+    {#if projects.archived.length > 0}
+      <details class="archived" open={selected?.archivedAt != null}>
+        <summary class="mono">archived · {projects.archived.length}</summary>
+        {#each projects.archived as project (project.id)}
+          <a href="/projects/{project.id}" aria-current={project.id === selected?.id ? "page" : undefined}>
+            <span>{project.name}</span>
+            <span class="meta mono">{summary(project)}</span>
+          </a>
+        {/each}
+      </details>
+    {/if}
     <button type="button" class="secondary" onclick={focusForm}>Register project</button>
   </aside>
 
@@ -119,7 +145,7 @@
     {#if selected !== null}
       <div class="title">
         <div>
-          <div class="label mono">project</div>
+          <div class="label mono">{selected.archivedAt === null ? "project" : "archived project"}</div>
           <h1>{selected.name}</h1>
           <p class="lede">
             {#if selected.notesFolder !== null}
@@ -129,8 +155,16 @@
             {/if}
           </p>
         </div>
-        <button type="button" class="primary" onclick={() => openThreadOf(selected, null)}>New thread here</button>
+        {#if selected.archivedAt === null}
+          <div class="actions">
+            <button type="button" class="secondary" disabled={archiving} onclick={() => archive(selected)}>Archive</button>
+            <button type="button" class="primary" onclick={() => openThreadOf(selected, null)}>New thread here</button>
+          </div>
+        {/if}
       </div>
+      {#if selected.archivedAt !== null}
+        <ArchivedNotice project={selected} />
+      {/if}
 
       <div class="columns">
         <section aria-label="Working directories">
@@ -173,14 +207,17 @@
             <button type="button" class="link" onclick={() => openThreadOf(selected, thread.id)}>Open</button>
           </div>
         {:else}
-          <p class="muted">No threads yet. Start one with <strong>New thread here</strong>.</p>
+          <p class="muted">No threads yet.{#if selected.archivedAt === null} Start one with <strong>New thread here</strong>.{/if}</p>
         {/each}
       </section>
 
       <ChangedFiles project={selected} />
-    {:else if loaded && projectId !== null && projects.list.length > 0}
+    {:else if loaded && projectId !== null}
       <h1>Project not found</h1>
       <p class="lede">It may have been removed. <a href="/projects">Show all projects</a></p>
+    {:else if loaded && projects.list.length > 0}
+      <h1>No active projects</h1>
+      <p class="lede">Every project is archived. Open one under <strong>archived</strong> to restore it, or register a new one.</p>
     {:else if loaded}
       <h1>No projects yet</h1>
       <p class="lede">
@@ -266,9 +303,21 @@
   .list a[aria-current="page"] .meta {
     font-weight: 400;
   }
-  .secondary {
+  .archived {
+    margin-top: 12px;
+  }
+  .archived summary {
+    padding: 4px 8px;
+    font-size: 12px;
+    color: var(--ink-3);
+    cursor: pointer;
+  }
+  .list > .secondary {
     margin-top: 16px;
+  }
+  .secondary {
     height: 36px;
+    padding: 0 16px;
     border: 1px solid var(--line);
     border-radius: var(--radius);
     background: transparent;
@@ -312,8 +361,12 @@
   .lede a {
     text-decoration: none;
   }
-  .primary {
+  .actions {
     margin-left: auto;
+    display: flex;
+    gap: 8px;
+  }
+  .primary {
     height: 36px;
     padding: 0 16px;
     border: 0;
@@ -451,7 +504,7 @@
       padding: 20px 16px 32px;
       gap: 28px;
     }
-    .primary {
+    .actions {
       margin-left: 0;
     }
     .thread {

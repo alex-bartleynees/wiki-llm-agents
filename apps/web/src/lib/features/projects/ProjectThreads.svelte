@@ -6,6 +6,7 @@
   import ThreadList from "#lib/features/threads/ThreadList.svelte";
   import { threads } from "#lib/features/threads/threads.svelte.ts";
   import ThreadView from "#lib/features/threads/ThreadView.svelte";
+  import ArchivedNotice from "./ArchivedNotice.svelte";
   import ProjectDetails from "./ProjectDetails.svelte";
   import ProjectViewSwitch from "./ProjectViewSwitch.svelte";
   import { projects } from "./projects.svelte.ts";
@@ -33,11 +34,17 @@
       <label>
         <span class="label mono">project</span>
         <select value={project.id} onchange={(event) => goto(`/projects/${event.currentTarget.value}/threads`)}>
-          {#each projects.list as other (other.id)}
+          {#each projects.active as other (other.id)}
             <option value={other.id}>{other.name}</option>
           {/each}
+          {#if project.archivedAt !== null}
+            <option value={project.id}>{project.name} (archived)</option>
+          {/if}
         </select>
       </label>
+      {#if project.archivedAt !== null}
+        <ArchivedNotice {project} />
+      {/if}
     </div>
     <ThreadList vaultId={project.vaultId} projectId={project.id} scopeSelect={false} />
     <details class="phone-details">
