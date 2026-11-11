@@ -184,9 +184,12 @@ vault's threads show.
   reviewed**). It reports created, modified and deleted files, including changes
   made outside the app, without saying who made them. Symlinks, version-control
   metadata and dependency/build/cache folders (`node_modules`, `dist`, `target`,
-  `.venv`, Nix's `result`...) are left out. A scan stops at 20,000 files, and a
-  folder that has gone or moved fails the scan (409) rather than reporting every
-  file as deleted.
+  `.venv`, Nix's `result`...) are left out, and inside a git repository so is
+  everything `.gitignore` excludes (nested repositories use their own). A rescan
+  reads only files whose size or modification time changed, so large repositories
+  stay quick (200,000 files: about 5 s to register, 2 s to rescan). A folder that
+  has gone or moved fails the scan (409) rather than reporting every file as
+  deleted.
 - In OpenCode project sessions, everything inside the project follows the agent's
   autonomy, as for vault threads: an agent allowed to edit edits without asking.
   When OpenCode asks to reach outside the main directory, the app allows the

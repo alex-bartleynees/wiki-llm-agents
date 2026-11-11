@@ -8,11 +8,13 @@ import { getJson, postJson } from "#lib/api/client.ts";
 
 const projectPath = (projectId: string) => `/api/projects/${encodeURIComponent(projectId)}`;
 const NoBody = Schema.Struct({});
+/** Registering and marking reviewed read every file once; a large repository takes a while. */
+const SCAN = { timeoutMs: 5 * 60_000 };
 
 export const listProjects = (signal?: AbortSignal) => getJson("/api/projects", ListProjectsResponse, signal);
 
-export const registerProject = (body: RegisterProjectRequest) => postJson("/api/projects", RegisterProjectRequest, body, RegisterProjectResponse);
+export const registerProject = (body: RegisterProjectRequest) => postJson("/api/projects", RegisterProjectRequest, body, RegisterProjectResponse, SCAN);
 
 export const listChanges = (projectId: string, signal?: AbortSignal) => getJson(`${projectPath(projectId)}/changes`, ListChangesResponse, signal);
 
-export const reviewChanges = (projectId: string) => postJson(`${projectPath(projectId)}/changes/review`, NoBody, {}, ReviewChangesResponse);
+export const reviewChanges = (projectId: string) => postJson(`${projectPath(projectId)}/changes/review`, NoBody, {}, ReviewChangesResponse, SCAN);

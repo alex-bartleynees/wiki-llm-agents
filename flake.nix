@@ -107,6 +107,7 @@
             pkgs.gnumake
             pkgs.process-compose
             pkgs.sqlite
+            pkgs.git # project scans list files with git
           ];
           # UI tests use Nix's browsers; `@playwright/test` in apps/web must be the
           # same version as `playwright-driver` (apps/web/e2e/playwright.config.ts checks).

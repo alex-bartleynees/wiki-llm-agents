@@ -13,15 +13,20 @@ const columns = {
   notesFolder: projects.notesFolder,
 };
 
+/** Six variables a row, well below SQLite's limit of 32766 per statement. */
+const FILES_PER_INSERT = 1000;
+
 export const ProjectRepositoryLive = Layer.effect(
   ProjectRepository,
   Effect.gen(function* () {
     const { db } = yield* Sqlite;
     const query = <A>(run: () => A) => Effect.try({ try: run, catch: (cause) => new DbError({ cause }) });
     type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
-    /** One row at a time: a project can have more files than SQLite allows variables in one statement. */
+    /** In batches: a project can have more files than SQLite allows variables in one statement. */
     const insertFiles = (tx: Tx, projectId: string, baseline: ReadonlyArray<FileVersion>) => {
-      for (const file of baseline) tx.insert(projectFiles).values({ projectId, ...file }).run();
+      for (let start = 0; start < baseline.length; start += FILES_PER_INSERT) {
+        tx.insert(projectFiles).values(baseline.slice(start, start + FILES_PER_INSERT).map((file) => ({ projectId, ...file }))).run();
+      }
     };
 
     return ProjectRepository.of({
@@ -37,7 +42,7 @@ export const ProjectRepositoryLive = Layer.effect(
       baseline: (id) =>
         query(() =>
           db
-            .select({ directory: projectFiles.directory, path: projectFiles.path, hash: projectFiles.hash })
+            .select({ directory: projectFiles.directory, path: projectFiles.path, hash: projectFiles.hash, size: projectFiles.size, modifiedAt: projectFiles.modifiedAt })
             .from(projectFiles)
             .where(eq(projectFiles.projectId, id))
             .all(),

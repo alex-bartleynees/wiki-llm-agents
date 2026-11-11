@@ -21,10 +21,15 @@ const decodeResponse = async <S extends Schema.ConstraintDecoder<unknown>>(respo
  */
 const WRITE_TIMEOUT_MS = 15_000;
 
+/** Options for a write: `timeoutMs` for one that does real work, such as scanning a large repository. */
+export interface WriteOptions {
+  readonly timeoutMs?: number;
+}
+
 /** Turns a timeout or a refused connection into a message worth showing. */
-const send = async (path: string, init: RequestInit): Promise<Response> => {
+const send = async (path: string, init: RequestInit, timeoutMs = WRITE_TIMEOUT_MS): Promise<Response> => {
   try {
-    return await fetch(path, { ...init, signal: AbortSignal.timeout(WRITE_TIMEOUT_MS) });
+    return await fetch(path, { ...init, signal: AbortSignal.timeout(timeoutMs) });
   } catch (error) {
     if (error instanceof DOMException && error.name === "TimeoutError") throw new ApiError(0, "The server didn't answer; try again");
     if (error instanceof TypeError) throw new ApiError(0, "Can't reach the server; try again");
@@ -46,7 +51,8 @@ export const postJson = <R extends Schema.ConstraintCodec<unknown, unknown>, S e
   request: R,
   body: R["Type"],
   schema: S,
-): Promise<S["Type"]> => writeJson("POST", path, request, body, schema);
+  options: WriteOptions = {},
+): Promise<S["Type"]> => writeJson("POST", path, request, body, schema, options);
 
 /** PUT, as `postJson`. */
 export const putJson = <R extends Schema.ConstraintCodec<unknown, unknown>, S extends Schema.ConstraintDecoder<unknown>>(
@@ -54,7 +60,8 @@ export const putJson = <R extends Schema.ConstraintCodec<unknown, unknown>, S ex
   request: R,
   body: R["Type"],
   schema: S,
-): Promise<S["Type"]> => writeJson("PUT", path, request, body, schema);
+  options: WriteOptions = {},
+): Promise<S["Type"]> => writeJson("PUT", path, request, body, schema, options);
 
 const writeJson = async <R extends Schema.ConstraintCodec<unknown, unknown>, S extends Schema.ConstraintDecoder<unknown>>(
   method: "POST" | "PUT",
@@ -62,13 +69,14 @@ const writeJson = async <R extends Schema.ConstraintCodec<unknown, unknown>, S e
   request: R,
   body: R["Type"],
   schema: S,
+  options: WriteOptions,
 ): Promise<S["Type"]> => {
   const encoded = await Schema.encodeUnknownPromise(request)(body);
-  const response = await send(path, {
-    method,
-    headers: { accept: "application/json", "content-type": "application/json" },
-    body: JSON.stringify(encoded),
-  });
+  const response = await send(
+    path,
+    { method, headers: { accept: "application/json", "content-type": "application/json" }, body: JSON.stringify(encoded) },
+    options.timeoutMs,
+  );
   return decodeResponse(response, schema);
 };
 

@@ -2,11 +2,17 @@ import type { Project } from "@wiki-agents/contracts/projects/model";
 import { Context, type Effect, type Option } from "effect";
 import type { DbError } from "../../shared/persistence/errors.js";
 
-/** A file in a working directory and its SHA-256. */
+/**
+ * A file in a working directory and its SHA-256. With the size and modification time
+ * matching, a rescan trusts the hash without reading the file; `modifiedAt` is null
+ * when that isn't safe (recorded before it was kept, or written just before a scan).
+ */
 export interface FileVersion {
   readonly directory: string;
   readonly path: string;
   readonly hash: string;
+  readonly size: number | null;
+  readonly modifiedAt: number | null;
 }
 
 export interface ProjectRepositoryService {

@@ -1,4 +1,5 @@
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, unlinkSync, utimesSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -198,6 +199,63 @@ layer(makeTestApp({ providers, vaults: [sharedRoot] }))("projects", (test) => {
     expect(yield* changes(project.id)).toEqual([{ directory: extra, path: "new.txt", status: "modified" }]);
     expect((yield* HttpClient.get("/api/projects/missing/changes")).status).toBe(404);
     expect((yield* post("/api/projects/missing/changes/review", {})).status).toBe(404);
+  }));
+
+  test.effect("leaves out what Git ignores, so dependency caches don't count, including in nested repositories and submodules", () => Effect.gen(function* () {
+    const dir = yield* temp;
+    const [repo] = folders(dir, "repo");
+    const git = (cwd: string, ...args: Array<string>) => execFileSync("git", args, { cwd, stdio: "ignore" });
+    git(repo, "init", "-q");
+    writeFileSync(join(repo, ".gitignore"), ".npm/\nbuild/\n");
+    mkdirSync(join(repo, ".npm"));
+    writeFileSync(join(repo, ".npm", "cached.tgz"), "ignored");
+    writeFileSync(join(repo, "tracked.ts"), "tracked");
+    writeFileSync(join(repo, "gone.ts"), "staged, then deleted");
+    git(repo, "add", "tracked.ts", "gone.ts");
+    unlinkSync(join(repo, "gone.ts"));
+    writeFileSync(join(repo, "untracked.ts"), "untracked");
+    const [nested] = folders(repo, "nested");
+    git(nested, "init", "-q");
+    writeFileSync(join(nested, ".gitignore"), "out/\n");
+    mkdirSync(join(nested, "out"));
+    writeFileSync(join(nested, "out", "bundle.js"), "ignored");
+    writeFileSync(join(nested, "lib.ts"), "nested");
+    // An uninitialised submodule: an empty folder that Git lists as itself.
+    mkdirSync(join(repo, "submodule"));
+    git(repo, "update-index", "--add", "--cacheinfo", "160000,0123456789abcdef0123456789abcdef01234567,submodule");
+    // The whole project is ignored by the repository around it: Git lists nothing, so walk it.
+    const [ignored] = folders(repo, "build");
+    writeFileSync(join(ignored, "keep.txt"), "kept");
+
+    const project = yield* register({ name: "Git", workingDirectories: [repo, ignored] });
+    writeFileSync(join(repo, ".npm", "cached.tgz"), "changed");
+    writeFileSync(join(nested, "out", "bundle.js"), "changed");
+    expect(yield* changes(project.id)).toEqual([]);
+    expect(yield* review(project.id)).toEqual({ files: 6 }); // .gitignore, tracked, untracked, nested .gitignore and lib, keep
+    // Same size, written straight after the scan: the size and time alone can't show it changed.
+    writeFileSync(join(repo, "tracked.ts"), "TRACKED");
+    writeFileSync(join(nested, "lib.ts"), "NESTED");
+    expect(yield* changes(project.id)).toEqual([
+      { directory: repo, path: "nested/lib.ts", status: "modified" },
+      { directory: repo, path: "tracked.ts", status: "modified" },
+    ]);
+  }));
+
+  test.effect("reads only files whose size or modification time changed since the baseline", () => Effect.gen(function* () {
+    const dir = yield* temp;
+    const [repo] = folders(dir, "repo");
+    const old = new Date(Date.now() - 60_000);
+    for (const name of ["kept.txt", "edited.txt"]) {
+      writeFileSync(join(repo, name), "before");
+      utimesSync(join(repo, name), old, old);
+    }
+    const project = yield* register({ name: "Stat", workingDirectories: [repo] });
+    // Unreadable now, but unchanged by size and time, so the rescan never opens it.
+    chmodSync(join(repo, "kept.txt"), 0o000);
+    yield* Effect.addFinalizer(() => Effect.sync(() => chmodSync(join(repo, "kept.txt"), 0o644)));
+    writeFileSync(join(repo, "edited.txt"), "after!");
+    expect(yield* changes(project.id)).toEqual([{ directory: repo, path: "edited.txt", status: "modified" }]);
+    expect(yield* review(project.id)).toEqual({ files: 2 });
   }));
 
   test.effect("reports a working directory that has gone instead of listing every file as deleted", () => Effect.gen(function* () {
