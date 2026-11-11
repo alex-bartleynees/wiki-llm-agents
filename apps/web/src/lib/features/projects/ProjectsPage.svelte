@@ -7,6 +7,7 @@
   import { agents } from "#lib/features/agents/agents.svelte.ts";
   import { timeAgo } from "#lib/features/notes/time.ts";
   import { listThreads } from "#lib/features/threads/api.ts";
+  import { byRecent, doneThreads, openThreads } from "#lib/features/threads/thread-order.ts";
   import { threads } from "#lib/features/threads/threads.svelte.ts";
   import { vaults } from "#lib/features/vaults/vaults.svelte.ts";
   import ArchivedNotice from "./ArchivedNotice.svelte";
@@ -29,6 +30,10 @@
 
   const selected = $derived(projectId === null ? (projects.active[0] ?? null) : (projects.list.find((project) => project.id === projectId) ?? null));
   const selectedThreads = $derived(selected === null ? [] : (projectThreads.get(selected.id) ?? []));
+  /** The project's threads not marked done, most recently updated first. */
+  const selectedOpen = $derived(openThreads([...selectedThreads].sort(byRecent)));
+  /** The project's done threads, collapsed under "done · n". */
+  const selectedDone = $derived(doneThreads(selectedThreads));
   const vault = $derived(selected === null ? undefined : vaults.byId(selected.vaultId));
   /** The shared vault new projects use: the one existing projects use, or the only vault. */
   const sharedVault = $derived(vaults.byId(projects.list[0]?.vaultId) ?? (vaults.list.length === 1 ? vaults.list[0] : undefined));
@@ -195,20 +200,31 @@
       </div>
 
       <section aria-label="Threads">
-        <h2 class="mono">threads in this project · {selectedThreads.length}</h2>
-        {#each selectedThreads as thread (thread.id)}
-          <div class="thread">
-            <span class="thread-title">{thread.title ?? "New thread"}</span>
-            <span class="mono agent">{thread.agentId === null ? "" : (agents.get(thread.agentId)?.name ?? thread.agentId)}</span>
-            <span class="mono muted cwd">cwd {folderName(selected.workingDirectories[0] ?? "")}</span>
-            <span class="mono status" data-status={thread.status}>
-              {thread.status === "running" ? "● running" : thread.status === "waiting" ? "▲ needs you" : thread.doneAt !== null ? `✓ done ${timeAgo(thread.doneAt)}` : timeAgo(thread.updatedAt)}
-            </span>
-            <button type="button" class="link" onclick={() => openThreadOf(selected, thread.id)}>Open</button>
-          </div>
-        {:else}
+        <h2 class="mono">
+          threads in this project · {selectedThreads.length === 0 ? "0" : `${selectedOpen.length} open · ${selectedDone.length} done`}
+        </h2>
+        {#if selectedThreads.length === 0}
           <p class="muted">No threads yet.{#if selected.archivedAt === null} Start one with <strong>New thread here</strong>.{/if}</p>
-        {/each}
+        {:else}
+          {#if selectedOpen.length === 0}
+            <p class="muted all-done">Every thread here is done.</p>
+          {/if}
+          <div role="list" aria-label="Open project threads">
+            {#each selectedOpen as thread (thread.id)}
+              {@render threadRow(selected, thread)}
+            {/each}
+          </div>
+          {#if selectedDone.length > 0}
+            <details class="done">
+              <summary class="mono">done · {selectedDone.length}</summary>
+              <div role="list" aria-label="Done project threads">
+                {#each selectedDone as thread (thread.id)}
+                  {@render threadRow(selected, thread)}
+                {/each}
+              </div>
+            </details>
+          {/if}
+        {/if}
       </section>
 
       <ChangedFiles project={selected} />
@@ -238,6 +254,18 @@
   </aside>
 </div>
 {/if}
+
+{#snippet threadRow(project: Project, thread: ThreadSummary)}
+  <div class="thread" role="listitem">
+    <span class="thread-title">{thread.title ?? "New thread"}</span>
+    <span class="mono agent">{thread.agentId === null ? "" : (agents.get(thread.agentId)?.name ?? thread.agentId)}</span>
+    <span class="mono muted cwd">cwd {folderName(project.workingDirectories[0] ?? "")}</span>
+    <span class="mono status" data-status={thread.status}>
+      {thread.status === "running" ? "● running" : thread.status === "waiting" ? "▲ needs you" : thread.doneAt !== null ? `✓ done ${timeAgo(thread.doneAt)}` : timeAgo(thread.updatedAt)}
+    </span>
+    <button type="button" class="link" onclick={() => openThreadOf(project, thread.id)}>Open</button>
+  </div>
+{/snippet}
 
 <style>
   .missing {
@@ -434,6 +462,20 @@
     padding: 11px 0;
     border-bottom: 1px solid var(--line-soft);
     font-size: 14px;
+  }
+  .all-done {
+    margin: 8px 0;
+    font-size: 13px;
+  }
+  .done summary {
+    padding: 11px 0;
+    border-bottom: 1px solid var(--line-soft);
+    font-size: 12px;
+    color: var(--ink-3);
+    cursor: pointer;
+  }
+  .done .thread-title {
+    color: var(--ink-2);
   }
   .thread-title {
     overflow: hidden;

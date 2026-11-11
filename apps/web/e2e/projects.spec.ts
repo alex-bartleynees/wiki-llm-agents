@@ -57,8 +57,22 @@ test("registers a project through the folder picker, tracks its changed files, a
   // Only this project's thread is listed, in both views.
   await expect(page.getByRole("complementary", { name: `Threads in ${name}` }).getByRole("listitem")).toHaveCount(1);
   await page.getByRole("navigation", { name: "Project view" }).getByRole("link", { name: "Overview" }).click();
-  await expect(page.getByRole("region", { name: "Threads" })).toContainText("threads in this project · 1");
-  await expect(page.getByRole("region", { name: "Threads" })).toContainText("Hello project");
+  const overviewThreads = page.getByRole("region", { name: "Threads" });
+  await expect(overviewThreads.getByRole("heading")).toHaveText("threads in this project · 1 open · 0 done");
+  await expect(overviewThreads.getByRole("list", { name: "Open project threads" })).toContainText("Hello project");
+
+  // A done thread moves into the collapsed "done" group.
+  await overviewThreads.getByRole("button", { name: "Open" }).click();
+  await page.getByRole("button", { name: "Mark done" }).click();
+  await expect(page.getByText("✓ done")).toBeVisible();
+  if (isPhone(info)) await page.getByRole("button", { name: "All threads" }).click();
+  await page.getByRole("navigation", { name: "Project view" }).getByRole("link", { name: "Overview" }).click();
+  await expect(overviewThreads.getByRole("heading")).toHaveText("threads in this project · 0 open · 1 done");
+  await expect(overviewThreads).toContainText("Every thread here is done.");
+  const doneThreads = overviewThreads.getByRole("list", { name: "Done project threads" });
+  await expect(doneThreads).toBeHidden();
+  await overviewThreads.getByText("done · 1").click();
+  await expect(doneThreads).toContainText("Hello project");
 });
 
 test("archives a project out of the way and restores it", async ({ page }, info) => {

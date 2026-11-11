@@ -7,6 +7,7 @@ import { projects } from "#lib/features/projects/projects.svelte.ts";
 import { createThread, getThread, listThreads, markDone, reopenThread, vaultThreadsEventsPath } from "./api.ts";
 import { openThread } from "./open-thread.svelte.ts";
 import { providers } from "./providers.svelte.ts";
+import { byRecent, doneThreads, openThreads } from "./thread-order.ts";
 import { inScope, rememberedThreadKey, sameScope, type ThreadScope } from "./thread-scope.ts";
 
 /** The thread open in each scope, remembered on this device. */
@@ -27,9 +28,6 @@ const remember = (scope: ThreadScope, threadId: string | null) => {
   }
 };
 
-const byRecent = (a: ThreadSummary, b: ThreadSummary) => b.updatedAt - a.updatedAt || b.createdAt - a.createdAt;
-const byDone = (a: ThreadSummary, b: ThreadSummary) => (b.doneAt ?? 0) - (a.doneAt ?? 0) || byRecent(a, b);
-
 /**
  * The threads of the open scope (all of a vault's, or one project's), kept current
  * by GET /events/vaults/:id/threads.
@@ -37,9 +35,9 @@ const byDone = (a: ThreadSummary, b: ThreadSummary) => (b.doneAt ?? 0) - (a.done
 class ThreadsStore {
   threads = $state<ReadonlyArray<ThreadSummary>>([]);
   /** Threads not marked done, most recently updated first. */
-  open = $derived(this.threads.filter((thread) => thread.doneAt === null));
+  open = $derived(openThreads(this.threads));
   /** Threads marked done, most recently marked first. */
-  done = $derived(this.threads.filter((thread) => thread.doneAt !== null).sort(byDone));
+  done = $derived(doneThreads(this.threads));
   /** Whether the thread list shows its Done group; kept while you look at a thread. */
   showDone = $state(false);
   status = $state<"loading" | "loaded" | "failed">("loading");
