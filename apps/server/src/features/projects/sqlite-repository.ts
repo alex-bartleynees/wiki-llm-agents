@@ -1,9 +1,9 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { Effect, Layer, Option } from "effect";
 import { DbError } from "../../shared/persistence/errors.js";
 import { Sqlite } from "../../shared/persistence/sqlite.js";
 import { type FileVersion, ProjectRepository } from "./repository.js";
-import { projectFiles, projects } from "./table.js";
+import { projectFiles, projectIgnoredFiles, projects } from "./table.js";
 
 const columns = {
   id: projects.id,
@@ -55,6 +55,25 @@ export const ProjectRepositoryLive = Layer.effect(
             tx.delete(projectFiles).where(eq(projectFiles.projectId, id)).run();
             insertFiles(tx, id, baseline);
           }),
+        ),
+      ignoredFiles: (id) =>
+        query(() =>
+          db
+            .select({ directory: projectIgnoredFiles.directory, path: projectIgnoredFiles.path })
+            .from(projectIgnoredFiles)
+            .where(eq(projectIgnoredFiles.projectId, id))
+            .orderBy(asc(sql`rowid`))
+            .all(),
+        ),
+      ignoreFile: (id, file, at) =>
+        query(() => void db.insert(projectIgnoredFiles).values({ projectId: id, ...file, ignoredAt: new Date(at) }).onConflictDoNothing().run()),
+      unignoreFile: (id, file) =>
+        query(
+          () =>
+            void db
+              .delete(projectIgnoredFiles)
+              .where(and(eq(projectIgnoredFiles.projectId, id), eq(projectIgnoredFiles.directory, file.directory), eq(projectIgnoredFiles.path, file.path)))
+              .run(),
         ),
     });
   }),

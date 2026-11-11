@@ -67,5 +67,20 @@ export const DirectoryDiff = Schema.Struct({
   git: Schema.Boolean,
   files: Schema.Array(DiffFile),
   changes: Schema.Array(FileChange),
+  /**
+   * Paths in this directory the user ignores in the diff review (files they change
+   * but never merge), in the order they were ignored, whether or not they have
+   * changes now. Their diffs are still in `files`; the screen sets them aside.
+   */
+  ignored: Schema.Array(Schema.String),
 });
 export type DirectoryDiff = typeof DirectoryDiff.Type;
+
+/** A file set aside in the project's diff review until the user stops ignoring it. */
+export const IgnoredFile = Schema.Struct({
+  /** One of the project's working directories. */
+  directory: Schema.String,
+  /** Relative to `directory`, with `/` separators. */
+  path: Schema.String,
+});
+export type IgnoredFile = typeof IgnoredFile.Type;

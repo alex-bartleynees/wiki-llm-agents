@@ -9,20 +9,26 @@ import { ProjectRepository } from "../repository.js";
 
 /**
  * Each working directory's changes: from git compared with `HEAD` where the directory
- * is in a work tree, else the changed-file list (compared with the baseline), without diffs.
+ * is in a work tree, else the changed-file list (compared with the baseline), without
+ * diffs. Each directory lists the paths the user ignores in the review.
  */
 export const getDiff = Effect.fn("getProjectDiff")(function* (projectId: string) {
   const project = yield* findProject(projectId);
+  const repository = yield* ProjectRepository;
   const directories = project.workingDirectories;
   const inGit = yield* workTrees(directories);
   const outside = directories.filter((_, index) => !inGit[index]);
-  const changes = outside.length === 0 ? [] : yield* changedFiles(outside, yield* (yield* ProjectRepository).baseline(projectId));
+  const changes = outside.length === 0 ? [] : yield* changedFiles(outside, yield* repository.baseline(projectId));
+  const ignoredFiles = yield* repository.ignoredFiles(projectId);
+  const ignoredIn = (directory: string) => ignoredFiles.filter((file) => file.directory === directory).map((file) => file.path);
   const diffs = yield* Effect.forEach(
     directories,
-    (directory, index): Effect.Effect<DirectoryDiff, Effect.Error<ReturnType<typeof diffDirectory>>> =>
-      inGit[index]
-        ? diffDirectory(directory, LIST_LIMITS).pipe(Effect.map((files) => ({ directory, git: true, files, changes: [] })))
-        : Effect.succeed({ directory, git: false, files: [], changes: changes.filter((change) => change.directory === directory) }),
+    (directory, index): Effect.Effect<DirectoryDiff, Effect.Error<ReturnType<typeof diffDirectory>>> => {
+      const ignored = ignoredIn(directory);
+      return inGit[index]
+        ? diffDirectory(directory, LIST_LIMITS).pipe(Effect.map((files) => ({ directory, git: true, files, changes: [], ignored })))
+        : Effect.succeed({ directory, git: false, files: [], changes: changes.filter((change) => change.directory === directory), ignored });
+    },
     { concurrency: 4 },
   );
   return { directories: diffs } satisfies GetDiffResponse;

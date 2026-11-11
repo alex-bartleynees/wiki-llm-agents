@@ -248,6 +248,14 @@ vault's threads show.
   project's open threads or a new one. The diff refreshes when one of the
   project's turns ends, and with **Refresh**. On a phone: the file list, then one
   file at a time.
+- **Ignore** in a file's header sets it aside in that project's reviews (local
+  config and other changes you never merge): it leaves the file list, the totals
+  and search, and waits under **Ignored · n** in its folder, where it can be shown,
+  reviewed, commented on and brought back with **Stop ignoring**. The list is kept
+  on the server per project and working directory, by path, until you stop
+  ignoring it (`POST /api/projects/:id/diff/ignored {"directory", "path"}`,
+  `DELETE …/diff/ignored?directory=…&path=…`). It only affects the diff view, not
+  git or the overview's changed-file list.
 - Undo code changes with lazygit/git; changes a project thread makes to the shared
   vault get change review (below).
 - Folders are chosen with **Browse…** (project directories, the vault folder) or

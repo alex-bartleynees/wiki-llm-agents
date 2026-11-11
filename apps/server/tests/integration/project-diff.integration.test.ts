@@ -6,8 +6,10 @@ import { expect, layer } from "@effect/vitest";
 import { afterAll } from "vitest";
 import { GetDiffResponse } from "@wiki-agents/contracts/projects/get-diff/response";
 import { GetFileDiffResponse } from "@wiki-agents/contracts/projects/get-file-diff/response";
+import { IgnoreFileResponse } from "@wiki-agents/contracts/projects/ignore-file/response";
 import type { DiffFile } from "@wiki-agents/contracts/projects/model";
 import { RegisterProjectResponse } from "@wiki-agents/contracts/projects/register-project/response";
+import { UnignoreFileResponse } from "@wiki-agents/contracts/projects/unignore-file/response";
 import { Effect } from "effect";
 import { HttpClient } from "effect/http";
 import { FILE_LIMITS, LIST_LIMITS } from "../../src/features/projects/git-diff.js";
@@ -70,7 +72,7 @@ layer(makeTestApp({ vaults: [sharedRoot] }))("project diff", (test) => {
       ".gitignore": "*.log\n",
     });
     const project = yield* register([repo]);
-    expect((yield* getDiff(project.id)).directories).toEqual([{ directory: repo, git: true, files: [], changes: [] }]);
+    expect((yield* getDiff(project.id)).directories).toEqual([{ directory: repo, git: true, files: [], changes: [], ignored: [] }]);
 
     write(repo, { "src/app.ts": "const a = 1;\nconst b = 3;\n", "staged.ts": "staged\n", "new.ts": "one\ntwo", "debug.log": "ignored\n" });
     write(repo, { "logo.png": new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0, 9, 9]) });
@@ -139,6 +141,7 @@ layer(makeTestApp({ vaults: [sharedRoot] }))("project diff", (test) => {
         { directory: plain, path: "added.txt", status: "created" },
         { directory: plain, path: "notes.txt", status: "modified" },
       ],
+      ignored: [],
     });
     expect((yield* HttpClient.get(fileDiffUrl(project.id, plain, "notes.txt"))).status).toBe(400);
   }));
@@ -197,5 +200,55 @@ layer(makeTestApp({ vaults: [sharedRoot] }))("project diff", (test) => {
     expect((yield* getDiff(project.id)).directories[0]!.files).toEqual([
       { path: "run.sh", oldPath: null, status: "modified", binary: false, additions: 0, deletions: 0, diff: "", truncated: false },
     ]);
+  }));
+
+  test.effect("ignores files in the review until they are brought back, kept across reads", () => Effect.gen(function* () {
+    const dir = yield* temp;
+    const repo = repository(join(dir, "repo"), { "app.ts": "a\n", "local.config": "x\n" });
+    const other = repository(join(dir, "other"), { "local.config": "x\n" });
+    write(repo, { "app.ts": "a2\n", "local.config": "mine\n" });
+    write(other, { "local.config": "mine\n" });
+    const project = yield* register([repo, other]);
+    const ignoredPath = `/api/projects/${project.id}/diff/ignored`;
+    const unignore = (directory: string, path: string) => HttpClient.del(`${ignoredPath}?${new URLSearchParams({ directory, path }).toString()}`);
+
+    const ignored = yield* post(ignoredPath, { directory: repo, path: "local.config" }).pipe(Effect.flatMap(decode(IgnoreFileResponse)));
+    expect(ignored.ignored).toEqual([{ directory: repo, path: "local.config" }]);
+    // Again changes nothing; a file without changes can be ignored too.
+    yield* post(ignoredPath, { directory: repo, path: "local.config" }).pipe(Effect.flatMap(decode(IgnoreFileResponse)));
+    const both = yield* post(ignoredPath, { directory: repo, path: "later.ts" }).pipe(Effect.flatMap(decode(IgnoreFileResponse)));
+    expect(both.ignored).toEqual([{ directory: repo, path: "local.config" }, { directory: repo, path: "later.ts" }]);
+
+    // The diff still has the file; each directory lists its own ignored paths.
+    const [inRepo, inOther] = (yield* getDiff(project.id)).directories;
+    expect(inRepo!.ignored).toEqual(["local.config", "later.ts"]);
+    expect(inRepo!.files.map((file) => file.path)).toEqual(["app.ts", "local.config"]);
+    expect(inOther!.ignored).toEqual([]);
+
+    const after = yield* unignore(repo, "local.config").pipe(Effect.flatMap(decode(UnignoreFileResponse)));
+    expect(after.ignored).toEqual([{ directory: repo, path: "later.ts" }]);
+    expect((yield* unignore(repo, "never-ignored.ts").pipe(Effect.flatMap(decode(UnignoreFileResponse)))).ignored).toEqual([{ directory: repo, path: "later.ts" }]);
+    expect((yield* getDiff(project.id)).directories[0]!.ignored).toEqual(["later.ts"]);
+  }));
+
+  test.effect("refuses to ignore paths outside the project's working directories", () => Effect.gen(function* () {
+    const dir = yield* temp;
+    const repo = repository(join(dir, "repo"), { "a.ts": "a\n" });
+    const project = yield* register([repo]);
+    const ignoredPath = `/api/projects/${project.id}/diff/ignored`;
+    for (const [directory, path] of [
+      [dir, "a.ts"],
+      [repo, "../a.ts"],
+      [repo, "/etc/passwd"],
+      [repo, "./a.ts"],
+      [repo, ""],
+    ] as const) {
+      expect([directory, path, (yield* post(ignoredPath, { directory, path })).status]).toEqual([directory, path, 400]);
+      const query = new URLSearchParams({ directory, path }).toString();
+      expect([directory, path, (yield* HttpClient.del(`${ignoredPath}?${query}`)).status]).toEqual([directory, path, 400]);
+    }
+    expect((yield* post(ignoredPath, { path: "a.ts" })).status).toBe(400);
+    expect((yield* post("/api/projects/missing/diff/ignored", { directory: repo, path: "a.ts" })).status).toBe(404);
+    expect((yield* getDiff(project.id)).directories[0]!.ignored).toEqual([]);
   }));
 });

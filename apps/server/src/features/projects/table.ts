@@ -30,3 +30,20 @@ export const projectFiles = sqliteTable(
   },
   (table) => [primaryKey({ columns: [table.projectId, table.directory, table.path] })],
 );
+
+/**
+ * Files left out of the project's diff review by default, such as local config that
+ * is never merged. Kept by path, whether or not the file has changes now, until the
+ * user stops ignoring it.
+ */
+export const projectIgnoredFiles = sqliteTable(
+  "project_ignored_files",
+  {
+    projectId: text("project_id").notNull(),
+    directory: text("directory").notNull(),
+    /** Relative to `directory`, with `/` separators. */
+    path: text("path").notNull(),
+    ignoredAt: integer("ignored_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.projectId, table.directory, table.path] })],
+);

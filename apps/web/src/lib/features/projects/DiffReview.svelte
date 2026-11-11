@@ -8,7 +8,7 @@
   import { listen } from "#lib/api/sse.ts";
   import { numberedDiffLines } from "#lib/features/changes/diff-lines.ts";
   import { vaultThreadsEventsPath } from "#lib/features/threads/api.ts";
-  import { getDiff, getFileDiff } from "./api.ts";
+  import { getDiff, getFileDiff, ignoreFile, unignoreFile } from "./api.ts";
   import FileDiff from "./FileDiff.svelte";
   import ProjectViewSwitch from "./ProjectViewSwitch.svelte";
   import ReviewPanel from "./ReviewPanel.svelte";
@@ -40,24 +40,48 @@
   let threadsVersion = $state(0);
   let searchInput = $state<HTMLInputElement>();
 
+  /** Ignoring or bringing back, by key. */
+  let ignoring = $state<ReadonlySet<string>>(new Set());
+  /** Working directories whose ignored files are shown. */
+  let showIgnored = $state<ReadonlySet<string>>(new Set());
+
   const keyOf = (directory: string, path: string) => `${directory}\0${path}`;
   const folderName = (directory: string) => directory.split("/").filter(Boolean).at(-1) ?? directory;
 
-  /** Every git file, numbered once, in display order. */
+  /** Each git directory's changed files, split into those in review and those ignored. */
+  const groups = $derived(
+    (diff?.directories ?? []).map((directory) => {
+      const ignored = new Set(directory.ignored);
+      return {
+        directory,
+        reviewed: directory.files.filter((file) => !ignored.has(file.path)),
+        ignored: directory.files.filter((file) => ignored.has(file.path)),
+        showIgnored: showIgnored.has(directory.directory),
+      };
+    }),
+  );
+
+  /** Every git file shown, numbered once, in display order: each directory's files, then its ignored files if shown. */
   const entries = $derived(
-    (diff?.directories ?? []).flatMap((directory) =>
-      directory.files.map((listed) => {
-        const key = keyOf(directory.directory, listed.path);
+    groups.flatMap((group) =>
+      [...group.reviewed, ...(group.showIgnored ? group.ignored : [])].map((listed) => {
+        const key = keyOf(group.directory.directory, listed.path);
         const file = whole[key] ?? listed;
-        return { key, directory: directory.directory, file, whole: key in whole, lines: numberedDiffLines(file.diff) };
+        const ignored = group.directory.ignored.includes(listed.path);
+        return { key, directory: group.directory.directory, file, ignored, whole: key in whole, lines: numberedDiffLines(file.diff) };
       }),
     ),
   );
   const indexOf = $derived(new Map(entries.map((entry, index) => [entry.key, index])));
-  const totals = $derived({
-    files: entries.length,
-    additions: entries.reduce((sum, entry) => sum + entry.file.additions, 0),
-    deletions: entries.reduce((sum, entry) => sum + entry.file.deletions, 0),
+  /** Ignored files are left out of the totals. */
+  const totals = $derived.by(() => {
+    const files = groups.flatMap((group) => group.reviewed);
+    return {
+      files: files.length,
+      additions: files.reduce((sum, file) => sum + file.additions, 0),
+      deletions: files.reduce((sum, file) => sum + file.deletions, 0),
+      ignored: groups.reduce((sum, group) => sum + group.ignored.length, 0),
+    };
   });
   const comments = $derived(review.comments(project.id));
 
@@ -105,6 +129,33 @@
     }
   }
 
+  /** Ignores the file, or brings it back; the list is kept on the server for every device. */
+  async function toggleIgnore(directory: string, path: string, ignored: boolean) {
+    const id = project.id;
+    const key = keyOf(directory, path);
+    ignoring = new Set([...ignoring, key]);
+    try {
+      const result = ignored ? await unignoreFile(id, directory, path) : await ignoreFile(id, directory, path);
+      if (project.id !== id || diff === null) return;
+      diff = {
+        directories: diff.directories.map((entry) => ({
+          ...entry,
+          ignored: result.ignored.filter((file) => file.directory === entry.directory).map((file) => file.path),
+        })),
+      };
+      // A file just ignored leaves the phone's single-file view unless ignored files are shown.
+      if (!ignored && openKey === key && !showIgnored.has(directory)) openKey = null;
+    } catch (cause) {
+      if (project.id === id) error = errorMessage(cause, ignored ? "Could not bring the file back" : "Could not ignore the file");
+    } finally {
+      ignoring = new Set([...ignoring].filter((other) => other !== key));
+    }
+  }
+
+  function toggleShowIgnored(directory: string) {
+    showIgnored = showIgnored.has(directory) ? new Set([...showIgnored].filter((other) => other !== directory)) : new Set([...showIgnored, directory]);
+  }
+
   // Loaded for each project shown, and again when one of its turns ends.
   $effect(() => {
     const { id, vaultId } = project;
@@ -112,6 +163,7 @@
       diff = null;
       openKey = null;
       collapsed = new Set();
+      showIgnored = new Set();
       void load();
     });
     const statuses = new Map<string, ThreadStatus>();
@@ -180,13 +232,14 @@
     <ReviewPanel {project} {threadsVersion} />
     <nav class="files" aria-label="Files">
       {#if diff !== null}
-        {#each diff.directories as directory (directory.directory)}
+        {#each groups as { directory, reviewed, ignored, showIgnored: ignoredShown } (directory.directory)}
+          {@const count = directory.git ? reviewed.length : directory.changes.length}
           <div class="folder mono" title={directory.directory}>
-            {folderName(directory.directory)} · {directory.git ? directory.files.length : directory.changes.length}
-            {(directory.git ? directory.files.length : directory.changes.length) === 1 ? "file" : "files"}
+            {folderName(directory.directory)} · {count}
+            {count === 1 ? "file" : "files"}
           </div>
           {#if directory.git}
-            {#each directory.files as file (file.path)}
+            {#snippet entry(file: DiffFile)}
               {@const key = keyOf(directory.directory, file.path)}
               <button type="button" class="entry mono" aria-current={openKey === key ? "true" : undefined} onclick={() => show(key, null)}>
                 <span class="status" data-status={file.status} title={file.status}>{LETTER[file.status]}</span>
@@ -195,9 +248,24 @@
                   {#if file.binary}bin{:else}<span class="ins">+{file.additions}</span> <span class="del">−{file.deletions}</span>{/if}
                 </span>
               </button>
+            {/snippet}
+            {#each reviewed as file (file.path)}
+              {@render entry(file)}
             {:else}
-              <p class="none">No changes from HEAD.</p>
+              <p class="none">{ignored.length === 0 ? "No changes from HEAD." : "Only ignored files changed."}</p>
             {/each}
+            {#if ignored.length > 0}
+              <button type="button" class="ignored-toggle mono" aria-expanded={ignoredShown} onclick={() => toggleShowIgnored(directory.directory)}>
+                {ignoredShown ? "▾" : "▸"} Ignored · {ignored.length}
+              </button>
+              {#if ignoredShown}
+                <div class="ignored-files" role="group" aria-label="Ignored files in {folderName(directory.directory)}">
+                  {#each ignored as file (file.path)}
+                    {@render entry(file)}
+                  {/each}
+                </div>
+              {/if}
+            {/if}
           {:else}
             <p class="none">Not a git repository: no diff. These files changed since the project was registered or last reviewed.</p>
             {#each directory.changes as change (change.path)}
@@ -221,7 +289,7 @@
         <h1>Changes in {project.name}</h1>
         <p class="lede">
           {#if diff !== null}
-            <span class="mono">{totals.files} {totals.files === 1 ? "file" : "files"} · <span class="ins">+{totals.additions}</span> <span class="del">−{totals.deletions}</span></span> ·
+            <span class="mono">{totals.files} {totals.files === 1 ? "file" : "files"} · <span class="ins">+{totals.additions}</span> <span class="del">−{totals.deletions}</span>{totals.ignored === 0 ? "" : ` · ${totals.ignored} ignored`}</span> ·
           {/if}
           Compared with HEAD: staged and unstaged changes together, untracked files as new. The overview's changed-file list compares with
           your last review instead. Undo in lazygit.
@@ -257,7 +325,11 @@
     {#if diff === null}
       {#if loading}<p class="muted">Reading the changes…</p>{/if}
     {:else if entries.length === 0}
-      <p class="muted">No changes from HEAD{diff.directories.some((directory) => !directory.git) ? " in the git working directories" : ""}.</p>
+      <p class="muted">
+        No changes from HEAD{diff.directories.some((directory) => !directory.git) ? " in the git working directories" : ""}{totals.ignored === 0
+          ? ""
+          : " apart from ignored files"}.
+      </p>
     {:else}
       {#each entries as entry, index (entry.key)}
         <div id="file-{index}" class="slot" class:current={openKey === entry.key}>
@@ -276,6 +348,9 @@
             whole={entry.whole}
             loadingWhole={loadingWhole.has(entry.key)}
             onwhole={() => loadWhole(entry)}
+            ignored={entry.ignored}
+            ignoring={ignoring.has(entry.key)}
+            onignore={() => toggleIgnore(entry.directory, entry.file.path, entry.ignored)}
           />
         </div>
       {/each}
@@ -361,6 +436,27 @@
   }
   .status[data-status="deleted"] {
     color: var(--del);
+  }
+  .ignored-toggle {
+    margin: 4px 0 0;
+    padding: 5px 6px;
+    border: 0;
+    border-radius: 3px;
+    background: transparent;
+    color: var(--ink-3);
+    font-size: 12px;
+    text-align: left;
+    cursor: pointer;
+  }
+  .ignored-toggle:hover {
+    background: var(--sunken);
+  }
+  .ignored-files {
+    display: flex;
+    flex-direction: column;
+  }
+  .ignored-files .entry {
+    color: var(--ink-3);
   }
   .none {
     margin: 0 0 8px;

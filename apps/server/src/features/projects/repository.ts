@@ -15,6 +15,12 @@ export interface FileVersion {
   readonly modifiedAt: number | null;
 }
 
+/** A file left out of the diff review by default. */
+export interface IgnoredFile {
+  readonly directory: string;
+  readonly path: string;
+}
+
 export interface ProjectRepositoryService {
   /** By name. */
   readonly list: Effect.Effect<ReadonlyArray<Project>, DbError>;
@@ -25,6 +31,11 @@ export interface ProjectRepositoryService {
   /** The files the changed-file list compares with. */
   readonly baseline: (id: string) => Effect.Effect<ReadonlyArray<FileVersion>, DbError>;
   readonly replaceBaseline: (id: string, baseline: ReadonlyArray<FileVersion>) => Effect.Effect<void, DbError>;
+  /** Files ignored in the diff review, in the order they were ignored. */
+  readonly ignoredFiles: (id: string) => Effect.Effect<ReadonlyArray<IgnoredFile>, DbError>;
+  /** Ignoring an ignored file changes nothing. */
+  readonly ignoreFile: (id: string, file: IgnoredFile, at: number) => Effect.Effect<void, DbError>;
+  readonly unignoreFile: (id: string, file: IgnoredFile) => Effect.Effect<void, DbError>;
 }
 
 export class ProjectRepository extends Context.Service<ProjectRepository, ProjectRepositoryService>()("ProjectRepository") {}

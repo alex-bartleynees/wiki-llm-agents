@@ -79,3 +79,46 @@ test("reviews a project's diff from git, comments on a line, and sends the revie
   await page.getByRole("navigation", { name: "Project view" }).getByRole("link", { name: "Diff" }).click();
   await expect(page.getByRole("region", { name: "Review" })).toContainText("review · 0 comments");
 });
+
+test("ignores a file in the review, keeps it ignored after a reload, and brings it back", async ({ page }, info) => {
+  const folder = projectFolder(info, "ignore");
+  writeFileSync(join(folder, "app.ts"), "const a = 1;\n");
+  writeFileSync(join(folder, "local.config"), "port = 1\n");
+  git(folder, "init", "-q");
+  git(folder, "add", "-A");
+  git(folder, "commit", "-qm", "init");
+  writeFileSync(join(folder, "app.ts"), "const a = 2;\n");
+  writeFileSync(join(folder, "local.config"), "port = 2\n");
+  const response = await page.request.post("/api/projects", { data: { name: `Ignore ${info.project.name}`, workingDirectories: [folder] } });
+  expect(response.status()).toBe(201);
+  const { project } = (await response.json()) as { project: { id: string } };
+
+  await page.goto(`/projects/${project.id}/diff`);
+  const files = page.getByRole("navigation", { name: "Files" });
+  await expect(files.getByRole("button")).toHaveCount(2);
+
+  // Ignore from the file's header (on a phone, open the file first).
+  if (isPhone(info)) await files.getByRole("button", { name: /local\.config/ }).click();
+  await page.getByRole("button", { name: "Ignore local.config" }).click();
+  await expect(files.getByRole("button", { name: /local\.config/ })).toHaveCount(0);
+  const toggle = files.getByRole("button", { name: "▸ Ignored · 1" });
+  await expect(toggle).toBeVisible();
+  if (!isPhone(info)) {
+    await expect(page.getByText("1 file · +1 −1 · 1 ignored")).toBeVisible();
+    await expect(page.getByRole("group", { name: "Diff of local.config" })).toHaveCount(0);
+  }
+
+  // Kept on the server.
+  await page.reload();
+  await expect(files.getByRole("button", { name: "▸ Ignored · 1" })).toBeVisible();
+
+  // Shown again for review, and brought back.
+  await files.getByRole("button", { name: "▸ Ignored · 1" }).click();
+  const ignored = files.getByRole("group", { name: /^Ignored files in / });
+  await ignored.getByRole("button", { name: /local\.config/ }).click();
+  await expect(page.getByRole("group", { name: "Diff of local.config" })).toBeVisible();
+  await page.getByRole("button", { name: "Stop ignoring local.config" }).click();
+  if (isPhone(info)) await page.getByRole("button", { name: /^‹ All files/ }).click();
+  await expect(files.getByRole("button", { name: /Ignored · / })).toHaveCount(0);
+  await expect(files.getByRole("button", { name: /local\.config/ })).toBeVisible();
+});

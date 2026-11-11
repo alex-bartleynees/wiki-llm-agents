@@ -20,6 +20,9 @@
     whole,
     loadingWhole,
     onwhole,
+    ignored,
+    ignoring,
+    onignore,
   }: {
     projectId: string;
     directory: string;
@@ -37,6 +40,12 @@
     loadingWhole: boolean;
     /** Loads the file's whole diff, for one cut short. */
     onwhole: () => void;
+    /** The user set this file aside in the review (it is shown because they asked to see ignored files). */
+    ignored: boolean;
+    /** Ignoring or bringing back the file is in progress. */
+    ignoring: boolean;
+    /** Ignores the file, or brings it back when it is ignored. */
+    onignore: () => void;
   } = $props();
 
   const LETTER = { added: "A", modified: "M", deleted: "D", renamed: "R", untracked: "U" } as const;
@@ -127,6 +136,19 @@
         {#if file.oldPath !== null}<span class="old">{file.oldPath} → </span>{/if}{file.path}
       </span>
       {#if !file.binary}<span class="counts mono"><span class="ins">+{file.additions}</span> <span class="del">−{file.deletions}</span></span>{/if}
+      {#if ignored}<span class="tag">ignored</span>{/if}
+      <button
+        type="button"
+        class="link ignore"
+        disabled={ignoring}
+        aria-label="{ignored ? 'Stop ignoring' : 'Ignore'} {file.path}"
+        title={ignored ? "Bring the file back into the review" : "Set the file aside in this project's reviews, such as local changes you never merge"}
+        onclick={(event) => {
+          // Inside the summary: don't fold the file.
+          event.preventDefault();
+          onignore();
+        }}>{ignored ? "Stop ignoring" : "Ignore"}</button
+      >
     </summary>
 
     {#if file.binary}
@@ -240,6 +262,17 @@
     color: var(--ink-3);
   }
   .counts {
+    white-space: nowrap;
+  }
+  .tag {
+    padding: 0 6px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--ink-3);
+    font-size: 11px;
+  }
+  .ignore {
+    font-size: 12px;
     white-space: nowrap;
   }
   .ins {
