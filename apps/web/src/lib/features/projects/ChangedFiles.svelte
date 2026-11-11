@@ -59,7 +59,7 @@
 <section aria-label="Changed files">
   <div class="head">
     <h2 class="mono">changed since registered or reviewed{changes === null ? "" : ` · ${total} ${total === 1 ? "file" : "files"}`}</h2>
-    <span class="hint">Review and undo code in lazygit.</span>
+    <span class="hint"><a href="/projects/{project.id}/diff">Review the diff</a> and comment; undo in lazygit.</span>
     <span class="actions">
       <button type="button" onclick={scan} disabled={busy}>{busy ? "Scanning…" : "Rescan"}</button>
       <button type="button" onclick={markReviewed} disabled={busy || total === 0}>Mark all reviewed</button>

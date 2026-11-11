@@ -187,10 +187,11 @@ Save as note is still to do.
 directories, shared vault, threads and changed files, and a form to register one
 (an existing folder or a new empty one as the main directory, more directories,
 and an optional existing notes folder inside the shared vault). Each project has
-two views, switched with **Overview | Threads**: the overview (the default,
+three views, switched with **Overview | Threads | Diff**: the overview (the default,
 `/projects/<id>`), and the project's threads with the open one in the middle and
 the project beside it (`/projects/<id>/threads`), where **New thread here** and
-**Open** go. The Projects page shows only project threads; threads without a
+**Open** go, and the diff from git for review (`/projects/<id>/diff`, below). The
+Projects page shows only project threads; threads without a
 project are in the wiki, whose **Threads in** select switches between all of the
 vault's threads and one project's. The shared vault is the
 vault registered first; several vaults per project, and a vault picker, are deferred.
@@ -230,9 +231,25 @@ vault's threads show.
   project's other working directories and the shared vault itself (resolving
   symlinks) and asks you about anywhere else. Shell commands follow command
   autonomy; this is a permission boundary, not an OS sandbox.
-- Review and undo code changes with lazygit/git. In-app project diffs/restore are
-  deferred; changes a project thread makes to the shared vault get change review
-  (below).
+- **Diff** (`/projects/<id>/diff`, also **Review the diff** under changed files)
+  shows each working directory's changes from git, compared with `HEAD`: staged and
+  unstaged together, untracked (not ignored) files as new, renames detected, binary
+  files listed without a diff. `GET /api/projects/:id/diff` cuts each file's diff
+  (1,500 lines / 120 KB; files past 4 MB of diffs in total come without theirs);
+  **Show the whole diff** asks `GET /api/projects/:id/diff/file?directory=…&path=…`
+  (20,000 lines / 2 MB, only inside a working directory; past that, use lazygit).
+  A folder outside git lists its changed files (against the baseline) with no diff.
+  The app only reads git (`execFile`, `-C`, no pager, colour, external diff or
+  textconv, literal pathspecs, `GIT_OPTIONAL_LOCKS=0`); it never stages, commits or
+  restores. Search with `/`, `n`/`N` (desktop). Click (tap) a line to comment,
+  shift-click or tap another line for a range; comments are drafts in this
+  browser (`localStorage`) until **Send to thread** posts them as one message
+  (`path:line`, the quoted lines, the comment, grouped by file) to one of the
+  project's open threads or a new one. The diff refreshes when one of the
+  project's turns ends, and with **Refresh**. On a phone: the file list, then one
+  file at a time.
+- Undo code changes with lazygit/git; changes a project thread makes to the shared
+  vault get change review (below).
 - Folders are chosen with **Browse…** (project directories, the vault folder) or
   typed. A browser never gives a page a folder's real path, so the picker walks
   the server's machine through `GET /api/folders?path=…` (default: the home

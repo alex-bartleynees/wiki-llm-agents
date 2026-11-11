@@ -4,3 +4,6 @@ import { Data } from "effect";
 export class InvalidProject extends Data.TaggedError("InvalidProject")<{ readonly message: string }> {}
 
 export class ProjectNotFound extends Data.TaggedError("ProjectNotFound")<{ readonly projectId: string }> {}
+
+/** The file has no changes from `HEAD` (or no longer exists). */
+export class FileDiffNotFound extends Data.TaggedError("FileDiffNotFound")<{ readonly path: string }> {}

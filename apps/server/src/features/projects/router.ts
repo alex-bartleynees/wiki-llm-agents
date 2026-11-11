@@ -1,6 +1,8 @@
 import { Layer } from "effect";
 import { HttpRouter } from "effect/http";
 import { archiveProjectEndpoint } from "./archive-project/endpoint.js";
+import { getDiffEndpoint } from "./get-diff/endpoint.js";
+import { getFileDiffEndpoint } from "./get-file-diff/endpoint.js";
 import { listChangesEndpoint } from "./list-changes/endpoint.js";
 import { listProjectsEndpoint } from "./list-projects/endpoint.js";
 import { registerProjectEndpoint } from "./register-project/endpoint.js";
@@ -14,4 +16,6 @@ export const projectsRouter = Layer.mergeAll(
   HttpRouter.add("POST", "/api/projects/:projectId/restore", restoreProjectEndpoint),
   HttpRouter.add("GET", "/api/projects/:projectId/changes", listChangesEndpoint),
   HttpRouter.add("POST", "/api/projects/:projectId/changes/review", reviewChangesEndpoint),
+  HttpRouter.add("GET", "/api/projects/:projectId/diff", getDiffEndpoint),
+  HttpRouter.add("GET", "/api/projects/:projectId/diff/file", getFileDiffEndpoint),
 );

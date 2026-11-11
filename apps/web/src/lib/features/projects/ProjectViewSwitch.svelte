@@ -1,11 +1,12 @@
 <script lang="ts">
-  /** Overview (the project in the middle) or Threads (a thread in the middle) for a project. */
-  let { projectId, view }: { projectId: string; view: "overview" | "threads" } = $props();
+  /** Overview (the project in the middle), Threads (a thread in the middle) or Diff (its changes from git) for a project. */
+  let { projectId, view }: { projectId: string; view: "overview" | "threads" | "diff" } = $props();
 </script>
 
 <nav class="switch" aria-label="Project view">
   <a href="/projects/{projectId}" aria-current={view === "overview" ? "page" : undefined}>Overview</a>
   <a href="/projects/{projectId}/threads" aria-current={view === "threads" ? "page" : undefined}>Threads</a>
+  <a href="/projects/{projectId}/diff" aria-current={view === "diff" ? "page" : undefined}>Diff</a>
 </nav>
 
 <style>

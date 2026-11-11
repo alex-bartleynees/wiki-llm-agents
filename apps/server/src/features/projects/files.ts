@@ -13,7 +13,7 @@ export class ProjectFilesError extends Data.TaggedError("ProjectFilesError")<{ r
  * Version-control metadata and generated dependency/build/cache trees, skipped even
  * when git tracks them. Other dotfiles (e.g. `.env`) are reported.
  */
-const IGNORED = new Set([
+export const IGNORED = new Set([
   ".git", ".hg", ".svn", "node_modules", "result", ".svelte-kit", ".direnv", ".venv", "venv", "__pycache__",
   ".cache", ".next", ".turbo", "dist", "target", "obj", ".gradle", ".idea", ".vs",
   ".npm", ".pnpm-store", ".yarn", ".angular", ".nx", ".output", ".nuxt", ".parcel-cache", ".pytest_cache", ".mypy_cache",

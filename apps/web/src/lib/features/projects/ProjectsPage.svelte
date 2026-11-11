@@ -12,6 +12,7 @@
   import { vaults } from "#lib/features/vaults/vaults.svelte.ts";
   import ArchivedNotice from "./ArchivedNotice.svelte";
   import ChangedFiles from "./ChangedFiles.svelte";
+  import DiffReview from "./DiffReview.svelte";
   import ProjectThreads from "./ProjectThreads.svelte";
   import ProjectViewSwitch from "./ProjectViewSwitch.svelte";
   import { projects } from "./projects.svelte.ts";
@@ -19,9 +20,9 @@
 
   /**
    * The project to show (null: the first active one), as an overview with the project in the
-   * middle, or with its threads in the middle.
+   * middle, with its threads in the middle, or with its diff from git for review.
    */
-  let { projectId, view = "overview" }: { projectId: string | null; view?: "overview" | "threads" } = $props();
+  let { projectId, view = "overview" }: { projectId: string | null; view?: "overview" | "threads" | "diff" } = $props();
 
   let loaded = $state(false);
   let error = $state<string | null>(null);
@@ -107,9 +108,9 @@
   <title>{selected === null ? "Projects" : `${selected.name} · Projects`} · wiki-agents</title>
 </svelte:head>
 
-{#if view === "threads"}
+{#if view === "threads" || view === "diff"}
   {#if selected !== null}
-    <ProjectThreads project={selected} />
+    {#if view === "threads"}<ProjectThreads project={selected} />{:else}<DiffReview project={selected} />{/if}
   {:else if loaded}
     <div class="missing">
       <h1>Project not found</h1>

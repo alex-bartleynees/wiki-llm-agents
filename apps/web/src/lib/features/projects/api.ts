@@ -1,4 +1,6 @@
 import { ArchiveProjectResponse } from "@wiki-agents/contracts/projects/archive-project/response";
+import { GetDiffResponse } from "@wiki-agents/contracts/projects/get-diff/response";
+import { GetFileDiffResponse } from "@wiki-agents/contracts/projects/get-file-diff/response";
 import { ListChangesResponse } from "@wiki-agents/contracts/projects/list-changes/response";
 import { ListProjectsResponse } from "@wiki-agents/contracts/projects/list-projects/response";
 import { RegisterProjectRequest } from "@wiki-agents/contracts/projects/register-project/request";
@@ -24,3 +26,9 @@ export const restoreProject = (projectId: string) => postJson(`${projectPath(pro
 export const listChanges = (projectId: string, signal?: AbortSignal) => getJson(`${projectPath(projectId)}/changes`, ListChangesResponse, signal);
 
 export const reviewChanges = (projectId: string) => postJson(`${projectPath(projectId)}/changes/review`, NoBody, {}, ReviewChangesResponse, SCAN);
+
+export const getDiff = (projectId: string, signal?: AbortSignal) => getJson(`${projectPath(projectId)}/diff`, GetDiffResponse, signal);
+
+/** One file's diff with the larger bound, for a file cut short in the project's diff. */
+export const getFileDiff = (projectId: string, directory: string, path: string, signal?: AbortSignal) =>
+  getJson(`${projectPath(projectId)}/diff/file?${new URLSearchParams({ directory, path }).toString()}`, GetFileDiffResponse, signal);
