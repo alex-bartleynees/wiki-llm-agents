@@ -85,6 +85,11 @@ export interface OpenCodeApi {
     message?: string,
   ) => Effect.Effect<void, OpenCodeError>;
   readonly replyForm: (sessionId: string, formId: string, answer: Readonly<Record<string, string>>) => Effect.Effect<void, OpenCodeError>;
+  /**
+   * The chat models usable in `directory`. A server's first list for a folder waits
+   * until its models stop changing (a few seconds at most), as OpenCode adds the
+   * model catalogue and providers such as GitHub Copilot after its first answer.
+   */
   readonly listModels: (directory: string) => Effect.Effect<ReadonlyArray<OpenCodeModel>, OpenCodeError>;
   readonly defaultModel: (directory: string) => Effect.Effect<string | null, OpenCodeError>;
   readonly switchModel: (sessionId: string, model: string) => Effect.Effect<void, OpenCodeError>;
