@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { TimelineItem } from "./timeline.ts";
   import { openThread } from "./open-thread.svelte.ts";
+  import DiffView from "#lib/features/changes/DiffView.svelte";
 
   let { request }: { request: Extract<TimelineItem, { kind: "request" }> } = $props();
 
@@ -14,35 +15,38 @@
     busy = false;
   };
 
-  /** A unified diff's lines, marked for colour; its file header lines are left out. Text only. */
-  const detailLines = $derived(
-    request.prompt._tag === "approval"
-      ? request.prompt.detail
-          .split("\n")
-          .filter((line) => !/^(Index: |={10,}$|--- |\+\+\+ )/.test(line))
-          .map((line) => ({ line, kind: line.startsWith("@@") ? "hunk" : line.startsWith("+") ? "ins" : line.startsWith("-") ? "del" : "same" }))
-      : [],
-  );
+  /** A file edit the agent proposes: shown per file with its warnings, and answered with Apply. */
+  const edits = $derived(request.prompt._tag === "approval" ? (request.prompt.edits ?? []) : []);
 
   const outcome = $derived.by(() => {
     const answer = request.answer;
     if (answer === "pending") return "";
     if (answer === null) return "Cancelled: the turn ended";
-    if (answer._tag === "approval") return answer.decision === "approve" ? "Approved" : "Denied";
+    if (answer._tag === "approval") return answer.decision === "approve" ? (edits.length > 0 ? "Applied" : "Approved") : "Denied";
     return `Answered: ${answer.text}`;
   });
 </script>
 
 <section class="card" class:pending aria-label={request.prompt._tag === "approval" ? "Approval" : "Question"}>
   {#if request.prompt._tag === "approval"}
-    <p class="kind mono">Approval needed</p>
+    <p class="kind mono">{edits.length > 0 ? "Proposed edit" : "Approval needed"}</p>
     <p class="title">{request.prompt.title}</p>
-    {#if request.prompt.detail}
-      <pre class="mono">{#each detailLines as { line, kind }, index (index)}<span data-kind={kind}>{line}</span>{"\n"}{/each}</pre>
+    {#if edits.length > 0}
+      {#each edits as edit, index (index)}
+        <div class="edit">
+          {#if edits.length > 1}<p class="path mono">{edit.path}</p>{/if}
+          {#each edit.warnings as warning (warning)}
+            <p class="warning" role="note">⚠ {warning}</p>
+          {/each}
+          <DiffView diff={edit.patch} label={`Proposed change to ${edit.path}`} />
+        </div>
+      {/each}
+    {:else if request.prompt.detail}
+      <div class="edit"><DiffView diff={request.prompt.detail} label="Details" /></div>
     {/if}
     {#if pending}
       <div class="actions">
-        <button type="button" class="primary" disabled={busy} onclick={() => answer({ _tag: "approval", decision: "approve" })}>Approve</button>
+        <button type="button" class="primary" disabled={busy} onclick={() => answer({ _tag: "approval", decision: "approve" })}>{edits.length > 0 ? "Apply" : "Approve"}</button>
         <button type="button" disabled={busy} onclick={() => answer({ _tag: "approval", decision: "deny" })}>Deny</button>
       </div>
     {/if}
@@ -97,23 +101,18 @@
     font-weight: 500;
     overflow-wrap: anywhere;
   }
-  pre {
-    margin: 8px 0 0;
-    padding: 8px;
-    border-radius: var(--radius);
-    background: var(--sunken);
+  .edit {
+    margin-top: 8px;
+  }
+  .path {
+    margin-bottom: 4px;
     font-size: 12px;
-    white-space: pre-wrap;
     overflow-wrap: anywhere;
   }
-  pre [data-kind="ins"] {
-    color: var(--ins);
-  }
-  pre [data-kind="del"] {
-    color: var(--del);
-  }
-  pre [data-kind="hunk"] {
-    color: var(--ink-3);
+  .warning {
+    margin-bottom: 4px;
+    font-size: 12px;
+    color: var(--agent);
   }
   .actions {
     display: flex;

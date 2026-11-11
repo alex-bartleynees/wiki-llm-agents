@@ -71,6 +71,8 @@ export interface VaultIndexService {
   readonly neighbours: (vaultId: string, paths: ReadonlyArray<string>) => Effect.Effect<ReadonlyArray<NoteEdge>, DbError>;
   /** The notes among `paths` (others are skipped), in no particular order. */
   readonly notes: (vaultId: string, paths: ReadonlyArray<string>) => Effect.Effect<ReadonlyArray<NoteSummary>, DbError>;
+  /** Indexed note contents by hash; hashes the index no longer keeps are missing. */
+  readonly blobs: (hashes: ReadonlyArray<string>) => Effect.Effect<ReadonlyMap<string, string>, DbError>;
   /**
    * Files changed on disk at or after `since` (ms), newest first, at most `limit`;
    * `truncated` when more matched.

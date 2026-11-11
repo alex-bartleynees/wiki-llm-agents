@@ -50,3 +50,25 @@ export const resolveInVault = (root: string, input: string) =>
     }
     return { path, absolute };
   });
+
+/**
+ * Where a file that doesn't exist yet would go, for writing it: the nearest folder
+ * that exists on the way must really be inside the vault (symlinks resolved) and
+ * visible. Fails with `InvalidVaultPath` otherwise.
+ */
+export const resolveNewInVault = (root: string, input: string) =>
+  Effect.gen(function* () {
+    const path = normaliseVaultPath(input);
+    if (path === undefined) return yield* new InvalidVaultPath({ path: input });
+    const fs = yield* FileSystem.FileSystem;
+    const realRoot = yield* fs.realPath(root);
+    const segments = path.split("/");
+    for (let kept = segments.length - 1; kept >= 0; kept -= 1) {
+      const ancestor = join(realRoot, ...segments.slice(0, kept));
+      const real = yield* fs.realPath(ancestor).pipe(Effect.option);
+      if (real._tag === "None") continue;
+      if (!isInside(realRoot, real.value) || !isVisible(relative(realRoot, real.value))) break;
+      return join(real.value, ...segments.slice(kept));
+    }
+    return yield* new InvalidVaultPath({ path: input });
+  });

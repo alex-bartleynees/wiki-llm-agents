@@ -4,6 +4,8 @@ import { Effect, type FileSystem, Layer, Option } from "effect";
 import { HttpRouter } from "effect/http";
 import type { AgentCatalog } from "../features/agents/catalog.js";
 import { AgentCatalogLive } from "../features/agents/catalog-live.js";
+import { ChangeTrackerLive } from "../features/changes/change-tracker.js";
+import { ChangeLogLive } from "../features/changes/sqlite-repository.js";
 import { IndexerLive } from "../features/indexing/indexer-live.js";
 import { IndexStoreLive } from "../features/indexing/sqlite-store.js";
 import { IndexingStartup } from "../features/indexing/startup.js";
@@ -42,11 +44,15 @@ export interface AppOptions {
   readonly agents: Layer.Layer<AgentCatalog, never, FileSystem.FileSystem>;
 }
 
-/** The vault index, the IndexerActor, and the file watcher. */
+/**
+ * The vault index, the IndexerActor, the file watcher, and change review's tracker,
+ * which the indexer tells about every note change.
+ */
 const indexing = (watch: boolean, pollMs: number | undefined) =>
   (watch ? makeVaultWatcher({ pollMs }) : VaultWatcherNoop).pipe(
     Layer.provideMerge(IndexerLive),
-    Layer.provideMerge(IndexStoreLive),
+    Layer.provideMerge(ChangeTrackerLive),
+    Layer.provideMerge(Layer.merge(IndexStoreLive, ChangeLogLive)),
   );
 
 /**

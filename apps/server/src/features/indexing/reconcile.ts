@@ -7,6 +7,7 @@ import { extractNote } from "../../shared/markdown/extract.js";
 import { makeLinkIndex, resolveLinkTarget, resolveMarkdownTarget } from "../../shared/markdown/link-resolution.js";
 import { normaliseVaultPath, resolveInVault } from "../../shared/vault/path-guard.js";
 import { listVaultFiles } from "../../shared/vault/vault-files.js";
+import { FileChangeSink } from "./change-sink.js";
 import { type IndexedFileWithHash, IndexStore } from "./store.js";
 
 const sha256 = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
@@ -26,6 +27,7 @@ const utf8 = new TextDecoder();
 export const reconcileVault = Effect.fnUntraced(function* (vault: Vault, scope: "all" | ReadonlySet<string>) {
   const fs = yield* FileSystem.FileSystem;
   const store = yield* IndexStore;
+  const sink = yield* FileChangeSink;
   const root = yield* fs.realPath(vault.rootPath);
   const indexed = new Map<string, IndexedFileWithHash>((yield* store.files(vault.id)).map((file) => [file.path, file]));
 
@@ -91,11 +93,17 @@ export const reconcileVault = Effect.fnUntraced(function* (vault: Vault, scope: 
       continue;
     }
     const content = utf8.decode(bytes.value);
+    // Before the index replaces the old version, so change review can keep it.
+    yield* sink.noteChanged(vault.id, { path, beforeHash: previous?.contentHash ?? null, afterHash: contentHash });
     yield* store.putNote(vault.id, file, { ...extractNote(content, path), content, contentHash });
     changed.add(path);
   }
 
   const removed = [...gone].filter((path) => indexed.has(path));
+  for (const path of removed) {
+    const beforeHash = indexed.get(path)?.contentHash ?? null;
+    if (beforeHash !== null) yield* sink.noteChanged(vault.id, { path, beforeHash, afterHash: null });
+  }
   yield* store.remove(vault.id, removed);
   for (const path of removed) changed.add(path);
 

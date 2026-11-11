@@ -1,3 +1,7 @@
+import { ChangeTracker } from "../changes/change-tracker.js";
+import { withEditWarnings } from "../changes/proposed-edit.js";
+import { closeTurnChanges } from "../changes/turn-changes.js";
+import { Indexer } from "../indexing/indexer.js";
 import { VaultIndex } from "../indexing/vault-index.js";
 import { VaultRepository } from "../vaults/repository.js";
 import { resolveLinks } from "../notes/resolve-links/use-case.js";
@@ -33,6 +37,7 @@ type Message =
   | { readonly _tag: "SetModel"; readonly model: string; readonly reply: Deferred.Deferred<ThreadSummary, DbError | ProviderError> }
   | { readonly _tag: "SetAgent"; readonly agentId: string | null; readonly reply: Deferred.Deferred<ThreadSummary, DbError> }
   | { readonly _tag: "OpenNote"; readonly note: OpenedNote; readonly reply: Deferred.Deferred<void, NoTurnRunning | DbError> }
+  | { readonly _tag: "ChangeUndone"; readonly turnId: string; readonly changeId: string; readonly reply: Deferred.Deferred<void, DbError> }
   /** From the turn's provider fiber; ignored once that turn is over. */
   | { readonly _tag: "ProviderEvent"; readonly turnId: string; readonly event: ProviderEvent }
   | { readonly _tag: "ProviderEnded"; readonly turnId: string; readonly exit: Exit.Exit<void, ProviderError> };
@@ -60,6 +65,8 @@ export interface ThreadActor {
   readonly setAgent: (agentId: string | null) => Effect.Effect<ThreadSummary, DbError>;
   /** Records that the agent opened a note, in the running turn (the UI opens it). */
   readonly openNote: (note: OpenedNote) => Effect.Effect<void, NoTurnRunning | DbError>;
+  /** Records that a change the thread's turn made was undone. */
+  readonly changeUndone: (turnId: string, changeId: string) => Effect.Effect<void, DbError>;
 }
 
 interface RunningTurn {
@@ -96,6 +103,8 @@ export const makeThreadActor = Effect.fnUntraced(function* (
   const catalog = yield* AgentCatalog;
   const fs = yield* FileSystem.FileSystem;
   const contextServices = yield* Effect.context<FileSystem.FileSystem | VaultIndex | VaultRepository>();
+  const changeServices = yield* Effect.context<Indexer | VaultIndex | ChangeTracker | FileSystem.FileSystem>();
+  const tracker = yield* ChangeTracker;
   const actorScope = yield* Effect.scope;
   const mailbox = yield* Queue.unbounded<Message>();
   // The thread's vault tools token lives as long as the actor; closing it revokes the token.
@@ -151,6 +160,18 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     }
   });
 
+  /**
+   * Records the vault's note changes against the turn until it finishes (see
+   * `changes/change-tracker.ts`). Change review never stops a turn: failures are logged.
+   */
+  const trackChanges = (turnId: string) =>
+    repository.providerSession(threadId).pipe(
+      Effect.flatMap(({ agentId }) =>
+        tracker.begin({ vaultId: vault.id, vaultRoot: vault.rootPath, threadId, turnId, actor: agentId ?? thread.providerInstanceId }),
+      ),
+      Effect.catch((error) => Effect.logError(`thread ${threadId}: can't record changes of turn ${turnId}`, error)),
+    );
+
   /** Reads the provider's events into the mailbox, from a fiber the actor can stop. */
   const run = Effect.fnUntraced(function* (current: RunningTurn, events: Stream.Stream<ProviderEvent, ProviderError>) {
     current.hold = yield* Scope.make();
@@ -180,7 +201,15 @@ export const makeThreadActor = Effect.fnUntraced(function* (
       }
     }
     replyText = "";
-    yield* record([...cancelled, { _tag: "turn.finished", turnId: current.id, outcome, usage, reason }]);
+    const changes = yield* closeTurnChanges(vault, current.id).pipe(
+      Effect.provideContext(changeServices),
+      Effect.catch((error) => Effect.as(Effect.logError(`thread ${threadId}: can't list the changes of turn ${current.id}`, error), [])),
+    );
+    yield* record([
+      ...cancelled,
+      ...(changes.length === 0 ? [] : [{ _tag: "turn.changes", turnId: current.id, changes } satisfies ThreadEvent]),
+      { _tag: "turn.finished", turnId: current.id, outcome, usage, reason },
+    ]);
     pending.clear();
     turn = undefined;
     if (current.fiber !== undefined) yield* Fiber.interrupt(current.fiber);
@@ -205,6 +234,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     const open = recovery.openTurn.value;
     const current: RunningTurn = { id: open.id, fiber: undefined, hold: undefined };
     turn = current;
+    yield* trackChanges(current.id);
     if (!open.dispatched) return yield* dispatch(current, open.input);
     const resumed = adapter.capabilities.resume
       ? yield* Effect.flatMap(currentSetup, (setup) =>
@@ -234,6 +264,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
       { startTurn: current.id },
     );
     turn = current;
+    yield* trackChanges(current.id);
     yield* dispatch(current, text);
     return current.id;
   });
@@ -286,11 +317,16 @@ export const makeThreadActor = Effect.fnUntraced(function* (
 
   const onProviderEvent = Effect.fnUntraced(function* (event: ProviderEvent) {
     if (event._tag === "message.delta") replyText += event.text;
+    if ((event._tag === "tool.called" || event._tag === "tool.finished") && event.writes !== undefined) {
+      yield* tracker.reportWrites(event.turnId, event.writes).pipe(
+        Effect.catch((error) => Effect.logError(`thread ${threadId}: can't attribute writes`, error)),
+      );
+    }
     switch (event._tag) {
       case "turn.finished":
         return yield* finish(event.outcome, event.usage, event.reason);
       case "request.opened":
-        yield* record([event]);
+        yield* record([{ ...event, prompt: yield* withEditWarnings(cwd, event.prompt).pipe(Effect.provideContext(changeServices)) }]);
         pending.set(event.requestId, { requestId: event.requestId, turnId: event.turnId, prompt: event.prompt });
         return;
       default:
@@ -327,6 +363,12 @@ export const makeThreadActor = Effect.fnUntraced(function* (
         })), (exit) => Deferred.done(message.reply, exit)));
       case "OpenNote":
         return Effect.asVoid(Effect.flatMap(Effect.exit(openNote(message.note)), (exit) => Deferred.done(message.reply, exit)));
+      case "ChangeUndone":
+        return Effect.asVoid(
+          Effect.flatMap(Effect.exit(record([{ _tag: "change.undone", turnId: message.turnId, changeId: message.changeId }])), (exit) =>
+            Deferred.done(message.reply, exit),
+          ),
+        );
       case "ProviderEvent":
         return turn?.id === message.turnId ? onProviderEvent(message.event) : Effect.void;
       case "ProviderEnded":
@@ -359,6 +401,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     setModel: (model) => ask((reply) => ({ _tag: "SetModel", model, reply })),
     setAgent: (agentId) => ask((reply) => ({ _tag: "SetAgent", agentId, reply })),
     openNote: (note) => ask((reply) => ({ _tag: "OpenNote", note, reply })),
+    changeUndone: (turnId, changeId) => ask((reply) => ({ _tag: "ChangeUndone", turnId, changeId, reply })),
   };
   return actor;
 });

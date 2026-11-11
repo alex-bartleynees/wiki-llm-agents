@@ -3,25 +3,25 @@ import type { Transcript } from "./transcript.js";
 /**
  * Hand-written stand-ins for recorded turns, until slice 5's recorder saves real
  * ones. Covers a plain answer with tool calls, an approval, a question, a failure,
- * and a long answer for trying Stop and reloads.
+ * and a long answer for trying Stop and reloads. The approval really edits
+ * `Replay note.md` in the thread's working folder once you approve it, so change
+ * review and undo can be tried for free.
  */
 export const TRANSCRIPTS: ReadonlyArray<Transcript> = [
   {
     name: "approval",
     keywords: ["approval", "edit", "change", "update"],
     steps: [
-      { type: "text", text: "I'll look at the plan first, then propose a change." },
-      { type: "tool", name: "read", input: "1-Active/Wiki-LLM-Agents-App/Implementation Plan.md", output: "412 lines" },
+      { type: "text", text: "I'll look at the note first, then propose a change." },
+      { type: "tool", name: "read", input: "Replay note.md", output: "a few lines" },
       {
         type: "approval",
-        id: "edit-plan",
-        title: "Edit 1-Active/Wiki-LLM-Agents-App/Implementation Plan.md",
-        detail: "- **Status:** not started\n+ **Status (2026-11-10):** in progress",
-        approve: [
-          { type: "tool", name: "edit", input: "1-Active/Wiki-LLM-Agents-App/Implementation Plan.md", output: "1 line changed" },
-          { type: "text", text: "Done: slice 4 is now marked **in progress** in the plan." },
-        ],
-        deny: [{ type: "text", text: "Understood, I've left the plan as it was." }],
+        id: "edit-note",
+        title: "Edit Replay note.md",
+        detail: "Add a line to Replay note.md",
+        write: { path: "Replay note.md", append: "- A line added by the replay agent.\n" },
+        approve: [{ type: "text", text: "Done: I added a line to **Replay note.md**. You can undo it from this turn's changes." }],
+        deny: [{ type: "text", text: "Understood, I've left the note as it was." }],
       },
     ],
     usage: { inputTokens: 18_204, outputTokens: 311, costUsd: 0.0412 },

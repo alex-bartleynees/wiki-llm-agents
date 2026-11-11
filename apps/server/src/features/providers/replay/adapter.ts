@@ -1,6 +1,9 @@
-import type { RequestAnswer } from "@wiki-agents/contracts/threads/model";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import type { RequestAnswer, RequestPrompt } from "@wiki-agents/contracts/threads/model";
+import { createTwoFilesPatch } from "diff";
 import { Context, Deferred, Effect, Option, Stream } from "effect";
-import type { ProviderAdapter, ProviderError, ProviderEvent, ProviderSession } from "../port.js";
+import { type ProviderAdapter, ProviderError, type ProviderEvent, type ProviderSession } from "../port.js";
 import type { Step } from "./transcript.js";
 import { chooseTranscript } from "./transcripts.js";
 
@@ -22,6 +25,52 @@ const chunks = (text: string) => {
 
 type Events = Stream.Stream<ProviderEvent, ProviderError>;
 type RequestStep = Extract<Step, { type: "approval" | "question" }>;
+type WriteStep = Extract<Step, { type: "write" }>;
+
+/** An approval's steps when approved: its write first, if it has one. */
+const approveSteps = (step: Extract<Step, { type: "approval" }>): ReadonlyArray<Step> =>
+  step.write === undefined ? step.approve : [{ type: "write", ...step.write }, ...step.approve];
+
+/*
+ * File IO here is synchronous on purpose: the files are tiny, and an async gap
+ * between replay delays would let tests' TestClock run ahead of the playback.
+ */
+const readOrEmpty = (path: string) =>
+  Effect.sync(() => {
+    try {
+      return readFileSync(path, "utf8");
+    } catch {
+      return "";
+    }
+  });
+
+/** Appends the step's text to its file under `cwd` (made if missing). */
+const appendTo = (cwd: string, write: { readonly path: string; readonly append: string }) =>
+  Effect.gen(function* () {
+    const absolute = resolve(cwd, write.path);
+    const before = yield* readOrEmpty(absolute);
+    yield* Effect.try({
+      try: () => {
+        mkdirSync(dirname(absolute), { recursive: true });
+        writeFileSync(absolute, before + write.append);
+      },
+      catch: (cause) => new ProviderError({ message: `Replay couldn't write ${write.path}.`, cause }),
+    });
+  });
+
+/** The approval as the card shows it; a proposed write is diffed against the file as it is now. */
+const approvalPromptFor = (cwd: string, step: Extract<Step, { type: "approval" }>) =>
+  Effect.gen(function* () {
+    if (step.write === undefined) return { _tag: "approval", title: step.title, detail: step.detail } satisfies RequestPrompt;
+    const before = yield* readOrEmpty(resolve(cwd, step.write.path));
+    const patch = createTwoFilesPatch(step.write.path, step.write.path, before, before + step.write.append, "", "", { context: 3 });
+    return {
+      _tag: "approval",
+      title: step.title,
+      detail: patch,
+      edits: [{ path: step.write.path, patch, warnings: [] }],
+    } satisfies RequestPrompt;
+  });
 type Vars = Readonly<Record<string, string>>;
 
 const emitAfter = (ms: number, event: ProviderEvent): Events => Stream.fromEffect(Effect.as(delay(ms), event));
@@ -34,7 +83,7 @@ const untilFinished = (events: Events) => events.pipe(Stream.takeUntil((event) =
  * position (`<turn>:2.approve.0`), so a turn resumed after a restart produces the
  * same ids as before it.
  */
-const makeSession = Effect.gen(function* () {
+const makeSession = (cwd: string) => Effect.gen(function* () {
   const answers = new Map<string, Deferred.Deferred<RequestAnswer>>();
   const answerFor = Effect.fnUntraced(function* (requestId: string) {
     const existing = answers.get(requestId);
@@ -62,12 +111,23 @@ const makeSession = Effect.gen(function* () {
         const answer = yield* Deferred.await(yield* answerFor(`${turnId}:${path}`));
         if (step.type === "approval") {
           return answer._tag === "approval" && answer.decision === "approve"
-            ? play(turnId, step.approve, `${path}.approve.`, vars)
+            ? play(turnId, approveSteps(step), `${path}.approve.`, vars)
             : play(turnId, step.deny, `${path}.deny.`, vars);
         }
         return play(turnId, step.then, `${path}.then.`, { ...vars, answer: answer._tag === "question" ? answer.text : "" });
       }),
     );
+
+  /** A real edit: the call (naming the file it writes), the write, then the result. */
+  const writeEvents = (turnId: string, id: string, step: WriteStep): Events => {
+    const writes = [resolve(cwd, step.path)];
+    return Stream.concat(
+      emitAfter(DELAY.tool, { _tag: "tool.called", turnId, callId: id, name: "edit", input: step.path, writes }),
+      Stream.fromEffect(
+        Effect.as(appendTo(cwd, step), { _tag: "tool.finished", turnId, callId: id, status: "succeeded", output: "1 line added", writes } satisfies ProviderEvent),
+      ),
+    );
+  };
 
   const stepEvents = (turnId: string, step: Exclude<Step, { type: "fail" }>, path: string, vars: Vars): Events => {
     const id = `${turnId}:${path}`;
@@ -87,18 +147,19 @@ const makeSession = Effect.gen(function* () {
         );
       case "pause":
         return Stream.unwrap(Effect.as(delay(step.ms), Stream.empty));
+      case "write":
+        return writeEvents(turnId, id, step);
       case "approval":
       case "question":
         return Stream.concat(
-          emitAfter(DELAY.tool, {
-            _tag: "request.opened",
-            turnId,
-            requestId: id,
-            prompt:
-              step.type === "approval"
-                ? { _tag: "approval", title: step.title, detail: step.detail }
-                : { _tag: "question", question: step.question, options: step.options },
-          }),
+          Stream.fromEffect(
+            Effect.gen(function* () {
+              yield* delay(DELAY.tool);
+              const prompt: RequestPrompt =
+                step.type === "approval" ? yield* approvalPromptFor(cwd, step) : { _tag: "question", question: step.question, options: step.options };
+              return { _tag: "request.opened", turnId, requestId: id, prompt } satisfies ProviderEvent;
+            }),
+          ),
           branch(turnId, step, path, vars),
         );
     }
@@ -117,7 +178,7 @@ const makeSession = Effect.gen(function* () {
       }
       const inner =
         step.type === "approval"
-          ? Option.orElse(resumeAt(turnId, step.approve, `${path}.approve.`, requestId), () =>
+          ? Option.orElse(resumeAt(turnId, approveSteps(step), `${path}.approve.`, requestId), () =>
               resumeAt(turnId, step.deny, `${path}.deny.`, requestId),
             )
           : step.type === "question"
@@ -168,8 +229,11 @@ const makeSession = Effect.gen(function* () {
 export const ReplayAdapter: ProviderAdapter = {
   kind: "replay",
   capabilities: { interrupt: true, resume: true, approvals: true, questions: true, models: false },
-  openSession: () => makeSession,
-  enforcement: () => ({ autonomy: null, notes: ["Replay plays recorded turns and runs no tools, so autonomy doesn't apply."] }),
+  openSession: ({ cwd }) => makeSession(cwd),
+  enforcement: () => ({
+    autonomy: null,
+    notes: ["Replay plays recorded turns, so autonomy doesn't apply. Its only real tool call is the edit to Replay note.md, which it always asks before making."],
+  }),
   status: Effect.succeed({ _tag: "ready", version: null }),
   listModels: () => Effect.succeed({ models: [], defaultModel: null }),
 };

@@ -8,6 +8,7 @@
   import ModelPicker from "./ModelPicker.svelte";
   import { providers } from "./providers.svelte.ts";
   import RequestCard from "./RequestCard.svelte";
+  import TurnChanges from "#lib/features/changes/TurnChanges.svelte";
   import { openThread } from "./open-thread.svelte.ts";
   import { STATUS_LABEL } from "./status.ts";
   import { threads } from "./threads.svelte.ts";
@@ -103,6 +104,10 @@
       </details>
     {:else if item.kind === "request"}
       <RequestCard request={item} />
+    {:else if item.kind === "changes"}
+      {#if openThread.thread}
+        <TurnChanges vaultId={openThread.thread.vaultId} changes={item.changes} />
+      {/if}
     {:else}
       <p class="turn-end mono" data-outcome={item.outcome}>{turnEndLabel(item)}</p>
     {/if}

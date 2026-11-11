@@ -2,6 +2,7 @@ import type { VaultChanged } from "@wiki-agents/contracts/indexing/event";
 import type { Vault } from "@wiki-agents/contracts/vaults/model";
 import { Deferred, Effect, Exit, FileSystem, Layer, PubSub, Queue } from "effect";
 import { type IndexCommand, Indexer, IndexFailed } from "./indexer.js";
+import { FileChangeSink } from "./change-sink.js";
 import { reconcileVault } from "./reconcile.js";
 import { IndexStore } from "./store.js";
 
@@ -38,6 +39,7 @@ export const IndexerLive = Layer.effect(
   Effect.gen(function* () {
     const store = yield* IndexStore;
     const fs = yield* FileSystem.FileSystem;
+    const sink = yield* FileChangeSink;
     const queue = yield* Queue.unbounded<Job>();
     const changes = yield* PubSub.unbounded<VaultChanged>();
 
@@ -45,7 +47,7 @@ export const IndexerLive = Layer.effect(
       Effect.gen(function* () {
         if (work.rebuild) yield* store.clear(work.vault.id);
         return yield* reconcileVault(work.vault, work.rebuild || work.full ? "all" : work.paths);
-      }).pipe(Effect.provideService(IndexStore, store), Effect.provideService(FileSystem.FileSystem, fs));
+      }).pipe(Effect.provideService(IndexStore, store), Effect.provideService(FileSystem.FileSystem, fs), Effect.provideService(FileChangeSink, sink));
 
     const processBatch = (jobs: ReadonlyArray<Job>) =>
       Effect.forEach(mergeByVault(jobs), (work) =>

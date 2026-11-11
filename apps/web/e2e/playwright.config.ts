@@ -29,6 +29,8 @@ const VAULT: Readonly<Record<string, string>> = {
   "Coffee.md": "# Coffee\n\nFlat whites in the morning. See [[Tea]].\n",
   "Tea.md": "# Tea\n\nGreen tea in the afternoon.\n",
   "Notes/Brewing.md": "# Brewing\n\nPour-over with a V60.\n",
+  // The replay agent's edit (any message with "edit") appends a line here.
+  "Replay note.md": "# Replay note\n\nLines the replay agent added:\n\n",
 };
 
 // The main process sets up one app per run; workers inherit these variables.

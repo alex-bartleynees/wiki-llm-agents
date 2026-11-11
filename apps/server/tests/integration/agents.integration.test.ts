@@ -46,8 +46,8 @@ layer(TestApp)("agents", (it) => {
         autonomy: { read: "allow", create: "allow", edit: "ask", commands: "deny", web: "allow" },
         sources: ["vault", "web"],
       });
-      // The tests run on the replay provider alone, which runs no tools.
-      expect(researcher?.enforcement).toEqual([{ providerInstanceId: "replay", autonomy: null, notes: [expect.stringMatching(/no tools/)] }]);
+      // The tests run on the replay provider alone, where autonomy doesn't apply.
+      expect(researcher?.enforcement).toEqual([{ providerInstanceId: "replay", autonomy: null, notes: [expect.stringMatching(/autonomy doesn.t apply/)] }]);
     }),
   );
 

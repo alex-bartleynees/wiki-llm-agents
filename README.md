@@ -98,9 +98,11 @@ provider and the agent (below) for new threads next to **New thread**:
   and continues the same session. Threads run turns at the same time, each in its
   own session on the one server.
 - **Replay** plays recorded turns and spends no tokens; the message picks the
-  recording by keyword (`providers/replay/transcripts.ts`): *edit* asks for an
-  approval, *question* (or *ask*) asks a question, *long* streams slowly (for trying
-  Stop and reloads), *fail* fails, and anything else gives a plain answer.
+  recording by keyword (`providers/replay/transcripts.ts`): *edit* proposes an edit
+  to `Replay note.md` in the thread's folder and, once you apply it, really appends a
+  line (creating the note if needed), so change review and undo can be tried for free;
+  *question* (or *ask*) asks a question, *long* streams slowly (for trying Stop and
+  reloads), *fail* fails, and anything else gives a plain answer.
 
 - `POST /api/vaults/:id/threads` creates a thread; `POST /api/threads/:id/messages`
   starts a turn (409 while one runs); `POST /api/threads/:id/interrupt` stops it;
@@ -149,7 +151,7 @@ the note; replaying stored history never navigates the reader.
 Search evaluation fixtures and fixed relevance judgements live in
 `apps/server/tests/fixtures/search-eval/`. Run the evaluation against the real HTTP
 app with `nix develop -c npm test -w @wiki-agents/server -- search-eval`.
-Save as note remains deferred until slice 9's reviewed writes.
+Save as note is still to do.
 
 ### Projects
 
@@ -201,7 +203,8 @@ vault's threads show.
   symlinks) and asks you about anywhere else. Shell commands follow command
   autonomy; this is a permission boundary, not an OS sandbox.
 - Review and undo code changes with lazygit/git. In-app project diffs/restore are
-  deferred; vault change review is slice 9.
+  deferred; changes a project thread makes to the shared vault get change review
+  (below).
 - Folders are chosen with **Browse…** (project directories, the vault folder) or
   typed. A browser never gives a page a folder's real path, so the picker walks
   the server's machine through `GET /api/folders?path=…` (default: the home
@@ -270,8 +273,42 @@ The client library is `@opencode/client` (and `@opencode/protocol`), pinned to e
 the installed OpenCode's version (2.2.1); they ask for an older `effect`, which the
 root `overrides` replaces with the app's, so there is one copy.
 
-The app itself only reads vaults until change review exists (slice 9); agents
-change files when you approve. Dot-folders
+### Change review
+
+Every note a turn changes in its thread's vault is recorded, with the version before
+and after, and listed on the turn's card in the conversation: created, edited or
+deleted, a diff, and **Undo**.
+
+- **How it is recorded.** The indexer tells the change tracker
+  (`features/changes/change-tracker.ts`) about every note whose content changes,
+  before it forgets the old version; while a turn runs in that vault, the change is
+  added to the turn's `file_changes` row for the path (the first version before,
+  the last after; a note changed and changed back has no row). When the turn ends the
+  vault is scanned once more, so writes the watcher hasn't reported yet count. The
+  versions live in the index's `blobs`, which keeps every version a change refers
+  to. Only notes (`.md`) are tracked; images and other files aren't.
+- **Who made it.** A change is the agent's when the provider reported writing that
+  file during the turn (OpenCode's edit, write and patch tools; replay's edit);
+  otherwise it is **uncertain**: you, Syncthing, or one of the agent's shell commands.
+  With two turns running in one vault, each records the other's unreported changes as
+  uncertain.
+- **Undo** (`POST /api/changes/:changeId/undo`) writes the version from before the
+  turn back, or deletes a note the turn created, only if the file is still what the
+  turn left. If it has changed since, undo is refused (409) and the card shows the
+  three versions: before the turn, as the turn left it, and now
+  (`GET /api/changes/:changeId`). Undoing is recorded in the thread
+  (`change.undone`), and isn't itself recorded as a change of a running turn.
+- **Proposed edits.** An edit approval shows each file's diff and is answered with
+  **Apply** or **Deny**.
+- **Edit warnings** on proposed edits and changed notes, never blocking: the body
+  shrank below 70% of its old length, the frontmatter title or first heading changed,
+  or frontmatter keys or tags were dropped.
+- Diffs kept in the conversation are cut to 300 lines and 16,000 characters (the
+  card says so); **Compare versions** shows the whole files.
+- A note an agent changed says **edited by Researcher · 2 hours ago** next to its modified
+  time, linking to the thread, until that change is undone.
+
+Agents change files when their autonomy allows it or you approve. Dot-folders
 (`.git`, `.obsidian`, `.trash`, `.stfolder`...) and Syncthing conflict copies are
 hidden, and the path guard refuses anything that resolves outside the vault,
 symlinks included.
@@ -363,6 +400,7 @@ builds a home-manager configuration with the module (`checks.hm-module`).
   (`networking.firewall.allowedTCPPorts`). There is no login yet: whoever reaches
   the port can use the app, and the folder picker lists folder names this user can
   read, so don't listen on an address others can reach.
-- **The real vault.** Until change review (slice 9), agent edits to the vault have no
-  in-app diff or undo; they follow each agent's autonomy, which asks before edits by
-  default. Use git, Syncthing versioning or backups to undo one.
+- **The real vault.** Agent edits to the vault's notes are listed on each turn with a
+  diff and undo (Change review, above); they follow each agent's autonomy, which asks
+  before edits by default. Files other than notes, and anything outside the vault,
+  have no in-app undo: use git, Syncthing versioning or backups.

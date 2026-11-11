@@ -1,3 +1,4 @@
+import { changesRouter } from "../features/changes/router.js";
 import { foldersRouter } from "../features/folders/router.js";
 import { projectsRouter } from "../features/projects/router.js";
 import { Layer } from "effect";
@@ -26,6 +27,7 @@ export const router = Layer.mergeAll(
   pinsRouter,
   providersRouter,
   threadsRouter,
+  changesRouter,
   agentsRouter,
   mcpRouter,
   webAppRouter,

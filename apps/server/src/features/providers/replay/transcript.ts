@@ -15,12 +15,19 @@ export type Step =
       readonly output: string;
       readonly status?: "succeeded" | "failed";
     }
+  /** Appends `append` to the file at `path` (relative to the working folder), creating it if needed: a real write. */
+  | { readonly type: "write"; readonly path: string; readonly append: string }
   | {
       readonly type: "approval";
       /** Unique within the transcript; part of the request id. */
       readonly id: string;
       readonly title: string;
       readonly detail: string;
+      /**
+       * An edit to propose: the card shows its diff against the file as it is now
+       * (instead of `detail`), and approving makes it before the `approve` steps.
+       */
+      readonly write?: { readonly path: string; readonly append: string };
       readonly approve: ReadonlyArray<Step>;
       readonly deny: ReadonlyArray<Step>;
     }

@@ -15,5 +15,15 @@ export const GetNoteResponse = Schema.Struct({
   links: Schema.Array(NoteLink),
   /** Headings in document order, for the outline. */
   headings: Schema.Array(Heading),
+  /** The last agent edit to this note still standing (not undone); null when none is recorded. */
+  lastAgentEdit: Schema.NullOr(
+    Schema.Struct({
+      /** The agent's id, or the provider's when the thread has no agent. */
+      actor: Schema.String,
+      threadId: Schema.String,
+      /** Milliseconds since the epoch. */
+      at: Schema.Number,
+    }),
+  ),
 });
 export type GetNoteResponse = typeof GetNoteResponse.Type;

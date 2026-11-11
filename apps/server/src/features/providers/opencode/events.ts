@@ -1,3 +1,5 @@
+import { isAbsolute, resolve } from "node:path";
+import type { ProposedEdit } from "@wiki-agents/contracts/changes/model";
 import type { RequestPrompt, TurnUsage } from "@wiki-agents/contracts/threads/model";
 import type { ProviderEvent } from "../port.js";
 import type { OpenCodeEvent } from "./api.js";
@@ -62,18 +64,47 @@ const VERBS: Readonly<Record<string, string>> = {
   external_directory: "Work outside the vault in",
 };
 
-/** What the agent wants to do, with the change or command as plain text. */
+/** `metadata.files` of a permission or tool result: each file OpenCode changes, with its patch. */
+const metadataFiles = (metadata: unknown): ReadonlyArray<{ readonly file: string; readonly patch: string | undefined }> => {
+  const files = typeof metadata === "object" && metadata !== null && "files" in metadata ? metadata.files : undefined;
+  if (!Array.isArray(files)) return [];
+  return files.flatMap((file: unknown) => {
+    const path = field(file, "file") ?? field(file, "filePath") ?? field(file, "path");
+    return path === undefined ? [] : [{ file: path, patch: field(file, "patch") }];
+  });
+};
+
+/** What the agent wants to do, with the change or command as plain text; file edits also as `edits`. */
 export const approvalPrompt = (event: EventOf<"permission.asked">): RequestPrompt => {
   const { action, resources, metadata } = event.data;
   const verb = VERBS[action] ?? `Use ${action} on`;
-  const files = Array.isArray(metadata?.files) ? (metadata.files as ReadonlyArray<unknown>) : [];
-  const patches = files.flatMap((file) => {
-    const patch = field(file, "patch");
-    return patch === undefined ? [] : [patch];
-  });
+  const edits = metadataFiles(metadata).flatMap((file): Array<ProposedEdit> =>
+    file.patch === undefined ? [] : [{ path: file.file, patch: file.patch, warnings: [] }],
+  );
   const command = field(metadata, "command") ?? field(metadata, "description");
-  const detail = patches.length > 0 ? patches.join("\n") : (command ?? resources.join("\n"));
-  return { _tag: "approval", title: `${verb} ${resources.join(", ")}`.trim(), detail };
+  const detail = edits.length > 0 ? edits.map((edit) => edit.patch).join("\n") : (command ?? resources.join("\n"));
+  return {
+    _tag: "approval",
+    title: `${verb} ${resources.join(", ")}`.trim(),
+    detail,
+    ...(edits.length > 0 ? { edits } : {}),
+  };
+};
+
+/** Tools that write the files named in their input. */
+const WRITING_TOOLS = new Set(["edit", "write", "multiedit", "patch", "apply_patch"]);
+
+/** Files named in an `apply_patch` patch (`*** Update File: path`, `*** Move to: path`...). */
+const patchFiles = (patch: string) =>
+  [...patch.matchAll(/^\*\*\* (?:Add File|Update File|Delete File|Move to): (.+)$/gm)].map((match) => match[1]!.trim());
+
+/** Absolute paths a tool call says it writes, from its input. */
+export const inputWrites = (name: string, input: unknown, directory: string): ReadonlyArray<string> => {
+  if (!WRITING_TOOLS.has(name)) return [];
+  const path = field(input, "path") ?? field(input, "filePath") ?? field(input, "file");
+  const patch = field(input, "patchText") ?? field(input, "patch");
+  const paths = [...(path === undefined ? [] : [path]), ...(patch === undefined ? [] : patchFiles(patch))];
+  return paths.map((item) => (isAbsolute(item) ? item : resolve(directory, item)));
 };
 
 /**
@@ -137,17 +168,23 @@ export const makeTurnMapper = (turnId: string, directory: string): TurnMapper =>
       case "session.tool.input.started":
         toolNames.set(event.data.id, event.data.name);
         return [];
-      case "session.tool.called":
+      case "session.tool.called": {
+        const name = toolNames.get(event.data.id) ?? "tool";
+        const writes = inputWrites(name, event.data.input, directory);
         return [
           {
             _tag: "tool.called",
             turnId,
             callId: event.data.id,
-            name: toolNames.get(event.data.id) ?? "tool",
+            name,
             input: summariseInput(event.data.input, directory),
+            ...(writes.length > 0 ? { writes } : {}),
           },
         ];
-      case "session.tool.success":
+      }
+      case "session.tool.success": {
+        const metadata = (event.data as { readonly metadata?: unknown }).metadata;
+        const writes = metadataFiles(metadata).map(({ file }) => (isAbsolute(file) ? file : resolve(directory, file)));
         return [
           {
             _tag: "tool.finished",
@@ -155,8 +192,10 @@ export const makeTurnMapper = (turnId: string, directory: string): TurnMapper =>
             callId: event.data.id,
             status: "succeeded",
             output: truncate(contentText(event.data.content), MAX_OUTPUT),
+            ...(writes.length > 0 ? { writes } : {}),
           },
         ];
+      }
       case "session.tool.failed":
         return [{ _tag: "tool.finished", turnId, callId: event.data.id, status: "failed", output: event.data.error.message }];
       case "permission.asked":

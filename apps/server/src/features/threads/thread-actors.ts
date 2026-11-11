@@ -22,6 +22,7 @@ export interface ThreadActorsService {
   readonly setAgent: (threadId: string, agentId: string | null) => Effect.Effect<ThreadSummary, StartError | Effect.Error<ReturnType<ThreadActor["setAgent"]>>>;
   readonly recordContext: (threadId: string, note: ContextNote) => Effect.Effect<void, StartError | Effect.Error<ReturnType<ThreadActor["recordContext"]>>>;
   readonly openNote: (threadId: string, note: OpenedNote) => Effect.Effect<void, StartError | Effect.Error<ReturnType<ThreadActor["openNote"]>>>;
+  readonly changeUndone: (threadId: string, turnId: string, changeId: string) => Effect.Effect<void, StartError | Effect.Error<ReturnType<ThreadActor["changeUndone"]>>>;
   /** Starts the actor, which resumes or closes a turn left running by the last run. */
   readonly wake: (threadId: string) => Effect.Effect<void, StartError>;
 }
@@ -45,6 +46,7 @@ export const ThreadActorsLive = Layer.effect(
       setAgent: (threadId, agentId) => withActor(threadId, (actor) => actor.setAgent(agentId)),
       recordContext: (threadId, note) => withActor(threadId, (actor) => actor.recordContext(note)),
       openNote: (threadId, note) => withActor(threadId, (actor) => actor.openNote(note)),
+      changeUndone: (threadId, turnId, changeId) => withActor(threadId, (actor) => actor.changeUndone(turnId, changeId)),
       wake: (threadId) => withActor(threadId, (actor) => actor.resumed),
     });
   }),

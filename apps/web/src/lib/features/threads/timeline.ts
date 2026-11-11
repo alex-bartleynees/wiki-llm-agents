@@ -1,3 +1,4 @@
+import type { FileChange } from "@wiki-agents/contracts/changes/model";
 import type { RequestAnswer, RequestPrompt, StoredThreadEvent, TurnOutcome, TurnUsage } from "@wiki-agents/contracts/threads/model";
 
 /** What the conversation shows, built from the thread's events in order. */
@@ -20,6 +21,13 @@ export type TimelineItem =
       readonly prompt: RequestPrompt;
       /** `pending` until answered; null when cancelled because the turn ended. */
       answer: RequestAnswer | null | "pending";
+    }
+  | {
+      /** What the turn changed in the vault's notes; `undone` follows `change.undone`. */
+      readonly kind: "changes";
+      readonly key: string;
+      readonly turnId: string;
+      readonly changes: Array<FileChange & { undone: boolean }>;
     }
   | {
       readonly kind: "turn-end";
@@ -89,6 +97,20 @@ export const applyEvent = (timeline: Timeline, stored: StoredThreadEvent): boole
     case "request.resolved": {
       const request = find(timeline, "request", event.requestId);
       if (request) request.answer = event.answer;
+      break;
+    }
+    case "turn.changes":
+      timeline.items.push({
+        kind: "changes",
+        key: `${event.turnId}:changes`,
+        turnId: event.turnId,
+        changes: event.changes.map((change) => ({ ...change, undone: false })),
+      });
+      break;
+    case "change.undone": {
+      const changes = find(timeline, "changes", `${event.turnId}:changes`);
+      const change = changes?.changes.find((item) => item.id === event.changeId);
+      if (change) change.undone = true;
       break;
     }
     case "turn.finished":

@@ -23,8 +23,8 @@ test("starts a thread with a note picked by @, and answers its approval", async 
   await expect(context).not.toContainText("@Coffee");
 
   const approval = page.getByRole("region", { name: "Approval" });
-  await approval.getByRole("button", { name: "Approve" }).click();
-  await expect(approval).toContainText("Approved");
+  await approval.getByRole("button", { name: "Apply" }).click();
+  await expect(approval).toContainText("Applied");
   await expect(page.locator(".turn-end").last()).toHaveText(/^Done/);
 });
 

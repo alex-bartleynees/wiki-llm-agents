@@ -1,9 +1,10 @@
 import { posix } from "node:path";
 import type { TagCount } from "@wiki-agents/contracts/search/list-tags/response";
-import { and, asc, count, desc, eq, gte, inArray, ne, notInArray, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, isNotNull, ne, notInArray, or, sql } from "drizzle-orm";
 import { Context, Effect, Layer } from "effect";
 import { DbError } from "../../shared/persistence/errors.js";
 import { Sqlite } from "../../shared/persistence/sqlite.js";
+import { fileChanges } from "../changes/table.js";
 import { searchNotes } from "./sqlite-search.js";
 import { IndexStore } from "./store.js";
 import { blobs, links, notes, vaultFiles } from "./table.js";
@@ -20,11 +21,21 @@ const make = Effect.gen(function* () {
   const query = <A>(run: () => A) => Effect.try({ try: run, catch: (cause) => new DbError({ cause }) });
   const transaction = <A>(run: () => A) => query(() => db.transaction(run));
 
-  /** Deletes blobs whose hash no note refers to any more. */
+  /**
+   * Deletes blobs whose hash no note refers to any more, nor any recorded change
+   * (change review needs the versions before and after a turn for diffs and undo).
+   */
   const pruneBlobs = (hashes: ReadonlyArray<string>) => {
     for (const batch of chunks([...new Set(hashes)])) {
       db.delete(blobs)
-        .where(and(inArray(blobs.hash, batch), notInArray(blobs.hash, db.select({ hash: notes.contentHash }).from(notes))))
+        .where(
+          and(
+            inArray(blobs.hash, batch),
+            notInArray(blobs.hash, db.select({ hash: notes.contentHash }).from(notes)),
+            notInArray(blobs.hash, db.select({ hash: fileChanges.beforeHash }).from(fileChanges).where(isNotNull(fileChanges.beforeHash))),
+            notInArray(blobs.hash, db.select({ hash: fileChanges.afterHash }).from(fileChanges).where(isNotNull(fileChanges.afterHash))),
+          ),
+        )
         .run();
     }
   };
@@ -232,6 +243,16 @@ const make = Effect.gen(function* () {
             .where(and(eq(notes.vaultId, vaultId), inArray(notes.path, batch)))
             .all(),
         ),
+      ),
+
+    blobs: (hashes) =>
+      query(
+        () =>
+          new Map(
+            chunks([...new Set(hashes)]).flatMap((batch) =>
+              db.select().from(blobs).where(inArray(blobs.hash, batch)).all().map((row) => [row.hash, row.content] as const),
+            ),
+          ),
       ),
 
     recentFiles: (vaultId, { since, limit }) =>

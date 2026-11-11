@@ -1,5 +1,6 @@
 import { Effect, type FileSystem } from "effect";
 import { Toolkit } from "effect/ai";
+import type { ChangeLog } from "../changes/change-log.js";
 import type { VaultIndex } from "../indexing/vault-index.js";
 import type { ThreadActors } from "../threads/thread-actors.js";
 import type { VaultRepository } from "../vaults/repository.js";
@@ -30,7 +31,7 @@ export const VaultToolkit = Toolkit.make(
 export const VAULT_TOOL_NAMES: ReadonlyArray<string> = Object.keys(VaultToolkit.tools);
 
 /** Services the handlers use, captured when the toolkit is built; the caller comes with each request. */
-type HandlerServices = VaultIndex | VaultRepository | FileSystem.FileSystem | ThreadActors;
+type HandlerServices = VaultIndex | VaultRepository | FileSystem.FileSystem | ThreadActors | ChangeLog;
 
 export const VaultToolkitLive = VaultToolkit.toLayer(
   Effect.gen(function* () {

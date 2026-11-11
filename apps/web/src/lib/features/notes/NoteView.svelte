@@ -15,6 +15,8 @@
   import Outline from "./Outline.svelte";
   import { recent } from "./recent.svelte.ts";
   import { timeAgo } from "./time.ts";
+  import { agents } from "#lib/features/agents/agents.svelte.ts";
+  import { providers } from "#lib/features/threads/providers.svelte.ts";
   import "./prose.css";
 
   let { vaultId, path }: { vaultId: string; path: string } = $props();
@@ -86,6 +88,14 @@
   });
 
   const folders = $derived(path.split("/").slice(0, -1));
+
+  /** The agent's name, else the provider's, for "Edited by …". */
+  const actorName = (actor: string) => agents.get(actor)?.name ?? providers.get(actor)?.name ?? actor;
+  const showThread = (threadId: string) => {
+    void threads.select(threadId);
+    shell.sidePane = "threads";
+    shell.tab = "chat";
+  };
   // Most notes start with their own H1; only show the title when they don't.
   const showTitle = $derived(noteState.status === "loaded" && !noteState.note.html.trimStart().startsWith("<h1"));
 </script>
@@ -110,6 +120,13 @@
         <PinButton {vaultId} {path} />
         {#if backlinks !== undefined}
           <a href="#backlinks-heading">{backlinks.length} {backlinks.length === 1 ? "backlink" : "backlinks"}</a>
+          <span aria-hidden="true">·</span>
+        {/if}
+        {#if noteState.note.lastAgentEdit}
+          {@const edit = noteState.note.lastAgentEdit}
+          <button type="button" class="edited" title={`Open the thread · ${new Date(edit.at).toLocaleString()}`} onclick={() => showThread(edit.threadId)}>
+            edited by {actorName(edit.actor)} · {timeAgo(edit.at)}
+          </button>
           <span aria-hidden="true">·</span>
         {/if}
         <time datetime={new Date(noteState.note.modifiedAt).toISOString()} title={new Date(noteState.note.modifiedAt).toLocaleString()}>
@@ -188,6 +205,18 @@
   }
   .facts a {
     color: inherit;
+  }
+  /* Amber marks what an agent wrote. */
+  .edited {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--agent);
+    font: inherit;
+    cursor: pointer;
+  }
+  .edited:hover {
+    text-decoration: underline;
   }
   .title {
     margin: 0 0 16px;

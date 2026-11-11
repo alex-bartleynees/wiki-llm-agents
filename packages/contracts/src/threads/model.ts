@@ -1,3 +1,4 @@
+import { FileChange, ProposedEdit } from "../changes/model.js";
 import { NoteContext } from "./context.js";
 import { Schema } from "effect";
 
@@ -39,6 +40,8 @@ export const ToolCalled = Schema.TaggedStruct("tool.called", {
   callId: Schema.String,
   name: Schema.String,
   input: Schema.String,
+  /** Absolute paths of files the tool writes, when the provider says; used to attribute vault changes. */
+  writes: Schema.optionalKey(Schema.Array(Schema.String)),
 });
 
 export const ToolFinished = Schema.TaggedStruct("tool.finished", {
@@ -46,6 +49,8 @@ export const ToolFinished = Schema.TaggedStruct("tool.finished", {
   callId: Schema.String,
   status: Schema.Literals(["succeeded", "failed"]),
   output: Schema.String,
+  /** Absolute paths of files the tool wrote, when the provider says. */
+  writes: Schema.optionalKey(Schema.Array(Schema.String)),
 });
 
 /** Approve or deny something the agent wants to do. */
@@ -54,6 +59,8 @@ export const ApprovalPrompt = Schema.TaggedStruct("approval", {
   title: Schema.String,
   /** Details such as the command or the change; plain text. */
   detail: Schema.String,
+  /** For a file edit: each file's diff and edit warnings, shown instead of `detail`. */
+  edits: Schema.optionalKey(Schema.Array(ProposedEdit)),
 });
 
 /** A question for you, with suggested answers; any text is accepted. */
@@ -112,6 +119,21 @@ export const NoteOpened = Schema.TaggedStruct("note.opened", {
   href: Schema.String,
 });
 
+/**
+ * What the turn changed in the vault's notes, recorded as it finishes (only when it
+ * changed something), before `turn.finished`.
+ */
+export const TurnChanges = Schema.TaggedStruct("turn.changes", {
+  turnId: Schema.String,
+  changes: Schema.Array(FileChange),
+});
+
+/** A change was undone (`turnId` is the turn that made it). */
+export const ChangeUndone = Schema.TaggedStruct("change.undone", {
+  turnId: Schema.String,
+  changeId: Schema.String,
+});
+
 export const TurnOutcome = Schema.Literals(["completed", "interrupted", "failed"]);
 export type TurnOutcome = typeof TurnOutcome.Type;
 
@@ -134,6 +156,8 @@ export const ThreadEvent = Schema.Union([
   RequestResolved,
   NoteOpened,
   TurnNotice,
+  TurnChanges,
+  ChangeUndone,
   TurnFinished,
 ]);
 export type ThreadEvent = typeof ThreadEvent.Type;

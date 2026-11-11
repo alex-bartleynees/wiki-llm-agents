@@ -41,6 +41,23 @@ describe("approvalPrompt", () => {
     expect(approvalPrompt(asked)).toEqual({ _tag: "approval", title: "Run git status", detail: "git status" });
   });
 
+  it("gives each file's patch as a proposed edit", () => {
+    const patch = "--- Notes/Tea.md\n+++ Notes/Tea.md\n@@ -1,1 +1,2 @@\n # Tea\n+Oolong too.\n";
+    const asked = event("permission.asked", {
+      id: "per_1",
+      sessionID: "ses_1",
+      action: "edit",
+      resources: ["Notes/Tea.md"],
+      metadata: { files: [{ file: "Notes/Tea.md", patch, status: "modified" }] },
+    });
+    expect(approvalPrompt(asked)).toEqual({
+      _tag: "approval",
+      title: "Edit Notes/Tea.md",
+      detail: patch,
+      edits: [{ path: "Notes/Tea.md", patch, warnings: [] }],
+    });
+  });
+
   it("names actions it doesn't know", () => {
     const asked = event("permission.asked", { id: "per_1", sessionID: "ses_1", action: "lsp", resources: ["a.ts"] });
     expect(approvalPrompt(asked)).toEqual({ _tag: "approval", title: "Use lsp on a.ts", detail: "a.ts" });
@@ -84,6 +101,38 @@ describe("makeTurnMapper", () => {
     expect(failed[0]).toMatchObject({ outcome: "failed", reason: "Rate limited" });
     const stopped = mapper.map(event("session.execution.interrupted", { sessionID: "ses_1", reason: "shutdown" }));
     expect(stopped[0]).toMatchObject({ outcome: "interrupted", reason: "OpenCode stopped the turn (shutdown)." });
+  });
+
+  it("reports the files a writing tool writes, from its input and its result", () => {
+    const mapper = makeTurnMapper("turn-1", "/vault");
+    mapper.map(event("session.tool.input.started", { sessionID: "ses_1", id: "call_1", name: "edit" }));
+    expect(mapper.map(event("session.tool.called", { sessionID: "ses_1", id: "call_1", input: { path: "Notes/Tea.md", oldString: "a", newString: "b" } }))).toEqual([
+      { _tag: "tool.called", turnId: "turn-1", callId: "call_1", name: "edit", input: "Notes/Tea.md", writes: ["/vault/Notes/Tea.md"] },
+    ]);
+    const success = event("session.tool.success", {
+      sessionID: "ses_1",
+      id: "call_1",
+      content: [{ type: "text", text: "Edited" }],
+      metadata: { files: [{ file: "Notes/Tea.md", patch: "", status: "modified" }] },
+    });
+    expect(mapper.map(success)).toEqual([
+      { _tag: "tool.finished", turnId: "turn-1", callId: "call_1", status: "succeeded", output: "Edited", writes: ["/vault/Notes/Tea.md"] },
+    ]);
+  });
+
+  it("reports every file an apply_patch call names", () => {
+    const mapper = makeTurnMapper("turn-1", "/vault");
+    mapper.map(event("session.tool.input.started", { sessionID: "ses_1", id: "call_1", name: "apply_patch" }));
+    const patchText = "*** Begin Patch\n*** Update File: a.md\n@@\n-x\n+y\n*** Add File: /elsewhere/b.md\n+z\n*** End Patch";
+    const [called] = mapper.map(event("session.tool.called", { sessionID: "ses_1", id: "call_1", input: { patchText } }));
+    expect(called).toMatchObject({ writes: ["/vault/a.md", "/elsewhere/b.md"] });
+  });
+
+  it("reports no writes for tools that only read", () => {
+    const mapper = makeTurnMapper("turn-1", "/vault");
+    mapper.map(event("session.tool.input.started", { sessionID: "ses_1", id: "call_1", name: "read" }));
+    const [called] = mapper.map(event("session.tool.called", { sessionID: "ses_1", id: "call_1", input: { path: "a.md" } }));
+    expect(called).not.toHaveProperty("writes");
   });
 
   it("names a tool call from its input-started event", () => {

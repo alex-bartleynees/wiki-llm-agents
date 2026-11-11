@@ -5,6 +5,7 @@ import { Effect, FileSystem, Option } from "effect";
 import { makeLinkIndex } from "../../../shared/markdown/link-resolution.js";
 import { InvalidVaultPath } from "../../../shared/vault/errors.js";
 import { resolveInVault } from "../../../shared/vault/path-guard.js";
+import { ChangeLog } from "../../changes/change-log.js";
 import { VaultIndex } from "../../indexing/vault-index.js";
 import { findVault } from "../../vaults/find-vault.js";
 import { renderNote } from "../render/render-note.js";
@@ -32,6 +33,7 @@ export const getNote = Effect.fn("getNote")(function* (request: GetNoteRequest) 
     path,
     ...rendered,
     modifiedAt: Option.match(info.mtime, { onNone: () => 0, onSome: (date) => date.getTime() }),
+    lastAgentEdit: Option.getOrNull(yield* (yield* ChangeLog).lastAgentEdit(vault.id, path)),
   };
   return response;
 });
