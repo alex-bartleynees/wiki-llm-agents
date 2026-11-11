@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none">
-  <!-- The brand mark from AppShell.svelte; colours follow --bg, --ink and --accent in tokens.css. -->
+  <!-- The brand mark from AppShell.svelte; colours follow the bg, ink and accent tokens in tokens.css. -->
   <style>
     .page { fill: #ffffff; stroke: #14161a; }
     .lines { stroke: #0f6e6a; }
