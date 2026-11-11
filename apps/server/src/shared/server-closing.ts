@@ -16,6 +16,13 @@ export const ServerClosing = Context.Reference<Effect.Effect<void>>("ServerClosi
 export const makeClosingServer = () => {
   const closing = Deferred.makeUnsafe<void>();
   const server: Server = createServer();
+  // The server listens before the app's handler is attached (the vault tools need its
+  // address first). Node drops a request that has no handler, leaving the client
+  // waiting forever, so until the app's handler is there, say so and close.
+  server.on("request", (_request, response) => {
+    if (server.listenerCount("request") > 1) return;
+    response.writeHead(503, { "content-type": "text/plain", "retry-after": "1", connection: "close" }).end("Starting");
+  });
   const close = server.close.bind(server);
   server.close = (callback) => {
     Deferred.doneUnsafe(closing, Exit.void);
