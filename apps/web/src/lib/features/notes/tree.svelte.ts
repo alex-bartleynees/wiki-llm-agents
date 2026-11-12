@@ -4,7 +4,7 @@ import { buildTree, type TreeFolder } from "./tree.ts";
 
 type TreeState =
   | { readonly status: "loading" }
-  | { readonly status: "loaded"; readonly root: TreeFolder; readonly count: number }
+  | { readonly status: "loaded"; readonly root: TreeFolder; readonly count: number; readonly paths: ReadonlyArray<string> }
   | { readonly status: "failed"; readonly message: string };
 
 /** The file tree of the open vault. */
@@ -26,7 +26,7 @@ class TreeStore {
     if (!sameVault || this.state.status !== "loaded") this.state = { status: "loading" };
     try {
       const { entries } = await getTree(vaultId, controller.signal);
-      this.state = { status: "loaded", root: buildTree(entries), count: entries.length };
+      this.state = { status: "loaded", root: buildTree(entries), count: entries.length, paths: entries.map((entry) => entry.path) };
     } catch (error) {
       if (isAbort(error)) return;
       this.state = { status: "failed", message: errorMessage(error, "Could not load the vault") };

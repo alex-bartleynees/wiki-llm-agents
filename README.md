@@ -60,6 +60,38 @@ Fenced `mermaid` blocks render as diagrams in the note reading view. Expand
 **Diagram source** to see the Markdown code; invalid diagrams show their source
 and an error without interrupting the rest of the note.
 
+### Editing
+
+**Edit** in a note's header (⌘E / Ctrl E toggles; the URL gets `&edit`) opens its
+markdown in CodeMirror 6: markdown and YAML frontmatter highlighting, undo, search
+(⌘F), and line endings kept as the file has them. CodeMirror loads only when you
+first edit.
+
+- **Saves** when typing pauses for a second, on leaving the editor or the note,
+  when the tab is hidden, and on ⌘S. The status above the editor says Unsaved,
+  Saving…, Saved, or why a save failed (with Retry; a failed save doesn't retry by
+  itself). Leaving the page with unsaved text asks first.
+- **Hash-checked:** `GET /api/vaults/:id/note/source?path=` returns the markdown and
+  the SHA-256 of its bytes; `PUT /api/vaults/:id/note/source {"path", "content",
+  "baseHash"}` writes only if the file still has that hash (`baseHash: null` creates a
+  note that mustn't exist), else 409 and nothing is written. The write is atomic (a
+  hidden temporary file renamed over the note, keeping its permissions), the note is
+  indexed before the answer, and your saves aren't recorded as changes of an agent
+  turn running in the vault.
+- **Changed on disk** (Obsidian, Syncthing, an agent): with nothing unsaved the editor
+  takes the new version. With unsaved text it stops saving and shows the conflict in
+  place, red on disk and green yours, with **Keep mine** / **Use disk** on each
+  change, then **Save this version** (saved over the disk version) or **Use the
+  disk version**. A note deleted meanwhile can be saved again. An editor with
+  unsaved work or a conflict stays in memory, so going back to the note finds it.
+- **Wikilinks:** typing `[[` (or `![[`) and a few letters lists notes and files from
+  the index (the quick switcher's match); Enter writes the shortest unambiguous
+  target, as Obsidian does, and the closing `]]`.
+- Phones get 16px text (no zoom on focus), sentence capitals and spelling.
+
+Still to come in slice 13: paste an image into `assets/`, new note from a template
+folder, and the tags pane.
+
 ### Search
 
 - **Quick switcher** (⌘K / Ctrl K, or the header box): fuzzy match on note titles

@@ -1,7 +1,10 @@
 <script lang="ts">
   import type { GetBacklinksResponse } from "@wiki-agents/contracts/notes/get-backlinks/response";
   import type { GetNoteResponse } from "@wiki-agents/contracts/notes/get-note/response";
+  import { goto } from "$app/navigation";
+  import { page } from "$app/state";
   import { tick } from "svelte";
+  import { EDIT_PARAM } from "./edit-param.ts";
   import { ApiError, errorMessage, isAbort } from "#lib/api/client.ts";
   import { vaultEvents } from "#lib/features/indexing/vault-events.svelte.ts";
   import PinButton from "#lib/features/pins/PinButton.svelte";
@@ -20,7 +23,17 @@
   import "./prose.css";
   import { mermaidDiagrams } from "./mermaid-diagrams.ts";
 
-  let { vaultId, path }: { vaultId: string; path: string } = $props();
+  let { vaultId, path, editing = false }: { vaultId: string; path: string; editing?: boolean } = $props();
+
+  /** The note in the other mode: `?note=…&edit` edits it, without `edit` it is read. */
+  const modeHref = (edit: boolean) => {
+    const url = new URL(page.url.href);
+    if (edit) url.searchParams.set(EDIT_PARAM, "");
+    else url.searchParams.delete(EDIT_PARAM);
+    url.hash = "";
+    return `${url.pathname}${url.search.replace(/([?&]edit)=(?=&|$)/, "$1")}`;
+  };
+  const switchMode = (edit: boolean) => goto(modeHref(edit), { replace: true, reset: false });
 
   type NoteState =
     | { readonly status: "loading" }
@@ -101,6 +114,14 @@
   const showTitle = $derived(noteState.status === "loaded" && !noteState.note.html.trimStart().startsWith("<h1"));
 </script>
 
+<svelte:window
+  onkeydown={(event) => {
+    if (!(event.metaKey || event.ctrlKey) || event.shiftKey || event.altKey || event.key.toLowerCase() !== "e") return;
+    event.preventDefault();
+    void switchMode(!editing);
+  }}
+/>
+
 <svelte:head>
   <title>{noteState.status === "loaded" ? noteState.note.title : path.split("/").at(-1)} · wiki-agents</title>
 </svelte:head>
@@ -115,11 +136,11 @@
         <span class="tag">#{tag}</span>
       {/each}
       <span class="facts">
-        {#if noteState.note.headings.length > 1}
+        {#if !editing && noteState.note.headings.length > 1}
           <Outline headings={noteState.note.headings} />
         {/if}
         <PinButton {vaultId} {path} />
-        {#if backlinks !== undefined}
+        {#if !editing && backlinks !== undefined}
           <a href="#backlinks-heading">{backlinks.length} {backlinks.length === 1 ? "backlink" : "backlinks"}</a>
           <span aria-hidden="true">·</span>
         {/if}
@@ -135,9 +156,25 @@
         </time>
       </span>
     {/if}
+    <span class="modes" role="group" aria-label="Mode">
+      <a href={modeHref(false)} aria-current={editing ? undefined : "page"} data-sveltekit-replacestate data-sveltekit-noscroll>Read</a>
+      <a href={modeHref(true)} aria-current={editing ? "page" : undefined} data-sveltekit-replacestate data-sveltekit-noscroll title="Edit the markdown (⌘E / Ctrl E)">Edit</a>
+    </span>
   </p>
 
-  {#if noteState.status === "loaded"}
+  {#if editing}
+    <!-- Its own source and saves; keyed so leaving a note saves it and the next one starts fresh. -->
+    {#key path}
+      <!-- CodeMirror loads only when a note is edited. -->
+      {#await import("./NoteEditor.svelte")}
+        <p class="muted">Loading the editor…</p>
+      {:then { default: NoteEditor }}
+        <NoteEditor {vaultId} {path} />
+      {:catch}
+        <p class="muted">Couldn't load the editor; reload the page.</p>
+      {/await}
+    {/key}
+  {:else if noteState.status === "loaded"}
     {#if showTitle}
       <h1 class="title">{noteState.note.title}</h1>
     {/if}
@@ -208,6 +245,22 @@
   }
   .facts a {
     color: inherit;
+  }
+  .modes {
+    display: inline-flex;
+    margin-left: 8px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .modes a {
+    padding: 3px 10px;
+    color: var(--ink-2);
+    text-decoration: none;
+  }
+  .modes a[aria-current="page"] {
+    background: var(--accent-soft);
+    color: var(--accent-ink);
   }
   /* Amber marks what an agent wrote. */
   .edited {

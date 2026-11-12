@@ -1,7 +1,10 @@
 import { GetBacklinksResponse } from "@wiki-agents/contracts/notes/get-backlinks/response";
 import { GetNoteResponse } from "@wiki-agents/contracts/notes/get-note/response";
 import { GetTreeResponse } from "@wiki-agents/contracts/notes/get-tree/response";
-import { getJson } from "#lib/api/client.ts";
+import { GetNoteSourceResponse } from "@wiki-agents/contracts/notes/get-note-source/response";
+import { SaveNoteRequest } from "@wiki-agents/contracts/notes/save-note/request";
+import { SaveNoteResponse } from "@wiki-agents/contracts/notes/save-note/response";
+import { getJson, putJson } from "#lib/api/client.ts";
 
 const vaultPath = (vaultId: string) => `/api/vaults/${encodeURIComponent(vaultId)}`;
 
@@ -13,3 +16,10 @@ export const getNote = (vaultId: string, path: string, signal?: AbortSignal) =>
 
 export const getBacklinks = (vaultId: string, path: string, signal?: AbortSignal) =>
   getJson(`${vaultPath(vaultId)}/backlinks?path=${encodeURIComponent(path)}`, GetBacklinksResponse, signal);
+
+export const getNoteSource = (vaultId: string, path: string, signal?: AbortSignal) =>
+  getJson(`${vaultPath(vaultId)}/note/source?path=${encodeURIComponent(path)}`, GetNoteSourceResponse, signal);
+
+/** Fails with a 409 `ApiError` when the note isn't the `baseHash` version any more. */
+export const saveNote = (vaultId: string, request: SaveNoteRequest) =>
+  putJson(`${vaultPath(vaultId)}/note/source`, SaveNoteRequest, request, SaveNoteResponse);

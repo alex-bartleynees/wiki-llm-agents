@@ -4,6 +4,7 @@
   import { VIEW_PARAMS } from "@wiki-agents/contracts/notes/model";
   import JsonView from "#lib/features/notes/JsonView.svelte";
   import NoteView from "#lib/features/notes/NoteView.svelte";
+  import { EDIT_PARAM } from "#lib/features/notes/edit-param.ts";
   import PageView from "#lib/features/notes/PageView.svelte";
   import VaultHome from "#lib/features/notes/VaultHome.svelte";
   import { recent } from "#lib/features/notes/recent.svelte.ts";
@@ -33,7 +34,7 @@
 
 {#if note}
   {#key vaultId}
-    <NoteView {vaultId} path={note} />
+    <NoteView {vaultId} path={note} editing={page.url.searchParams.has(EDIT_PARAM)} />
   {/key}
 {:else if htmlPage}
   <PageView {vaultId} path={htmlPage} />
