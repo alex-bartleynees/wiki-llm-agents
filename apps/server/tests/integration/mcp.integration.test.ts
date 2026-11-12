@@ -110,6 +110,7 @@ layer(TestApp)("vault MCP server", (it) => {
         "vault_status",
         "vault_read_note",
         "vault_related",
+        "project_ignored_files",
       ]);
       for (const tool of tools) {
         expect(tool.inputSchema.additionalProperties, tool.name).toBe(false);

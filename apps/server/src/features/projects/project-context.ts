@@ -18,5 +18,6 @@ export const projectInstruction = (project: Project, vaultRoot: string): Instruc
     `Shared vault: ${vaultRoot}. Use the vault MCP tools for notes.`,
     ...(project.notesFolder === null ? [] : [`This project's notes are in the vault folder ${project.notesFolder}.`]),
     "Working outside these folders and the shared vault needs the user's approval.",
+    "The user sets some files aside in review (local changes they never merge). Before staging or committing, call the project_ignored_files tool and leave those files out unless the user names them.",
   ].join("\n"),
 });

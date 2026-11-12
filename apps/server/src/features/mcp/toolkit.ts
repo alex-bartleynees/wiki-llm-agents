@@ -2,8 +2,11 @@ import { Effect, type FileSystem } from "effect";
 import { Toolkit } from "effect/ai";
 import type { ChangeLog } from "../changes/change-log.js";
 import type { VaultIndex } from "../indexing/vault-index.js";
+import type { ProjectRepository } from "../projects/repository.js";
+import type { ThreadRepository } from "../threads/repository.js";
 import type { ThreadActors } from "../threads/thread-actors.js";
 import type { VaultRepository } from "../vaults/repository.js";
+import { ProjectIgnoredFiles, projectIgnoredFiles } from "./tools/project-ignored-files/tool.js";
 import { VaultBacklinks, vaultBacklinks } from "./tools/vault-backlinks/tool.js";
 import { VaultNoteInfo, vaultNoteInfo } from "./tools/vault-note-info/tool.js";
 import { VaultOpenNote, vaultOpenNote } from "./tools/vault-open-note/tool.js";
@@ -15,7 +18,7 @@ import { VaultStatus, vaultStatus } from "./tools/vault-status/tool.js";
 import { VaultReadNote, vaultReadNote } from "./tools/vault-read-note/tool.js";
 import { VaultRelated, vaultRelated } from "./tools/vault-related/tool.js";
 
-/** The vault tools every agent gets, in the order they are listed. */
+/** The tools every agent gets, in the order they are listed: the vault tools, then the project ones. */
 export const VaultToolkit = Toolkit.make(
   VaultSearch,
   VaultNoteInfo,
@@ -26,12 +29,13 @@ export const VaultToolkit = Toolkit.make(
   VaultStatus,
   VaultReadNote,
   VaultRelated,
+  ProjectIgnoredFiles,
 );
 
 export const VAULT_TOOL_NAMES: ReadonlyArray<string> = Object.keys(VaultToolkit.tools);
 
 /** Services the handlers use, captured when the toolkit is built; the caller comes with each request. */
-type HandlerServices = VaultIndex | VaultRepository | FileSystem.FileSystem | ThreadActors | ChangeLog;
+type HandlerServices = VaultIndex | VaultRepository | FileSystem.FileSystem | ThreadActors | ChangeLog | ThreadRepository | ProjectRepository;
 
 export const VaultToolkitLive = VaultToolkit.toLayer(
   Effect.gen(function* () {
@@ -47,6 +51,7 @@ export const VaultToolkitLive = VaultToolkit.toLayer(
       vault_open_note: (params) => withServices(vaultOpenNote(params)),
       vault_recent_changes: (params) => withServices(vaultRecentChanges(params)),
       vault_status: () => withServices(vaultStatus(VAULT_TOOL_NAMES)),
+      project_ignored_files: () => withServices(projectIgnoredFiles()),
     });
   }),
 );

@@ -8,11 +8,14 @@ import { GetDiffResponse } from "@wiki-agents/contracts/projects/get-diff/respon
 import { GetFileDiffResponse } from "@wiki-agents/contracts/projects/get-file-diff/response";
 import { IgnoreFileResponse } from "@wiki-agents/contracts/projects/ignore-file/response";
 import type { DiffFile } from "@wiki-agents/contracts/projects/model";
+import { CreateThreadResponse } from "@wiki-agents/contracts/threads/create-thread/response";
 import { RegisterProjectResponse } from "@wiki-agents/contracts/projects/register-project/response";
 import { UnignoreFileResponse } from "@wiki-agents/contracts/projects/unignore-file/response";
 import { Effect } from "effect";
 import { HttpClient } from "effect/http";
 import { FILE_LIMITS, LIST_LIMITS } from "../../src/features/projects/git-diff.js";
+import { NOT_IN_A_PROJECT } from "../../src/features/mcp/tools/project-ignored-files/tool.js";
+import { mcpSession, tokenFor } from "./infrastructure/mcp.js";
 import { makeTestApp } from "./infrastructure/test-app.js";
 import { decode, post } from "./infrastructure/threads.js";
 
@@ -250,5 +253,25 @@ layer(makeTestApp({ vaults: [sharedRoot] }))("project diff", (test) => {
     expect((yield* post(ignoredPath, { path: "a.ts" })).status).toBe(400);
     expect((yield* post("/api/projects/missing/diff/ignored", { directory: repo, path: "a.ts" })).status).toBe(404);
     expect((yield* getDiff(project.id)).directories[0]!.ignored).toEqual([]);
+  }));
+
+  test.effect("tells a project's agent which files are ignored, read when it asks", () => Effect.gen(function* () {
+    const repo = repository(join(yield* temp, "repo"), { "a.ts": "a\n" });
+    const project = yield* register([repo]);
+    const newThread = (body: unknown) =>
+      post(`/api/vaults/${project.vaultId}/threads`, body).pipe(Effect.flatMap(decode(CreateThreadResponse)), Effect.map((result) => result.thread));
+    const thread = yield* newThread({ projectId: project.id });
+    const mcp = yield* mcpSession((yield* tokenFor(thread.id, project.vaultId)).token);
+    type Ignored = { project: string | null; files: ReadonlyArray<{ directory: string; path: string }>; notices: ReadonlyArray<string> };
+
+    expect(yield* mcp.result<Ignored>("project_ignored_files")).toEqual({ project: "Diff", files: [], notices: ["The user ignores no files in this project."] });
+    // Ignored after the thread started: the tool reads the current list.
+    yield* post(`/api/projects/${project.id}/diff/ignored`, { directory: repo, path: "local.config" });
+    expect(yield* mcp.result<Ignored>("project_ignored_files")).toEqual({ project: "Diff", files: [{ directory: repo, path: "local.config" }], notices: [] });
+
+    // A vault thread has no project.
+    const vaultThread = yield* newThread({});
+    const vaultMcp = yield* mcpSession((yield* tokenFor(vaultThread.id, project.vaultId)).token);
+    expect(yield* vaultMcp.result<Ignored>("project_ignored_files")).toEqual({ project: null, files: [], notices: [NOT_IN_A_PROJECT] });
   }));
 });

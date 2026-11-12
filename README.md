@@ -254,8 +254,12 @@ vault's threads show.
   reviewed, commented on and brought back with **Stop ignoring**. The list is kept
   on the server per project and working directory, by path, until you stop
   ignoring it (`POST /api/projects/:id/diff/ignored {"directory", "path"}`,
-  `DELETE …/diff/ignored?directory=…&path=…`). It only affects the diff view, not
-  git or the overview's changed-file list.
+  `DELETE …/diff/ignored?directory=…&path=…`). It doesn't change git or the
+  overview's changed-file list. Agents read the list with the
+  `project_ignored_files` MCP tool (current at each call), and a project's
+  instructions tell them to check it before staging or committing and leave those
+  files out unless you name them. It is guidance: command approvals are what stop
+  a commit.
 - Undo code changes with lazygit/git; changes a project thread makes to the shared
   vault get change review (below).
 - Folders are chosen with **Browse…** (project directories, the vault folder) or
