@@ -18,6 +18,7 @@
   import { agents } from "#lib/features/agents/agents.svelte.ts";
   import { providers } from "#lib/features/threads/providers.svelte.ts";
   import "./prose.css";
+  import { mermaidDiagrams } from "./mermaid-diagrams.ts";
 
   let { vaultId, path }: { vaultId: string; path: string } = $props();
 
@@ -141,7 +142,9 @@
       <h1 class="title">{noteState.note.title}</h1>
     {/if}
     <!-- Rendered and sanitised on the server (rehype-sanitize). -->
-    <div class="prose">{@html noteState.note.html}</div>
+    {#key noteState.note.html}
+      <div class="prose" use:mermaidDiagrams>{@html noteState.note.html}</div>
+    {/key}
     <button type="button" onpointerdown={(event) => event.preventDefault()} onclick={async () => {
       const selection = window.getSelection()?.toString() ?? "";
       const created = await threads.create();

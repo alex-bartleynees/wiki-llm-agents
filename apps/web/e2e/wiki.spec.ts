@@ -29,3 +29,19 @@ test("shows the sections in the header, with the wiki current", async ({ page })
   await expect(page).toHaveURL(/\/projects$/);
   await expect(sections.getByRole("link", { name: "Projects" })).toHaveAttribute("aria-current", "page");
 });
+
+test("renders Mermaid diagrams and preserves invalid and ordinary code", async ({ page }) => {
+  await openVault(page);
+  await page.goto(`${page.url()}?note=Diagrams.md`);
+  const diagrams = page.locator(".mermaid-diagram");
+  await expect(diagrams).toHaveCount(2);
+  await expect(diagrams.first().locator("svg")).toBeVisible();
+  await expect(diagrams.first()).toContainText("Finish");
+  await diagrams.first().getByText("Diagram source", { exact: true }).click();
+  await expect(diagrams.first().locator("pre")).toContainText("flowchart LR");
+  await expect(diagrams.last().getByRole("status")).toContainText("Could not render");
+  await expect(diagrams.last().locator("pre")).toBeVisible();
+  await expect(page.locator("code.language-js")).toHaveText("const ordinary = true;\n");
+  const overflows = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
+  expect(overflows).toBe(false);
+});

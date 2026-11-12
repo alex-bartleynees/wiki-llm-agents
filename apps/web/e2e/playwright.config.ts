@@ -26,6 +26,7 @@ if (driver !== undefined && driver !== installed) {
 /** Notes every flow can rely on. */
 const VAULT: Readonly<Record<string, string>> = {
   "index.md": "# Home\n\nStart with [[Coffee]].\n",
+  "Diagrams.md": "# Diagrams\n\n```mermaid\nflowchart LR\n A[Start] --> B[Finish]\n```\n\n```mermaid\ninvalid diagram\n```\n\n```js\nconst ordinary = true;\n```\n",
   "Coffee.md": "# Coffee\n\nFlat whites in the morning. See [[Tea]].\n",
   "Tea.md": "# Tea\n\nGreen tea in the afternoon.\n",
   "Notes/Brewing.md": "# Brewing\n\nPour-over with a V60.\n",

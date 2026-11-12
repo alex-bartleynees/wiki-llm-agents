@@ -56,6 +56,10 @@ registered and at every start, and a watcher keeps the index current; the open n
 the tree, and backlinks update live over `/events/vaults/:id`. The index can always
 be rebuilt from disk: `POST /api/vaults/:id/rebuild-index`.
 
+Fenced `mermaid` blocks render as diagrams in the note reading view. Expand
+**Diagram source** to see the Markdown code; invalid diagrams show their source
+and an error without interrupting the rest of the note.
+
 ### Search
 
 - **Quick switcher** (⌘K / Ctrl K, or the header box): fuzzy match on note titles
