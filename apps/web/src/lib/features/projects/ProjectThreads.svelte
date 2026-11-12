@@ -6,6 +6,8 @@
   import ThreadList from "#lib/features/threads/ThreadList.svelte";
   import { threads } from "#lib/features/threads/threads.svelte.ts";
   import ThreadView from "#lib/features/threads/ThreadView.svelte";
+  import { paneWidths } from "#lib/ui/layout/pane-widths.svelte.ts";
+  import PaneSplitter from "#lib/ui/layout/PaneSplitter.svelte";
   import ArchivedNotice from "./ArchivedNotice.svelte";
   import ProjectDetails from "./ProjectDetails.svelte";
   import ProjectViewSwitch from "./ProjectViewSwitch.svelte";
@@ -27,7 +29,12 @@
   const open = $derived(openThread.status !== "empty");
 </script>
 
-<div class="layout" class:open>
+<div
+  class="layout"
+  class:open
+  style:--list-width="{paneWidths.widths.projectThreads}px"
+  style:--details-width="{paneWidths.widths.projectDetails}px"
+>
   <aside class="list" aria-label="Threads in {project.name}">
     <div class="top">
       <ProjectViewSwitch projectId={project.id} view="threads" />
@@ -52,6 +59,7 @@
       <ProjectDetails {project} />
     </details>
   </aside>
+  <PaneSplitter pane="projectThreads" label="Resize threads sidebar" edge="start" />
 
   <main class="thread">
     {#if open}
@@ -64,6 +72,9 @@
     {/if}
   </main>
 
+  <div class="details-splitter">
+    <PaneSplitter pane="projectDetails" label="Resize project sidebar" edge="end" />
+  </div>
   <aside class="details" aria-label="Project">
     <ProjectDetails {project} />
   </aside>
@@ -75,9 +86,10 @@
     display: flex;
     min-height: 0;
   }
+  /* Sidebars take the splitters' widths and shrink before the thread goes below 400px. */
   .list {
-    flex: 0 0 280px;
-    min-width: 0;
+    flex: 0 1 var(--list-width);
+    min-width: 220px;
     display: flex;
     flex-direction: column;
     border-right: 1px solid var(--line);
@@ -111,7 +123,7 @@
   }
   .thread {
     flex: 1 1 0;
-    min-width: 0;
+    min-width: 400px;
     display: flex;
     flex-direction: column;
     background: var(--surface);
@@ -128,9 +140,12 @@
     color: var(--ink-3);
     font-size: 13px;
   }
+  .details-splitter {
+    display: contents;
+  }
   .details {
-    flex: 0 0 320px;
-    min-width: 0;
+    flex: 0 1 var(--details-width);
+    min-width: 260px;
     box-sizing: border-box;
     padding: 20px;
     border-left: 1px solid var(--line);
@@ -142,7 +157,8 @@
 
   /* Narrower desktops: the project panel gives way to the thread. */
   @media (max-width: 1199px) {
-    .details {
+    .details,
+    .details-splitter {
       display: none;
     }
     .phone-details {
@@ -165,10 +181,15 @@
   @media (max-width: 899px) {
     .list {
       flex: 1 1 auto;
+      min-width: 0;
       border: 0;
+    }
+    .layout > :global(.splitter) {
+      display: none;
     }
     .thread {
       display: none;
+      min-width: 0;
     }
     .open .list {
       display: none;

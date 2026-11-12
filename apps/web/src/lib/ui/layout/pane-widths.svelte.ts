@@ -7,8 +7,19 @@ export interface PaneLimits {
   readonly initial: number;
 }
 
-export const VAULT_PANE: PaneLimits = { min: 180, max: 480, initial: 256 };
-export const THREADS_PANE: PaneLimits = { min: 260, max: 640, initial: 360 };
+/** Every resizable sidebar: the wiki's two, and the project views'. */
+export const PANES = {
+  vault: { min: 180, max: 480, initial: 256 },
+  threads: { min: 260, max: 640, initial: 360 },
+  projectThreads: { min: 220, max: 480, initial: 280 },
+  projectDetails: { min: 260, max: 560, initial: 320 },
+  diffFiles: { min: 220, max: 560, initial: 300 },
+} as const satisfies Record<string, PaneLimits>;
+
+export type Pane = keyof typeof PANES;
+
+export const VAULT_PANE: PaneLimits = PANES.vault;
+export const THREADS_PANE: PaneLimits = PANES.threads;
 
 const clamp = (value: unknown, limits: PaneLimits) =>
   typeof value === "number" && Number.isFinite(value)
@@ -24,22 +35,40 @@ const stored = (): Record<string, unknown> => {
   }
 };
 
+const initialWidths = (): Record<Pane, number> => {
+  const saved = stored();
+  return Object.fromEntries(
+    Object.entries(PANES).map(([pane, limits]) => [pane, clamp(saved[pane], limits)]),
+  ) as Record<Pane, number>;
+};
+
 class PaneWidthsStore {
-  vault = $state(clamp(stored()["vault"], VAULT_PANE));
-  threads = $state(clamp(stored()["threads"], THREADS_PANE));
+  widths = $state(initialWidths());
+
+  get vault() {
+    return this.widths.vault;
+  }
+
+  get threads() {
+    return this.widths.threads;
+  }
+
+  set(pane: Pane, width: number) {
+    this.widths[pane] = clamp(width, PANES[pane]);
+  }
 
   setVault(width: number) {
-    this.vault = clamp(width, VAULT_PANE);
+    this.set("vault", width);
   }
 
   setThreads(width: number) {
-    this.threads = clamp(width, THREADS_PANE);
+    this.set("threads", width);
   }
 
   /** Called when a drag or key press ends, so storage isn't written on every pointer move. */
   save() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ vault: this.vault, threads: this.threads }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.widths));
     } catch {
       // Private mode or full storage: the widths just won't be remembered.
     }

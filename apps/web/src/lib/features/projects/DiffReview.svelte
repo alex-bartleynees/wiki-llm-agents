@@ -8,6 +8,8 @@
   import { listen } from "#lib/api/sse.ts";
   import { numberedDiffLines } from "#lib/features/changes/diff-lines.ts";
   import { vaultThreadsEventsPath } from "#lib/features/threads/api.ts";
+  import { paneWidths } from "#lib/ui/layout/pane-widths.svelte.ts";
+  import PaneSplitter from "#lib/ui/layout/PaneSplitter.svelte";
   import { getDiff, getFileDiff, ignoreFile, unignoreFile } from "./api.ts";
   import FileDiff from "./FileDiff.svelte";
   import ProjectViewSwitch from "./ProjectViewSwitch.svelte";
@@ -226,7 +228,7 @@
 
 <svelte:window onkeydown={onWindowKeydown} />
 
-<div class="layout" class:file-open={openKey !== null}>
+<div class="layout" class:file-open={openKey !== null} style:--side-width="{paneWidths.widths.diffFiles}px">
   <aside class="side" aria-label="Changed files in {project.name}">
     <ProjectViewSwitch projectId={project.id} view="diff" />
     <ReviewPanel {project} {threadsVersion} />
@@ -279,6 +281,7 @@
       {/if}
     </nav>
   </aside>
+  <PaneSplitter pane="diffFiles" label="Resize files sidebar" edge="start" />
 
   <main class="diffs" aria-label="Diff">
     <div class="toolbar">
@@ -367,9 +370,10 @@
   .mono {
     font-family: var(--font-mono);
   }
+  /* The files sidebar takes the splitter's width and shrinks before the diff goes below 400px. */
   .side {
-    flex: 0 0 300px;
-    min-width: 0;
+    flex: 0 1 var(--side-width);
+    min-width: 220px;
     box-sizing: border-box;
     padding: 16px;
     border-right: 1px solid var(--line);
@@ -466,7 +470,7 @@
 
   .diffs {
     flex: 1 1 0;
-    min-width: 0;
+    min-width: 400px;
     box-sizing: border-box;
     padding: 20px 28px 48px;
     overflow: auto;
@@ -554,10 +558,15 @@
     }
     .side {
       flex: 1 1 auto;
+      min-width: 0;
       border: 0;
+    }
+    .layout > :global(.splitter) {
+      display: none;
     }
     .diffs {
       display: none;
+      min-width: 0;
       padding: 12px 12px 32px;
     }
     .file-open .side {

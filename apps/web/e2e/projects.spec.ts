@@ -1,6 +1,6 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { expect, test } from "@playwright/test";
+import { expect, type Locator, test } from "@playwright/test";
 import { e2eRoot, isPhone, projectFolder, useReplay } from "./app.ts";
 
 test("registers a project through the folder picker, tracks its changed files, and runs its threads", async ({ page }, info) => {
@@ -100,4 +100,50 @@ test("archives a project out of the way and restores it", async ({ page }, info)
   await page.getByRole("button", { name: "Restore project" }).click();
   await expect(page.getByRole("button", { name: "New thread here" })).toBeVisible();
   await expect(list.locator("details.archived").getByRole("link", { name })).toHaveCount(0);
+});
+
+test("resizes the project sidebars on desktop and remembers their widths", async ({ page }, info) => {
+  const folder = projectFolder(info, "resize");
+  const response = await page.request.post("/api/projects", {
+    data: { name: `Resize ${info.project.name}`, workingDirectories: [folder] },
+  });
+  expect(response.status()).toBe(201);
+  const { project } = (await response.json()) as { project: { id: string } };
+
+  await page.goto(`/projects/${project.id}/threads`);
+  const threadsSplitter = page.getByRole("separator", { name: "Resize threads sidebar" });
+  const detailsSplitter = page.getByRole("separator", { name: "Resize project sidebar" });
+  if (isPhone(info)) {
+    // One pane at a time on a phone: nothing to resize.
+    await expect(threadsSplitter).toBeHidden();
+    await expect(detailsSplitter).toBeHidden();
+    return;
+  }
+
+  const width = async (pane: Locator) => Math.round((await pane.boundingBox())?.width ?? 0);
+  const list = page.getByRole("complementary", { name: /^Threads in / });
+  const details = page.getByRole("complementary", { name: "Project", exact: true });
+  await expect(threadsSplitter).toHaveAttribute("aria-valuenow", "280");
+  await expect(detailsSplitter).toHaveAttribute("aria-valuenow", "320");
+  expect(await width(list)).toBe(280);
+  expect(await width(details)).toBe(320);
+
+  // Shift+arrow moves a splitter 64px; each sidebar grows towards the thread.
+  await threadsSplitter.press("Shift+ArrowRight");
+  await detailsSplitter.press("Shift+ArrowLeft");
+  await expect(threadsSplitter).toHaveAttribute("aria-valuenow", "344");
+  await expect(detailsSplitter).toHaveAttribute("aria-valuenow", "384");
+  expect(await width(list)).toBe(344);
+  expect(await width(details)).toBe(384);
+
+  await page.reload();
+  await expect(threadsSplitter).toHaveAttribute("aria-valuenow", "344");
+  expect(await width(list)).toBe(344);
+
+  // The diff view's files sidebar too.
+  await page.getByRole("navigation", { name: "Project view" }).getByRole("link", { name: "Diff" }).click();
+  const filesSplitter = page.getByRole("separator", { name: "Resize files sidebar" });
+  await filesSplitter.press("Shift+ArrowRight");
+  await expect(filesSplitter).toHaveAttribute("aria-valuenow", "364");
+  expect(await width(page.getByRole("complementary", { name: /^Changed files in / }))).toBe(364);
 });
