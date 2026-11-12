@@ -23,10 +23,11 @@ import { decode, newThread, newVault, post, sendOk } from "./infrastructure/thre
 /**
  * A stand-in for the push services. Endpoints say how they behave:
  * `.../gone` answers 410, `.../down` 503, `.../flaky` fails its first two tries for
- * each notification; anything else takes it.
+ * each notification, `.../offline` fails while `offline` is set; anything else takes it.
  */
 const pushed: Array<{ endpoint: string; payload: PushPayload; urgency: string }> = [];
 const flakyTries = new Map<string, number>();
+let offline = false;
 const FakePush = Layer.succeed(PushSender, {
   publicKey: "test-public-key",
   send: (target, payload, options) =>
@@ -34,6 +35,7 @@ const FakePush = Layer.succeed(PushSender, {
       const parsed = JSON.parse(payload) as PushPayload;
       if (target.endpoint.endsWith("/gone")) return Effect.fail(new PushRejected({ status: 410, message: "The push service answered 410" }));
       if (target.endpoint.endsWith("/down")) return Effect.fail(new PushRejected({ status: 503, message: "The push service answered 503" }));
+      if (target.endpoint.endsWith("/offline") && offline) return Effect.fail(new PushRejected({ status: null, message: "Can't reach the push service: fetch failed" }));
       if (target.endpoint.endsWith("/flaky")) {
         const tries = (flakyTries.get(parsed.tag) ?? 0) + 1;
         flakyTries.set(parsed.tag, tries);
@@ -211,7 +213,7 @@ layer(makeTestApp({ providers: provider.registry, pushSender: FakePush }))("noti
     }),
   );
 
-  it.effect("sends a test notification, and disables a device after five failures in a row", () =>
+  it.effect("sends a test notification, and disables a device after five failures in a row until one gets through", () =>
     Effect.gen(function* () {
       yield* fresh;
       const phone = yield* addDevice("Phone", "https://push.test/phone");
@@ -224,6 +226,14 @@ layer(makeTestApp({ providers: provider.registry, pushSender: FakePush }))("noti
       expect(last).toMatchObject({ status: "failed", error: "The push service answered 503", device: { failures: 5, disabled: true } });
       // Subscribing again enables it.
       expect(yield* addDevice("Broken", "https://push.test/down")).toMatchObject({ failures: 0, disabled: false });
+
+      // So does a test that gets through, once the push service can be reached again.
+      const laptop = yield* addDevice("Laptop", "https://push.test/offline");
+      offline = true;
+      for (let attempt = 0; attempt < 5; attempt++) last = yield* testDevice(laptop.id);
+      expect(last.device).toMatchObject({ failures: 5, disabled: true });
+      offline = false;
+      expect(yield* testDevice(laptop.id)).toMatchObject({ status: "sent", device: { failures: 0, disabled: false, lastError: null } });
 
       const gone = yield* addDevice("Gone", "https://push.test/gone");
       expect(yield* testDevice(gone.id)).toEqual({ status: "expired", error: null, device: null });

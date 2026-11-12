@@ -29,6 +29,27 @@ export class PushSender extends Context.Service<PushSender, PushSenderService>()
 /** How long a push service has to answer. */
 const SEND_TIMEOUT_MS = 10_000;
 
+/**
+ * Why a request didn't get an answer. `fetch` says only "fetch failed"; the reason
+ * (DNS, refused, blocked, timed out) is in its `cause` chain.
+ */
+export const networkReason = (error: unknown): string => {
+  const parts: Array<string> = [];
+  let current: unknown = error;
+  for (let depth = 0; current !== undefined && current !== null && depth < 4; depth++) {
+    if (current instanceof Error) {
+      const code = (current as { code?: unknown }).code;
+      const text = current.name === "TimeoutError" ? "timed out" : current.message;
+      parts.push(typeof code === "string" && !text.includes(code) ? `${text} (${code})` : text);
+      current = current.cause;
+    } else {
+      parts.push(String(current));
+      break;
+    }
+  }
+  return parts.join(": ");
+};
+
 const KeyFile = Schema.fromJsonString(Schema.Struct({ publicKey: Schema.String, privateKey: Schema.String }));
 
 /** The VAPID key pair: from the secrets file when one is configured, otherwise kept in the database. */
@@ -76,7 +97,7 @@ export const PushSenderLive = Layer.effect(
               body: request.body,
               signal: AbortSignal.any([signal, AbortSignal.timeout(SEND_TIMEOUT_MS)]),
             }),
-          catch: (cause) => new PushRejected({ status: null, message: `Can't reach the push service: ${cause instanceof Error ? cause.message : String(cause)}` }),
+          catch: (cause) => new PushRejected({ status: null, message: `Can't reach the push service: ${networkReason(cause)}` }),
         });
         if (response.ok) return;
         const text = yield* Effect.promise(() => response.text().catch(() => ""));

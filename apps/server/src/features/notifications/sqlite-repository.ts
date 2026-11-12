@@ -138,7 +138,7 @@ export const NotificationsRepositoryLive = Layer.effect(
       pushSent: (deviceId, itemId, at) =>
         query(() =>
           db.transaction(() => {
-            db.update(pushDevices).set({ lastSentAt: new Date(at), lastError: null, failures: 0 }).where(eq(pushDevices.id, deviceId)).run();
+            db.update(pushDevices).set({ lastSentAt: new Date(at), lastError: null, failures: 0, disabled: false }).where(eq(pushDevices.id, deviceId)).run();
             recordItem(itemId, deviceId, "sent", null, at);
           }),
         ),
