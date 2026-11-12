@@ -152,10 +152,10 @@ export const InboxRepositoryLive = Layer.effect(
           return read(itemId);
         }),
 
-      deliverySent: (itemId, channel, at) =>
+      deliverySent: (itemId, channel, at, outcome) =>
         query(() => {
           db.update(inboxDeliveries)
-            .set({ status: "sent", sentAt: new Date(at), attempts: sql`${inboxDeliveries.attempts} + 1`, lastError: null })
+            .set({ status: outcome.status, detail: outcome.detail, sentAt: new Date(at), attempts: sql`${inboxDeliveries.attempts} + 1`, lastError: null })
             .where(and(eq(inboxDeliveries.itemId, itemId), eq(inboxDeliveries.channel, channel)))
             .run();
         }),

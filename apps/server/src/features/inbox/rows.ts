@@ -45,7 +45,7 @@ export const insertInboxItem = (db: Db, item: NewInboxItem, channels: ReadonlyAr
 /** Queues (again) the item's delivery on each channel at `at`. */
 export const queueDeliveries = (db: Db, itemId: string, channels: ReadonlyArray<string>, at: number) => {
   for (const channel of channels) {
-    const queued = { status: "queued" as const, attempts: 0, nextAttemptAt: new Date(at), lastError: null, sentAt: null };
+    const queued = { status: "queued" as const, attempts: 0, nextAttemptAt: new Date(at), lastError: null, detail: null, sentAt: null };
     db.insert(inboxDeliveries)
       .values({ itemId, channel, ...queued })
       .onConflictDoUpdate({ target: [inboxDeliveries.itemId, inboxDeliveries.channel], set: queued })
@@ -76,6 +76,7 @@ const toItem = (row: ItemRow, deliveries: ReadonlyArray<DeliveryRow>): InboxItem
     status: delivery.status,
     attempts: delivery.attempts,
     lastError: delivery.lastError,
+    detail: delivery.detail,
     sentAt: delivery.sentAt?.getTime() ?? null,
   })),
   createdAt: row.createdAt.getTime(),

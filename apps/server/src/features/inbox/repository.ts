@@ -1,6 +1,7 @@
 import type { InboxItem, InboxItemKind, InboxItemState, InboxSource } from "@wiki-agents/contracts/inbox/model";
 import { Context, type Effect, type Option } from "effect";
 import type { DbError } from "../../shared/persistence/errors.js";
+import type { DeliveryOutcome } from "./delivery.js";
 
 /** An item to add; its deliveries are queued on every channel in the same transaction. */
 export interface NewInboxItem {
@@ -53,7 +54,7 @@ export interface InboxRepositoryService {
   readonly nextDeliveryAt: Effect.Effect<number | null, DbError>;
   /** The item as it will be delivered: a snooze that is over is cleared first. */
   readonly beginDelivery: (itemId: string, at: number) => Effect.Effect<Option.Option<InboxItem>, DbError>;
-  readonly deliverySent: (itemId: string, channel: string, at: number) => Effect.Effect<void, DbError>;
+  readonly deliverySent: (itemId: string, channel: string, at: number, outcome: DeliveryOutcome) => Effect.Effect<void, DbError>;
   /** Records the error; queued again at `retryAt`, or failed for good when it is null. */
   readonly deliveryFailed: (itemId: string, channel: string, error: string, retryAt: number | null) => Effect.Effect<void, DbError>;
 }

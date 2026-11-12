@@ -4,7 +4,7 @@ import { MarkReadResponse } from "@wiki-agents/contracts/inbox/mark-read/respons
 import { SnoozeItemResponse } from "@wiki-agents/contracts/inbox/snooze-item/response";
 import { Clock, Effect, Layer, Queue } from "effect";
 import { TestClock } from "effect/testing";
-import { DeliveryChannels, DeliveryFailed, inAppChannel } from "../../src/features/inbox/delivery.js";
+import { DeliveryChannels, DeliveryFailed, inAppChannel, sentOutcome } from "../../src/features/inbox/delivery.js";
 import { MAX_DELIVERY_ATTEMPTS } from "../../src/features/inbox/delivery-worker.js";
 import { InboxBus } from "../../src/features/inbox/inbox-bus.js";
 import { makeScriptedProvider } from "./infrastructure/scripted-provider.js";
@@ -107,7 +107,7 @@ const Phone = Layer.effect(
             const count = (tries.get(item.id) ?? 0) + 1;
             tries.set(item.id, count);
             if (item.title === "Unreachable" || count <= 2) return Effect.fail(new DeliveryFailed({ message: `no signal (try ${count})` }));
-            return Queue.offer(sent, item.id);
+            return Effect.as(Queue.offer(sent, item.id), sentOutcome);
           }),
       },
     ];

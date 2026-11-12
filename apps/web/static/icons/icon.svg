@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- The brand mark (favicon.svg) on a solid tile with room around it, for home screens. -->
+  <rect width="64" height="64" fill="#0f6e6a" />
+  <rect x="17" y="17" width="30" height="30" rx="3.5" fill="#ffffff" stroke="#14161a" stroke-width="2.6" />
+  <path d="M24 26.5h16M24 33h9" stroke="#0f6e6a" stroke-width="3" fill="none" />
+</svg>

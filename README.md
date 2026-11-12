@@ -442,9 +442,44 @@ show their status and cost.
 
 Inbox items are delivered through a delivery outbox (`inbox_deliveries`), queued in
 the same transaction as the item and sent by a worker per channel (`in-app`, the
-live stream, is the only one so far), retried up to five times with backoff; failures
-show on the item. A result is stored before it is delivered, so a retry never reruns
-the turn.
+live stream, and `web-push`, below), retried up to five times with backoff; failures
+show on the item, and so does where it went or why it was skipped. A result is
+stored before it is delivered, so a retry never reruns the turn.
+
+### Notifications (Web Push)
+
+**Notifications** (`/inbox/notifications`) sends inbox items to your devices with the
+app closed. **Enable notifications** asks the browser's permission, subscribes it
+through the service worker (`src/service-worker/index.ts`) and adds it as a device;
+**Send test** sends one now and says what the push service made of it; **Remove** and
+**Turn off here** stop them. Tapping a notification opens `/inbox?item=<id>`, with
+the item outlined.
+
+- Browsers allow it only on a secure origin: `http://127.0.0.1`/`localhost` on this
+  computer, otherwise HTTPS. A phone needs the app's HTTPS address (remote access is
+  the next part of slice 12b). iPhone and iPad allow it only from the app added to the
+  Home Screen (the app has a manifest and icons for that).
+- Each device is one push subscription (`push_devices`). The push service answering
+  404 or 410 removes the device; five other failures in a row disable it until it
+  subscribes again. Each item's delivery to each device is recorded
+  (`push_deliveries`), so a retry only goes to the devices that didn't get it.
+- **What notifies you:** per group (reminders, agents waiting for you, scheduled
+  prompts, turns), *notify at once*, *in the morning digest*, or *inbox only*
+  (turns default to inbox only). The digest (default 08:00, in
+  `WIKI_AGENTS_TIMEZONE`) is an inbox item listing what was held since the last one
+  and still open. **Mute** stops all notifications; the inbox keeps everything.
+  **Private previews** say only what kind of item arrived, never its text.
+- **VAPID keys:** made on first start and kept in the database, or read from
+  `WIKI_AGENTS_VAPID_KEYS_FILE` (`{"publicKey": "...", "privateKey": "..."}`,
+  base64url, e.g. `npx web-push generate-vapid-keys --json`) to keep them in service
+  secrets. Changing keys invalidates every subscription: devices must enable again.
+- Sending: `web-push` signs and encrypts (aes128gcm) and the server sends with
+  `fetch`, with a 24 h TTL; reminders and requests are `Urgency: high`. A push
+  service accepting a notification doesn't prove the device showed it.
+- The browser picks the push service: Chrome, Edge and Brave use Google's (FCM;
+  in Brave turn on "Use Google services for push messaging"), Firefox Mozilla's,
+  Safari Apple's. Payloads are end-to-end encrypted; the service sees only metadata.
+  Chromium builds without Google services can't subscribe ("push service error").
 
 The schedule tools (`schedule_create`, `schedule_list`, `schedule_update`,
 `schedule_pause`, `schedule_resume`, `schedule_delete`, `schedule_run_now`) call
@@ -499,6 +534,8 @@ design/             Claude Design mockup
 | `WIKI_AGENTS_CONFIG_DIR` | `$XDG_CONFIG_HOME/wiki-agents` (rules and agents) |
 | `WIKI_AGENTS_TIMEZONE` | `Pacific/Auckland`: the timezone new schedules use unless they say otherwise |
 | `WIKI_AGENTS_TEST_HOOKS` | `false`; `true` serves `POST /api/test/clock` for end-to-end tests only |
+| `WIKI_AGENTS_VAPID_KEYS_FILE` | unset: Web Push keys are made on first start and kept in the database |
+| `WIKI_AGENTS_VAPID_SUBJECT` | `https://github.com/alex-bartleynees/wiki-llm-agents`: the contact push services see (`mailto:` or `https:`) |
 | `WIKI_AGENTS_WATCH_POLL_MS` | unset (file system events); set to poll vault files, e.g. `2000`, when the vault is a virtiofs or SSHFS mount whose changes the OS doesn't report |
 
 ## Run as a service

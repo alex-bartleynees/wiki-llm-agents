@@ -30,6 +30,16 @@ export const AppConfig = {
   /** The timezone a new schedule's times are in unless it says otherwise (IANA name). */
   timezone: Config.String("WIKI_AGENTS_TIMEZONE").pipe(Config.withDefault("Pacific/Auckland")),
   /**
+   * A JSON file with the Web Push VAPID key pair (`{"publicKey": "...", "privateKey":
+   * "..."}`, base64url), for keys kept in service secrets. Unset: a pair is made on
+   * first start and kept in the database.
+   */
+  vapidKeysFile: Config.option(Config.String("WIKI_AGENTS_VAPID_KEYS_FILE")),
+  /** Who push services can contact about this sender: a `mailto:` or `https:` URL. */
+  vapidSubject: Config.String("WIKI_AGENTS_VAPID_SUBJECT").pipe(
+    Config.withDefault("https://github.com/alex-bartleynees/wiki-llm-agents"),
+  ),
+  /**
    * End-to-end tests only: serves `POST /api/test/clock`, which moves the schedules'
    * clock forward so a browser test can make a schedule fire without waiting.
    */

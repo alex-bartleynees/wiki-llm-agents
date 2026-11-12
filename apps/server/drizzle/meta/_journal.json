@@ -106,6 +106,13 @@
       "when": 1794457761472,
       "tag": "0014_puzzling_marvel_boy",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1794476354712,
+      "tag": "0015_web_push",
+      "breakpoints": true
     }
   ]
 }

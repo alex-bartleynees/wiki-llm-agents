@@ -1,11 +1,15 @@
 <script lang="ts">
   import { untrack } from "svelte";
+  import { page } from "$app/state";
   import InboxItemCard from "./InboxItemCard.svelte";
   import InboxViewSwitch from "./InboxViewSwitch.svelte";
   import { inbox } from "./inbox.svelte.ts";
 
   /** Items unread while you've had the inbox open stay marked new until you leave. */
   const fresh = new Set<string>();
+
+  /** The item a notification opened (`/inbox?item=<id>`). */
+  const picked = $derived(page.url.searchParams.get("item"));
 
   // Looking at the inbox reads what is in it, including what arrives while it is open.
   $effect(() => {
@@ -32,27 +36,27 @@
 
   <section class="items" aria-label="Open">
     {#each inbox.open as item (item.id)}
-      <InboxItemCard {item} fresh={fresh.has(item.id)} />
+      <InboxItemCard {item} fresh={fresh.has(item.id)} picked={item.id === picked} />
     {/each}
   </section>
 
   {#if inbox.snoozed.length > 0}
-    <details>
+    <details open={inbox.snoozed.some((item) => item.id === picked)}>
       <summary>Snoozed ({inbox.snoozed.length})</summary>
       <section class="items" aria-label="Snoozed">
         {#each inbox.snoozed as item (item.id)}
-          <InboxItemCard {item} />
+          <InboxItemCard {item} picked={item.id === picked} />
         {/each}
       </section>
     </details>
   {/if}
 
   {#if inbox.history.length > 0}
-    <details>
+    <details open={inbox.history.some((item) => item.id === picked)}>
       <summary>Done and dismissed</summary>
       <section class="items" aria-label="Done and dismissed">
         {#each inbox.history as item (item.id)}
-          <InboxItemCard {item} />
+          <InboxItemCard {item} picked={item.id === picked} />
         {/each}
       </section>
     </details>

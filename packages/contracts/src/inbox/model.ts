@@ -8,6 +8,7 @@ import { Schema } from "effect";
  * - `prompt.missed`: a scheduled prompt's time passed while the app was off, and it didn't run
  * - `request`: an approval or question is waiting for you
  * - `turn.finished`, `turn.failed`: a thread's turn ended (the latest one per thread)
+ * - `digest`: the morning digest, listing the items held back from phone notifications
  */
 export const InboxItemKind = Schema.Literals([
   "reminder",
@@ -17,6 +18,7 @@ export const InboxItemKind = Schema.Literals([
   "request",
   "turn.finished",
   "turn.failed",
+  "digest",
 ]);
 export type InboxItemKind = typeof InboxItemKind.Type;
 
@@ -42,13 +44,16 @@ export type InboxSource = typeof InboxSource.Type;
 
 /**
  * Getting an item to you over one channel: `in-app` is the open browsers (live
- * updates). Retried a few times, then `failed` with the error.
+ * updates), `web-push` your devices' notifications. Retried a few times, then
+ * `failed` with the error. `skipped`: the channel chose not to send it (muted, held
+ * for the digest, no devices). `detail` says why, or which devices got it.
  */
 export const Delivery = Schema.Struct({
   channel: Schema.String,
-  status: Schema.Literals(["queued", "sent", "failed"]),
+  status: Schema.Literals(["queued", "sent", "skipped", "failed"]),
   attempts: Schema.Number,
   lastError: Schema.NullOr(Schema.String),
+  detail: Schema.NullOr(Schema.String),
   sentAt: Schema.NullOr(Schema.Number),
 });
 export type Delivery = typeof Delivery.Type;
@@ -79,3 +84,6 @@ export type InboxItem = typeof InboxItem.Type;
 export const isUnread = (item: InboxItem) => item.state === "open" && !item.read && item.snoozedUntil === null;
 
 export const INBOX_PATH = "/inbox";
+
+/** The inbox with one item picked out; where a phone notification opens. */
+export const inboxItemHref = (itemId: string) => `${INBOX_PATH}?item=${encodeURIComponent(itemId)}`;

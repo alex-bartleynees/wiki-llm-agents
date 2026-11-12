@@ -5,7 +5,7 @@ import { createThread } from "../threads/create-thread/use-case.js";
 import { ThreadActors } from "../threads/thread-actors.js";
 import { findVault } from "../vaults/find-vault.js";
 import { InvalidSchedule } from "./errors.js";
-import { isTimeZone, nextSlot, zonedTime } from "./recurrence.js";
+import { isTimeZone, nextSlot, zonedTime } from "../../shared/time/recurrence.js";
 import type { StoredSchedule } from "./repository.js";
 
 const TITLE_LENGTH = 80;

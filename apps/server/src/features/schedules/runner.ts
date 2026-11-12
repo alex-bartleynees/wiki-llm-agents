@@ -8,7 +8,7 @@ import type { NewInboxItem } from "../inbox/repository.js";
 import { finalReply, turnNotices } from "../threads/final-reply.js";
 import { ThreadRepository } from "../threads/repository.js";
 import { ThreadActors } from "../threads/thread-actors.js";
-import { describeInstant, latestDue, localDate, nextSlot } from "./recurrence.js";
+import { describeInstant, latestDue, localDate, nextSlot } from "../../shared/time/recurrence.js";
 import { type Occurrence, ScheduleRepository, type StoredSchedule } from "./repository.js";
 import { SchedulerSignal } from "./signal.js";
 

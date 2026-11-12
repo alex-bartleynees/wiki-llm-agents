@@ -6,9 +6,15 @@ import type { AgentCatalog } from "../features/agents/catalog.js";
 import { AgentCatalogLive } from "../features/agents/catalog-live.js";
 import { ChangeTrackerLive } from "../features/changes/change-tracker.js";
 import { ChangeLogLive } from "../features/changes/sqlite-repository.js";
-import { type DeliveryChannels, DeliveryChannelsLive } from "../features/inbox/delivery.js";
+import { DeliveryChannels, inAppChannel } from "../features/inbox/delivery.js";
 import { InboxLive } from "../features/inbox/inbox.js";
-import { type InboxBus, InboxBusLive } from "../features/inbox/inbox-bus.js";
+import { InboxBus, InboxBusLive } from "../features/inbox/inbox-bus.js";
+import { type DigestSignal, DigestSignalLive } from "../features/notifications/digest.js";
+import { type PushSender, PushSenderLive } from "../features/notifications/push-sender.js";
+import type { NotificationsRepository } from "../features/notifications/repository.js";
+import { NotificationsRepositoryLive } from "../features/notifications/sqlite-repository.js";
+import { NotificationsStartup } from "../features/notifications/startup.js";
+import { makeWebPushChannel } from "../features/notifications/web-push-channel.js";
 import { InboxRepositoryLive } from "../features/inbox/sqlite-repository.js";
 import { InboxStartup } from "../features/inbox/startup.js";
 import { IndexerLive } from "../features/indexing/indexer-live.js";
@@ -34,7 +40,7 @@ import { OriginGuardLive } from "../shared/origin-guard.js";
 import { makeClosingServer } from "../shared/server-closing.js";
 import type { DbError } from "../shared/persistence/errors.js";
 import { type Sqlite, SqliteLive } from "../shared/persistence/sqlite.js";
-import { WallClockLive } from "../shared/wall-clock.js";
+import { WallClock, WallClockLive } from "../shared/wall-clock.js";
 import { router } from "./router.js";
 
 /** Repositories for every feature, over one shared SQLite connection. */
@@ -45,6 +51,7 @@ export const RepositoriesLive = Layer.mergeAll(
   ThreadRepositoryLive,
   InboxRepositoryLive,
   ScheduleRepositoryLive,
+  NotificationsRepositoryLive,
 );
 
 export interface AppOptions {
@@ -58,8 +65,10 @@ export interface AppOptions {
   readonly providers?: Layer.Layer<ProviderRegistry, DbError, Sqlite>;
   /** The rules and agents. Required, so a test can never fall back to your real config directory. */
   readonly agents: Layer.Layer<AgentCatalog, never, FileSystem.FileSystem>;
-  /** How inbox items reach you; in-app only unless a test adds a channel (one that fails, say). */
-  readonly channels?: Layer.Layer<DeliveryChannels, never, InboxBus>;
+  /** How inbox items reach you: in-app and Web Push unless a test chooses (a channel that fails, say). */
+  readonly channels?: Layer.Layer<DeliveryChannels, never, InboxBus | DigestSignal | NotificationsRepository | WallClock | PushSender>;
+  /** Sends Web Push notifications; the real push services unless a test stands in for them. */
+  readonly pushSender?: Layer.Layer<PushSender, unknown, NotificationsRepository>;
 }
 
 /**
@@ -82,9 +91,20 @@ const threads = ThreadActorsLive.pipe(
   Layer.provideMerge(McpTokensLive),
 );
 
-/** The inbox, its live bus and delivery channels, and the scheduler's wake-up signal. */
+/** Inbox items go to the open browsers and, as notifications, to your devices. */
+const DeliveryChannelsLive = Layer.effect(
+  DeliveryChannels,
+  Effect.gen(function* () {
+    return [inAppChannel(yield* InboxBus), yield* makeWebPushChannel];
+  }),
+);
+
+/** The inbox, its live bus and delivery channels, and the scheduler's and digest's wake-up signals. */
 const inboxAndSchedules = (channels: AppOptions["channels"]) =>
-  Layer.merge(InboxLive.pipe(Layer.provideMerge(channels ?? DeliveryChannelsLive), Layer.provideMerge(InboxBusLive)), SchedulerSignalLive);
+  Layer.mergeAll(
+    InboxLive.pipe(Layer.provideMerge(channels ?? DeliveryChannelsLive), Layer.provideMerge(Layer.merge(InboxBusLive, DigestSignalLive))),
+    SchedulerSignalLive,
+  );
 
 /**
  * The HTTP app without a listening server or database, so tests can supply both.
@@ -92,9 +112,10 @@ const inboxAndSchedules = (channels: AppOptions["channels"]) =>
  */
 export const makeHttpApp = (options: AppOptions) =>
   HttpRouter.serve(Layer.mergeAll(router, OriginGuardLive), { disableLogger: true }).pipe(
-    Layer.provide(Layer.mergeAll(startupVaults(options.vaults), IndexingStartup, ThreadsStartup, InboxStartup, SchedulesStartup)),
+    Layer.provide(Layer.mergeAll(startupVaults(options.vaults), IndexingStartup, ThreadsStartup, InboxStartup, SchedulesStartup, NotificationsStartup)),
     Layer.provideMerge(inboxAndSchedules(options.channels)),
     Layer.provideMerge(threads),
+    Layer.provideMerge(options.pushSender ?? PushSenderLive),
     Layer.provideMerge(Layer.mergeAll(
         RepositoriesLive,
         options.providers ?? ProviderRegistryLive,

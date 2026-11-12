@@ -6,7 +6,7 @@ import { UpdateScheduleResponse } from "@wiki-agents/contracts/schedules/update-
 import { Clock, Effect } from "effect";
 import { HttpClient } from "effect/http";
 import { ProviderError } from "../../src/features/providers/port.js";
-import { localDate, zonedTime } from "../../src/features/schedules/recurrence.js";
+import { localDate, zonedTime } from "../../src/shared/time/recurrence.js";
 import { STILL_RUNNING } from "../../src/features/schedules/runner.js";
 import { UNATTENDED_ANSWER } from "../../src/features/threads/thread-actor.js";
 import { makeScriptedProvider } from "./infrastructure/scripted-provider.js";

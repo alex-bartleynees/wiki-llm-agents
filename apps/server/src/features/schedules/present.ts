@@ -1,5 +1,5 @@
 import type { Schedule, ScheduleRun } from "@wiki-agents/contracts/schedules/model";
-import { describeInstant, describeRecurrence } from "./recurrence.js";
+import { describeInstant, describeRecurrence } from "../../shared/time/recurrence.js";
 import type { StoredSchedule } from "./repository.js";
 
 /** Runs shown with each schedule in the list; one schedule shows more. */

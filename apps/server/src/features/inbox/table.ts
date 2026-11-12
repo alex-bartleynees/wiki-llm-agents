@@ -6,7 +6,7 @@ export const inboxItems = sqliteTable(
   {
     id: text("id").primaryKey(),
     kind: text("kind", {
-      enum: ["reminder", "prompt.result", "prompt.failed", "prompt.missed", "request", "turn.finished", "turn.failed"],
+      enum: ["reminder", "prompt.result", "prompt.failed", "prompt.missed", "request", "turn.finished", "turn.failed", "digest"],
     }).notNull(),
     title: text("title").notNull(),
     /** Markdown. */
@@ -42,10 +42,12 @@ export const inboxDeliveries = sqliteTable(
   {
     itemId: text("item_id").notNull(),
     channel: text("channel").notNull(),
-    status: text("status", { enum: ["queued", "sent", "failed"] }).notNull(),
+    status: text("status", { enum: ["queued", "sent", "skipped", "failed"] }).notNull(),
     attempts: integer("attempts").notNull(),
     nextAttemptAt: integer("next_attempt_at", { mode: "timestamp_ms" }).notNull(),
     lastError: text("last_error"),
+    /** Why a channel skipped the item, or which devices got it. */
+    detail: text("detail"),
     sentAt: integer("sent_at", { mode: "timestamp_ms" }),
   },
   (table) => [primaryKey({ columns: [table.itemId, table.channel] }), index("inbox_deliveries_due_idx").on(table.status, table.nextAttemptAt)],

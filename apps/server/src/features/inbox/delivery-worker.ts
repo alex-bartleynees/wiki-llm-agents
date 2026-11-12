@@ -33,8 +33,16 @@ export const runDeliveryWorker = Effect.gen(function* () {
     if (Option.isNone(item) || channel === undefined) {
       return yield* repository.deliveryFailed(delivery.itemId, delivery.channel, Option.isNone(item) ? "The item is gone." : "No such channel.", null);
     }
-    const result = yield* Effect.result(channel.deliver(item.value));
-    if (result._tag === "Success") return yield* repository.deliverySent(delivery.itemId, delivery.channel, yield* clock.now);
+    const result = yield* Effect.result(channel.deliver(item.value, delivery.attempts));
+    if (result._tag === "Success") {
+      yield* repository.deliverySent(delivery.itemId, delivery.channel, yield* clock.now, result.success);
+      // Open browsers show the delivery too (in-app was sent first, before this one was known).
+      if (delivery.channel !== "in-app") {
+        const updated = yield* repository.find(delivery.itemId);
+        if (Option.isSome(updated)) yield* bus.publish([updated.value]);
+      }
+      return;
+    }
     const tries = delivery.attempts + 1;
     const retryAt = tries >= MAX_DELIVERY_ATTEMPTS ? null : now + retryDelay(delivery.attempts);
     yield* repository.deliveryFailed(delivery.itemId, delivery.channel, result.failure.message, retryAt);

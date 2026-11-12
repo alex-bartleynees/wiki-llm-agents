@@ -6,8 +6,16 @@
   import { threadHref } from "#lib/features/threads/thread-link.ts";
   import { inbox } from "./inbox.svelte.ts";
 
-  /** `fresh`: it was unread when the inbox opened, so it stays marked as new. */
-  let { item, fresh = false }: { item: InboxItem; fresh?: boolean } = $props();
+  /**
+   * `fresh`: it was unread when the inbox opened, so it stays marked as new.
+   * `picked`: a notification opened it, so it is scrolled to and outlined.
+   */
+  let { item, fresh = false, picked = false }: { item: InboxItem; fresh?: boolean; picked?: boolean } = $props();
+
+  let card: HTMLElement | undefined = $state();
+  $effect(() => {
+    if (picked) card?.scrollIntoView({ block: "center" });
+  });
 
   const KINDS = {
     reminder: "Reminder",
@@ -17,7 +25,11 @@
     request: "Waiting for you",
     "turn.finished": "Turn finished",
     "turn.failed": "Turn failed",
+    digest: "Digest",
   } as const;
+
+  const CHANNELS: Record<string, string> = { "in-app": "the app", "web-push": "Notifications" };
+  const channelName = (channel: string) => CHANNELS[channel] ?? channel;
 
   const HOUR = 3_600_000;
   /**
@@ -37,11 +49,22 @@
 
   const when = (ms: number) => new Date(ms).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
   const failedDeliveries = $derived(item.deliveries.filter((delivery) => delivery.status === "failed"));
+  /** Where it went, or why it wasn't sent (muted, held for the digest...). */
+  const deliveryNotes = $derived(item.deliveries.filter((delivery) => delivery.status !== "failed" && delivery.detail !== null));
   const open = $derived(item.state === "open");
   const { vaultId, threadId, notePath, scheduleId } = $derived(item.source);
 </script>
 
-<article class="item" class:fresh class:closed={!open} data-kind={item.kind} aria-label={item.title}>
+<article
+  bind:this={card}
+  id={`inbox-item-${item.id}`}
+  class="item"
+  class:fresh
+  class:picked
+  class:closed={!open}
+  data-kind={item.kind}
+  aria-label={item.title}
+>
   <div class="top mono">
     <span>{KINDS[item.kind]}{item.overdue ? " · late" : ""}</span>
     <time datetime={new Date(item.createdAt).toISOString()}>{when(item.updatedAt)}</time>
@@ -59,7 +82,10 @@
   {#if item.snoozedUntil !== null}<p class="muted">Snoozed until {when(item.snoozedUntil)}</p>{/if}
   {#if item.resolution}<p class="muted">{item.resolution}</p>{/if}
   {#each failedDeliveries as delivery (delivery.channel)}
-    <p class="error">Couldn't deliver to {delivery.channel} after {delivery.attempts} tries: {delivery.lastError}</p>
+    <p class="error">Couldn't deliver to {channelName(delivery.channel)} after {delivery.attempts} tries: {delivery.lastError}</p>
+  {/each}
+  {#each deliveryNotes as delivery (delivery.channel)}
+    <p class="muted delivery">{channelName(delivery.channel)}: {delivery.detail}</p>
   {/each}
 
   <div class="actions">
@@ -100,6 +126,13 @@
   }
   .fresh {
     border-left: 3px solid var(--accent);
+  }
+  .picked {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .delivery {
+    font-size: 12px;
   }
   .item[data-kind="prompt.failed"],
   .item[data-kind="turn.failed"] {
