@@ -10,6 +10,8 @@
   import { byRecent, doneThreads, openThreads } from "#lib/features/threads/thread-order.ts";
   import { threads } from "#lib/features/threads/threads.svelte.ts";
   import { vaults } from "#lib/features/vaults/vaults.svelte.ts";
+  import { paneWidths } from "#lib/ui/layout/pane-widths.svelte.ts";
+  import PaneSplitter from "#lib/ui/layout/PaneSplitter.svelte";
   import ArchivedNotice from "./ArchivedNotice.svelte";
   import ChangedFiles from "./ChangedFiles.svelte";
   import DiffReview from "./DiffReview.svelte";
@@ -118,7 +120,11 @@
     </div>
   {/if}
 {:else}
-<div class="layout">
+<div
+  class="layout"
+  style:--list-width="{paneWidths.widths.projectList}px"
+  style:--register-width="{paneWidths.widths.registerProject}px"
+>
   <aside class="list" aria-label="Projects">
     {#if selected !== null}
       <div class="switch"><ProjectViewSwitch projectId={selected.id} view="overview" /></div>
@@ -143,6 +149,7 @@
     {/if}
     <button type="button" class="secondary" onclick={focusForm}>Register project</button>
   </aside>
+  <PaneSplitter pane="projectList" label="Resize projects sidebar" edge="start" />
 
   <main>
     {#if error}<p class="error" role="alert">{error}</p>{/if}
@@ -243,6 +250,7 @@
     {/if}
   </main>
 
+  <PaneSplitter pane="registerProject" label="Resize register project sidebar" edge="end" />
   <aside class="register" aria-label="Register project">
     <RegisterProjectForm
       vault={sharedVault ?? null}
@@ -272,10 +280,13 @@
   .missing {
     padding: 28px 40px;
   }
+  /*
+   * Desktop: three columns. The sidebars take the splitters' widths and shrink
+   * (down to their minimum) before the project goes below 400px.
+   */
   .layout {
     min-height: 100%;
     display: flex;
-    flex-wrap: wrap;
   }
   .mono {
     font-family: var(--font-mono);
@@ -297,8 +308,8 @@
 
   /* Projects list */
   .list {
-    flex: 1 1 220px;
-    max-width: 240px;
+    flex: 0 1 var(--list-width);
+    min-width: 180px;
     box-sizing: border-box;
     padding: 18px 12px;
     border-right: 1px solid var(--line);
@@ -358,8 +369,8 @@
 
   /* The project */
   main {
-    flex: 999 1 600px;
-    min-width: 0;
+    flex: 1 1 0;
+    min-width: 400px;
     box-sizing: border-box;
     padding: 28px 40px 56px;
     background: var(--surface);
@@ -521,8 +532,8 @@
 
   /* Register form */
   .register {
-    flex: 1 1 300px;
-    max-width: 340px;
+    flex: 0 1 var(--register-width);
+    min-width: 280px;
     box-sizing: border-box;
     padding: 24px 20px;
     border-left: 1px solid var(--line);
@@ -530,10 +541,17 @@
 
   /* Phone: one column, list first, form last. */
   @media (max-width: 899px) {
+    .layout {
+      flex-wrap: wrap;
+    }
+    .layout > :global(.splitter) {
+      display: none;
+    }
     .list,
     .register {
       flex-basis: 100%;
       max-width: none;
+      min-width: 0;
       border: 0;
     }
     .list {
@@ -544,6 +562,7 @@
     }
     main {
       flex-basis: 100%;
+      min-width: 0;
       padding: 20px 16px 32px;
       gap: 28px;
     }

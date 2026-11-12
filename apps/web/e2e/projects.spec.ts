@@ -117,6 +117,9 @@ test("resizes the project sidebars on desktop and remembers their widths", async
     // One pane at a time on a phone: nothing to resize.
     await expect(threadsSplitter).toBeHidden();
     await expect(detailsSplitter).toBeHidden();
+    await page.goto(`/projects/${project.id}`);
+    await expect(page.getByRole("separator", { name: "Resize projects sidebar" })).toBeHidden();
+    await expect(page.getByRole("separator", { name: "Resize register project sidebar" })).toBeHidden();
     return;
   }
 
@@ -146,4 +149,17 @@ test("resizes the project sidebars on desktop and remembers their widths", async
   await filesSplitter.press("Shift+ArrowRight");
   await expect(filesSplitter).toHaveAttribute("aria-valuenow", "364");
   expect(await width(page.getByRole("complementary", { name: /^Changed files in / }))).toBe(364);
+
+  // And the overview's projects list and register form.
+  await page.getByRole("navigation", { name: "Project view" }).getByRole("link", { name: "Overview" }).click();
+  const projectsSplitter = page.getByRole("separator", { name: "Resize projects sidebar" });
+  const registerSplitter = page.getByRole("separator", { name: "Resize register project sidebar" });
+  await expect(projectsSplitter).toHaveAttribute("aria-valuenow", "240");
+  await expect(registerSplitter).toHaveAttribute("aria-valuenow", "340");
+  await projectsSplitter.press("Shift+ArrowRight");
+  await registerSplitter.press("Shift+ArrowLeft");
+  await expect(projectsSplitter).toHaveAttribute("aria-valuenow", "304");
+  await expect(registerSplitter).toHaveAttribute("aria-valuenow", "404");
+  expect(await width(page.getByRole("complementary", { name: "Projects", exact: true }))).toBe(304);
+  expect(await width(page.getByRole("complementary", { name: "Register project" }))).toBe(404);
 });

@@ -11,6 +11,8 @@ export interface PaneLimits {
 export const PANES = {
   vault: { min: 180, max: 480, initial: 256 },
   threads: { min: 260, max: 640, initial: 360 },
+  projectList: { min: 180, max: 400, initial: 240 },
+  registerProject: { min: 280, max: 560, initial: 340 },
   projectThreads: { min: 220, max: 480, initial: 280 },
   projectDetails: { min: 260, max: 560, initial: 320 },
   diffFiles: { min: 220, max: 560, initial: 300 },
