@@ -1,11 +1,11 @@
 import { MediaQuery } from "svelte/reactivity";
 import type { Tab } from "./BottomBar.svelte";
 
-export type Sidebar = "files" | "search";
+export type Sidebar = "files" | "search" | "tags";
 
 /**
  * Layout state. Phone: which pane fills the screen, and whether the vault drawer is
- * open. Desktop: whether the vault sidebar shows files or search. Both: the quick
+ * open. Desktop: whether the vault sidebar shows files, search or tags (phone: files or tags). Both: the quick
  * switcher dialog.
  */
 class ShellStore {

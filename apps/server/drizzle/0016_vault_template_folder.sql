@@ -1,0 +1,1 @@
+ALTER TABLE `vaults` ADD `template_folder` text;

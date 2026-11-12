@@ -87,10 +87,23 @@ first edit.
 - **Wikilinks:** typing `[[` (or `![[`) and a few letters lists notes and files from
   the index (the quick switcher's match); Enter writes the shortest unambiguous
   target, as Obsidian does, and the closing `]]`.
+- **Images:** paste or drop an image, or use **Image** (the photo library or camera
+  on a phone), and it is added to `assets/` and linked where the cursor was
+  (`![[Pasted image 20261113101500.png]]`, named by time as Obsidian does; dropped and
+  chosen files keep their names). `POST /api/vaults/:id/assets?name=` with the bytes
+  as the body takes PNG, JPEG, GIF, WebP, AVIF and BMP up to 20 MB (not SVG, which
+  can carry scripts), never replaces a file (`name 1.png`, `name 2.png`…), and
+  indexes it before answering.
+- **New note** (**+** in the vault pane): a title, a folder (the open note's by
+  default) and a template. Templates are the notes in the vault's **template
+  folder**, set per vault in Settings (`PATCH /api/vaults/:id {"templateFolder"}`);
+  `{{title}}`, `{{date}}`, `{{time}}`, `{{date:dddd D MMMM}}` and `{{time:h:mm a}}`
+  are filled in with moment.js formats, as Obsidian's core Templates plugin does.
+  The note opens in the editor; a name that's taken offers the existing note.
+- **Tags pane** (the vault pane's **Tags**, on desktop and in the phone drawer):
+  frontmatter tags nested by `/`, each counting its notes plus those of the tags
+  under it; a filter box, and folding. A tag opens search filtered to it.
 - Phones get 16px text (no zoom on focus), sentence capitals and spelling.
-
-Still to come in slice 13: paste an image into `assets/`, new note from a template
-folder, and the tags pane.
 
 ### Search
 

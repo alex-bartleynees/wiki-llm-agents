@@ -3,7 +3,9 @@
   import { EditorView } from "@codemirror/view";
   import { onDestroy, untrack } from "svelte";
   import { vaultEvents } from "#lib/features/indexing/vault-events.svelte.ts";
-  import { conflictView, createEditorState, type EditorOptions } from "./codemirror.ts";
+  import { uploadImage } from "./api.ts";
+  import { conflictView, createEditorState, type EditorOptions, insertImages } from "./codemirror.ts";
+  import { imageFiles } from "./images.ts";
   import { noteEditor } from "./note-editor.svelte.ts";
   import { tree } from "./tree.svelte.ts";
 
@@ -16,12 +18,29 @@
   let host: HTMLDivElement | undefined = $state();
   let view = $state.raw<EditorView | undefined>(undefined);
   const merge = new Compartment();
+  let imageError = $state<string | null>(null);
+  let picker: HTMLInputElement | undefined = $state();
   const options: EditorOptions = {
     vaultId: untrack(() => vaultId),
     vaultPaths: () => (tree.state.status === "loaded" ? tree.state.paths : []),
     onChange: (text) => editor.edit(text),
     onSave: () => void editor.flush(),
     merge,
+    uploadImage: async (image, name) => {
+      imageError = null;
+      return (await uploadImage(untrack(() => vaultId), name, image)).path;
+    },
+    onImageError: (message) => (imageError = message),
+  };
+
+  /** Images chosen with the Image button go where the cursor is. */
+  const addChosen = (files: FileList | null) => {
+    const current = view;
+    const images = imageFiles(files);
+    if (picker) picker.value = "";
+    if (current === undefined || images.length === 0) return;
+    void insertImages(current, images, current.state.selection.main.head, options);
+    current.focus();
   };
 
   $effect(() => {
@@ -96,6 +115,12 @@
           <span class="error">{editor.saveError}</span>
           <button type="button" onclick={() => editor.retry()}>Retry</button>
         {/if}
+        {#if imageError !== null}
+          <span class="error" role="alert">{imageError}</span>
+          <button type="button" onclick={() => (imageError = null)}>Dismiss</button>
+        {/if}
+        <button type="button" class="image" title="Add an image to assets/ and link it here (or paste or drop one)" disabled={view === undefined} onclick={() => picker?.click()}>Image</button>
+        <input bind:this={picker} type="file" accept="image/*" multiple hidden onchange={(event) => addChosen(event.currentTarget.files)} />
       </div>
       {#if editor.conflict !== null}
         <div class="conflict" role="alert">
@@ -191,6 +216,16 @@
     font-size: 13px;
     color: var(--ink-2);
     cursor: pointer;
+  }
+  button.image {
+    margin-left: auto;
+    height: 26px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+  button:disabled {
+    opacity: 0.5;
+    cursor: default;
   }
   button.primary {
     border-color: var(--accent);

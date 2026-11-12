@@ -54,7 +54,7 @@
     <p class="error" role="alert">{error}</p>
   {/if}
   <button type="submit" disabled={saving || rootPath.trim() === ""}>{saving ? "Adding…" : "Add vault"}</button>
-  <p class="hint">The app only reads the vault for now; it never writes to it.</p>
+  <p class="hint">Agents and the editor write to the vault; every agent change can be reviewed and undone.</p>
 </form>
 
 <FolderPicker

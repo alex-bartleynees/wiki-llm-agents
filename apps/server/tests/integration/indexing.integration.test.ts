@@ -259,7 +259,7 @@ describe("watching vault folders", () => {
     it.effect("retries watching after an unavailable directory is restored", () =>
       Effect.gen(function* () {
         const { root } = yield* makeTestVault({ files: {} });
-        const vault = { id: "restored-vault", name: "Restored", rootPath: join(root, "Restored") };
+        const vault = { id: "restored-vault", name: "Restored", rootPath: join(root, "Restored"), templateFolder: null };
         yield* (yield* VaultRepository).insert({ ...vault, createdAt: new Date() });
         const watcher = yield* VaultWatcher;
         yield* watcher.watch(vault);

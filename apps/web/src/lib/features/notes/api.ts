@@ -4,7 +4,8 @@ import { GetTreeResponse } from "@wiki-agents/contracts/notes/get-tree/response"
 import { GetNoteSourceResponse } from "@wiki-agents/contracts/notes/get-note-source/response";
 import { SaveNoteRequest } from "@wiki-agents/contracts/notes/save-note/request";
 import { SaveNoteResponse } from "@wiki-agents/contracts/notes/save-note/response";
-import { getJson, putJson } from "#lib/api/client.ts";
+import { UploadImageResponse } from "@wiki-agents/contracts/notes/upload-image/response";
+import { getJson, postBytes, putJson } from "#lib/api/client.ts";
 
 const vaultPath = (vaultId: string) => `/api/vaults/${encodeURIComponent(vaultId)}`;
 
@@ -23,3 +24,7 @@ export const getNoteSource = (vaultId: string, path: string, signal?: AbortSigna
 /** Fails with a 409 `ApiError` when the note isn't the `baseHash` version any more. */
 export const saveNote = (vaultId: string, request: SaveNoteRequest) =>
   putJson(`${vaultPath(vaultId)}/note/source`, SaveNoteRequest, request, SaveNoteResponse);
+
+/** Adds an image to the vault's `assets/` folder; the answer says where it went. */
+export const uploadImage = (vaultId: string, name: string, image: Blob) =>
+  postBytes(`${vaultPath(vaultId)}/assets?name=${encodeURIComponent(name)}`, image, UploadImageResponse);

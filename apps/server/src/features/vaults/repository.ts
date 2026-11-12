@@ -13,6 +13,7 @@ export interface VaultRepositoryService {
   readonly findById: (id: string) => Effect.Effect<Option.Option<Vault>, DbError>;
   readonly findByRootPath: (rootPath: string) => Effect.Effect<Option.Option<Vault>, DbError>;
   readonly insert: (vault: Vault & { readonly createdAt: Date }) => Effect.Effect<void, DbError>;
+  readonly setTemplateFolder: (id: string, folder: string | null) => Effect.Effect<void, DbError>;
 }
 
 export class VaultRepository extends Context.Service<VaultRepository, VaultRepositoryService>()(

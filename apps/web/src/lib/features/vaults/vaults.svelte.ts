@@ -1,6 +1,6 @@
 import type { Vault } from "@wiki-agents/contracts/vaults/model";
 import { errorMessage } from "#lib/api/client.ts";
-import { listVaults, registerVault } from "./api.ts";
+import { listVaults, registerVault, updateVault } from "./api.ts";
 
 type VaultsState =
   | { readonly status: "loading" }
@@ -50,6 +50,15 @@ class VaultsStore {
   async register(rootPath: string, name: string): Promise<Vault> {
     const { vault } = await registerVault({ rootPath, ...(name.trim() ? { name: name.trim() } : {}) });
     await this.load(true);
+    return vault;
+  }
+
+  /** Sets (or, with "", clears) a vault's template folder; throws the server's reason when it isn't a folder. */
+  async setTemplateFolder(vaultId: string, folder: string): Promise<Vault> {
+    const { vault } = await updateVault(vaultId, { templateFolder: folder });
+    if (this.state.status === "loaded") {
+      this.state = { status: "loaded", vaults: this.state.vaults.map((other) => (other.id === vault.id ? vault : other)) };
+    }
     return vault;
   }
 }

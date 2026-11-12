@@ -63,6 +63,13 @@ export const putJson = <R extends Schema.ConstraintCodec<unknown, unknown>, S ex
   options: WriteOptions = {},
 ): Promise<S["Type"]> => writeJson("PUT", path, request, body, schema, options);
 
+/** POST a file's bytes as the body (an image upload); decode the response. Uploads get a minute. */
+export const postBytes = async <S extends Schema.ConstraintDecoder<unknown>>(path: string, body: Blob, schema: S): Promise<S["Type"]> =>
+  decodeResponse(
+    await send(path, { method: "POST", headers: { accept: "application/json", "content-type": body.type || "application/octet-stream" }, body }, 60_000),
+    schema,
+  );
+
 /** PATCH, as `postJson`: only the fields given change. */
 export const patchJson = <R extends Schema.ConstraintCodec<unknown, unknown>, S extends Schema.ConstraintDecoder<unknown>>(
   path: string,

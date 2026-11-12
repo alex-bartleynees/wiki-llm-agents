@@ -5,10 +5,11 @@ import { yamlFrontmatter } from "@codemirror/lang-yaml";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { unifiedMergeView } from "@codemirror/merge";
 import { highlightSelectionMatches, search, searchKeymap } from "@codemirror/search";
-import { type Compartment, EditorState, type Extension } from "@codemirror/state";
-import { drawSelection, EditorView, highlightActiveLine, keymap, placeholder } from "@codemirror/view";
+import { type Compartment, EditorState, type Extension, StateEffect, StateField } from "@codemirror/state";
+import { Decoration, type DecorationSet, drawSelection, EditorView, highlightActiveLine, keymap, placeholder, WidgetType } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
 import { quickSwitch } from "#lib/features/search/api.ts";
+import { imageFiles, imageName } from "./images.ts";
 import { wikilinkQuery, wikilinkTarget } from "./wikilinks.ts";
 
 export interface EditorOptions {
@@ -20,6 +21,10 @@ export interface EditorOptions {
   readonly onSave: () => void;
   /** Holds the conflict view (a unified merge view) while there is a conflict. */
   readonly merge: Compartment;
+  /** Adds an image to the vault; resolves to its vault path. */
+  readonly uploadImage: (image: File, name: string) => Promise<string>;
+  /** An image couldn't be added; says why. */
+  readonly onImageError: (message: string) => void;
 }
 
 /** Markdown in the app's colours, from the design tokens, so it follows light and dark. */
@@ -56,6 +61,7 @@ const theme = EditorView.theme({
   ".cm-tooltip-autocomplete > ul > li": { padding: "4px 8px !important" },
   ".cm-tooltip-autocomplete > ul > li[aria-selected]": { backgroundColor: "var(--accent-soft)", color: "var(--ink)" },
   ".cm-completionDetail": { color: "var(--ink-3)", fontStyle: "normal", marginLeft: "8px" },
+  ".cm-uploading": { padding: "1px 6px", borderRadius: "999px", backgroundColor: "var(--sunken)", color: "var(--ink-3)", fontSize: "0.85em" },
 });
 
 /**
@@ -167,7 +173,116 @@ export const createEditorState = (text: string, options: EditorOptions): EditorS
         if (update.docChanged) options.onChange(update.state.sliceDoc());
       }),
       EditorView.domEventHandlers({ blur: () => options.onSave() }),
+      uploads,
+      imageInput(options),
       theme,
       options.merge.of([]),
     ],
+  });
+
+const startUpload = StateEffect.define<{ readonly id: number; readonly pos: number }>();
+const endUpload = StateEffect.define<number>();
+
+class UploadingWidget extends WidgetType {
+  override toDOM() {
+    const span = document.createElement("span");
+    span.className = "cm-uploading";
+    span.textContent = "Adding image…";
+    return span;
+  }
+  override eq() {
+    return true;
+  }
+}
+
+/**
+ * Images on their way to the vault, each an "Adding image…" mark that moves with the
+ * edits around it, so the link lands where the image was pasted. Nothing is put in
+ * the text until the image is saved, so a save on idle never writes a placeholder.
+ */
+const uploads = StateField.define<DecorationSet>({
+  create: () => Decoration.none,
+  update(marks, transaction) {
+    let next = marks.map(transaction.changes);
+    for (const effect of transaction.effects) {
+      if (effect.is(startUpload)) {
+        next = next.update({ add: [Decoration.widget({ widget: new UploadingWidget(), side: 1, id: effect.value.id }).range(effect.value.pos)] });
+      } else if (effect.is(endUpload)) {
+        next = next.update({ filter: (_from, _to, mark) => mark.spec.id !== effect.value });
+      }
+    }
+    return next;
+  },
+  provide: (field) => EditorView.decorations.from(field),
+});
+
+const uploadPosition = (state: EditorState, id: number): number | undefined => {
+  let found: number | undefined;
+  state.field(uploads, false)?.between(0, state.doc.length, (from, _to, mark) => {
+    if (mark.spec.id === id) {
+      found = from;
+      return false;
+    }
+    return undefined;
+  });
+  return found;
+};
+
+let nextUpload = 0;
+
+/**
+ * Adds images to the vault and links them at `pos` (`![[Pasted image ….png]]`, the
+ * shortest unambiguous target), one per line, in order. Pasted images are named by
+ * time; dropped or chosen ones keep their names.
+ */
+export const insertImages = async (
+  view: EditorView,
+  files: ReadonlyArray<File>,
+  pos: number,
+  options: Pick<EditorOptions, "uploadImage" | "onImageError" | "vaultPaths">,
+  pasted = false,
+) => {
+  const pending = files.map((file) => ({ file, id: nextUpload++ }));
+  view.dispatch({ effects: pending.map(({ id }) => startUpload.of({ id, pos })) });
+  for (const [index, { file, id }] of pending.entries()) {
+    try {
+      const path = await options.uploadImage(file, imageName(file, pasted, new Date()));
+      const at = uploadPosition(view.state, id);
+      const link = `![[${wikilinkTarget(path, [...options.vaultPaths(), path])}]]${index < pending.length - 1 ? "\n" : ""}`;
+      // A cursor still where the image went moves past the link, so typing carries on after it.
+      const cursor = view.state.selection.main;
+      const follow = at !== undefined && cursor.empty && cursor.head === at;
+      view.dispatch({
+        effects: endUpload.of(id),
+        ...(at === undefined ? {} : { changes: { from: at, insert: link }, userEvent: "input.paste" }),
+        ...(follow ? { selection: { anchor: at + link.length } } : {}),
+      });
+      if (at === undefined) options.onImageError(`Added ${path}, but the note was reloaded before it could be linked.`);
+    } catch (error) {
+      view.dispatch({ effects: endUpload.of(id) });
+      options.onImageError(`Couldn't add ${file.name || "the image"}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+};
+
+/** Pasting or dropping images adds them to `assets/` and links them. */
+const imageInput = (options: EditorOptions): Extension =>
+  EditorView.domEventHandlers({
+    paste: (event, view) => {
+      const files = imageFiles(event.clipboardData?.files);
+      if (files.length === 0) return false;
+      event.preventDefault();
+      const { from, to } = view.state.selection.main;
+      if (from !== to) view.dispatch({ changes: { from, to }, selection: { anchor: from } });
+      void insertImages(view, files, from, options, true);
+      return true;
+    },
+    drop: (event, view) => {
+      const files = imageFiles(event.dataTransfer?.files);
+      if (files.length === 0) return false;
+      event.preventDefault();
+      const pos = view.posAtCoords({ x: event.clientX, y: event.clientY }) ?? view.state.selection.main.head;
+      void insertImages(view, files, pos, options);
+      return true;
+    },
   });

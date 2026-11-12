@@ -5,7 +5,7 @@ import { Sqlite } from "../../shared/persistence/sqlite.js";
 import { VaultRepository } from "./repository.js";
 import { vaults } from "./table.js";
 
-const columns = { id: vaults.id, name: vaults.name, rootPath: vaults.rootPath };
+const columns = { id: vaults.id, name: vaults.name, rootPath: vaults.rootPath, templateFolder: vaults.templateFolder };
 
 export const VaultRepositoryLive = Layer.effect(
   VaultRepository,
@@ -22,6 +22,8 @@ export const VaultRepositoryLive = Layer.effect(
       findByRootPath: (rootPath) =>
         query(() => Option.fromNullishOr(db.select(columns).from(vaults).where(eq(vaults.rootPath, rootPath)).get())),
       insert: (vault) => query(() => void db.insert(vaults).values(vault).run()),
+      setTemplateFolder: (id, folder) =>
+        query(() => void db.update(vaults).set({ templateFolder: folder }).where(eq(vaults.id, id)).run()),
     };
   }),
 );

@@ -1,11 +1,12 @@
 import { createHash } from "node:crypto";
-import { readdirSync, readFileSync, rmSync, statSync, chmodSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, layer } from "@effect/vitest";
 import type { FileChange } from "@wiki-agents/contracts/changes/model";
 import { GetNoteResponse } from "@wiki-agents/contracts/notes/get-note/response";
 import { GetNoteSourceResponse } from "@wiki-agents/contracts/notes/get-note-source/response";
 import { SaveNoteResponse } from "@wiki-agents/contracts/notes/save-note/response";
+import { UploadImageResponse } from "@wiki-agents/contracts/notes/upload-image/response";
 import { SearchNotesResponse } from "@wiki-agents/contracts/search/search-notes/response";
 import { Effect } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/http";
@@ -140,6 +141,75 @@ layer(makeTestApp({ providers: provider.registry }))("note editing", (it) => {
       const finished = yield* events.until(isTag("turn.finished"));
       const changes = finished.flatMap((event): ReadonlyArray<FileChange> => (event._tag === "turn.changes" ? event.changes : []));
       expect(changes.map((change) => [change.path, change.attribution])).toEqual([["Coffee.md", "uncertain"]]);
+    }),
+  );
+});
+
+const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
+
+const upload = (vaultId: string, name: string, bytes: Uint8Array = PNG) =>
+  HttpClient.execute(
+    HttpClientRequest.post(`/api/vaults/${vaultId}/assets?name=${encodeURIComponent(name)}`).pipe(
+      HttpClientRequest.bodyUint8Array(bytes, "image/png"),
+    ),
+  );
+const uploadOk = (vaultId: string, name: string, bytes?: Uint8Array) =>
+  upload(vaultId, name, bytes).pipe(
+    Effect.tap((response) => Effect.sync(() => expect(response.status).toBe(201))),
+    Effect.flatMap(decode(UploadImageResponse)),
+  );
+
+layer(makeTestApp())("image upload", (it) => {
+  it.effect("adds an image to assets/, never replacing one, indexed before answering", () =>
+    Effect.gen(function* () {
+      const vault = yield* newVaultWith({ "Tea.md": "# Tea\n" });
+      const first = yield* uploadOk(vault.id, "Pasted image 20261113101500.png");
+      expect(first.path).toBe("assets/Pasted image 20261113101500.png");
+      expect(new Uint8Array(readFileSync(join(vault.rootPath, first.path)))).toEqual(PNG);
+
+      // The same name again gets the next free one; the first file is untouched.
+      const other = new Uint8Array([...PNG, 9]);
+      expect((yield* uploadOk(vault.id, "Pasted image 20261113101500.png", other)).path).toBe("assets/Pasted image 20261113101500 1.png");
+      expect((yield* uploadOk(vault.id, "Pasted image 20261113101500.PNG")).path).toBe("assets/Pasted image 20261113101500 2.png");
+      expect(new Uint8Array(readFileSync(join(vault.rootPath, first.path)))).toEqual(PNG);
+      expect(readdirSync(join(vault.rootPath, "assets")).filter((name) => name.startsWith("."))).toEqual([]);
+
+      // Characters that break a wikilink become dashes; folders in the name are dropped.
+      expect((yield* uploadOk(vault.id, "../a#b|c[1].jpg")).path).toBe("assets/a-b-c-1-.jpg");
+
+      // A note embedding it renders the image straight away.
+      yield* saveOk(vault.id, { path: "Tea.md", content: "# Tea\n\n![[Pasted image 20261113101500.png]]\n", baseHash: sha256("# Tea\n") });
+      const note = yield* HttpClient.get(`/api/vaults/${vault.id}/note?path=Tea.md`).pipe(Effect.flatMap(decode(GetNoteResponse)));
+      expect(note.links).toEqual([{ kind: "embed", target: "Pasted image 20261113101500.png", path: first.path }]);
+      expect(note.html).toContain("<img");
+    }),
+  );
+
+  it.effect("refuses what isn't an image, empty bodies, and an assets folder outside the vault", () =>
+    Effect.gen(function* () {
+      const vault = yield* newVaultWith({ "Tea.md": "# Tea\n" });
+      for (const [name, bytes, message] of [
+        ["notes.md", PNG, "Only images can be added: png, jpg, jpeg, gif, webp, avif, bmp"],
+        ["drawing.svg", PNG, "Only images can be added: png, jpg, jpeg, gif, webp, avif, bmp"],
+        [".png", PNG, "Only images can be added: png, jpg, jpeg, gif, webp, avif, bmp"],
+        ["empty.png", new Uint8Array(), "The image is empty"],
+      ] as const) {
+        const response = yield* upload(vault.id, name, bytes);
+        expect(response.status).toBe(400);
+        expect(yield* response.text).toBe(message);
+      }
+      expect((yield* HttpClient.post(`/api/vaults/${vault.id}/assets`)).status).toBe(400);
+      expect((yield* upload("nope", "a.png")).status).toBe(404);
+      const huge = yield* upload(vault.id, "huge.png", new Uint8Array(20 * 1024 * 1024 + 1));
+      expect([huge.status, yield* huge.text]).toEqual([413, "Images are limited to 20 MB"]);
+      expect(readdirSync(vault.rootPath)).toEqual(["Tea.md"]);
+
+      const outside = join(vault.rootPath, "..", `${vault.id}-outside`);
+      mkdirSync(outside);
+      symlinkSync(outside, join(vault.rootPath, "assets"));
+      expect((yield* upload(vault.id, "a.png")).status).toBe(400);
+      expect(readdirSync(outside)).toEqual([]);
+      rmSync(outside, { recursive: true });
     }),
   );
 });

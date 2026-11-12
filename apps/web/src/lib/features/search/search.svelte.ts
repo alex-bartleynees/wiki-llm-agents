@@ -55,6 +55,13 @@ class SearchStore {
     if (!this.tags.includes(lower)) this.tags = [...this.tags, lower];
   }
 
+  /** Shows the notes with this tag (or one nested under it) on the search screen, and nothing else. */
+  showTag(tag: string) {
+    this.text = "";
+    this.tags = [tag.toLowerCase()];
+    shell.showSearch();
+  }
+
   removeTag(tag: string) {
     this.tags = this.tags.filter((other) => other !== tag);
   }

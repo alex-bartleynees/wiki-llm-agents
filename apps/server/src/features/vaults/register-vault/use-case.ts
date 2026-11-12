@@ -39,7 +39,7 @@ export const registerVault = Effect.fn("registerVault")(function* (request: Regi
   const existing = yield* repository.findByRootPath(rootPath);
   const vault = Option.isSome(existing)
     ? existing.value
-    : { id: randomUUID(), name: request.name?.trim() || basename(rootPath), rootPath };
+    : { id: randomUUID(), name: request.name?.trim() || basename(rootPath), rootPath, templateFolder: null };
   if (Option.isNone(existing)) {
     yield* repository.insert({ ...vault, createdAt: new Date(yield* Clock.currentTimeMillis) });
   }

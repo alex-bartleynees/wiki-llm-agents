@@ -113,6 +113,13 @@
       "when": 1794476354712,
       "tag": "0015_web_push",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1794525703250,
+      "tag": "0016_vault_template_folder",
+      "breakpoints": true
     }
   ]
 }

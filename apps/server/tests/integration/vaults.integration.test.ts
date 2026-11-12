@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterAll, describe, expect, layer } from "@effect/vitest";
 import { ListVaultsResponse } from "@wiki-agents/contracts/vaults/list-vaults/response";
 import { RegisterVaultResponse } from "@wiki-agents/contracts/vaults/register-vault/response";
+import { UpdateVaultResponse } from "@wiki-agents/contracts/vaults/update-vault/response";
 import { Effect } from "effect";
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http";
 import { vaults } from "../../src/features/vaults/table.js";
@@ -23,6 +24,8 @@ const personal = join(base, "Personal Vault");
 const work = join(base, "work");
 mkdirSync(personal);
 mkdirSync(work);
+mkdirSync(join(personal, "Templates", "Daily"), { recursive: true });
+writeFileSync(join(personal, "Note.md"), "# Note");
 symlinkSync(personal, join(base, "link-to-personal"));
 writeFileSync(join(base, "file.md"), "# not a folder");
 afterAll(() => rmSync(base, { recursive: true, force: true }));
@@ -46,8 +49,8 @@ layer(TestApp)("GET /api/vaults", (it) => {
 
       expect(yield* listVaults).toEqual({
         vaults: [
-          { id: "v1", name: "Personal", rootPath: "/vaults/personal" },
-          { id: "v2", name: "Work", rootPath: "/vaults/work" },
+          { id: "v1", name: "Personal", rootPath: "/vaults/personal", templateFolder: null },
+          { id: "v2", name: "Work", rootPath: "/vaults/work", templateFolder: null },
         ],
       });
     }),
@@ -109,5 +112,47 @@ describe("--vault start flag", () => {
         }),
       );
     },
+  );
+});
+
+const patchVault = (vaultId: string, body: unknown) =>
+  HttpClient.execute(HttpClientRequest.patch(`/api/vaults/${vaultId}`).pipe(HttpClientRequest.bodyJsonUnsafe(body)));
+
+layer(TestApp)("PATCH /api/vaults/:vaultId", (it) => {
+  it.effect("sets the template folder, normalised, and clears it", () =>
+    Effect.gen(function* () {
+      const { vault } = yield* postVault({ rootPath: personal }).pipe(Effect.flatMap(HttpClientResponse.schemaBodyJson(RegisterVaultResponse)));
+      expect(vault.templateFolder).toBeNull();
+
+      const set = yield* patchVault(vault.id, { templateFolder: " ./Templates/Daily/ " });
+      expect(set.status).toBe(200);
+      expect((yield* HttpClientResponse.schemaBodyJson(UpdateVaultResponse)(set)).vault).toEqual({ ...vault, templateFolder: "Templates/Daily" });
+      expect((yield* listVaults).vaults).toMatchObject([{ id: vault.id, templateFolder: "Templates/Daily" }]);
+
+      const cleared = yield* patchVault(vault.id, { templateFolder: "" }).pipe(Effect.flatMap(HttpClientResponse.schemaBodyJson(UpdateVaultResponse)));
+      expect(cleared.vault.templateFolder).toBeNull();
+      expect((yield* listVaults).vaults).toMatchObject([{ id: vault.id, templateFolder: null }]);
+    }),
+  );
+
+  it.effect.each([
+    [{ templateFolder: "Missing" }, 400, "Folder not found: Missing"],
+    [{ templateFolder: "Note.md" }, 400, "Not a folder: Note.md"],
+    [{ templateFolder: "../work" }, 400, "Not a folder in this vault: ../work"],
+    [{ templateFolder: ".obsidian" }, 400, "Not a folder in this vault: .obsidian"],
+    [{}, 400, "Invalid request"],
+  ] as const)("refuses %j", ([body, status, message]) =>
+    Effect.gen(function* () {
+      const { vault } = yield* postVault({ rootPath: personal }).pipe(Effect.flatMap(HttpClientResponse.schemaBodyJson(RegisterVaultResponse)));
+      const response = yield* patchVault(vault.id, body);
+      expect(response.status).toBe(status);
+      expect(yield* response.text).toBe(message);
+    }),
+  );
+
+  it.effect("answers 404 for an unknown vault", () =>
+    Effect.gen(function* () {
+      expect((yield* patchVault("nope", { templateFolder: null })).status).toBe(404);
+    }),
   );
 });

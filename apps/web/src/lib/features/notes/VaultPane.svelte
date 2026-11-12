@@ -7,9 +7,11 @@
   import PinnedNotes from "#lib/features/pins/PinnedNotes.svelte";
   import { pins } from "#lib/features/pins/pins.svelte.ts";
   import SearchPanel from "#lib/features/search/SearchPanel.svelte";
+  import TagsPanel from "#lib/features/search/TagsPanel.svelte";
   import { vaults } from "#lib/features/vaults/vaults.svelte.ts";
   import { shell, shortcutLabel } from "#lib/ui/layout/shell.svelte.ts";
   import FileTree from "./FileTree.svelte";
+  import NewNoteDialog from "./NewNoteDialog.svelte";
   import { tree } from "./tree.svelte.ts";
 
   const vaultId = $derived(page.params["vaultId"]);
@@ -50,8 +52,14 @@
     if (id !== undefined) untrack(() => void pins.load(id, { refresh }));
   });
 
-  /** On phone the drawer only holds files: search has its own tab. */
+  /** On phone the drawer holds files and tags: search has its own tab. */
   const showSearch = $derived(shell.sidebar === "search" && !shell.phone.current);
+  const showTags = $derived(shell.sidebar === "tags");
+  const showFiles = $derived(!showSearch && !showTags);
+
+  let creating = $state(false);
+  /** New notes go next to the open one. */
+  const currentFolder = $derived(current?.includes("/") ? current.slice(0, current.lastIndexOf("/")) : "");
 </script>
 
 <div class="pane">
@@ -65,6 +73,9 @@
       </select>
     {:else}
       <h2 class="vault-name">{vaults.byId(vaultId)?.name ?? "Vaults"}</h2>
+    {/if}
+    {#if vaultId !== undefined}
+      <button type="button" class="icon" aria-label="New note" title="New note" onclick={() => (creating = true)}><span aria-hidden="true">+</span></button>
     {/if}
     <a class="settings" href="/settings" aria-label="Vault settings" title="Vault settings">⚙</a>
   </div>
@@ -83,19 +94,23 @@
     {/if}
   {:else}
     <div class="modes" role="group" aria-label="Sidebar">
-      <button type="button" aria-pressed={!showSearch} onclick={() => (shell.sidebar = "files")}>Files</button>
+      <button type="button" aria-pressed={showFiles} onclick={() => (shell.sidebar = "files")}>Files</button>
       <button
         type="button"
+        class="search"
         aria-pressed={showSearch}
         title="Search notes ({shortcutLabel('⇧F')})"
         onclick={() => (shell.sidebar = "search")}
       >
         Search
       </button>
+      <button type="button" aria-pressed={showTags} onclick={() => (shell.sidebar = "tags")}>Tags</button>
     </div>
 
     {#if showSearch}
       <SearchPanel />
+    {:else if showTags}
+      <TagsPanel {vaultId} />
     {:else if tree.state.status === "loaded" && tree.vaultId === vaultId}
       <PinnedNotes {vaultId} {current} />
       <FileTree {vaultId} root={tree.state.root} {current} />
@@ -107,6 +122,10 @@
     {/if}
   {/if}
 </div>
+
+{#if vaultId !== undefined}
+  <NewNoteDialog bind:open={creating} {vaultId} folder={currentFolder} />
+{/if}
 
 <style>
   .pane {
@@ -140,7 +159,8 @@
     font-weight: 600;
     color: var(--ink);
   }
-  .settings {
+  .settings,
+  .icon {
     display: grid;
     place-items: center;
     width: 32px;
@@ -149,13 +169,23 @@
     color: var(--ink-3);
     text-decoration: none;
   }
-  .settings:hover {
+  .icon {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font-size: 20px;
+    font-weight: 300;
+    cursor: pointer;
+  }
+  .settings:hover,
+  .icon:hover {
     background: var(--sunken);
     color: var(--ink);
   }
   .modes {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, 1fr);
     gap: 2px;
     padding: 2px;
     border-radius: var(--radius);
@@ -175,9 +205,21 @@
     color: var(--ink);
     box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
   }
+  /* Phone: search has its own tab. */
   @media (max-width: 899px) {
     .modes {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .modes .search {
       display: none;
+    }
+    .modes button {
+      height: 34px;
+    }
+    .settings,
+    .icon {
+      width: 40px;
+      height: 40px;
     }
   }
   .vaults {

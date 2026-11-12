@@ -1,6 +1,7 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import { vaults } from "./vaults.svelte.ts";
+  import TemplateFolderForm from "./TemplateFolderForm.svelte";
 
   // Untracked: the load reads the store's state, which would re-run this effect.
   $effect(() => {
@@ -21,6 +22,7 @@
       <li>
         <a class="name" href="/vaults/{vault.id}">{vault.name}</a>
         <span class="path mono">{vault.rootPath}</span>
+        <TemplateFolderForm {vault} />
       </li>
     {/each}
   </ul>
