@@ -10,6 +10,7 @@
   import PinButton from "#lib/features/pins/PinButton.svelte";
   import { getBacklinks, getNote } from "./api.ts";
   import Backlinks from "./Backlinks.svelte";
+  import DeleteNoteDialog from "./DeleteNoteDialog.svelte";
   import NoteThreads from "./NoteThreads.svelte";
   import Related from "./Related.svelte";
   import { threads } from "#lib/features/threads/threads.svelte.ts";
@@ -44,6 +45,7 @@
   let backlinks = $state<GetBacklinksResponse["backlinks"] | undefined>(undefined);
   let article: HTMLElement | undefined = $state();
   let attempt = $state(0);
+  let deleting = $state(false);
   /** The note on screen. A reload of the same note (it changed on disk) keeps the scroll position. */
   let shownKey: string | undefined;
 
@@ -160,6 +162,9 @@
       <a href={modeHref(false)} aria-current={editing ? undefined : "page"} data-sveltekit-replacestate data-sveltekit-noscroll>Read</a>
       <a href={modeHref(true)} aria-current={editing ? "page" : undefined} data-sveltekit-replacestate data-sveltekit-noscroll title="Edit the markdown (⌘E / Ctrl E)">Edit</a>
     </span>
+    {#if noteState.status === "loaded"}
+      <button type="button" class="delete" title="Move this note to .trash/ in the vault" onclick={() => (deleting = true)}>Delete</button>
+    {/if}
   </p>
 
   {#if editing}
@@ -206,6 +211,10 @@
     <p class="muted">Loading…</p>
   {/if}
 </article>
+
+{#if noteState.status === "loaded"}
+  <DeleteNoteDialog bind:open={deleting} {vaultId} {path} title={noteState.note.title} backlinks={backlinks?.length} />
+{/if}
 
 <style>
   article {
@@ -261,6 +270,16 @@
   .modes a[aria-current="page"] {
     background: var(--accent-soft);
     color: var(--accent-ink);
+  }
+  .delete {
+    height: auto;
+    padding: 3px 8px;
+    font-size: 11px;
+    color: var(--ink-3);
+  }
+  .delete:hover {
+    border-color: var(--del);
+    color: var(--del);
   }
   /* Amber marks what an agent wrote. */
   .edited {

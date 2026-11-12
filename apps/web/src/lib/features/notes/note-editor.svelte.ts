@@ -41,6 +41,8 @@ export class NoteEditor {
   conflict = $state<Conflict | null>(null);
   #base = $state<Version>({ content: "", hash: null });
   #timer: ReturnType<typeof setTimeout> | undefined;
+  /** Set once the note is deleted from the app: nothing more is saved. */
+  #discarded = false;
   #inFlight: Promise<void> | undefined;
 
   constructor(
@@ -86,7 +88,7 @@ export class NoteEditor {
   async flush() {
     clearTimeout(this.#timer);
     while (this.#inFlight !== undefined) await this.#inFlight;
-    if (!this.dirty || this.conflict !== null) return;
+    if (this.#discarded || !this.dirty || this.conflict !== null) return;
     this.#inFlight = this.#save().finally(() => (this.#inFlight = undefined));
     await this.#inFlight;
   }
@@ -103,7 +105,7 @@ export class NoteEditor {
    * newer disk version during a conflict, just updates what we compare with.
    */
   async diskChanged() {
-    if (this.status !== "ready") return;
+    if (this.status !== "ready" || this.#discarded) return;
     while (this.#inFlight !== undefined) await this.#inFlight;
     const disk = await this.#readDisk();
     if (disk === undefined || disk?.hash === this.#base.hash) return;
@@ -146,6 +148,12 @@ export class NoteEditor {
     void this.flush();
   }
 
+  /** The note was deleted from the app: drop the edits, and never save (which would bring it back). */
+  discard() {
+    this.#discarded = true;
+    clearTimeout(this.#timer);
+  }
+
   #take(version: Version) {
     this.#base = version;
     this.content = version.content;
@@ -154,7 +162,7 @@ export class NoteEditor {
 
   #schedule() {
     clearTimeout(this.#timer);
-    if (!this.dirty || this.conflict !== null || this.saveError !== null) return;
+    if (this.#discarded || !this.dirty || this.conflict !== null || this.saveError !== null) return;
     this.#timer = setTimeout(() => void this.flush(), IDLE_SAVE_MS);
   }
 
@@ -210,3 +218,18 @@ export const noteEditor = (vaultId: string, path: string): NoteEditor => {
 
 /** True when any open editor would lose work if the page went away. */
 export const anyUnsavedWork = () => [...open.values()].some((editor) => editor.hasUnsavedWork);
+
+/** True when the note is open in an editor holding work that deleting it would lose. */
+export const hasUnsavedEdits = (vaultId: string, path: string) => open.get(`${vaultId}\0${path}`)?.hasUnsavedWork ?? false;
+
+/** The note was deleted from the app: its editor (if any) stops saving and is forgotten. */
+export const discardEditor = (vaultId: string, path: string) => {
+  const key = `${vaultId}\0${path}`;
+  open.get(key)?.discard();
+  open.delete(key);
+};
+
+/** Saves what the note's editor holds (if it is open and can save), so deleting the note keeps it in the trash copy. */
+export const flushEditor = async (vaultId: string, path: string) => {
+  await open.get(`${vaultId}\0${path}`)?.flush();
+};

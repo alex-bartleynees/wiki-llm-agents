@@ -1,5 +1,6 @@
 import { Layer } from "effect";
 import { HttpRouter } from "effect/http";
+import { deleteNoteEndpoint } from "./delete-note/endpoint.js";
 import { getBacklinksEndpoint } from "./get-backlinks/endpoint.js";
 import { getFileEndpoint } from "./get-file/endpoint.js";
 import { getNoteEndpoint } from "./get-note/endpoint.js";
@@ -14,6 +15,7 @@ export const notesRouter = Layer.mergeAll(
   HttpRouter.add("GET", "/api/vaults/:vaultId/related", relatedNotesEndpoint),
   HttpRouter.add("GET", "/api/vaults/:vaultId/tree", getTreeEndpoint),
   HttpRouter.add("GET", "/api/vaults/:vaultId/note", getNoteEndpoint),
+  HttpRouter.add("DELETE", "/api/vaults/:vaultId/note", deleteNoteEndpoint),
   HttpRouter.add("GET", "/api/vaults/:vaultId/note/source", getNoteSourceEndpoint),
   HttpRouter.add("PUT", "/api/vaults/:vaultId/note/source", saveNoteEndpoint),
   HttpRouter.add("POST", "/api/vaults/:vaultId/assets", uploadImageEndpoint),

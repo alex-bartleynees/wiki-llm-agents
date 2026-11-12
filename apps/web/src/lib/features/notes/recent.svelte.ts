@@ -44,7 +44,15 @@ class RecentStore {
 
   /** Moves the file to the top of the vault's list. */
   add(vaultId: string, file: RecentFile) {
-    const files = [file, ...this.#cached(vaultId).filter((other) => other.path !== file.path)].slice(0, MAX);
+    this.#store(vaultId, [file, ...this.#cached(vaultId).filter((other) => other.path !== file.path)].slice(0, MAX));
+  }
+
+  /** Forgets a file that is gone (deleted from the app). */
+  remove(vaultId: string, path: string) {
+    this.#store(vaultId, this.#cached(vaultId).filter((other) => other.path !== path));
+  }
+
+  #store(vaultId: string, files: ReadonlyArray<RecentFile>) {
     this.#lists.set(vaultId, files);
     this.#version++;
     try {

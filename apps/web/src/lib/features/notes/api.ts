@@ -1,3 +1,4 @@
+import { DeleteNoteResponse } from "@wiki-agents/contracts/notes/delete-note/response";
 import { GetBacklinksResponse } from "@wiki-agents/contracts/notes/get-backlinks/response";
 import { GetNoteResponse } from "@wiki-agents/contracts/notes/get-note/response";
 import { GetTreeResponse } from "@wiki-agents/contracts/notes/get-tree/response";
@@ -5,7 +6,7 @@ import { GetNoteSourceResponse } from "@wiki-agents/contracts/notes/get-note-sou
 import { SaveNoteRequest } from "@wiki-agents/contracts/notes/save-note/request";
 import { SaveNoteResponse } from "@wiki-agents/contracts/notes/save-note/response";
 import { UploadImageResponse } from "@wiki-agents/contracts/notes/upload-image/response";
-import { getJson, postBytes, putJson } from "#lib/api/client.ts";
+import { deleteJson, getJson, postBytes, putJson } from "#lib/api/client.ts";
 
 const vaultPath = (vaultId: string) => `/api/vaults/${encodeURIComponent(vaultId)}`;
 
@@ -28,3 +29,7 @@ export const saveNote = (vaultId: string, request: SaveNoteRequest) =>
 /** Adds an image to the vault's `assets/` folder; the answer says where it went. */
 export const uploadImage = (vaultId: string, name: string, image: Blob) =>
   postBytes(`${vaultPath(vaultId)}/assets?name=${encodeURIComponent(name)}`, image, UploadImageResponse);
+
+/** Moves a note to the vault's `.trash/`, if it is still the version with `hash`; 409 otherwise. */
+export const deleteNote = (vaultId: string, path: string, hash: string) =>
+  deleteJson(`${vaultPath(vaultId)}/note?path=${encodeURIComponent(path)}&hash=${encodeURIComponent(hash)}`, DeleteNoteResponse);

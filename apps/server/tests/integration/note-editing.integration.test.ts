@@ -3,6 +3,7 @@ import { chmodSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, syml
 import { join } from "node:path";
 import { expect, layer } from "@effect/vitest";
 import type { FileChange } from "@wiki-agents/contracts/changes/model";
+import { DeleteNoteResponse } from "@wiki-agents/contracts/notes/delete-note/response";
 import { GetNoteResponse } from "@wiki-agents/contracts/notes/get-note/response";
 import { GetNoteSourceResponse } from "@wiki-agents/contracts/notes/get-note-source/response";
 import { SaveNoteResponse } from "@wiki-agents/contracts/notes/save-note/response";
@@ -26,6 +27,10 @@ const save = (vaultId: string, body: { path: string; content: string; baseHash: 
   HttpClient.execute(HttpClientRequest.put(`/api/vaults/${vaultId}/note/source`).pipe(HttpClientRequest.bodyJsonUnsafe(body)));
 const saveOk = (vaultId: string, body: { path: string; content: string; baseHash: string | null }) =>
   save(vaultId, body).pipe(Effect.flatMap(decode(SaveNoteResponse)));
+
+const remove = (vaultId: string, path: string, hash: string) =>
+  HttpClient.del(`/api/vaults/${vaultId}/note?path=${encodeURIComponent(path)}&hash=${hash}`);
+const removeOk = (vaultId: string, path: string, hash: string) => remove(vaultId, path, hash).pipe(Effect.flatMap(decode(DeleteNoteResponse)));
 
 const search = (vaultId: string, q: string) =>
   HttpClient.get(`/api/vaults/${vaultId}/search?q=${encodeURIComponent(q)}`).pipe(Effect.flatMap(decode(SearchNotesResponse)));
@@ -120,7 +125,7 @@ layer(makeTestApp({ providers: provider.registry }))("note editing", (it) => {
 
   it.effect("doesn't record the user's saves against an agent turn running in the vault", () =>
     Effect.gen(function* () {
-      const vault = yield* newVaultWith({ "Tea.md": "# Tea\n", "Coffee.md": "# Coffee\n" });
+      const vault = yield* newVaultWith({ "Tea.md": "# Tea\n", "Coffee.md": "# Coffee\n", "Milk.md": "# Milk\n" });
       provider.scripts.set("wait", ({ turnId }) =>
         Effect.succeed([
           { _tag: "request.opened", turnId, requestId: `${turnId}:q`, prompt: { _tag: "question", question: "Wait?", options: [] } },
@@ -133,6 +138,7 @@ layer(makeTestApp({ providers: provider.registry }))("note editing", (it) => {
 
       const tea = yield* sourceOk(vault.id, "Tea.md");
       yield* saveOk(vault.id, { path: "Tea.md", content: "# Tea\n\nMine.\n", baseHash: tea.hash });
+      yield* removeOk(vault.id, "Milk.md", sha256("# Milk\n"));
       // Someone else's change during the turn is still recorded, as uncertain.
       writeFileSync(join(vault.rootPath, "Coffee.md"), "# Coffee\n\nSyncthing.\n");
       yield* (yield* Indexer).run({ _tag: "Sync", vault, paths: ["Coffee.md"] });
@@ -141,6 +147,36 @@ layer(makeTestApp({ providers: provider.registry }))("note editing", (it) => {
       const finished = yield* events.until(isTag("turn.finished"));
       const changes = finished.flatMap((event): ReadonlyArray<FileChange> => (event._tag === "turn.changes" ? event.changes : []));
       expect(changes.map((change) => [change.path, change.attribution])).toEqual([["Coffee.md", "uncertain"]]);
+    }),
+  );
+
+  it.effect("moves a note to .trash/ only if unchanged, never replacing what is there, and unindexes it", () =>
+    Effect.gen(function* () {
+      const vault = yield* newVaultWith({ "Drinks/Tea.md": "# Tea\n", "Coffee.md": "See [[Tea]].\n", "Other/Tea.md": "# Other tea\n" });
+      const tea = sha256("# Tea\n");
+
+      // Changed since it was seen: refused, nothing moves.
+      const stale = yield* remove(vault.id, "Drinks/Tea.md", sha256("# Old tea\n"));
+      expect([stale.status, yield* stale.text]).toEqual([409, "The note has changed since you opened it; look at it again before deleting."]);
+      expect(readFileSync(join(vault.rootPath, "Drinks/Tea.md"), "utf8")).toBe("# Tea\n");
+
+      expect(yield* removeOk(vault.id, "Drinks/Tea.md", tea)).toEqual({ path: "Drinks/Tea.md", trashPath: ".trash/Tea.md" });
+      expect(readdirSync(join(vault.rootPath, "Drinks"))).toEqual([]);
+      expect(readFileSync(join(vault.rootPath, ".trash/Tea.md"), "utf8")).toBe("# Tea\n");
+      expect((yield* search(vault.id, "tea")).results.map((result) => result.path)).not.toContain("Drinks/Tea.md");
+      // Coffee's [[Tea]] now finds the other Tea.
+      const coffee = yield* HttpClient.get(`/api/vaults/${vault.id}/note?path=Coffee.md`).pipe(Effect.flatMap(decode(GetNoteResponse)));
+      expect(coffee.links).toEqual([{ kind: "wikilink", target: "Tea", path: "Other/Tea.md" }]);
+
+      // A second note of the same name goes beside the first in the trash.
+      expect((yield* removeOk(vault.id, "Other/Tea.md", sha256("# Other tea\n"))).trashPath).toBe(".trash/Tea 1.md");
+      expect(readFileSync(join(vault.rootPath, ".trash/Tea.md"), "utf8")).toBe("# Tea\n");
+
+      expect((yield* remove(vault.id, "Drinks/Tea.md", tea)).status).toBe(404);
+      expect((yield* remove(vault.id, "../Tea.md", tea)).status).toBe(400);
+      expect((yield* remove(vault.id, ".trash/Tea.md", tea)).status).toBe(400);
+      expect((yield* remove("nope", "Coffee.md", tea)).status).toBe(404);
+      expect((yield* HttpClient.del(`/api/vaults/${vault.id}/note?path=Coffee.md`)).status).toBe(400);
     }),
   );
 });

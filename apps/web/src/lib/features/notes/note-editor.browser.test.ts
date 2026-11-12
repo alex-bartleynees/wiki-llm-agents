@@ -6,7 +6,7 @@ import { ApiError } from "#lib/api/client.ts";
 const api = vi.hoisted(() => ({ getNoteSource: vi.fn(), saveNote: vi.fn() }));
 vi.mock("./api.ts", () => api);
 
-const { IDLE_SAVE_MS, NoteEditor, noteEditor } = await import("./note-editor.svelte.ts");
+const { discardEditor, hasUnsavedEdits, IDLE_SAVE_MS, NoteEditor, noteEditor } = await import("./note-editor.svelte.ts");
 
 const source = (content: string, hash: string) => ({ vaultId: "v", path: "Tea.md", content, hash, modifiedAt: 1 });
 const saved = (hash: string) => ({ path: "Tea.md", hash, modifiedAt: 2 });
@@ -179,5 +179,24 @@ describe("note editor", () => {
     editing.edit("Mine");
     await editing.flush();
     expect(noteEditor("v", "Tea.md")).toBe(editing);
+  });
+
+  it("never saves after the note is deleted from the app, and forgets the edits", async () => {
+    // Its own note: the registry keeps other tests' editors that have unsaved work.
+    api.getNoteSource.mockResolvedValueOnce(source("# Tea\n", "h0"));
+    const editor = noteEditor("v", "Deleted.md");
+    await editor.load();
+    editor.edit("# Tea\n\nUnsaved.");
+    expect(hasUnsavedEdits("v", "Deleted.md")).toBe(true);
+
+    discardEditor("v", "Deleted.md");
+    await vi.advanceTimersByTimeAsync(IDLE_SAVE_MS * 2);
+    await editor.flush();
+    editor.close();
+    await editor.diskChanged();
+    expect(api.saveNote).not.toHaveBeenCalled();
+    expect(editor.conflict).toBeNull();
+    expect(hasUnsavedEdits("v", "Deleted.md")).toBe(false);
+    expect(noteEditor("v", "Deleted.md")).not.toBe(editor);
   });
 });

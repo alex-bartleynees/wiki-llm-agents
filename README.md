@@ -100,6 +100,13 @@ first edit.
   `{{title}}`, `{{date}}`, `{{time}}`, `{{date:dddd D MMMM}}` and `{{time:h:mm a}}`
   are filled in with moment.js formats, as Obsidian's core Templates plugin does.
   The note opens in the editor; a name that's taken offers the existing note.
+- **Delete** (in the note header) moves the note to `.trash/` at the top of the vault,
+  as Obsidian's "Move to Obsidian trash" does, so it can be got back (`Coffee 1.md`
+  when the trash already has one). The dialog says how many notes link to it. Text
+  still being typed is saved first, so it goes to the trash too. `DELETE
+  /api/vaults/:id/note?path=&hash=` is hash-checked like saves (409 if the note
+  changed since you looked), unindexes the note before answering, and isn't recorded
+  against a running agent turn.
 - **Tags pane** (the vault pane's **Tags**, on desktop and in the phone drawer):
   frontmatter tags nested by `/`, each counting its notes plus those of the tags
   under it; a filter box, and folding. A tag opens search filtered to it.

@@ -120,3 +120,30 @@ test("lists tags, nested, and shows the notes with one", async ({ page }, info) 
   await expect(page.getByRole("link", { name: new RegExp(`Oolong ${width}`) })).toBeVisible();
   await expect(search).toBeVisible();
 });
+
+test("deletes a note to .trash/, even mid-edit, without it coming back", async ({ page }, info) => {
+  const name = `Doomed ${info.project.name}`;
+  writeFileSync(join(vault(), `${name}.md`), `# ${name}\n`);
+  writeFileSync(join(vault(), `Links to ${name}.md`), `# Links\n\nSee [[${name}]].\n`);
+  await openVault(page);
+  await page.goto(`${page.url()}?note=${encodeURIComponent(`${name}.md`)}&edit`);
+  const source = page.getByRole("textbox", { name: "Note source" });
+  await expect(source).toContainText(name);
+  await source.click();
+  await page.keyboard.press("Control+End");
+  await page.keyboard.type("Typed just before deleting");
+
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: `Delete “${name}”?` });
+  await expect(dialog).toContainText("1 note links to it; those links will stop working.");
+  await noOverflow(page);
+  await dialog.getByRole("button", { name: "Delete", exact: true }).click();
+
+  // Back to the vault's home. The trash copy has what was typed; leaving the editor didn't save the note back.
+  await expect(page).toHaveURL(/\/vaults\/[^/?]+$/);
+  expect(readFileSync(join(vault(), ".trash", `${name}.md`), "utf8")).toBe(`# ${name}\nTyped just before deleting`);
+  expect(existsSync(join(vault(), `${name}.md`))).toBe(false);
+  const pane = await vaultPane(page, isPhone(info));
+  await expect(pane.getByRole("link", { name: `Links to ${name}`, exact: true })).toBeVisible();
+  await expect(pane.getByRole("link", { name, exact: true })).toHaveCount(0);
+});
