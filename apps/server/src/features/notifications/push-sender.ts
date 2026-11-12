@@ -50,6 +50,15 @@ export const networkReason = (error: unknown): string => {
   return parts.join(": ");
 };
 
+/**
+ * `web-push`'s headers as `fetch` takes them: values as strings, and no
+ * `Content-Length`, which `fetch` sets from the body. Once `undici` 8 is loaded (by
+ * `@effect/platform-node`'s HTTP client) it handles Node's own `fetch` too, and
+ * rejects the header as 'invalid content-length'; every push then failed.
+ */
+export const fetchHeaders = (headers: Readonly<Record<string, unknown>>): Record<string, string> =>
+  Object.fromEntries(Object.entries(headers).filter(([name]) => name.toLowerCase() !== "content-length").map(([name, value]) => [name, String(value)]));
+
 const KeyFile = Schema.fromJsonString(Schema.Struct({ publicKey: Schema.String, privateKey: Schema.String }));
 
 /** The VAPID key pair: from the secrets file when one is configured, otherwise kept in the database. */
@@ -93,7 +102,7 @@ export const PushSenderLive = Layer.effect(
           try: (signal) =>
             fetch(request.endpoint, {
               method: request.method,
-              headers: request.headers,
+              headers: fetchHeaders(request.headers),
               body: request.body,
               signal: AbortSignal.any([signal, AbortSignal.timeout(SEND_TIMEOUT_MS)]),
             }),

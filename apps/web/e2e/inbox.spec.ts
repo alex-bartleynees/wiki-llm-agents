@@ -18,13 +18,18 @@ const advanceClock = async (request: APIRequestContext, advanceMs: number) => {
   return ((await response.json()) as { now: number }).now;
 };
 
-/** Moves the server's clock just past the schedule's next time, so it fires. */
-const fire = async (request: APIRequestContext, title: string) => {
+/**
+ * Moves the server's clock just past the latest of the schedules' next times, in one
+ * jump, so each fires once. Firing them one at a time could pass another's time too
+ * (a Mon–Sat prompt fired after a Saturday reminder jumps over Sunday's reminder).
+ * Each must recur at most daily, so none comes round twice before the latest.
+ */
+const fire = async (request: APIRequestContext, ...titles: ReadonlyArray<string>) => {
   const { schedules } = (await (await request.get("/api/schedules")).json()) as { schedules: ReadonlyArray<ScheduleSummary> };
-  const schedule = schedules.find((candidate) => candidate.title === title);
-  expect(schedule?.nextAt).toBeTruthy();
+  const nextTimes = titles.map((title) => schedules.find((candidate) => candidate.title === title)?.nextAt ?? null);
+  for (const nextAt of nextTimes) expect(nextAt).toBeTruthy();
   const now = await advanceClock(request, 1);
-  await advanceClock(request, Math.max(1, schedule!.nextAt! - now + 1000));
+  await advanceClock(request, Math.max(1, Math.max(...(nextTimes as Array<number>)) - now + 1000));
 };
 
 const newSchedule = async (page: Page) => {
@@ -50,13 +55,13 @@ test("creates a reminder and a scheduled prompt, sees both arrive, and opens the
   await form.getByRole("textbox", { name: "Prompt" }).fill(prompt);
   await form.getByLabel("Repeat").selectOption("weekly");
   await form.getByRole("checkbox", { name: "Sat" }).check();
+  await form.getByRole("checkbox", { name: "Sun" }).check();
   await form.getByLabel("Time", { exact: true }).fill("06:45");
   await form.getByLabel("Provider").selectOption({ label: "Replay (recorded, free)" });
   await form.getByRole("button", { name: "Create schedule" }).click();
-  await expect(page.getByRole("listitem", { name: prompt })).toContainText("Every Mon, Tue, Wed, Thu, Fri, Sat at 06:45");
+  await expect(page.getByRole("listitem", { name: prompt })).toContainText("Every day at 06:45");
 
-  await fire(request, reminder);
-  await fire(request, prompt);
+  await fire(request, reminder, prompt);
 
   await page.getByRole("navigation", { name: "Sections" }).getByRole("link", { name: /Inbox/ }).click();
   await expect(page.getByRole("article", { name: reminder })).toContainText("Reminder");

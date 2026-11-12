@@ -28,7 +28,29 @@ export const permission = (): NotificationPermission => ("Notification" in windo
 /** How long to wait for the service worker before giving up. */
 const READY_TIMEOUT_MS = 10_000;
 
+/** Where SvelteKit serves the service worker (a module script in dev). */
+const SCRIPT = "/service-worker.js";
+
+/**
+ * Kit registers the worker on load but drops any error, so a failed registration
+ * would only time out. Registering again (a no-op when it worked) says why it didn't.
+ */
+const ensureRegistered = async () => {
+  if ((await navigator.serviceWorker.getRegistration()) !== undefined) return;
+  try {
+    await navigator.serviceWorker.register(SCRIPT, import.meta.env.DEV ? { type: "module" } : {});
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    // A proxy that sends requests without its login cookie to a login page (exe.dev, Cloudflare Access...).
+    if (/redirect/i.test(message)) {
+      throw new Error(`The service worker couldn't load: something in front of the app redirects ${SCRIPT} (a proxy's login page?). Browsers don't follow redirects for it, so it has to be served directly`);
+    }
+    throw new Error(`The service worker couldn't load: ${message}`);
+  }
+};
+
 const registration = async () => {
+  await ensureRegistered();
   const ready = navigator.serviceWorker.ready;
   const timeout = new Promise<never>((_, reject) =>
     setTimeout(() => reject(new Error("The service worker didn't start; reload and try again")), READY_TIMEOUT_MS),
