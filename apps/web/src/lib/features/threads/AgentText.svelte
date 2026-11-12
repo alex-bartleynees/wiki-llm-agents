@@ -5,12 +5,13 @@
   import { openThread } from "./open-thread.svelte.ts";
   import { type Inline, parseAgentText } from "./agent-text.ts";
 
-  let { text }: { text: string } = $props();
+  /** `vaultId` resolves citations; the open thread's vault by default. */
+  let { text, vaultId: inVault }: { text: string; vaultId?: string | null } = $props();
   const blocks = $derived(parseAgentText(text));
   const citations = $derived([...new Set(blocks.flatMap((block) => block.type === "p" ? block.lines.flat() : block.items.flat()).filter((part) => part.type === "citation").map((part) => part.text))].slice(0, 100));
   let resolved = $state<Record<string, string | null>>({});
   $effect(() => {
-    const vaultId = openThread.thread?.vaultId;
+    const vaultId = inVault ?? openThread.thread?.vaultId;
     const links = citations.map((link) => ({ link }));
     let active = true;
     if (vaultId && links.length) void postJson(`/api/vaults/${vaultId}/resolve-links`, ResolveLinksRequest, { links }, ResolveLinksResponse).then((response) => {

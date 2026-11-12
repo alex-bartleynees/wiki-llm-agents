@@ -26,7 +26,13 @@ import { threadWorkspace } from "./workspace.js";
 type Message =
   | { readonly _tag: "Resume" }
   | { readonly _tag: "Context"; readonly note: ContextNote; readonly reply: Deferred.Deferred<void, NoTurnRunning | DbError> }
-  | { readonly _tag: "SendMessage"; readonly text: string; readonly notes: ReadonlyArray<ContextNote>; readonly reply: Deferred.Deferred<string, ThreadBusy | DbError> }
+  | {
+      readonly _tag: "SendMessage";
+      readonly text: string;
+      readonly notes: ReadonlyArray<ContextNote>;
+      readonly options: SendOptions;
+      readonly reply: Deferred.Deferred<string, ThreadBusy | DbError>;
+    }
   | { readonly _tag: "Interrupt"; readonly reply: Deferred.Deferred<string, NoTurnRunning | DbError> }
   | {
       readonly _tag: "AnswerRequest";
@@ -38,12 +44,31 @@ type Message =
   | { readonly _tag: "SetAgent"; readonly agentId: string | null; readonly reply: Deferred.Deferred<ThreadSummary, DbError> }
   | { readonly _tag: "SetDone"; readonly done: boolean; readonly reply: Deferred.Deferred<ThreadSummary, ThreadBusy | DbError> }
   | { readonly _tag: "OpenNote"; readonly note: OpenedNote; readonly reply: Deferred.Deferred<void, NoTurnRunning | DbError> }
+  | { readonly _tag: "ScheduleSaved"; readonly receipt: ScheduleReceipt; readonly reply: Deferred.Deferred<void, NoTurnRunning | DbError> }
   | { readonly _tag: "ChangeUndone"; readonly turnId: string; readonly changeId: string; readonly reply: Deferred.Deferred<void, DbError> }
   /** From the turn's provider fiber; ignored once that turn is over. */
   | { readonly _tag: "ProviderEvent"; readonly turnId: string; readonly event: ProviderEvent }
   | { readonly _tag: "ProviderEnded"; readonly turnId: string; readonly exit: Exit.Exit<void, ProviderError> };
 
 export type AnswerError = RequestNotFound | RequestClosed | WrongAnswerKind | DbError;
+
+/** How a message is sent. */
+export interface SendOptions {
+  /**
+   * Nobody is watching (a scheduled prompt): an approval is denied and a question
+   * answered "nobody is available" instead of waiting, each with a notice.
+   */
+  readonly unattended?: boolean;
+  /** The turn's id, when the sender records it first (a schedule's run). */
+  readonly turnId?: string;
+}
+
+/** A schedule the agent saved with the schedule tools, shown as a receipt in the turn. */
+export type ScheduleReceipt = Omit<Extract<ThreadEvent, { readonly _tag: "schedule.saved" }>, "_tag" | "turnId">;
+
+/** What an unattended turn gets instead of your answer. */
+export const UNATTENDED_ANSWER =
+  "Nobody is available to answer: this is a scheduled run. Carry on without an answer, and say in your reply what you couldn't do.";
 
 /** A note the agent opened for you (`vault_open_note`). */
 export type OpenedNote = Omit<Extract<ThreadEvent, { readonly _tag: "note.opened" }>, "_tag" | "turnId">;
@@ -56,7 +81,7 @@ export interface ThreadActor {
    */
   readonly resumed: Effect.Effect<void>;
   readonly recordContext: (note: ContextNote) => Effect.Effect<void, NoTurnRunning | DbError>;
-  readonly sendMessage: (text: string, notes?: ReadonlyArray<ContextNote>) => Effect.Effect<string, ThreadBusy | DbError>;
+  readonly sendMessage: (text: string, notes?: ReadonlyArray<ContextNote>, options?: SendOptions) => Effect.Effect<string, ThreadBusy | DbError>;
   /** Stops the running turn; returns its id. */
   readonly interrupt: Effect.Effect<string, NoTurnRunning | DbError>;
   readonly answerRequest: (requestId: string, answer: RequestAnswer) => Effect.Effect<void, AnswerError>;
@@ -68,12 +93,15 @@ export interface ThreadActor {
   readonly setDone: (done: boolean) => Effect.Effect<ThreadSummary, ThreadBusy | DbError>;
   /** Records that the agent opened a note, in the running turn (the UI opens it). */
   readonly openNote: (note: OpenedNote) => Effect.Effect<void, NoTurnRunning | DbError>;
+  /** Records the receipt of a schedule the agent saved, in the running turn. */
+  readonly scheduleSaved: (receipt: ScheduleReceipt) => Effect.Effect<void, NoTurnRunning | DbError>;
   /** Records that a change the thread's turn made was undone. */
   readonly changeUndone: (turnId: string, changeId: string) => Effect.Effect<void, DbError>;
 }
 
 interface RunningTurn {
   readonly id: string;
+  readonly unattended: boolean;
   fiber: Fiber.Fiber<void> | undefined;
   /** Keeps the actor alive while the turn runs (see `retain`). */
   hold: Scope.Closeable | undefined;
@@ -235,7 +263,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     for (const request of recovery.pendingRequests) pending.set(request.requestId, request);
     if (Option.isNone(recovery.openTurn)) return;
     const open = recovery.openTurn.value;
-    const current: RunningTurn = { id: open.id, fiber: undefined, hold: undefined };
+    const current: RunningTurn = { id: open.id, unattended: open.unattended, fiber: undefined, hold: undefined };
     turn = current;
     yield* trackChanges(current.id);
     if (!open.dispatched) return yield* dispatch(current, open.input);
@@ -253,14 +281,19 @@ export const makeThreadActor = Effect.fnUntraced(function* (
       : Option.none();
     if (Option.isNone(resumed)) return yield* finish("interrupted", null, SERVER_STOPPED);
     yield* run(current, resumed.value);
+    // Asked while the server was down: nobody is coming to answer.
+    if (current.unattended) {
+      for (const request of recovery.pendingRequests) if (request.turnId === current.id) yield* answerUnattended(request);
+    }
   });
 
-  const sendMessage = Effect.fnUntraced(function* (text: string, notes: ReadonlyArray<ContextNote>) {
+  const sendMessage = Effect.fnUntraced(function* (text: string, notes: ReadonlyArray<ContextNote>, options: SendOptions) {
     if (turn !== undefined) return yield* new ThreadBusy({ threadId });
-    const current: RunningTurn = { id: randomUUID(), fiber: undefined, hold: undefined };
+    const unattended = options.unattended === true;
+    const current: RunningTurn = { id: options.turnId ?? randomUUID(), unattended, fiber: undefined, hold: undefined };
     yield* record(
       [
-        { _tag: "user.message", turnId: current.id, text },
+        { _tag: "user.message", turnId: current.id, text, ...(unattended ? { unattended } : {}) },
         { _tag: "turn.started", turnId: current.id },
         ...notes.map((note): ThreadEvent => ({ _tag: "note.context", turnId: current.id, note })),
       ],
@@ -298,6 +331,20 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     );
     if (answered._tag === "Failure") yield* finish("failed", null, answered.failure.message);
   });
+
+  /** Denies an approval, or answers a question "nobody is available", and says so in the turn. */
+  const answerUnattended = (request: PendingRequest) => {
+    const answer: RequestAnswer =
+      request.prompt._tag === "approval" ? { _tag: "approval", decision: "deny" } : { _tag: "question", text: UNATTENDED_ANSWER };
+    const text =
+      request.prompt._tag === "approval"
+        ? `Nobody was watching this scheduled run, so “${request.prompt.title}” was denied.`
+        : `Nobody was watching this scheduled run, so “${request.prompt.question}” wasn't answered.`;
+    return record([{ _tag: "notice", turnId: request.turnId, text }]).pipe(
+      Effect.andThen(answerRequest(request.requestId, answer)),
+      Effect.catchTags({ RequestNotFound: () => Effect.void, RequestClosed: () => Effect.void, WrongAnswerKind: () => Effect.void }),
+    );
+  };
 
   const setModel = Effect.fnUntraced(function* (model: string) {
     const summary = yield* repository.setModel(threadId, model, yield* Clock.currentTimeMillis);
@@ -339,6 +386,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
       case "request.opened":
         yield* record([{ ...event, prompt: yield* withEditWarnings(cwd, event.prompt).pipe(Effect.provideContext(changeServices)) }]);
         pending.set(event.requestId, { requestId: event.requestId, turnId: event.turnId, prompt: event.prompt });
+        if (turn?.unattended === true) yield* answerUnattended({ requestId: event.requestId, turnId: event.turnId, prompt: event.prompt });
         return;
       default:
         return yield* record([event]);
@@ -356,7 +404,9 @@ export const makeThreadActor = Effect.fnUntraced(function* (
       case "Resume":
         return Effect.ensuring(resume, Deferred.succeed(resumeDone, undefined));
       case "SendMessage":
-        return Effect.asVoid(Effect.flatMap(Effect.exit(sendMessage(message.text, message.notes)), (exit) => Deferred.done(message.reply, exit)));
+        return Effect.asVoid(
+          Effect.flatMap(Effect.exit(sendMessage(message.text, message.notes, message.options)), (exit) => Deferred.done(message.reply, exit)),
+        );
       case "Interrupt":
         return Effect.asVoid(Effect.flatMap(Effect.exit(interrupt), (exit) => Deferred.done(message.reply, exit)));
       case "AnswerRequest":
@@ -376,6 +426,11 @@ export const makeThreadActor = Effect.fnUntraced(function* (
         })), (exit) => Deferred.done(message.reply, exit)));
       case "OpenNote":
         return Effect.asVoid(Effect.flatMap(Effect.exit(openNote(message.note)), (exit) => Deferred.done(message.reply, exit)));
+      case "ScheduleSaved":
+        return Effect.asVoid(Effect.flatMap(Effect.exit(Effect.gen(function* () {
+          if (turn === undefined) return yield* new NoTurnRunning({ threadId });
+          yield* record([{ _tag: "schedule.saved", turnId: turn.id, ...message.receipt }]);
+        })), (exit) => Deferred.done(message.reply, exit)));
       case "ChangeUndone":
         return Effect.asVoid(
           Effect.flatMap(Effect.exit(record([{ _tag: "change.undone", turnId: message.turnId, changeId: message.changeId }])), (exit) =>
@@ -408,13 +463,14 @@ export const makeThreadActor = Effect.fnUntraced(function* (
   const actor: ThreadActor = {
     resumed: Deferred.await(resumeDone),
     recordContext: (note) => ask((reply) => ({ _tag: "Context", note, reply })),
-    sendMessage: (text, notes = []) => ask((reply) => ({ _tag: "SendMessage", text, notes, reply })),
+    sendMessage: (text, notes = [], options = {}) => ask((reply) => ({ _tag: "SendMessage", text, notes, options, reply })),
     interrupt: ask((reply) => ({ _tag: "Interrupt", reply })),
     answerRequest: (requestId, answer) => ask((reply) => ({ _tag: "AnswerRequest", requestId, answer, reply })),
     setModel: (model) => ask((reply) => ({ _tag: "SetModel", model, reply })),
     setAgent: (agentId) => ask((reply) => ({ _tag: "SetAgent", agentId, reply })),
     setDone: (done) => ask((reply) => ({ _tag: "SetDone", done, reply })),
     openNote: (note) => ask((reply) => ({ _tag: "OpenNote", note, reply })),
+    scheduleSaved: (receipt) => ask((reply) => ({ _tag: "ScheduleSaved", receipt, reply })),
     changeUndone: (turnId, changeId) => ask((reply) => ({ _tag: "ChangeUndone", turnId, changeId, reply })),
   };
   return actor;

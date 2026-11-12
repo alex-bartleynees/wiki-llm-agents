@@ -63,8 +63,16 @@ export const putJson = <R extends Schema.ConstraintCodec<unknown, unknown>, S ex
   options: WriteOptions = {},
 ): Promise<S["Type"]> => writeJson("PUT", path, request, body, schema, options);
 
+/** PATCH, as `postJson`: only the fields given change. */
+export const patchJson = <R extends Schema.ConstraintCodec<unknown, unknown>, S extends Schema.ConstraintDecoder<unknown>>(
+  path: string,
+  request: R,
+  body: R["Type"],
+  schema: S,
+): Promise<S["Type"]> => writeJson("PATCH", path, request, body, schema, {});
+
 const writeJson = async <R extends Schema.ConstraintCodec<unknown, unknown>, S extends Schema.ConstraintDecoder<unknown>>(
-  method: "POST" | "PUT",
+  method: "POST" | "PUT" | "PATCH",
   path: string,
   request: R,
   body: R["Type"],

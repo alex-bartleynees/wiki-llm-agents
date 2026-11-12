@@ -49,6 +49,8 @@ export const turns = sqliteTable(
     /** The message that started the turn, so a restarted turn can be resumed. */
     input: text("input").notNull(),
     status: text("status", { enum: ["running", "completed", "interrupted", "failed"] }).notNull(),
+    /** Sent by a schedule with nobody watching: requests are denied instead of waiting. */
+    unattended: integer("unattended", { mode: "boolean" }).notNull().default(false),
     startedAt: integer("started_at", { mode: "timestamp_ms" }).notNull(),
     endedAt: integer("ended_at", { mode: "timestamp_ms" }),
     inputTokens: integer("input_tokens"),

@@ -75,6 +75,8 @@ export default defineConfig({
       WIKI_AGENTS_STATIC_DIR: join(web, "build"),
       WIKI_AGENTS_OPENCODE: "wiki-agents-e2e-no-opencode",
       WIKI_AGENTS_CLAUDE: "wiki-agents-e2e-no-claude",
+      // Lets flows move the schedules' clock instead of waiting (POST /api/test/clock).
+      WIKI_AGENTS_TEST_HOOKS: "true",
     },
   },
 });

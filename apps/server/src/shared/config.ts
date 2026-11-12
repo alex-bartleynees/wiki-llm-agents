@@ -27,6 +27,13 @@ export const AppConfig = {
   opencodeBinary: Config.String("WIKI_AGENTS_OPENCODE").pipe(Config.withDefault("opencode")),
   /** The Claude Code executable: a path, or a name looked up on `PATH`. */
   claudeBinary: Config.String("WIKI_AGENTS_CLAUDE").pipe(Config.withDefault("claude")),
+  /** The timezone a new schedule's times are in unless it says otherwise (IANA name). */
+  timezone: Config.String("WIKI_AGENTS_TIMEZONE").pipe(Config.withDefault("Pacific/Auckland")),
+  /**
+   * End-to-end tests only: serves `POST /api/test/clock`, which moves the schedules'
+   * clock forward so a browser test can make a schedule fire without waiting.
+   */
+  testHooks: Config.Boolean("WIKI_AGENTS_TEST_HOOKS").pipe(Config.withDefault(false)),
   migrationsDir: Config.String("WIKI_AGENTS_MIGRATIONS_DIR").pipe(
     Config.withDefault(fileURLToPath(new URL("../../drizzle", import.meta.url))),
   ),

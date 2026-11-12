@@ -158,7 +158,8 @@ registration shows a notice to the user and agent; the turn can continue.
 
 Tools: `vault_search`, `vault_read_note` (optionally one heading), `vault_note_info`,
 `vault_backlinks`, `vault_resolve_link`, `vault_related`, `vault_open_note`,
-`vault_recent_changes`, and `vault_status`. Arguments are strict. Search is FTS5
+`vault_recent_changes`, and `vault_status`, plus the schedule tools (see Schedules and
+the inbox). Arguments are strict. Search is FTS5
 only and says so; limits and truncation are reported. Search hops and Related notes
 share graph ranking (direct links, Adamic-Adar shared neighbours, tags, folder).
 
@@ -398,6 +399,60 @@ Agents change files when their autonomy allows it or you approve. Dot-folders
 hidden, and the path guard refuses anything that resolves outside the vault,
 symlinks included.
 
+### Schedules and the inbox
+
+**Inbox** (header link, with the unread count) is one list across vaults, projects
+and agents, live over `GET /events/inbox`: reminders, scheduled prompts' answers
+(markdown, linking to the run's thread), approvals and questions waiting for you
+(done once answered), and each thread's latest turn result (done when you send the
+thread another message). Items can be snoozed (they come back unread), dismissed or
+marked done; looking at the inbox marks them read.
+
+**Schedules** (`/inbox/schedules`, or an agent's `schedule_*` tools) are of two kinds:
+
+- a **reminder**: a message at a time, optionally linking a note or a thread; no
+  model runs.
+- a **scheduled prompt**: a prompt given to an agent at a time, in the schedule's own
+  thread, one turn per run. It runs **unattended**: an approval is denied and a
+  question answered "nobody is available" instead of waiting, each with a notice, and
+  the inbox item lists what it couldn't do. The agent's final answer is the inbox
+  item.
+
+Times are local times in an IANA timezone (`WIKI_AGENTS_TIMEZONE`, default
+`Pacific/Auckland`): once, every day, or on chosen weekdays. A time skipped when
+daylight saving starts fires that much later (02:30 becomes 03:30); a time repeated
+when it ends fires once, the first time. Every schedule shows its next date, time and
+timezone.
+
+The scheduler is an Effect fiber on the server's clock (`features/schedules/`).
+Each occurrence is a `schedule_runs` row, unique per schedule and time, written in
+the same transaction as its inbox item and the schedule's next time, so an
+occurrence never fires twice, even across restarts. Times missed while the server
+was off fold into one: a reminder arrives once, marked late; a scheduled prompt
+follows its missed policy (`same-day` by default: run at startup if it is still the
+same local day, otherwise record it as missed in the inbox; or `always`, `skip`).
+One run per schedule at a time: a time that comes while a run is going is recorded
+as skipped. A failed run is an inbox item and is never rerun automatically (**Run
+now** starts a new one); three failures in a row pause the schedule and say so. Runs
+show their status and cost.
+
+Inbox items are delivered through a delivery outbox (`inbox_deliveries`), queued in
+the same transaction as the item and sent by a worker per channel (`in-app`, the
+live stream, is the only one so far), retried up to five times with backoff; failures
+show on the item. A result is stored before it is delivered, so a retry never reruns
+the turn.
+
+The schedule tools (`schedule_create`, `schedule_list`, `schedule_update`,
+`schedule_pause`, `schedule_resume`, `schedule_delete`, `schedule_run_now`) call
+the same use cases as the API, follow the agent's `read` autonomy like the vault
+tools, and show a receipt in the conversation (kind, next time and timezone, agent,
+prompt, destination, and an edit link). They tell the agent to ask about genuinely
+ambiguous times first. A scheduled prompt made in a thread defaults to that thread's
+vault, project and agent.
+
+End-to-end tests move the schedules' clock with `POST /api/test/clock`
+(`{ "advanceMs": … }`), served only with `WIKI_AGENTS_TEST_HOOKS=true`.
+
 ### Untrusted content
 
 Notes are rendered on the server and sanitised (`rehype-sanitize`). Every vault file
@@ -438,6 +493,8 @@ design/             Claude Design mockup
 | `WIKI_AGENTS_OPENCODE` | `opencode` (looked up on `PATH`) |
 | `WIKI_AGENTS_CLAUDE` | `claude` (looked up on `PATH`) |
 | `WIKI_AGENTS_CONFIG_DIR` | `$XDG_CONFIG_HOME/wiki-agents` (rules and agents) |
+| `WIKI_AGENTS_TIMEZONE` | `Pacific/Auckland`: the timezone new schedules use unless they say otherwise |
+| `WIKI_AGENTS_TEST_HOOKS` | `false`; `true` serves `POST /api/test/clock` for end-to-end tests only |
 | `WIKI_AGENTS_WATCH_POLL_MS` | unset (file system events); set to poll vault files, e.g. `2000`, when the vault is a virtiofs or SSHFS mount whose changes the OS doesn't report |
 
 ## Run as a service

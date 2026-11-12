@@ -8,6 +8,7 @@
   import ModelPicker from "./ModelPicker.svelte";
   import { providers } from "./providers.svelte.ts";
   import RequestCard from "./RequestCard.svelte";
+  import ScheduleReceipt from "./ScheduleReceipt.svelte";
   import TurnChanges from "#lib/features/changes/TurnChanges.svelte";
   import { openThread } from "./open-thread.svelte.ts";
   import { STATUS_LABEL } from "./status.ts";
@@ -105,7 +106,7 @@
     {#if item.kind === "notice"}
       <p class="muted">{#if item.href}<a href={item.href}>{item.text}</a>{:else if item.path && openThread.thread}<a href={`/vaults/${openThread.thread.vaultId}?note=${encodeURIComponent(item.path)}`}>{item.text}</a>{:else}{item.text}{/if}</p>
     {:else if item.kind === "user"}
-      <p class="user">{item.text}</p>
+      <p class="user">{#if item.unattended}<span class="unattended mono">Scheduled run · unattended</span>{/if}{item.text}</p>
     {:else if item.kind === "agent"}
       <div class="agent"><AgentText text={item.text} /></div>
     {:else if item.kind === "tool"}
@@ -119,6 +120,8 @@
       </details>
     {:else if item.kind === "request"}
       <RequestCard request={item} />
+    {:else if item.kind === "schedule"}
+      <ScheduleReceipt receipt={item.receipt} />
     {:else if item.kind === "changes"}
       {#if openThread.thread}
         <TurnChanges vaultId={openThread.thread.vaultId} changes={item.changes} />
@@ -227,6 +230,12 @@
   .user {
     white-space: pre-wrap;
     overflow-wrap: anywhere;
+  }
+  .unattended {
+    display: block;
+    margin-bottom: 2px;
+    color: var(--ink-3);
+    font-size: 11px;
   }
   .user {
     align-self: flex-end;

@@ -4,6 +4,7 @@
   import { page } from "$app/state";
   import AgentsPane from "#lib/features/agents/AgentsPane.svelte";
   import VaultPane from "#lib/features/notes/VaultPane.svelte";
+  import { inbox } from "#lib/features/inbox/inbox.svelte.ts";
   import { projects } from "#lib/features/projects/projects.svelte.ts";
   import QuickSwitcher from "#lib/features/search/QuickSwitcher.svelte";
   import SearchPanel from "#lib/features/search/SearchPanel.svelte";
@@ -16,13 +17,14 @@
 
   onMount(() => {
     void projects.load();
+    inbox.start();
   });
 
   const vaultId = $derived(page.params["vaultId"]);
   /** The selected project narrows the threads pane when it uses the open vault. */
   const projectId = $derived(vaultId === undefined ? null : projectShownWith(vaultId, projects.selected));
-  /** Projects is a page of its own, without the vault and threads panes. */
-  const full = $derived(page.url.pathname.startsWith("/projects"));
+  /** Projects and the inbox are pages of their own, without the vault and threads panes. */
+  const full = $derived(page.url.pathname.startsWith("/projects") || page.url.pathname.startsWith("/inbox"));
 </script>
 
 <AppShell {full}>

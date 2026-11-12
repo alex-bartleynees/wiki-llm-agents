@@ -3,7 +3,7 @@ import { and, asc, desc, eq, gt, isNull, sql } from "drizzle-orm";
 import { Effect, Layer, Option, Schema } from "effect";
 import { DbError } from "../../shared/persistence/errors.js";
 import { Sqlite } from "../../shared/persistence/sqlite.js";
-import type { PendingRequest } from "./repository.js";
+import type { OpenRequest, PendingRequest, TurnRecord } from "./repository.js";
 import { ThreadRepository } from "./repository.js";
 import { threadNotes, outbox, runtimeRequests, threadEvents, threads, turns } from "./table.js";
 
@@ -67,7 +67,7 @@ export const ThreadRepositoryLive = Layer.effect(
       insert: (thread) =>
         query(() => {
           const at = new Date(thread.createdAt);
-          db.insert(threads).values({ ...thread, createdAt: at, updatedAt: at }).run();
+          db.insert(threads).values({ ...thread, title: thread.title ?? null, createdAt: at, updatedAt: at }).run();
           return Option.getOrThrow(findSync(thread.id));
         }),
 
@@ -146,7 +146,7 @@ export const ThreadRepositoryLive = Layer.effect(
                   tx.insert(threadNotes).values({ threadId, turnId: event.turnId, path: event.note.path, reason: event.note.reason, hash: event.note.hash }).onConflictDoNothing().run();
                   break;
                 case "user.message":
-                  tx.insert(turns).values({ id: event.turnId, threadId, input: event.text, status: "running", startedAt: when }).run();
+                  tx.insert(turns).values({ id: event.turnId, threadId, input: event.text, status: "running", unattended: event.unattended === true, startedAt: when }).run();
                   tx.update(threads)
                     .set({ title: sql`COALESCE(${threads.title}, ${titleFrom(event.text)})`, doneAt: null })
                     .where(eq(threads.id, threadId))
@@ -210,7 +210,7 @@ export const ThreadRepositoryLive = Layer.effect(
       recovery: (threadId) =>
         query(() => {
           const turn = db
-            .select({ id: turns.id, input: turns.input })
+            .select({ id: turns.id, input: turns.input, unattended: turns.unattended })
             .from(turns)
             .where(and(eq(turns.threadId, threadId), eq(turns.status, "running")))
             .orderBy(desc(turns.startedAt))
@@ -238,6 +238,41 @@ export const ThreadRepositoryLive = Layer.effect(
             .get();
           return Option.fromNullishOr(row);
         }),
+
+      findTurn: (turnId) =>
+        query(() => {
+          const row = db.select().from(turns).where(eq(turns.id, turnId)).get();
+          if (row === undefined) return Option.none();
+          const turn: TurnRecord = {
+            id: row.id,
+            threadId: row.threadId,
+            status: row.status,
+            unattended: row.unattended,
+            inputTokens: row.inputTokens,
+            outputTokens: row.outputTokens,
+            costUsd: row.costUsd,
+            endedAt: row.endedAt?.getTime() ?? null,
+          };
+          return Option.some(turn);
+        }),
+
+      openRequests: query(() =>
+        db
+          .select({ request: runtimeRequests, unattended: turns.unattended })
+          .from(runtimeRequests)
+          .innerJoin(turns, eq(turns.id, runtimeRequests.turnId))
+          .innerJoin(threads, eq(threads.id, runtimeRequests.threadId))
+          .where(and(eq(runtimeRequests.status, "pending"), isNull(threads.deletedAt)))
+          .orderBy(asc(runtimeRequests.createdAt))
+          .all()
+          .map(({ request, unattended }): OpenRequest => ({
+            requestId: request.id,
+            turnId: request.turnId,
+            threadId: request.threadId,
+            prompt: decodePrompt(request.prompt),
+            unattended,
+          })),
+      ),
 
       withOpenTurns: query(() =>
         db

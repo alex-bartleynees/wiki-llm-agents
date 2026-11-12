@@ -4,14 +4,17 @@ import { projectsRouter } from "../features/projects/router.js";
 import { Layer } from "effect";
 import { HttpRouter, HttpServerResponse } from "effect/http";
 import { agentsRouter } from "../features/agents/router.js";
+import { inboxRouter } from "../features/inbox/router.js";
 import { indexingRouter } from "../features/indexing/router.js";
 import { mcpRouter } from "../features/mcp/router.js";
 import { notesRouter } from "../features/notes/router.js";
 import { pinsRouter } from "../features/pins/router.js";
 import { providersRouter } from "../features/providers/router.js";
+import { schedulesRouter } from "../features/schedules/router.js";
 import { searchRouter } from "../features/search/router.js";
 import { threadsRouter } from "../features/threads/router.js";
 import { vaultsRouter } from "../features/vaults/router.js";
+import { testHooksRouter } from "./test-hooks.js";
 import { webAppRouter } from "./web-app.js";
 
 const healthRouter = HttpRouter.add("GET", "/health", HttpServerResponse.text("ok"));
@@ -29,6 +32,9 @@ export const router = Layer.mergeAll(
   threadsRouter,
   changesRouter,
   agentsRouter,
+  schedulesRouter,
+  inboxRouter,
+  testHooksRouter,
   mcpRouter,
   webAppRouter,
 );

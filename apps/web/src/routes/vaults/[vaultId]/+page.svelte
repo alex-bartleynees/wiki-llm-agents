@@ -7,6 +7,7 @@
   import PageView from "#lib/features/notes/PageView.svelte";
   import VaultHome from "#lib/features/notes/VaultHome.svelte";
   import { recent } from "#lib/features/notes/recent.svelte.ts";
+  import { showThread, THREAD_PARAM } from "#lib/features/threads/thread-link.ts";
 
   // Notes are `?note=<path>`: note names often contain dots, which a path segment
   // would turn into a "file extension" for the static server's SPA fallback.
@@ -20,6 +21,9 @@
   afterNavigate(({ to }) => {
     const vault = to?.params?.["vaultId"];
     if (to === null || vault === undefined) return;
+    // A link to a thread (from the inbox) opens it beside the vault.
+    const threadId = to.url.searchParams.get(THREAD_PARAM);
+    if (threadId !== null) void showThread(threadId).catch(() => undefined);
     const pagePath = to.url.searchParams.get(VIEW_PARAMS.page);
     const path = pagePath ?? to.url.searchParams.get(VIEW_PARAMS.json);
     if (path === null) return;

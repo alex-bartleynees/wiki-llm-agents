@@ -6,6 +6,11 @@ import type { AgentCatalog } from "../features/agents/catalog.js";
 import { AgentCatalogLive } from "../features/agents/catalog-live.js";
 import { ChangeTrackerLive } from "../features/changes/change-tracker.js";
 import { ChangeLogLive } from "../features/changes/sqlite-repository.js";
+import { type DeliveryChannels, DeliveryChannelsLive } from "../features/inbox/delivery.js";
+import { InboxLive } from "../features/inbox/inbox.js";
+import { type InboxBus, InboxBusLive } from "../features/inbox/inbox-bus.js";
+import { InboxRepositoryLive } from "../features/inbox/sqlite-repository.js";
+import { InboxStartup } from "../features/inbox/startup.js";
 import { IndexerLive } from "../features/indexing/indexer-live.js";
 import { IndexStoreLive } from "../features/indexing/sqlite-store.js";
 import { IndexingStartup } from "../features/indexing/startup.js";
@@ -15,6 +20,9 @@ import { VaultToolsLive } from "../features/mcp/vault-tools-live.js";
 import { PinRepositoryLive } from "../features/pins/sqlite-repository.js";
 import type { ProviderRegistry } from "../features/providers/registry.js";
 import { ProviderRegistryLive } from "../features/providers/registry-live.js";
+import { SchedulerSignalLive } from "../features/schedules/signal.js";
+import { ScheduleRepositoryLive } from "../features/schedules/sqlite-repository.js";
+import { SchedulesStartup } from "../features/schedules/startup.js";
 import { ThreadRepositoryLive } from "../features/threads/sqlite-repository.js";
 import { ThreadsStartup } from "../features/threads/startup.js";
 import { ThreadActorsLive } from "../features/threads/thread-actors.js";
@@ -26,10 +34,18 @@ import { OriginGuardLive } from "../shared/origin-guard.js";
 import { makeClosingServer } from "../shared/server-closing.js";
 import type { DbError } from "../shared/persistence/errors.js";
 import { type Sqlite, SqliteLive } from "../shared/persistence/sqlite.js";
+import { WallClockLive } from "../shared/wall-clock.js";
 import { router } from "./router.js";
 
 /** Repositories for every feature, over one shared SQLite connection. */
-export const RepositoriesLive = Layer.mergeAll(ProjectRepositoryLive, VaultRepositoryLive, PinRepositoryLive, ThreadRepositoryLive);
+export const RepositoriesLive = Layer.mergeAll(
+  ProjectRepositoryLive,
+  VaultRepositoryLive,
+  PinRepositoryLive,
+  ThreadRepositoryLive,
+  InboxRepositoryLive,
+  ScheduleRepositoryLive,
+);
 
 export interface AppOptions {
   /** Folders from `--vault`, registered before the server starts. */
@@ -42,6 +58,8 @@ export interface AppOptions {
   readonly providers?: Layer.Layer<ProviderRegistry, DbError, Sqlite>;
   /** The rules and agents. Required, so a test can never fall back to your real config directory. */
   readonly agents: Layer.Layer<AgentCatalog, never, FileSystem.FileSystem>;
+  /** How inbox items reach you; in-app only unless a test adds a channel (one that fails, say). */
+  readonly channels?: Layer.Layer<DeliveryChannels, never, InboxBus>;
 }
 
 /**
@@ -64,19 +82,25 @@ const threads = ThreadActorsLive.pipe(
   Layer.provideMerge(McpTokensLive),
 );
 
+/** The inbox, its live bus and delivery channels, and the scheduler's wake-up signal. */
+const inboxAndSchedules = (channels: AppOptions["channels"]) =>
+  Layer.merge(InboxLive.pipe(Layer.provideMerge(channels ?? DeliveryChannelsLive), Layer.provideMerge(InboxBusLive)), SchedulerSignalLive);
+
 /**
  * The HTTP app without a listening server or database, so tests can supply both.
  * Its services (repositories, indexer...) are part of the output, for tests.
  */
 export const makeHttpApp = (options: AppOptions) =>
   HttpRouter.serve(Layer.mergeAll(router, OriginGuardLive), { disableLogger: true }).pipe(
-    Layer.provide(Layer.mergeAll(startupVaults(options.vaults), IndexingStartup, ThreadsStartup)),
+    Layer.provide(Layer.mergeAll(startupVaults(options.vaults), IndexingStartup, ThreadsStartup, InboxStartup, SchedulesStartup)),
+    Layer.provideMerge(inboxAndSchedules(options.channels)),
     Layer.provideMerge(threads),
     Layer.provideMerge(Layer.mergeAll(
         RepositoriesLive,
         options.providers ?? ProviderRegistryLive,
         options.agents,
         indexing(options.watch, options.watchPollMs),
+        WallClockLive,
       )),
   );
 

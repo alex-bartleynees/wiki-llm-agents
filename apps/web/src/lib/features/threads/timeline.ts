@@ -1,10 +1,13 @@
 import type { FileChange } from "@wiki-agents/contracts/changes/model";
-import type { RequestAnswer, RequestPrompt, StoredThreadEvent, TurnOutcome, TurnUsage } from "@wiki-agents/contracts/threads/model";
+import type { RequestAnswer, RequestPrompt, StoredThreadEvent, ThreadEvent, TurnOutcome, TurnUsage } from "@wiki-agents/contracts/threads/model";
 
 /** What the conversation shows, built from the thread's events in order. */
 export type TimelineItem =
   | { readonly kind: "notice"; readonly key: string; readonly text: string; readonly href?: string; readonly path?: string }
-  | { readonly kind: "user"; readonly key: string; readonly text: string }
+  /** `unattended`: sent by a schedule, with nobody watching. */
+  | { readonly kind: "user"; readonly key: string; readonly text: string; readonly unattended: boolean }
+  /** The receipt of a schedule the agent saved, with a link to edit it. */
+  | { readonly kind: "schedule"; readonly key: string; readonly receipt: Extract<ThreadEvent, { readonly _tag: "schedule.saved" }> }
   | { readonly kind: "agent"; readonly key: string; text: string }
   | {
       readonly kind: "tool";
@@ -69,7 +72,7 @@ export const applyEvent = (timeline: Timeline, stored: StoredThreadEvent): boole
       timeline.items.push({ kind: "notice", key: String(stored.seq), path: event.note.path, text: `${event.note.reason}: ${event.note.path} · sha256 ${event.note.hash.slice(0, 12)}${event.note.notices.length ? ` · ${event.note.notices.join(" ")}` : ""}` });
       break;
     case "user.message":
-      timeline.items.push({ kind: "user", key: event.turnId, text: event.text });
+      timeline.items.push({ kind: "user", key: event.turnId, text: event.text, unattended: event.unattended === true });
       break;
     case "turn.started":
       timeline.runningTurn = event.turnId;
@@ -99,6 +102,9 @@ export const applyEvent = (timeline: Timeline, stored: StoredThreadEvent): boole
       if (request) request.answer = event.answer;
       break;
     }
+    case "schedule.saved":
+      timeline.items.push({ kind: "schedule", key: String(stored.seq), receipt: event });
+      break;
     case "turn.changes":
       timeline.items.push({
         kind: "changes",

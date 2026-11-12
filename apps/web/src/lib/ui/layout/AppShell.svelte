@@ -2,6 +2,7 @@
   import type { Snippet } from "svelte";
   import { afterNavigate } from "$app/navigation";
   import { page } from "$app/state";
+  import { inbox } from "#lib/features/inbox/inbox.svelte.ts";
   import Splitter from "#lib/ui/primitives/Splitter.svelte";
   import { theme } from "#lib/ui/theme.svelte.ts";
   import BottomBar from "./BottomBar.svelte";
@@ -29,6 +30,7 @@
   let wikiHref = $state("/");
 
   const onProjects = $derived(page.url.pathname.startsWith("/projects"));
+  const onInbox = $derived(page.url.pathname.startsWith("/inbox"));
 
   // Phone: opening a note (from the drawer or a link) shows it full screen.
   afterNavigate(({ to }) => {
@@ -53,16 +55,19 @@
     >
       ☰
     </button>
-    <a class="brand" href={wikiHref}>
+    <a class="brand" href={wikiHref} aria-label="wiki-agents">
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
         <rect x="1.5" y="1.5" width="17" height="17" rx="2" stroke="var(--ink)" stroke-width="1.5" />
         <path d="M6 6.5h8M6 10h5" stroke="var(--accent)" stroke-width="1.5" />
       </svg>
-      wiki-agents
+      <span class="brand-name">wiki-agents</span>
     </a>
     <nav aria-label="Sections">
-      <a href={wikiHref} aria-current={onProjects ? undefined : "page"}>Wiki</a>
+      <a href={wikiHref} aria-current={onProjects || onInbox ? undefined : "page"}>Wiki</a>
       <a href="/projects" aria-current={onProjects ? "page" : undefined}>Projects</a>
+      <a href="/inbox" aria-current={onInbox ? "page" : undefined}>
+        Inbox{#if inbox.unread > 0}<span class="badge" aria-label="{inbox.unread} unread">{inbox.unread}</span>{/if}
+      </a>
     </nav>
     <button
       type="button"
@@ -155,6 +160,18 @@
   }
   nav a:hover {
     color: var(--ink);
+  }
+  .badge {
+    min-width: 18px;
+    margin-left: 6px;
+    padding: 1px 5px;
+    border-radius: 9px;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 16px;
+    text-align: center;
   }
   nav a[aria-current="page"] {
     border-bottom-color: var(--accent);
@@ -275,6 +292,10 @@
     }
     nav {
       gap: 14px;
+    }
+    /* Room for the section links and the inbox badge; the icon still links home. */
+    .brand-name {
+      display: none;
     }
     .panes {
       position: relative;

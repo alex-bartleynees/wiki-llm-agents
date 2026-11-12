@@ -13,9 +13,12 @@ import { ThreadBus } from "../thread-bus.js";
 /**
  * The provider is the request's, else the agent's, else the default. The agent's
  * model is used when the thread runs on the agent's own provider (or the agent
- * names none).
+ * names none). A schedule names its thread; others are named by their first message.
  */
-export const createThread = Effect.fn("createThread")(function* (request: CreateThreadRequest & { readonly vaultId: string }) {
+export const createThread = Effect.fn("createThread")(function* (
+  request: CreateThreadRequest & { readonly vaultId: string },
+  options: { readonly title?: string } = {},
+) {
   const vault = yield* findVault(request.vaultId);
   const project = request.projectId === undefined ? null : yield* findProject(request.projectId);
   if (project !== null && project.vaultId !== vault.id) return yield* new InvalidProject({ message: "Project uses a different shared vault" });
@@ -32,6 +35,7 @@ export const createThread = Effect.fn("createThread")(function* (request: Create
     providerInstanceId: instance.id,
     agentId: agent?.id ?? null,
     model: agentsProvider && instance.capabilities.models ? agent.model : null,
+    title: options.title,
     createdAt: yield* Clock.currentTimeMillis,
   });
   yield* (yield* ThreadBus).publishThread(thread);

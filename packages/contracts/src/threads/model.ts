@@ -21,6 +21,11 @@ export type TurnUsage = typeof TurnUsage.Type;
 export const UserMessage = Schema.TaggedStruct("user.message", {
   turnId: Schema.String,
   text: Schema.String,
+  /**
+   * Sent by a schedule, with nobody watching: anything that would ask you (an
+   * approval or a question) is denied instead of waiting.
+   */
+  unattended: Schema.optionalKey(Schema.Boolean),
 });
 
 export const TurnStarted = Schema.TaggedStruct("turn.started", {
@@ -134,6 +139,30 @@ export const ChangeUndone = Schema.TaggedStruct("change.undone", {
   changeId: Schema.String,
 });
 
+/**
+ * The agent created or changed a schedule with the schedule tools: the receipt shown
+ * in the conversation, with a link to edit it.
+ */
+export const ScheduleSaved = Schema.TaggedStruct("schedule.saved", {
+  turnId: Schema.String,
+  action: Schema.Literals(["created", "updated", "paused", "resumed", "deleted", "run"]),
+  scheduleId: Schema.String,
+  kind: Schema.Literals(["reminder", "prompt"]),
+  title: Schema.String,
+  /** The reminder's message, or the prompt. */
+  text: Schema.String,
+  recurrence: Schema.String,
+  /** The next time as a local date, time and timezone; null when it won't fire again. */
+  next: Schema.NullOr(Schema.String),
+  timezone: Schema.String,
+  /** A scheduled prompt's agent (its name), or null. */
+  agent: Schema.NullOr(Schema.String),
+  /** Where it arrives, e.g. "Inbox". */
+  destination: Schema.String,
+  /** Where to edit it in the app. */
+  href: Schema.String,
+});
+
 export const TurnOutcome = Schema.Literals(["completed", "interrupted", "failed"]);
 export type TurnOutcome = typeof TurnOutcome.Type;
 
@@ -158,6 +187,7 @@ export const ThreadEvent = Schema.Union([
   TurnNotice,
   TurnChanges,
   ChangeUndone,
+  ScheduleSaved,
   TurnFinished,
 ]);
 export type ThreadEvent = typeof ThreadEvent.Type;

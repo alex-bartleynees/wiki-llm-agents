@@ -1,4 +1,4 @@
-import type { RequestPrompt, StoredThreadEvent, ThreadEvent, ThreadSummary } from "@wiki-agents/contracts/threads/model";
+import type { RequestPrompt, StoredThreadEvent, ThreadEvent, ThreadSummary, TurnOutcome } from "@wiki-agents/contracts/threads/model";
 import { Context, type Effect, type Option } from "effect";
 import type { DbError } from "../../shared/persistence/errors.js";
 
@@ -11,6 +11,8 @@ export interface NewThread {
   readonly agentId: string | null;
   /** The model to start with; null for the provider's default. */
   readonly model: string | null;
+  /** Otherwise the first message names it. */
+  readonly title?: string | undefined;
   readonly createdAt: number;
 }
 
@@ -23,8 +25,26 @@ export interface PendingRequest {
 /** What a ThreadActor needs to pick up where the last run left off. */
 export interface ThreadRecovery {
   /** The running turn, if any; `dispatched` is false when its `turn.start` outbox row is still there. */
-  readonly openTurn: Option.Option<{ readonly id: string; readonly input: string; readonly dispatched: boolean }>;
+  readonly openTurn: Option.Option<{ readonly id: string; readonly input: string; readonly dispatched: boolean; readonly unattended: boolean }>;
   readonly pendingRequests: ReadonlyArray<PendingRequest>;
+}
+
+/** A turn as recorded: its outcome and usage once it has finished. */
+export interface TurnRecord {
+  readonly id: string;
+  readonly threadId: string;
+  readonly status: "running" | TurnOutcome;
+  readonly unattended: boolean;
+  readonly inputTokens: number | null;
+  readonly outputTokens: number | null;
+  readonly costUsd: number | null;
+  readonly endedAt: number | null;
+}
+
+/** A request still waiting for an answer, in any thread. */
+export interface OpenRequest extends PendingRequest {
+  readonly threadId: string;
+  readonly unattended: boolean;
 }
 
 export interface RequestRecord {
@@ -71,6 +91,9 @@ export interface ThreadRepositoryService {
   readonly markDispatched: (turnId: string) => Effect.Effect<void, DbError>;
   readonly recovery: (threadId: string) => Effect.Effect<ThreadRecovery, DbError>;
   readonly findRequest: (threadId: string, requestId: string) => Effect.Effect<Option.Option<RequestRecord>, DbError>;
+  readonly findTurn: (turnId: string) => Effect.Effect<Option.Option<TurnRecord>, DbError>;
+  /** Requests waiting for an answer across every thread, oldest first. */
+  readonly openRequests: Effect.Effect<ReadonlyArray<OpenRequest>, DbError>;
   /** Threads with a turn still running, to wake at startup. */
   readonly withOpenTurns: Effect.Effect<ReadonlyArray<string>, DbError>;
 }

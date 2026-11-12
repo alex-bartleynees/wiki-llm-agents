@@ -94,7 +94,7 @@ layer(TestApp)("vault MCP server", (it) => {
     }),
   );
 
-  it.effect("lists the vault tools, each with strict arguments and marked read-only", () =>
+  it.effect("lists the vault tools, each with strict arguments; only the schedule tools that save are not read-only", () =>
     Effect.gen(function* () {
       const { mcp } = yield* setUp;
       const { result } = yield* mcp.rpc("tools/list");
@@ -111,10 +111,17 @@ layer(TestApp)("vault MCP server", (it) => {
         "vault_read_note",
         "vault_related",
         "project_ignored_files",
+        "schedule_create",
+        "schedule_list",
+        "schedule_update",
+        "schedule_pause",
+        "schedule_resume",
+        "schedule_delete",
+        "schedule_run_now",
       ]);
       for (const tool of tools) {
         expect(tool.inputSchema.additionalProperties, tool.name).toBe(false);
-        expect(tool.annotations.readOnlyHint, tool.name).toBe(true);
+        expect(tool.annotations.readOnlyHint, tool.name).toBe(!tool.name.startsWith("schedule_") || tool.name === "schedule_list");
       }
     }),
   );
