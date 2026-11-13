@@ -29,7 +29,7 @@ export const tab = async (page: Page, info: TestInfo, name: "Wiki" | "Chat" | "A
   if (isPhone(info)) await page.getByRole("navigation", { name: "Primary" }).getByRole("button", { name }).click();
 };
 
-/** New threads use the free replay provider (OpenCode isn't installed for these tests). */
+/** New threads use the replay provider: no agent is installed for these tests, and test hooks add it. */
 export const useReplay = async (page: Page) => {
   await page.getByLabel("Provider for new threads").selectOption({ label: "Replay (recorded, free)" });
 };

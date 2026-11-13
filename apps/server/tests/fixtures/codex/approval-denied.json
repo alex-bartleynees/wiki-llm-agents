@@ -1,0 +1,593 @@
+{
+  "scenario": "approval-denied",
+  "codexVersion": "0.166.0",
+  "model": "gpt-5.6-luna",
+  "autonomy": {
+    "read": "allow",
+    "create": "ask",
+    "edit": "ask",
+    "commands": "ask",
+    "web": "ask"
+  },
+  "turns": [
+    {
+      "prompt": "Use apply_patch to add the line 'Oolong too.' at the end of Notes/Tea.md; don't run commands. If you can't, say so in one sentence.",
+      "steps": [
+        {
+          "message": {
+            "method": "turn/started",
+            "params": {
+              "threadId": "__thread__",
+              "turn": {
+                "id": "01a1d23c-a27c-7222-ada8-a029fe433431",
+                "rootTurnId": "01a1d23c-a27c-7222-ada8-a029fe433431",
+                "items": [],
+                "itemsView": "notLoaded",
+                "status": "inProgress",
+                "error": null,
+                "startedAt": 1794528551,
+                "completedAt": null,
+                "durationMs": null
+              }
+            },
+            "emittedAtMs": 1794528551563
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "id": "msg_02ea0980340336ca016af6552b3c4487d081457dc168a385f8",
+                "text": "",
+                "phase": "commentary",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1794528555272,
+                "completedAtMs": null
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-a27c-7222-ada8-a029fe433431",
+              "startedAtMs": 1794528555272
+            },
+            "emittedAtMs": 1794528555272
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-a27c-7222-ada8-a029fe433431",
+              "itemId": "msg_02ea0980340336ca016af6552b3c4487d081457dc168a385f8",
+              "delta": "I"
+            },
+            "emittedAtMs": 1794528555272
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-a27c-7222-ada8-a029fe433431",
+              "itemId": "msg_02ea0980340336ca016af6552b3c4487d081457dc168a385f8",
+              "delta": "’ll"
+            },
+            "emittedAtMs": 1794528555591
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-a27c-7222-ada8-a029fe433431",
+              "itemId": "msg_02ea0980340336ca016af6552b3c4487d081457dc168a385f8",
+              "delta": " append"
+            },
+            "emittedAtMs": 1794528555591
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-a27c-7222-ada8-a029fe433431",
+              "itemId": "msg_02ea0980340336ca016af6552b3c4487d081457dc168a385f8",
+              "delta": " the"
+            },
+            "emittedAtMs": 1794528555591
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-a27c-7222-ada8-a029fe433431",
+              "itemId": "msg_02ea0980340336ca016af6552b3c4487d081457dc168a385f8",
+              "delta": " requested"
+            },
+            "emittedAtMs": 1794528555591
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-a27c-7222-ada8-a029fe433431",
+              "itemId": "msg_02ea0980340336ca016af6552b3c4487d081457dc168a385f8",
+              "delta": " line"
+            },
+            "emittedAtMs": 1794528555591
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-a27c-7222-ada8-a029fe433431",
+              "itemId": "msg_02ea0980340336ca016af6552b3c4487d081457dc168a385f8",
+              "delta": " using"
+            },
+            "emittedAtMs": 1794528555591
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-a27c-7222-ada8-a029fe433431",
+              "itemId": "msg_02ea0980340336ca016af6552b3c4487d081457dc168a385f8",
+              "delta": " `"
+            },
+            "emittedAtMs": 1794528555591
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-a27c-7222-ada8-a029fe433431",
+              "itemId": "msg_02ea0980340336ca016af6552b3c4487d081457dc168a385f8",
+              "delta": "apply"
+            },
+            "emittedAtMs": 1794528555591
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-a27c-7222-ada8-a029fe433431",
+              "itemId": "msg_02ea0980340336ca016af6552b3c4487d081457dc168a385f8",
+              "delta": "_patch"
+            },
+            "emittedAtMs": 1794528555591
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-a27c-7222-ada8-a029fe433431",
+              "itemId": "msg_02ea0980340336ca016af6552b3c4487d081457dc168a385f8",
+              "delta": "`"
+            },
+            "emittedAtMs": 1794528555591
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-a27c-7222-ada8-a029fe433431",
+              "itemId": "msg_02ea0980340336ca016af6552b3c4487d081457dc168a385f8",
+              "delta": " only"
+            },
+            "emittedAtMs": 1794528555591
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-a27c-7222-ada8-a029fe433431",
+              "itemId": "msg_02ea0980340336ca016af6552b3c4487d081457dc168a385f8",
+              "delta": "."
+            },
+            "emittedAtMs": 1794528555591
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "id": "msg_02ea0980340336ca016af6552b3c4487d081457dc168a385f8",
+                "text": "I’ll append the requested line using `apply_patch` only.",
+                "phase": "commentary",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1794528555272,
+                "completedAtMs": 1794528555769
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-a27c-7222-ada8-a029fe433431",
+              "completedAtMs": 1794528555769
+            },
+            "emittedAtMs": 1794528555770
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "fileChange",
+                "id": "exec-2d83108e-94f6-455b-84b8-f79c5ba2f480",
+                "changes": [
+                  {
+                    "path": "/__vault__/Notes/Tea.md",
+                    "kind": {
+                      "type": "update",
+                      "move_path": null
+                    },
+                    "diff": "@@ -3 +3,2 @@\n Green tea in the afternoon.\n+Oolong too.\n"
+                  }
+                ],
+                "status": "inProgress",
+                "startedAtMs": 1794528556934,
+                "completedAtMs": null
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-a27c-7222-ada8-a029fe433431",
+              "startedAtMs": 1794528556934
+            },
+            "emittedAtMs": 1794528556935
+          }
+        },
+        {
+          "message": {
+            "method": "item/fileChange/requestApproval",
+            "id": 0,
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-a27c-7222-ada8-a029fe433431",
+              "itemId": "exec-2d83108e-94f6-455b-84b8-f79c5ba2f480",
+              "startedAtMs": 1794528556936,
+              "reason": null,
+              "grantRoot": null
+            }
+          }
+        },
+        {
+          "response": {
+            "id": 0,
+            "result": {
+              "decision": "decline"
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "serverRequest/resolved",
+            "params": {
+              "threadId": "__thread__",
+              "requestId": 0
+            },
+            "emittedAtMs": 1794528556938
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "fileChange",
+                "id": "exec-2d83108e-94f6-455b-84b8-f79c5ba2f480",
+                "changes": [
+                  {
+                    "path": "/__vault__/Notes/Tea.md",
+                    "kind": {
+                      "type": "update",
+                      "move_path": null
+                    },
+                    "diff": "@@ -3 +3,2 @@\n Green tea in the afternoon.\n+Oolong too.\n"
+                  }
+                ],
+                "status": "declined",
+                "startedAtMs": 1794528556934,
+                "completedAtMs": 1794528556938
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-a27c-7222-ada8-a029fe433431",
+              "completedAtMs": 1794528556938
+            },
+            "emittedAtMs": 1794528556940
+          }
+        },
+        {
+          "message": {
+            "method": "thread/tokenUsage/updated",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-a27c-7222-ada8-a029fe433431",
+              "tokenUsage": {
+                "total": {
+                  "totalTokens": 14496,
+                  "inputTokens": 14370,
+                  "cachedInputTokens": 7808,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 126,
+                  "reasoningOutputTokens": 38
+                },
+                "last": {
+                  "totalTokens": 14496,
+                  "inputTokens": 14370,
+                  "cachedInputTokens": 7808,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 126,
+                  "reasoningOutputTokens": 38
+                },
+                "modelContextWindow": 258400
+              }
+            },
+            "emittedAtMs": 1794528556943
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "id": "msg_02ea0980340336ca016af6552e7f6c87d0bf135851e58c5f5c",
+                "text": "",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1794528558556,
+                "completedAtMs": null
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-a27c-7222-ada8-a029fe433431",
+              "startedAtMs": 1794528558556
+            },
+            "emittedAtMs": 1794528558556
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-a27c-7222-ada8-a029fe433431",
+              "itemId": "msg_02ea0980340336ca016af6552e7f6c87d0bf135851e58c5f5c",
+              "delta": "I"
+            },
+            "emittedAtMs": 1794528558556
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-a27c-7222-ada8-a029fe433431",
+              "itemId": "msg_02ea0980340336ca016af6552e7f6c87d0bf135851e58c5f5c",
+              "delta": " couldn"
+            },
+            "emittedAtMs": 1794528558663
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-a27c-7222-ada8-a029fe433431",
+              "itemId": "msg_02ea0980340336ca016af6552e7f6c87d0bf135851e58c5f5c",
+              "delta": "’t"
+            },
+            "emittedAtMs": 1794528558663
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-a27c-7222-ada8-a029fe433431",
+              "itemId": "msg_02ea0980340336ca016af6552e7f6c87d0bf135851e58c5f5c",
+              "delta": " apply"
+            },
+            "emittedAtMs": 1794528558663
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-a27c-7222-ada8-a029fe433431",
+              "itemId": "msg_02ea0980340336ca016af6552e7f6c87d0bf135851e58c5f5c",
+              "delta": " the"
+            },
+            "emittedAtMs": 1794528558869
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-a27c-7222-ada8-a029fe433431",
+              "itemId": "msg_02ea0980340336ca016af6552e7f6c87d0bf135851e58c5f5c",
+              "delta": " patch"
+            },
+            "emittedAtMs": 1794528558870
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-a27c-7222-ada8-a029fe433431",
+              "itemId": "msg_02ea0980340336ca016af6552e7f6c87d0bf135851e58c5f5c",
+              "delta": " because"
+            },
+            "emittedAtMs": 1794528558870
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-a27c-7222-ada8-a029fe433431",
+              "itemId": "msg_02ea0980340336ca016af6552e7f6c87d0bf135851e58c5f5c",
+              "delta": " it"
+            },
+            "emittedAtMs": 1794528558870
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-a27c-7222-ada8-a029fe433431",
+              "itemId": "msg_02ea0980340336ca016af6552e7f6c87d0bf135851e58c5f5c",
+              "delta": " was"
+            },
+            "emittedAtMs": 1794528558870
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-a27c-7222-ada8-a029fe433431",
+              "itemId": "msg_02ea0980340336ca016af6552e7f6c87d0bf135851e58c5f5c",
+              "delta": " rejected"
+            },
+            "emittedAtMs": 1794528558870
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-a27c-7222-ada8-a029fe433431",
+              "itemId": "msg_02ea0980340336ca016af6552e7f6c87d0bf135851e58c5f5c",
+              "delta": "."
+            },
+            "emittedAtMs": 1794528558870
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "id": "msg_02ea0980340336ca016af6552e7f6c87d0bf135851e58c5f5c",
+                "text": "I couldn’t apply the patch because it was rejected.",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1794528558556,
+                "completedAtMs": 1794528558870
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-a27c-7222-ada8-a029fe433431",
+              "completedAtMs": 1794528558870
+            },
+            "emittedAtMs": 1794528558871
+          }
+        },
+        {
+          "message": {
+            "method": "thread/tokenUsage/updated",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-a27c-7222-ada8-a029fe433431",
+              "tokenUsage": {
+                "total": {
+                  "totalTokens": 29050,
+                  "inputTokens": 28896,
+                  "cachedInputTokens": 22016,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 154,
+                  "reasoningOutputTokens": 49
+                },
+                "last": {
+                  "totalTokens": 14554,
+                  "inputTokens": 14526,
+                  "cachedInputTokens": 14208,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 28,
+                  "reasoningOutputTokens": 11
+                },
+                "modelContextWindow": 258400
+              }
+            },
+            "emittedAtMs": 1794528558874
+          }
+        },
+        {
+          "message": {
+            "method": "turn/completed",
+            "params": {
+              "threadId": "__thread__",
+              "turn": {
+                "id": "01a1d23c-a27c-7222-ada8-a029fe433431",
+                "rootTurnId": "01a1d23c-a27c-7222-ada8-a029fe433431",
+                "items": [
+                  {
+                    "type": "agentMessage",
+                    "id": "msg_02ea0980340336ca016af6552e7f6c87d0bf135851e58c5f5c",
+                    "text": "I couldn’t apply the patch because it was rejected.",
+                    "phase": "final_answer",
+                    "memoryCitation": null,
+                    "delivery": null,
+                    "questions": null,
+                    "startedAtMs": 1794528558556,
+                    "completedAtMs": 1794528558870
+                  }
+                ],
+                "itemsView": "summary",
+                "status": "completed",
+                "error": null,
+                "startedAt": 1794528551,
+                "completedAt": 1794528558,
+                "durationMs": 7324
+              }
+            },
+            "emittedAtMs": 1794528558879
+          }
+        }
+      ]
+    }
+  ]
+}

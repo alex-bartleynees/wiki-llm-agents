@@ -61,7 +61,7 @@ export interface AppOptions {
   readonly watch: boolean;
   /** Poll vault files at this interval instead of using file system events. */
   readonly watchPollMs?: number | undefined;
-  /** The providers threads can use; OpenCode and replay unless a test chooses. */
+  /** The providers threads can use; OpenCode, Claude Code and Codex unless a test chooses. */
   readonly providers?: Layer.Layer<ProviderRegistry, DbError, Sqlite>;
   /** The rules and agents. Required, so a test can never fall back to your real config directory. */
   readonly agents: Layer.Layer<AgentCatalog, never, FileSystem.FileSystem>;

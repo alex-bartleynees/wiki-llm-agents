@@ -1,0 +1,96 @@
+{
+  "scenario": "interrupt-mid-stream",
+  "codexVersion": "0.166.0",
+  "model": "gpt-5.6-luna",
+  "autonomy": {
+    "read": "allow",
+    "create": "ask",
+    "edit": "ask",
+    "commands": "ask",
+    "web": "ask"
+  },
+  "turns": [
+    {
+      "prompt": "Write a 500-word story about a lighthouse.",
+      "steps": [
+        {
+          "message": {
+            "method": "turn/started",
+            "params": {
+              "threadId": "__thread__",
+              "turn": {
+                "id": "01a1d23d-3759-7e73-a540-f30cc3b55416",
+                "rootTurnId": "01a1d23d-3759-7e73-a540-f30cc3b55416",
+                "items": [],
+                "itemsView": "notLoaded",
+                "status": "inProgress",
+                "error": null,
+                "startedAt": 1794528589,
+                "completedAt": null,
+                "durationMs": null
+              }
+            },
+            "emittedAtMs": 1794528589669
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "id": "msg_0831dcaa88b20a64016af655522b6087d0a600b627c786fe2f",
+                "text": "",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1794528594310,
+                "completedAtMs": null
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d23d-3759-7e73-a540-f30cc3b55416",
+              "startedAtMs": 1794528594310
+            },
+            "emittedAtMs": 1794528594310
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23d-3759-7e73-a540-f30cc3b55416",
+              "itemId": "msg_0831dcaa88b20a64016af655522b6087d0a600b627c786fe2f",
+              "delta": "Every"
+            },
+            "emittedAtMs": 1794528594310
+          }
+        },
+        {
+          "interrupt": true
+        },
+        {
+          "message": {
+            "method": "turn/completed",
+            "params": {
+              "threadId": "__thread__",
+              "turn": {
+                "id": "01a1d23d-3759-7e73-a540-f30cc3b55416",
+                "rootTurnId": "01a1d23d-3759-7e73-a540-f30cc3b55416",
+                "items": [],
+                "itemsView": "notLoaded",
+                "status": "interrupted",
+                "error": null,
+                "startedAt": 1794528589,
+                "completedAt": 1794528594,
+                "durationMs": 4755
+              }
+            },
+            "emittedAtMs": 1794528594415
+          }
+        }
+      ]
+    }
+  ]
+}

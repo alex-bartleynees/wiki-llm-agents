@@ -1,0 +1,62 @@
+{
+  "scenario": "interrupt-after-send",
+  "codexVersion": "0.166.0",
+  "model": "gpt-5.6-luna",
+  "autonomy": {
+    "read": "allow",
+    "create": "ask",
+    "edit": "ask",
+    "commands": "ask",
+    "web": "ask"
+  },
+  "turns": [
+    {
+      "prompt": "Write a 500-word story about a lighthouse.",
+      "steps": [
+        {
+          "interrupt": true
+        },
+        {
+          "message": {
+            "method": "turn/started",
+            "params": {
+              "threadId": "__thread__",
+              "turn": {
+                "id": "01a1d23d-3678-75b0-9132-d20ed5b64a58",
+                "rootTurnId": "01a1d23d-3678-75b0-9132-d20ed5b64a58",
+                "items": [],
+                "itemsView": "notLoaded",
+                "status": "inProgress",
+                "error": null,
+                "startedAt": 1794528589,
+                "completedAt": null,
+                "durationMs": null
+              }
+            },
+            "emittedAtMs": 1794528589444
+          }
+        },
+        {
+          "message": {
+            "method": "turn/completed",
+            "params": {
+              "threadId": "__thread__",
+              "turn": {
+                "id": "01a1d23d-3678-75b0-9132-d20ed5b64a58",
+                "rootTurnId": "01a1d23d-3678-75b0-9132-d20ed5b64a58",
+                "items": [],
+                "itemsView": "notLoaded",
+                "status": "interrupted",
+                "error": null,
+                "startedAt": 1794528589,
+                "completedAt": 1794528589,
+                "durationMs": 20
+              }
+            },
+            "emittedAtMs": 1794528589456
+          }
+        }
+      ]
+    }
+  ]
+}

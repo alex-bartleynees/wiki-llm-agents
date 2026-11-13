@@ -1,0 +1,705 @@
+{
+  "scenario": "simple",
+  "codexVersion": "0.166.0",
+  "model": "gpt-5.6-luna",
+  "autonomy": {
+    "read": "allow",
+    "create": "ask",
+    "edit": "ask",
+    "commands": "ask",
+    "web": "ask"
+  },
+  "turns": [
+    {
+      "prompt": "Which notes are in this vault? List the file names in one short sentence.",
+      "steps": [
+        {
+          "message": {
+            "method": "turn/started",
+            "params": {
+              "threadId": "__thread__",
+              "turn": {
+                "id": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+                "rootTurnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+                "items": [],
+                "itemsView": "notLoaded",
+                "status": "inProgress",
+                "error": null,
+                "startedAt": 1794528710,
+                "completedAt": null,
+                "durationMs": null
+              }
+            },
+            "emittedAtMs": 1794528710488
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "id": "msg_0ca627f3e8622f30016af655c9f26487d092f3be927888a19b",
+                "text": "",
+                "phase": "commentary",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1794528714003,
+                "completedAtMs": null
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "startedAtMs": 1794528714003
+            },
+            "emittedAtMs": 1794528714004
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "itemId": "msg_0ca627f3e8622f30016af655c9f26487d092f3be927888a19b",
+              "delta": "I"
+            },
+            "emittedAtMs": 1794528714004
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "itemId": "msg_0ca627f3e8622f30016af655c9f26487d092f3be927888a19b",
+              "delta": "’m"
+            },
+            "emittedAtMs": 1794528714004
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "itemId": "msg_0ca627f3e8622f30016af655c9f26487d092f3be927888a19b",
+              "delta": " using"
+            },
+            "emittedAtMs": 1794528714004
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "itemId": "msg_0ca627f3e8622f30016af655c9f26487d092f3be927888a19b",
+              "delta": " the"
+            },
+            "emittedAtMs": 1794528714204
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "itemId": "msg_0ca627f3e8622f30016af655c9f26487d092f3be927888a19b",
+              "delta": " wiki"
+            },
+            "emittedAtMs": 1794528714204
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "itemId": "msg_0ca627f3e8622f30016af655c9f26487d092f3be927888a19b",
+              "delta": " vault"
+            },
+            "emittedAtMs": 1794528714204
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "itemId": "msg_0ca627f3e8622f30016af655c9f26487d092f3be927888a19b",
+              "delta": " instructions"
+            },
+            "emittedAtMs": 1794528714204
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "itemId": "msg_0ca627f3e8622f30016af655c9f26487d092f3be927888a19b",
+              "delta": " to"
+            },
+            "emittedAtMs": 1794528714204
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "itemId": "msg_0ca627f3e8622f30016af655c9f26487d092f3be927888a19b",
+              "delta": " inspect"
+            },
+            "emittedAtMs": 1794528714204
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "itemId": "msg_0ca627f3e8622f30016af655c9f26487d092f3be927888a19b",
+              "delta": " the"
+            },
+            "emittedAtMs": 1794528714204
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "itemId": "msg_0ca627f3e8622f30016af655c9f26487d092f3be927888a19b",
+              "delta": " note"
+            },
+            "emittedAtMs": 1794528714204
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "itemId": "msg_0ca627f3e8622f30016af655c9f26487d092f3be927888a19b",
+              "delta": " files"
+            },
+            "emittedAtMs": 1794528714306
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "itemId": "msg_0ca627f3e8622f30016af655c9f26487d092f3be927888a19b",
+              "delta": " and"
+            },
+            "emittedAtMs": 1794528714306
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "itemId": "msg_0ca627f3e8622f30016af655c9f26487d092f3be927888a19b",
+              "delta": " report"
+            },
+            "emittedAtMs": 1794528714306
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "itemId": "msg_0ca627f3e8622f30016af655c9f26487d092f3be927888a19b",
+              "delta": " only"
+            },
+            "emittedAtMs": 1794528714306
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "itemId": "msg_0ca627f3e8622f30016af655c9f26487d092f3be927888a19b",
+              "delta": " their"
+            },
+            "emittedAtMs": 1794528714306
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "itemId": "msg_0ca627f3e8622f30016af655c9f26487d092f3be927888a19b",
+              "delta": " names"
+            },
+            "emittedAtMs": 1794528714306
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "itemId": "msg_0ca627f3e8622f30016af655c9f26487d092f3be927888a19b",
+              "delta": "."
+            },
+            "emittedAtMs": 1794528714306
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "id": "msg_0ca627f3e8622f30016af655c9f26487d092f3be927888a19b",
+                "text": "I’m using the wiki vault instructions to inspect the note files and report only their names.",
+                "phase": "commentary",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1794528714003,
+                "completedAtMs": 1794528714613
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "completedAtMs": 1794528714613
+            },
+            "emittedAtMs": 1794528714615
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "commandExecution",
+                "id": "exec-c057ac57-201a-4f36-ad50-0e0b2683eb7a",
+                "pluginId": null,
+                "scriptPath": null,
+                "command": "/run/current-system/sw/bin/zsh -lc \"sed -n '1,240p' /__home__/.agents/skills/wiki-llm/SKILL.md && printf '\\\\n---FILES---\\\\n' && rg --files -g '*.md' -g '*.markdown' -g '\"'!**/.git/**'\"'\"",
+                "cwd": "/__vault__",
+                "processId": "13047",
+                "source": "unifiedExecStartup",
+                "status": "inProgress",
+                "commandActions": [
+                  {
+                    "type": "read",
+                    "command": "sed -n '1,240p' /__home__/.agents/skills/wiki-llm/SKILL.md",
+                    "name": "SKILL.md",
+                    "path": "/__home__/.agents/skills/wiki-llm/SKILL.md"
+                  },
+                  {
+                    "type": "listFiles",
+                    "command": "rg --files -g '*.md' -g '*.markdown' -g '!**/.git/**'",
+                    "path": null
+                  }
+                ],
+                "aggregatedOutput": "[output of a command that read outside the vault, left out of the fixture]",
+                "exitCode": null,
+                "durationMs": null,
+                "startedAtMs": 1794528716739,
+                "completedAtMs": null
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "startedAtMs": 1794528716739
+            },
+            "emittedAtMs": 1794528716749
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "commandExecution",
+                "id": "exec-c057ac57-201a-4f36-ad50-0e0b2683eb7a",
+                "pluginId": null,
+                "scriptPath": null,
+                "command": "/run/current-system/sw/bin/zsh -lc \"sed -n '1,240p' /__home__/.agents/skills/wiki-llm/SKILL.md && printf '\\\\n---FILES---\\\\n' && rg --files -g '*.md' -g '*.markdown' -g '\"'!**/.git/**'\"'\"",
+                "cwd": "/__vault__",
+                "processId": "13047",
+                "source": "unifiedExecStartup",
+                "status": "completed",
+                "commandActions": [
+                  {
+                    "type": "read",
+                    "command": "sed -n '1,240p' /__home__/.agents/skills/wiki-llm/SKILL.md",
+                    "name": "SKILL.md",
+                    "path": "/__home__/.agents/skills/wiki-llm/SKILL.md"
+                  },
+                  {
+                    "type": "listFiles",
+                    "command": "rg --files -g '*.md' -g '*.markdown' -g '!**/.git/**'",
+                    "path": null
+                  }
+                ],
+                "aggregatedOutput": "[output of a command that read outside the vault, left out of the fixture]",
+                "exitCode": 0,
+                "durationMs": 0,
+                "startedAtMs": 1794528716739,
+                "completedAtMs": 1794528716744
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "completedAtMs": 1794528716744
+            },
+            "emittedAtMs": 1794528716755
+          }
+        },
+        {
+          "message": {
+            "method": "thread/tokenUsage/updated",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "tokenUsage": {
+                "total": {
+                  "totalTokens": 14540,
+                  "inputTokens": 14357,
+                  "cachedInputTokens": 13952,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 183,
+                  "reasoningOutputTokens": 35
+                },
+                "last": {
+                  "totalTokens": 14540,
+                  "inputTokens": 14357,
+                  "cachedInputTokens": 13952,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 183,
+                  "reasoningOutputTokens": 35
+                },
+                "modelContextWindow": 258400
+              }
+            },
+            "emittedAtMs": 1794528716767
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "id": "msg_0ca627f3e8622f30016af655ce861087d086233c435d2404ac",
+                "text": "",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1794528718615,
+                "completedAtMs": null
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "startedAtMs": 1794528718615
+            },
+            "emittedAtMs": 1794528718616
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "itemId": "msg_0ca627f3e8622f30016af655ce861087d086233c435d2404ac",
+              "delta": "The"
+            },
+            "emittedAtMs": 1794528718616
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "itemId": "msg_0ca627f3e8622f30016af655ce861087d086233c435d2404ac",
+              "delta": " vault"
+            },
+            "emittedAtMs": 1794528718719
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "itemId": "msg_0ca627f3e8622f30016af655ce861087d086233c435d2404ac",
+              "delta": " contains"
+            },
+            "emittedAtMs": 1794528718719
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "itemId": "msg_0ca627f3e8622f30016af655ce861087d086233c435d2404ac",
+              "delta": " `"
+            },
+            "emittedAtMs": 1794528718719
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "itemId": "msg_0ca627f3e8622f30016af655ce861087d086233c435d2404ac",
+              "delta": "Notes"
+            },
+            "emittedAtMs": 1794528718719
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "itemId": "msg_0ca627f3e8622f30016af655ce861087d086233c435d2404ac",
+              "delta": "/C"
+            },
+            "emittedAtMs": 1794528718719
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "itemId": "msg_0ca627f3e8622f30016af655ce861087d086233c435d2404ac",
+              "delta": "offee"
+            },
+            "emittedAtMs": 1794528718719
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "itemId": "msg_0ca627f3e8622f30016af655ce861087d086233c435d2404ac",
+              "delta": ".md"
+            },
+            "emittedAtMs": 1794528718720
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "itemId": "msg_0ca627f3e8622f30016af655ce861087d086233c435d2404ac",
+              "delta": "`"
+            },
+            "emittedAtMs": 1794528718720
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "itemId": "msg_0ca627f3e8622f30016af655ce861087d086233c435d2404ac",
+              "delta": " and"
+            },
+            "emittedAtMs": 1794528718923
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "itemId": "msg_0ca627f3e8622f30016af655ce861087d086233c435d2404ac",
+              "delta": " `"
+            },
+            "emittedAtMs": 1794528718923
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "itemId": "msg_0ca627f3e8622f30016af655ce861087d086233c435d2404ac",
+              "delta": "Notes"
+            },
+            "emittedAtMs": 1794528718923
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "itemId": "msg_0ca627f3e8622f30016af655ce861087d086233c435d2404ac",
+              "delta": "/"
+            },
+            "emittedAtMs": 1794528718923
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "itemId": "msg_0ca627f3e8622f30016af655ce861087d086233c435d2404ac",
+              "delta": "Tea"
+            },
+            "emittedAtMs": 1794528718923
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "itemId": "msg_0ca627f3e8622f30016af655ce861087d086233c435d2404ac",
+              "delta": ".md"
+            },
+            "emittedAtMs": 1794528718931
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "itemId": "msg_0ca627f3e8622f30016af655ce861087d086233c435d2404ac",
+              "delta": "`."
+            },
+            "emittedAtMs": 1794528718931
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "id": "msg_0ca627f3e8622f30016af655ce861087d086233c435d2404ac",
+                "text": "The vault contains `Notes/Coffee.md` and `Notes/Tea.md`.",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1794528718615,
+                "completedAtMs": 1794528718926
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "completedAtMs": 1794528718926
+            },
+            "emittedAtMs": 1794528718931
+          }
+        },
+        {
+          "message": {
+            "method": "thread/tokenUsage/updated",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+              "tokenUsage": {
+                "total": {
+                  "totalTokens": 30254,
+                  "inputTokens": 29993,
+                  "cachedInputTokens": 28160,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 261,
+                  "reasoningOutputTokens": 91
+                },
+                "last": {
+                  "totalTokens": 15714,
+                  "inputTokens": 15636,
+                  "cachedInputTokens": 14208,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 78,
+                  "reasoningOutputTokens": 56
+                },
+                "modelContextWindow": 258400
+              }
+            },
+            "emittedAtMs": 1794528718931
+          }
+        },
+        {
+          "message": {
+            "method": "turn/completed",
+            "params": {
+              "threadId": "__thread__",
+              "turn": {
+                "id": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+                "rootTurnId": "01a1d23f-0f4d-7903-b5ee-aead7f64ed03",
+                "items": [
+                  {
+                    "type": "agentMessage",
+                    "id": "msg_0ca627f3e8622f30016af655ce861087d086233c435d2404ac",
+                    "text": "The vault contains `Notes/Coffee.md` and `Notes/Tea.md`.",
+                    "phase": "final_answer",
+                    "memoryCitation": null,
+                    "delivery": null,
+                    "questions": null,
+                    "startedAtMs": 1794528718615,
+                    "completedAtMs": 1794528718926
+                  }
+                ],
+                "itemsView": "summary",
+                "status": "completed",
+                "error": null,
+                "startedAt": 1794528710,
+                "completedAt": 1794528718,
+                "durationMs": 8454
+              }
+            },
+            "emittedAtMs": 1794528718941
+          }
+        }
+      ]
+    }
+  ]
+}

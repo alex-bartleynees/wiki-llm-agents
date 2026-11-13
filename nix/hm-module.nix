@@ -104,6 +104,15 @@ in
       '';
     };
 
+    codex = mkOption {
+      type = types.nullOr types.package;
+      default = null;
+      description = ''
+        Codex package for the Codex provider. Null uses `codex` from your user profile,
+        with your login. The app needs Codex 0.166 or later.
+      '';
+    };
+
     environment = mkOption {
       type = types.attrsOf types.str;
       default = { };
@@ -162,6 +171,7 @@ in
           // lib.optionalAttrs (cfg.watchPollMs != null) { WIKI_AGENTS_WATCH_POLL_MS = toString cfg.watchPollMs; }
           // lib.optionalAttrs (cfg.opencode != null) { WIKI_AGENTS_OPENCODE = lib.getExe cfg.opencode; }
           // lib.optionalAttrs (cfg.claudeCode != null) { WIKI_AGENTS_CLAUDE = lib.getExe cfg.claudeCode; }
+          // lib.optionalAttrs (cfg.codex != null) { WIKI_AGENTS_CODEX = lib.getExe cfg.codex; }
           // cfg.environment
         );
         Restart = "on-failure";

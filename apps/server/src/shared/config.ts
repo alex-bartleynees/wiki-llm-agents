@@ -27,6 +27,8 @@ export const AppConfig = {
   opencodeBinary: Config.String("WIKI_AGENTS_OPENCODE").pipe(Config.withDefault("opencode")),
   /** The Claude Code executable: a path, or a name looked up on `PATH`. */
   claudeBinary: Config.String("WIKI_AGENTS_CLAUDE").pipe(Config.withDefault("claude")),
+  /** The Codex executable: a path, or a name looked up on `PATH`. */
+  codexBinary: Config.String("WIKI_AGENTS_CODEX").pipe(Config.withDefault("codex")),
   /** The timezone a new schedule's times are in unless it says otherwise (IANA name). */
   timezone: Config.String("WIKI_AGENTS_TIMEZONE").pipe(Config.withDefault("Pacific/Auckland")),
   /**
@@ -41,7 +43,8 @@ export const AppConfig = {
   ),
   /**
    * End-to-end tests only: serves `POST /api/test/clock`, which moves the schedules'
-   * clock forward so a browser test can make a schedule fire without waiting.
+   * clock forward so a browser test can make a schedule fire without waiting, and
+   * adds the replay provider, which plays recorded turns without an agent installed.
    */
   testHooks: Config.Boolean("WIKI_AGENTS_TEST_HOOKS").pipe(Config.withDefault(false)),
   migrationsDir: Config.String("WIKI_AGENTS_MIGRATIONS_DIR").pipe(

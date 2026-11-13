@@ -16,7 +16,7 @@
   <AddVaultForm onadded={(vault) => goto(`/vaults/${vault.id}`)} />
   <h1 class="next">Providers</h1>
   <p class="hint">
-    The agents threads run on. OpenCode and Claude Code are your installed ones, with your own login; checking OpenCode
+    The agents threads run on. OpenCode, Claude Code and Codex are your installed ones, with your own login; checking OpenCode
     starts its server.
   </p>
   <ProviderList />

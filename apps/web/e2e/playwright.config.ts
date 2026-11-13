@@ -8,8 +8,9 @@ import { defineConfig } from "@playwright/test";
 /**
  * Key flows through the real app: the server from source, serving the built web app,
  * on its own port with a temporary vault, data and config folder (never 4317 or
- * `.data/`). OpenCode is pointed at a missing binary, so turns use the replay
- * provider and cost nothing. Run with `npm run test:e2e -w @wiki-agents/web`.
+ * `.data/`). OpenCode, Claude Code and Codex point at missing binaries, and test hooks
+ * add the replay provider (test-only), so turns cost nothing. Run with
+ * `npm run test:e2e -w @wiki-agents/web`.
  */
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -76,7 +77,9 @@ export default defineConfig({
       WIKI_AGENTS_STATIC_DIR: join(web, "build"),
       WIKI_AGENTS_OPENCODE: "wiki-agents-e2e-no-opencode",
       WIKI_AGENTS_CLAUDE: "wiki-agents-e2e-no-claude",
-      // Lets flows move the schedules' clock instead of waiting (POST /api/test/clock).
+      WIKI_AGENTS_CODEX: "wiki-agents-e2e-no-codex",
+      // Lets flows move the schedules' clock instead of waiting (POST /api/test/clock),
+      // and adds the replay provider, which exists for tests only.
       WIKI_AGENTS_TEST_HOOKS: "true",
     },
   },

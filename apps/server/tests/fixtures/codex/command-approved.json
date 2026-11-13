@@ -1,0 +1,616 @@
+{
+  "scenario": "command-approved",
+  "codexVersion": "0.166.0",
+  "model": "gpt-5.6-luna",
+  "autonomy": {
+    "read": "allow",
+    "create": "ask",
+    "edit": "ask",
+    "commands": "ask",
+    "web": "ask"
+  },
+  "turns": [
+    {
+      "prompt": "Run `mkdir Drafts` in the shell, then reply in one sentence.",
+      "steps": [
+        {
+          "message": {
+            "method": "turn/started",
+            "params": {
+              "threadId": "__thread__",
+              "turn": {
+                "id": "01a1d23c-c014-7e03-8cd8-92236280195f",
+                "rootTurnId": "01a1d23c-c014-7e03-8cd8-92236280195f",
+                "items": [],
+                "itemsView": "notLoaded",
+                "status": "inProgress",
+                "error": null,
+                "startedAt": 1794528559,
+                "completedAt": null,
+                "durationMs": null
+              }
+            },
+            "emittedAtMs": 1794528559137
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "id": "msg_0e059209295ac36f016af65532dd3087d0b57782cd0933dbab",
+                "text": "",
+                "phase": "commentary",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1794528562957,
+                "completedAtMs": null
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-c014-7e03-8cd8-92236280195f",
+              "startedAtMs": 1794528562957
+            },
+            "emittedAtMs": 1794528562958
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-c014-7e03-8cd8-92236280195f",
+              "itemId": "msg_0e059209295ac36f016af65532dd3087d0b57782cd0933dbab",
+              "delta": "I"
+            },
+            "emittedAtMs": 1794528562958
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-c014-7e03-8cd8-92236280195f",
+              "itemId": "msg_0e059209295ac36f016af65532dd3087d0b57782cd0933dbab",
+              "delta": "’ll"
+            },
+            "emittedAtMs": 1794528562958
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-c014-7e03-8cd8-92236280195f",
+              "itemId": "msg_0e059209295ac36f016af65532dd3087d0b57782cd0933dbab",
+              "delta": " create"
+            },
+            "emittedAtMs": 1794528562958
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-c014-7e03-8cd8-92236280195f",
+              "itemId": "msg_0e059209295ac36f016af65532dd3087d0b57782cd0933dbab",
+              "delta": " the"
+            },
+            "emittedAtMs": 1794528562958
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-c014-7e03-8cd8-92236280195f",
+              "itemId": "msg_0e059209295ac36f016af65532dd3087d0b57782cd0933dbab",
+              "delta": " `"
+            },
+            "emittedAtMs": 1794528563262
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-c014-7e03-8cd8-92236280195f",
+              "itemId": "msg_0e059209295ac36f016af65532dd3087d0b57782cd0933dbab",
+              "delta": "Draft"
+            },
+            "emittedAtMs": 1794528563262
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-c014-7e03-8cd8-92236280195f",
+              "itemId": "msg_0e059209295ac36f016af65532dd3087d0b57782cd0933dbab",
+              "delta": "s"
+            },
+            "emittedAtMs": 1794528563262
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-c014-7e03-8cd8-92236280195f",
+              "itemId": "msg_0e059209295ac36f016af65532dd3087d0b57782cd0933dbab",
+              "delta": "`"
+            },
+            "emittedAtMs": 1794528563262
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-c014-7e03-8cd8-92236280195f",
+              "itemId": "msg_0e059209295ac36f016af65532dd3087d0b57782cd0933dbab",
+              "delta": " directory"
+            },
+            "emittedAtMs": 1794528563262
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-c014-7e03-8cd8-92236280195f",
+              "itemId": "msg_0e059209295ac36f016af65532dd3087d0b57782cd0933dbab",
+              "delta": " in"
+            },
+            "emittedAtMs": 1794528563262
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-c014-7e03-8cd8-92236280195f",
+              "itemId": "msg_0e059209295ac36f016af65532dd3087d0b57782cd0933dbab",
+              "delta": " the"
+            },
+            "emittedAtMs": 1794528563262
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-c014-7e03-8cd8-92236280195f",
+              "itemId": "msg_0e059209295ac36f016af65532dd3087d0b57782cd0933dbab",
+              "delta": " current"
+            },
+            "emittedAtMs": 1794528563262
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-c014-7e03-8cd8-92236280195f",
+              "itemId": "msg_0e059209295ac36f016af65532dd3087d0b57782cd0933dbab",
+              "delta": " workspace"
+            },
+            "emittedAtMs": 1794528563262
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-c014-7e03-8cd8-92236280195f",
+              "itemId": "msg_0e059209295ac36f016af65532dd3087d0b57782cd0933dbab",
+              "delta": "."
+            },
+            "emittedAtMs": 1794528563262
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "id": "msg_0e059209295ac36f016af65532dd3087d0b57782cd0933dbab",
+                "text": "I’ll create the `Drafts` directory in the current workspace.",
+                "phase": "commentary",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1794528562957,
+                "completedAtMs": 1794528563370
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-c014-7e03-8cd8-92236280195f",
+              "completedAtMs": 1794528563370
+            },
+            "emittedAtMs": 1794528563371
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "commandExecution",
+                "id": "exec-0e3fc2d4-f3da-4d07-8395-400235bdd8be",
+                "pluginId": null,
+                "scriptPath": null,
+                "command": "/run/current-system/sw/bin/zsh -lc 'mkdir Drafts'",
+                "cwd": "/__vault__",
+                "processId": null,
+                "source": "agent",
+                "status": "inProgress",
+                "commandActions": [
+                  {
+                    "type": "unknown",
+                    "command": "mkdir Drafts"
+                  }
+                ],
+                "aggregatedOutput": null,
+                "exitCode": null,
+                "durationMs": null,
+                "startedAtMs": 1794528564648,
+                "completedAtMs": null
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-c014-7e03-8cd8-92236280195f",
+              "startedAtMs": 1794528564648
+            },
+            "emittedAtMs": 1794528564650
+          }
+        },
+        {
+          "message": {
+            "method": "item/commandExecution/requestApproval",
+            "id": 0,
+            "params": {
+              "kind": "command",
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-c014-7e03-8cd8-92236280195f",
+              "itemId": "exec-0e3fc2d4-f3da-4d07-8395-400235bdd8be",
+              "startedAtMs": 1794528564648,
+              "environmentId": "local",
+              "reason": "May I create the requested Drafts directory in the current workspace?",
+              "command": "/run/current-system/sw/bin/zsh -lc 'mkdir Drafts'",
+              "cwd": "/__vault__",
+              "commandActions": [
+                {
+                  "type": "unknown",
+                  "command": "mkdir Drafts"
+                }
+              ],
+              "proposedExecpolicyAmendment": [
+                "mkdir",
+                "Drafts"
+              ],
+              "availableDecisions": [
+                "accept",
+                {
+                  "acceptWithExecpolicyAmendment": {
+                    "execpolicy_amendment": [
+                      "mkdir",
+                      "Drafts"
+                    ]
+                  }
+                },
+                "cancel"
+              ]
+            }
+          }
+        },
+        {
+          "response": {
+            "id": 0,
+            "result": {
+              "decision": "accept"
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "serverRequest/resolved",
+            "params": {
+              "threadId": "__thread__",
+              "requestId": 0
+            },
+            "emittedAtMs": 1794528564651
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "commandExecution",
+                "id": "exec-0e3fc2d4-f3da-4d07-8395-400235bdd8be",
+                "pluginId": null,
+                "scriptPath": null,
+                "command": "/run/current-system/sw/bin/zsh -lc 'mkdir Drafts'",
+                "cwd": "/__vault__",
+                "processId": "32764",
+                "source": "unifiedExecStartup",
+                "status": "completed",
+                "commandActions": [
+                  {
+                    "type": "unknown",
+                    "command": "mkdir Drafts"
+                  }
+                ],
+                "aggregatedOutput": null,
+                "exitCode": 0,
+                "durationMs": 0,
+                "startedAtMs": 1794528564648,
+                "completedAtMs": 1794528564755
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-c014-7e03-8cd8-92236280195f",
+              "completedAtMs": 1794528564755
+            },
+            "emittedAtMs": 1794528564767
+          }
+        },
+        {
+          "message": {
+            "method": "thread/tokenUsage/updated",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-c014-7e03-8cd8-92236280195f",
+              "tokenUsage": {
+                "total": {
+                  "totalTokens": 14482,
+                  "inputTokens": 14355,
+                  "cachedInputTokens": 7808,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 127,
+                  "reasoningOutputTokens": 27
+                },
+                "last": {
+                  "totalTokens": 14482,
+                  "inputTokens": 14355,
+                  "cachedInputTokens": 7808,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 127,
+                  "reasoningOutputTokens": 27
+                },
+                "modelContextWindow": 258400
+              }
+            },
+            "emittedAtMs": 1794528564778
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "id": "msg_0e059209295ac36f016af655354c3c87d08cec704a21db5527",
+                "text": "",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1794528565364,
+                "completedAtMs": null
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-c014-7e03-8cd8-92236280195f",
+              "startedAtMs": 1794528565364
+            },
+            "emittedAtMs": 1794528565365
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-c014-7e03-8cd8-92236280195f",
+              "itemId": "msg_0e059209295ac36f016af655354c3c87d08cec704a21db5527",
+              "delta": "Created"
+            },
+            "emittedAtMs": 1794528565365
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-c014-7e03-8cd8-92236280195f",
+              "itemId": "msg_0e059209295ac36f016af655354c3c87d08cec704a21db5527",
+              "delta": " the"
+            },
+            "emittedAtMs": 1794528565365
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-c014-7e03-8cd8-92236280195f",
+              "itemId": "msg_0e059209295ac36f016af655354c3c87d08cec704a21db5527",
+              "delta": " `"
+            },
+            "emittedAtMs": 1794528565691
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-c014-7e03-8cd8-92236280195f",
+              "itemId": "msg_0e059209295ac36f016af655354c3c87d08cec704a21db5527",
+              "delta": "Draft"
+            },
+            "emittedAtMs": 1794528565691
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-c014-7e03-8cd8-92236280195f",
+              "itemId": "msg_0e059209295ac36f016af655354c3c87d08cec704a21db5527",
+              "delta": "s"
+            },
+            "emittedAtMs": 1794528565691
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-c014-7e03-8cd8-92236280195f",
+              "itemId": "msg_0e059209295ac36f016af655354c3c87d08cec704a21db5527",
+              "delta": "`"
+            },
+            "emittedAtMs": 1794528565691
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-c014-7e03-8cd8-92236280195f",
+              "itemId": "msg_0e059209295ac36f016af655354c3c87d08cec704a21db5527",
+              "delta": " directory"
+            },
+            "emittedAtMs": 1794528565691
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-c014-7e03-8cd8-92236280195f",
+              "itemId": "msg_0e059209295ac36f016af655354c3c87d08cec704a21db5527",
+              "delta": " successfully"
+            },
+            "emittedAtMs": 1794528565691
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-c014-7e03-8cd8-92236280195f",
+              "itemId": "msg_0e059209295ac36f016af655354c3c87d08cec704a21db5527",
+              "delta": "."
+            },
+            "emittedAtMs": 1794528565691
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "id": "msg_0e059209295ac36f016af655354c3c87d08cec704a21db5527",
+                "text": "Created the `Drafts` directory successfully.",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1794528565364,
+                "completedAtMs": 1794528565691
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-c014-7e03-8cd8-92236280195f",
+              "completedAtMs": 1794528565691
+            },
+            "emittedAtMs": 1794528565694
+          }
+        },
+        {
+          "message": {
+            "method": "thread/tokenUsage/updated",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-c014-7e03-8cd8-92236280195f",
+              "tokenUsage": {
+                "total": {
+                  "totalTokens": 29000,
+                  "inputTokens": 28860,
+                  "cachedInputTokens": 22016,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 140,
+                  "reasoningOutputTokens": 27
+                },
+                "last": {
+                  "totalTokens": 14518,
+                  "inputTokens": 14505,
+                  "cachedInputTokens": 14208,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 13,
+                  "reasoningOutputTokens": 0
+                },
+                "modelContextWindow": 258400
+              }
+            },
+            "emittedAtMs": 1794528565698
+          }
+        },
+        {
+          "message": {
+            "method": "turn/completed",
+            "params": {
+              "threadId": "__thread__",
+              "turn": {
+                "id": "01a1d23c-c014-7e03-8cd8-92236280195f",
+                "rootTurnId": "01a1d23c-c014-7e03-8cd8-92236280195f",
+                "items": [
+                  {
+                    "type": "agentMessage",
+                    "id": "msg_0e059209295ac36f016af655354c3c87d08cec704a21db5527",
+                    "text": "Created the `Drafts` directory successfully.",
+                    "phase": "final_answer",
+                    "memoryCitation": null,
+                    "delivery": null,
+                    "questions": null,
+                    "startedAtMs": 1794528565364,
+                    "completedAtMs": 1794528565691
+                  }
+                ],
+                "itemsView": "summary",
+                "status": "completed",
+                "error": null,
+                "startedAt": 1794528559,
+                "completedAt": 1794528565,
+                "durationMs": 6573
+              }
+            },
+            "emittedAtMs": 1794528565707
+          }
+        }
+      ]
+    }
+  ]
+}

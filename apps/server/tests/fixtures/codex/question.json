@@ -1,0 +1,433 @@
+{
+  "scenario": "question",
+  "codexVersion": "0.166.0",
+  "model": "gpt-5.6-luna",
+  "autonomy": {
+    "read": "allow",
+    "create": "ask",
+    "edit": "ask",
+    "commands": "ask",
+    "web": "ask"
+  },
+  "turns": [
+    {
+      "prompt": "Use the request_user_input tool to ask me which tea I prefer, offering Earl Grey and Sencha. Then reply with one sentence about my answer. Don't edit files.",
+      "steps": [
+        {
+          "message": {
+            "method": "turn/started",
+            "params": {
+              "threadId": "__thread__",
+              "turn": {
+                "id": "01a1d23d-9284-7c63-b94c-d0bacbd012e5",
+                "rootTurnId": "01a1d23d-9284-7c63-b94c-d0bacbd012e5",
+                "items": [],
+                "itemsView": "notLoaded",
+                "status": "inProgress",
+                "error": null,
+                "startedAt": 1794528612,
+                "completedAt": null,
+                "durationMs": null
+              }
+            },
+            "emittedAtMs": 1794528613029
+          }
+        },
+        {
+          "message": {
+            "method": "item/tool/requestUserInput",
+            "id": 0,
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23d-9284-7c63-b94c-d0bacbd012e5",
+              "itemId": "call_d79003792c59454a82e231ee39ae7234",
+              "questions": [
+                {
+                  "id": "tea_preference",
+                  "header": "Tea choice",
+                  "question": "Which tea do you prefer?",
+                  "isOther": true,
+                  "isSecret": false,
+                  "options": [
+                    {
+                      "label": "Earl Grey (Recommended)",
+                      "description": "A fragrant black tea with bergamot citrus notes."
+                    },
+                    {
+                      "label": "Sencha",
+                      "description": "A refreshing Japanese green tea with grassy, umami notes."
+                    }
+                  ]
+                }
+              ],
+              "isBlocking": false,
+              "autoResolutionMs": null
+            }
+          }
+        },
+        {
+          "response": {
+            "id": 0,
+            "result": {
+              "answers": {
+                "tea_preference": {
+                  "answers": [
+                    "Sencha"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "serverRequest/resolved",
+            "params": {
+              "threadId": "__thread__",
+              "requestId": 0
+            },
+            "emittedAtMs": 1794528617557
+          }
+        },
+        {
+          "message": {
+            "method": "thread/tokenUsage/updated",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23d-9284-7c63-b94c-d0bacbd012e5",
+              "tokenUsage": {
+                "total": {
+                  "totalTokens": 14478,
+                  "inputTokens": 14371,
+                  "cachedInputTokens": 0,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 107,
+                  "reasoningOutputTokens": 20
+                },
+                "last": {
+                  "totalTokens": 14478,
+                  "inputTokens": 14371,
+                  "cachedInputTokens": 0,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 107,
+                  "reasoningOutputTokens": 20
+                },
+                "modelContextWindow": 258400
+              }
+            },
+            "emittedAtMs": 1794528617583
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "id": "msg_05be6294e77fdf95016af6556a331c87d0a3e3979169306845",
+                "text": "",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1794528618253,
+                "completedAtMs": null
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d23d-9284-7c63-b94c-d0bacbd012e5",
+              "startedAtMs": 1794528618253
+            },
+            "emittedAtMs": 1794528618253
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23d-9284-7c63-b94c-d0bacbd012e5",
+              "itemId": "msg_05be6294e77fdf95016af6556a331c87d0a3e3979169306845",
+              "delta": "You"
+            },
+            "emittedAtMs": 1794528618253
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23d-9284-7c63-b94c-d0bacbd012e5",
+              "itemId": "msg_05be6294e77fdf95016af6556a331c87d0a3e3979169306845",
+              "delta": " prefer"
+            },
+            "emittedAtMs": 1794528618253
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23d-9284-7c63-b94c-d0bacbd012e5",
+              "itemId": "msg_05be6294e77fdf95016af6556a331c87d0a3e3979169306845",
+              "delta": " Sen"
+            },
+            "emittedAtMs": 1794528618570
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23d-9284-7c63-b94c-d0bacbd012e5",
+              "itemId": "msg_05be6294e77fdf95016af6556a331c87d0a3e3979169306845",
+              "delta": "cha"
+            },
+            "emittedAtMs": 1794528618570
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23d-9284-7c63-b94c-d0bacbd012e5",
+              "itemId": "msg_05be6294e77fdf95016af6556a331c87d0a3e3979169306845",
+              "delta": ","
+            },
+            "emittedAtMs": 1794528618570
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23d-9284-7c63-b94c-d0bacbd012e5",
+              "itemId": "msg_05be6294e77fdf95016af6556a331c87d0a3e3979169306845",
+              "delta": " a"
+            },
+            "emittedAtMs": 1794528618570
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23d-9284-7c63-b94c-d0bacbd012e5",
+              "itemId": "msg_05be6294e77fdf95016af6556a331c87d0a3e3979169306845",
+              "delta": " refreshing"
+            },
+            "emittedAtMs": 1794528618570
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23d-9284-7c63-b94c-d0bacbd012e5",
+              "itemId": "msg_05be6294e77fdf95016af6556a331c87d0a3e3979169306845",
+              "delta": " Japanese"
+            },
+            "emittedAtMs": 1794528618570
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23d-9284-7c63-b94c-d0bacbd012e5",
+              "itemId": "msg_05be6294e77fdf95016af6556a331c87d0a3e3979169306845",
+              "delta": " green"
+            },
+            "emittedAtMs": 1794528618570
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23d-9284-7c63-b94c-d0bacbd012e5",
+              "itemId": "msg_05be6294e77fdf95016af6556a331c87d0a3e3979169306845",
+              "delta": " tea"
+            },
+            "emittedAtMs": 1794528618570
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23d-9284-7c63-b94c-d0bacbd012e5",
+              "itemId": "msg_05be6294e77fdf95016af6556a331c87d0a3e3979169306845",
+              "delta": " with"
+            },
+            "emittedAtMs": 1794528618570
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23d-9284-7c63-b94c-d0bacbd012e5",
+              "itemId": "msg_05be6294e77fdf95016af6556a331c87d0a3e3979169306845",
+              "delta": " grassy"
+            },
+            "emittedAtMs": 1794528618570
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23d-9284-7c63-b94c-d0bacbd012e5",
+              "itemId": "msg_05be6294e77fdf95016af6556a331c87d0a3e3979169306845",
+              "delta": ","
+            },
+            "emittedAtMs": 1794528618570
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23d-9284-7c63-b94c-d0bacbd012e5",
+              "itemId": "msg_05be6294e77fdf95016af6556a331c87d0a3e3979169306845",
+              "delta": " um"
+            },
+            "emittedAtMs": 1794528618570
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23d-9284-7c63-b94c-d0bacbd012e5",
+              "itemId": "msg_05be6294e77fdf95016af6556a331c87d0a3e3979169306845",
+              "delta": "ami"
+            },
+            "emittedAtMs": 1794528618570
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23d-9284-7c63-b94c-d0bacbd012e5",
+              "itemId": "msg_05be6294e77fdf95016af6556a331c87d0a3e3979169306845",
+              "delta": " notes"
+            },
+            "emittedAtMs": 1794528618570
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23d-9284-7c63-b94c-d0bacbd012e5",
+              "itemId": "msg_05be6294e77fdf95016af6556a331c87d0a3e3979169306845",
+              "delta": "."
+            },
+            "emittedAtMs": 1794528618570
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "id": "msg_05be6294e77fdf95016af6556a331c87d0a3e3979169306845",
+                "text": "You prefer Sencha, a refreshing Japanese green tea with grassy, umami notes.",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1794528618253,
+                "completedAtMs": 1794528618570
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d23d-9284-7c63-b94c-d0bacbd012e5",
+              "completedAtMs": 1794528618570
+            },
+            "emittedAtMs": 1794528618572
+          }
+        },
+        {
+          "message": {
+            "method": "thread/tokenUsage/updated",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23d-9284-7c63-b94c-d0bacbd012e5",
+              "tokenUsage": {
+                "total": {
+                  "totalTokens": 29003,
+                  "inputTokens": 28875,
+                  "cachedInputTokens": 14208,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 128,
+                  "reasoningOutputTokens": 20
+                },
+                "last": {
+                  "totalTokens": 14525,
+                  "inputTokens": 14504,
+                  "cachedInputTokens": 14208,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 21,
+                  "reasoningOutputTokens": 0
+                },
+                "modelContextWindow": 258400
+              }
+            },
+            "emittedAtMs": 1794528618575
+          }
+        },
+        {
+          "message": {
+            "method": "turn/completed",
+            "params": {
+              "threadId": "__thread__",
+              "turn": {
+                "id": "01a1d23d-9284-7c63-b94c-d0bacbd012e5",
+                "rootTurnId": "01a1d23d-9284-7c63-b94c-d0bacbd012e5",
+                "items": [
+                  {
+                    "type": "agentMessage",
+                    "id": "msg_05be6294e77fdf95016af6556a331c87d0a3e3979169306845",
+                    "text": "You prefer Sencha, a refreshing Japanese green tea with grassy, umami notes.",
+                    "phase": "final_answer",
+                    "memoryCitation": null,
+                    "delivery": null,
+                    "questions": null,
+                    "startedAtMs": 1794528618253,
+                    "completedAtMs": 1794528618570
+                  }
+                ],
+                "itemsView": "summary",
+                "status": "completed",
+                "error": null,
+                "startedAt": 1794528612,
+                "completedAt": 1794528618,
+                "durationMs": 5579
+              }
+            },
+            "emittedAtMs": 1794528618580
+          }
+        }
+      ]
+    }
+  ]
+}

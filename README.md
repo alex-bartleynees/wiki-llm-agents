@@ -1,7 +1,7 @@
 # wiki-agents
 
 Local-first app that puts a wiki-llm Obsidian vault and coding agents (OpenCode
-first, then Claude Code) in one place. Working name; the app isn't named yet.
+first, then Claude Code and Codex) in one place. Working name; the app isn't named yet.
 
 Design and plans live in the vault: `1-Active/Wiki-LLM-Agents-App/` (README,
 Architecture, Implementation Plan, Code Organisation, OpenCode Integration). The UI
@@ -27,8 +27,9 @@ Gate before every commit: `npm test`, `npm run check`, `npm run build`, `git dif
 
 - **Flows** (`apps/web/e2e/`, Playwright): key flows at 1440px and 390px through the
   real app: the server from source serving a fresh web build, on a random port, with a
-  temporary vault, data and config folder (never 4317 or `.data/`). OpenCode points at
-  a missing binary, so threads use the free replay provider. Failures keep a trace in
+  temporary vault, data and config folder (never 4317 or `.data/`). OpenCode, Claude
+  Code and Codex point at missing binaries, and `WIKI_AGENTS_TEST_HOOKS=true` adds the
+  replay provider (see Threads), so turns cost nothing. Failures keep a trace in
   `apps/web/test-results/` (`npx playwright show-trace <trace.zip>`).
 - **Stores** (`*.browser.test.ts`, Vitest browser mode): stateful stores in a real
   Chromium, with the API and event streams stood in for, so a test decides when
@@ -177,12 +178,46 @@ provider and the agent (below) for new threads next to **New thread**:
   running Claude Code turn can't survive an app restart (it is a child process), so it
   is closed as interrupted. Stopping the app with an open Claude Code session takes a
   few seconds: the SDK gives `claude` 2 s to exit before it sends SIGTERM.
-- **Replay** plays recorded turns and spends no tokens; the message picks the
+- **Codex**: your installed `codex` (0.166 or later), with your own login,
+  `~/.codex/config.toml`, skills and MCP servers, run through `codex app-server`
+  (JSON-RPC over stdio, as Codex's IDE extension uses it). Each thread is a Codex
+  thread in its working folder; one `codex app-server` serves it while the thread is
+  open (closed 5 minutes after it goes idle, and with the app), and a later message,
+  even after a restart, resumes the thread. Pick the model in the thread's header
+  (Codex's own list, without its hidden models).
+  **Approvals:** every thread runs in Codex's read-only sandbox with the `on-request`
+  approval policy. Commands run inside the sandbox without asking (they can read
+  anywhere, but not write or reach the network); a patch, or a command that needs
+  more than the sandbox, comes to the app, which answers from the agent's autonomy or
+  asks you (patches show their diff). A patch that adds a file that doesn't exist yet
+  is *create*, anything else *edit*; a patch touching several files takes the
+  strictest of them, and files outside the working folders always ask. Codex's web
+  search can't ask first, so it is on only when the agent allows the web. Approving
+  answers `accept` for that one call, never "for the session". Questions come from
+  Codex's `request_user_input` tool (turned on in default mode with
+  `features.default_mode_request_user_input`).
+  The rules and the agent's instructions are Codex's developer instructions; Codex
+  reads `AGENTS.md` itself (in the folder, and above it up to its git repository), so
+  that isn't sent. Both are fixed when a Codex thread starts or resumes, so a change
+  to them, or a renewed vault-tools token, restarts the app-server and resumes the
+  thread before the next turn. The vault tools are an MCP server (`wiki_agents`) in
+  the thread's config with `bearer_token_env_var`: the token is only in the
+  app-server's environment, never on its command line or in Codex's config.
+  Usage is reported per turn, without a cost. Stop asks Codex to stop the turn and
+  waits up to 5 s for it to confirm, otherwise closes the app-server (the next message
+  resumes the thread); a crash fails the turn with the reason. A running Codex turn
+  can't survive an app restart, so it is closed as interrupted.
+- **Replay** is for tests only: the integration tests use it, and the server adds it
+  only with `WIKI_AGENTS_TEST_HOOKS=true` (the Playwright flows). It plays recorded
+  turns and spends no tokens; the message picks the
   recording by keyword (`providers/replay/transcripts.ts`): *edit* proposes an edit
   to `Replay note.md` in the thread's folder and, once you apply it, really appends a
   line (creating the note if needed), so change review and undo can be tried for free;
   *question* (or *ask*) asks a question, *long* streams slowly (for trying Stop and
   reloads), *fail* fails, and anything else gives a plain answer.
+- A thread whose provider the app no longer runs (a replay thread from before replay
+  became test-only, say) can still be read and marked done; a new message fails its
+  turn saying the provider isn't available.
 
 - `POST /api/vaults/:id/threads` creates a thread; `POST /api/threads/:id/messages`
   starts a turn (409 while one runs); `POST /api/threads/:id/interrupt` stops it;
@@ -357,6 +392,8 @@ that machine's fresh defaults would win over your edits. A Syncthing conflict co
   says so. Claude Code gets them appended to its system prompt (rebuilt every request,
   so a change applies from the next turn on the same session) and the autonomy through
   the app's hook; it reads `AGENTS.md` and `CLAUDE.md` itself, so those aren't sent.
+  Codex gets them as developer instructions and the autonomy through its sandbox and
+  approval requests (see Codex, above).
 - Pick a thread's agent in its header; it applies from the next message.
   The Agents tab (phone) or the right pane's Agents switch (desktop) lists agents
   with what they are doing in this vault, and shows each one's autonomy as written
@@ -408,6 +445,27 @@ dependencies. The root `overrides` point them at an empty stand-in
 (`nix/claude-agent-sdk-no-binary`), so neither npm nor Nix downloads them; the app runs
 your installed `claude`. When upgrading the SDK, keep it on the version whose
 `claudeCodeVersion` matches the installed Claude Code.
+
+#### Codex tests and recordings
+
+The Codex adapter is tested the same way: real conversations recorded through the
+real adapter and `codex app-server` into `apps/server/tests/fixtures/codex/*.json`
+(Codex's notifications and requests during each turn, and what the adapter
+answered), played back by a scripted app-server (`fake-app-server.ts`) that answers
+the handshake, threads and models itself and checks the adapter answers each request
+as it did when recorded. Scenarios: as for Claude Code, plus a command approved
+outside the sandbox. Output of commands that read outside the vault (your skills,
+say) is left out of the fixtures. To record them again, on gpt-5.6-luna unless
+`--model` says otherwise (this spends a little of your plan or credit):
+
+```bash
+nix develop -c npm run record:codex -w @wiki-agents/server -- [scenario...]
+```
+
+One opt-in test runs a real turn on the installed Codex:
+`WIKI_AGENTS_LIVE_CODEX=1 nix develop -c npx vitest run tests/live/codex.live.test.ts`
+(in `apps/server`). After upgrading Codex, compare `providers/codex/protocol.ts` with
+`codex app-server generate-ts --out <dir>`.
 
 #### OpenCode client
 
@@ -542,7 +600,8 @@ ambiguous times first. A scheduled prompt made in a thread defaults to that thre
 vault, project and agent.
 
 End-to-end tests move the schedules' clock with `POST /api/test/clock`
-(`{ "advanceMs": … }`), served only with `WIKI_AGENTS_TEST_HOOKS=true`.
+(`{ "advanceMs": … }`), served only with `WIKI_AGENTS_TEST_HOOKS=true` (which also adds
+the replay provider).
 
 ### Untrusted content
 
@@ -585,7 +644,7 @@ design/             Claude Design mockup
 | `WIKI_AGENTS_CLAUDE` | `claude` (looked up on `PATH`) |
 | `WIKI_AGENTS_CONFIG_DIR` | `$XDG_CONFIG_HOME/wiki-agents` (rules and agents) |
 | `WIKI_AGENTS_TIMEZONE` | `Pacific/Auckland`: the timezone new schedules use unless they say otherwise |
-| `WIKI_AGENTS_TEST_HOOKS` | `false`; `true` serves `POST /api/test/clock` for end-to-end tests only |
+| `WIKI_AGENTS_TEST_HOOKS` | `false`; `true` serves `POST /api/test/clock` and adds the replay provider, for end-to-end tests only |
 | `WIKI_AGENTS_VAPID_KEYS_FILE` | unset: Web Push keys are made on first start and kept in the database |
 | `WIKI_AGENTS_VAPID_SUBJECT` | `https://github.com/alex-bartleynees/wiki-llm-agents`: the contact push services see (`mailto:` or `https:`) |
 | `WIKI_AGENTS_WATCH_POLL_MS` | unset (file system events); set to poll vault files, e.g. `2000`, when the vault is a virtiofs or SSHFS mount whose changes the OS doesn't report |
@@ -620,7 +679,8 @@ services.wiki-agents = {
 Options: `vaults`, `host` (default `127.0.0.1`), `port` (default `4317`), `dataDir`,
 `configDir` (rules and agents; never written by Nix), `watchPollMs`, `opencode` (a
 package; default: `opencode` from your user profile, which must be 2.2.x), `claudeCode`
-(a package; default: `claude` from your user profile, which must be 2.1.x),
+(a package; default: `claude` from your user profile, which must be 2.1.x), `codex`
+(a package; default: `codex` from your user profile, 0.166 or later),
 `environment`, `enableLinger` and `desktopEntry` (default off). `nix flake check`
 builds a home-manager configuration with the module (`checks.hm-module`).
 

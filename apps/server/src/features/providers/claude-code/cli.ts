@@ -1,8 +1,9 @@
-import { spawn } from "node:child_process";
-import { accessSync, constants } from "node:fs";
-import { delimiter, join, resolve } from "node:path";
 import { Effect, Schema } from "effect";
+import { resolveBinary, runBinary } from "../binary.js";
 import { ProviderError } from "../port.js";
+
+/** The SDK checks the executable exists before it spawns it, so it needs a path. */
+export { resolveBinary };
 
 /**
  * The Claude Agent SDK this app is built with (`@anthropic-ai/claude-agent-sdk`
@@ -16,55 +17,9 @@ export const isSupportedVersion = (version: string) => {
   return major === supportedMajor && minor === supportedMinor;
 };
 
-/**
- * `binary` as an absolute path: as given when it has a slash, else the first match on
- * `PATH`. The SDK checks the executable exists before it spawns it, so it needs a path.
- */
-export const resolveBinary = (binary: string): string | undefined => {
-  const executable = (path: string) => {
-    try {
-      accessSync(path, constants.X_OK);
-      return true;
-    } catch {
-      return false;
-    }
-  };
-  if (binary.includes("/")) {
-    const path = resolve(binary);
-    return executable(path) ? path : undefined;
-  }
-  for (const dir of (process.env.PATH ?? "").split(delimiter)) {
-    if (dir !== "" && executable(join(dir, binary))) return join(dir, binary);
-  }
-  return undefined;
-};
-
 export const notInstalled = (binary: string) => `Claude Code isn't installed (no "${binary}" on PATH).`;
 
-/** Runs `binary args...` to the end; its stdout, or why it failed. */
-const run = (binary: string, args: ReadonlyArray<string>) =>
-  Effect.callback<string, ProviderError>((resume) => {
-    const child = spawn(binary, [...args], { stdio: ["ignore", "pipe", "pipe"] });
-    let output = "";
-    let errors = "";
-    child.stdout.on("data", (chunk: Buffer) => {
-      output += chunk.toString("utf8");
-    });
-    child.stderr.on("data", (chunk: Buffer) => {
-      errors += chunk.toString("utf8");
-    });
-    child.once("error", (cause) =>
-      resume(Effect.fail(new ProviderError({ message: "code" in cause && cause.code === "ENOENT" ? notInstalled(binary) : cause.message, cause }))),
-    );
-    child.once("exit", (code) =>
-      resume(
-        code === 0 || output.trim() !== ""
-          ? Effect.succeed(output)
-          : Effect.fail(new ProviderError({ message: `"${binary} ${args.join(" ")}" failed: ${errors.trim() || `exit code ${code}`}` })),
-      ),
-    );
-    return Effect.sync(() => child.kill());
-  });
+const run = (binary: string, args: ReadonlyArray<string>) => runBinary(binary, args, notInstalled(binary));
 
 /** The installed Claude Code's version (`claude --version` prints `2.1.316 (Claude Code)`). */
 export const binaryVersion = (binary: string) =>

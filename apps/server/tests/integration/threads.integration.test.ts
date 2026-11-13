@@ -19,7 +19,8 @@ import { Clock, type Duration, Effect, Fiber, Layer, PubSub, Schema, type Scope,
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http";
 import { TestClock } from "effect/testing";
 import { makeHttpApp } from "../../src/app/layers.js";
-import { SERVER_STOPPED } from "../../src/features/threads/thread-actor.js";
+import { makeProviderRegistry } from "../../src/features/providers/registry-live.js";
+import { PROVIDER_GONE, SERVER_STOPPED } from "../../src/features/threads/thread-actor.js";
 import { ThreadActors } from "../../src/features/threads/thread-actors.js";
 import { ThreadBus } from "../../src/features/threads/thread-bus.js";
 import { makeSqlite, Sqlite } from "../../src/shared/persistence/sqlite.js";
@@ -336,8 +337,8 @@ const migrationsDir = fileURLToPath(new URL("../../drizzle", import.meta.url));
  * The app over a given database file, as if started again; ThreadsStartup runs as
  * part of it. Closing the scope stops it, like stopping the server.
  */
-const appOn = (file: string) =>
-  makeHttpApp({ vaults: [], watch: false, providers: ReplayOnly, agents: TestAgents }).pipe(
+const appOn = (file: string, providers: typeof ReplayOnly = ReplayOnly) =>
+  makeHttpApp({ vaults: [], watch: false, providers, agents: TestAgents }).pipe(
     Layer.provideMerge(Layer.effect(Sqlite, makeSqlite({ file, migrationsDir }))),
     Layer.provideMerge(NodeHttpServer.layerTest),
   );
@@ -345,7 +346,11 @@ const appOn = (file: string) =>
 type App = Layer.Success<ReturnType<typeof appOn>>;
 
 /** Runs `body` in a fresh copy of the app over `file`, then stops it. */
-const run = <A, E>(file: string, body: Effect.Effect<A, E, App | Scope.Scope>) => Effect.scoped(Effect.provide(body, appOn(file)));
+const run = <A, E>(file: string, body: Effect.Effect<A, E, App | Scope.Scope>, providers?: typeof ReplayOnly) =>
+  Effect.scoped(Effect.provide(body, appOn(file, providers)));
+
+/** No providers at all, as when a thread's provider (replay, outside tests) is no longer run. */
+const NoProviders = makeProviderRegistry(Effect.succeed([]));
 
 const tempDatabase = Effect.acquireRelease(
   Effect.sync(() => mkdtempSync(join(tmpdir(), "wiki-agents-restart-"))),
@@ -436,6 +441,39 @@ describe("threads across a restart", () => {
       const after = yield* run(file, finishedAfterRestart(thread, Effect.void));
       expect(after.events.at(-1)?.event).toMatchObject({ _tag: "turn.finished", turnId, outcome: "completed" });
       expect(tags(after.events).filter((tag) => tag === "user.message")).toHaveLength(1);
+    }),
+  );
+
+  it.effect("keeps a thread whose provider is gone readable, and fails its turns saying why", () =>
+    Effect.gen(function* () {
+      const file = yield* tempDatabase;
+      const thread = yield* run(
+        file,
+        Effect.gen(function* () {
+          const thread = yield* newThread((yield* newVault).id);
+          const events = yield* watch(thread.id);
+          yield* sendOk(thread.id, "hello");
+          yield* events.until(isTag("turn.finished"));
+          return thread;
+        }),
+      );
+
+      const after = yield* run(
+        file,
+        Effect.gen(function* () {
+          const { providers } = yield* HttpClient.get("/api/providers").pipe(Effect.flatMap(decode(ListProvidersResponse)));
+          expect(providers).toEqual([]);
+          expect((yield* getThread(thread.id)).events.map((event) => event.event)).toContainEqual(expect.objectContaining({ _tag: "turn.finished", outcome: "completed" }));
+          expect((yield* markDone(thread.id)).status).toBe(200);
+
+          const events = yield* watch(thread.id);
+          const turnId = yield* sendOk(thread.id, "hello again");
+          const seen = yield* events.until((event) => event._tag === "turn.finished" && event.turnId === turnId);
+          return seen.at(-1);
+        }),
+        NoProviders,
+      );
+      expect(after).toMatchObject({ _tag: "turn.finished", outcome: "failed", reason: PROVIDER_GONE });
     }),
   );
 });

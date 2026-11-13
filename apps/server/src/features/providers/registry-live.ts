@@ -7,6 +7,9 @@ import { Sqlite } from "../../shared/persistence/sqlite.js";
 import { makeClaudeCodeAdapter } from "./claude-code/adapter.js";
 import { authStatus, binaryVersion as claudeVersion } from "./claude-code/cli.js";
 import { ClaudeCodeSdkLive } from "./claude-code/sdk.js";
+import { CodexLauncherLive } from "./codex/app-server.js";
+import { makeCodexAdapter } from "./codex/adapter.js";
+import { authStatus as codexAuthStatus, binaryVersion as codexVersion } from "./codex/cli.js";
 import { makeOpenCodeAdapter } from "./opencode/adapter.js";
 import { binaryVersion, startServer } from "./opencode/server.js";
 import type { ProviderAdapter } from "./port.js";
@@ -14,16 +17,18 @@ import { ProviderInstanceNotFound, ProviderRegistry } from "./registry.js";
 import { ReplayAdapter } from "./replay/adapter.js";
 import { providerInstances } from "./table.js";
 
-/** The replay provider's instance, created at startup so there is always one provider. */
+/** The replay provider's instance, in tests only (see `ProviderRegistryLive`). */
 export const REPLAY_INSTANCE_ID = "replay";
 export const OPENCODE_INSTANCE_ID = "opencode";
 export const CLAUDE_CODE_INSTANCE_ID = "claude-code";
+export const CODEX_INSTANCE_ID = "codex";
 
 /** Instance names, for the instance each adapter gets at startup (its id is the kind). */
 const NAMES: Readonly<Record<string, string>> = {
   replay: "Replay (recorded, free)",
   opencode: "OpenCode",
   "claude-code": "Claude Code",
+  codex: "Codex",
 };
 
 /**
@@ -99,9 +104,26 @@ export const ClaudeCodeAdapterLive: Effect.Effect<ProviderAdapter> = Effect.gen(
   return yield* makeClaudeCodeAdapter({ sdk: ClaudeCodeSdkLive, binary, installedVersion: claudeVersion, authStatus });
 });
 
-/** OpenCode first (the default for new threads), then Claude Code, then the replay provider. */
+/** Codex, run from the `codex` on PATH (or `WIKI_AGENTS_CODEX`), with your login. */
+export const CodexAdapterLive: Effect.Effect<ProviderAdapter> = Effect.gen(function* () {
+  const binary = yield* AppConfig.codexBinary.pipe(Effect.orDie);
+  return yield* makeCodexAdapter({
+    launcher: CodexLauncherLive,
+    binary,
+    installedVersion: codexVersion,
+    authStatus: (path) => codexAuthStatus(CodexLauncherLive, path),
+  });
+});
+
+/**
+ * OpenCode first (the default for new threads), then Claude Code and Codex. The
+ * replay provider is for tests only: it is added with `WIKI_AGENTS_TEST_HOOKS=true`,
+ * so end-to-end flows can run turns without an agent installed.
+ */
 export const ProviderRegistryLive = makeProviderRegistry(
-  Effect.all([OpenCodeAdapterLive, ClaudeCodeAdapterLive]).pipe(
-    Effect.map(([opencode, claude]): ReadonlyArray<ProviderAdapter> => [opencode, claude, ReplayAdapter]),
-  ),
+  Effect.gen(function* () {
+    const adapters: ReadonlyArray<ProviderAdapter> = [yield* OpenCodeAdapterLive, yield* ClaudeCodeAdapterLive, yield* CodexAdapterLive];
+    const testHooks = yield* AppConfig.testHooks.pipe(Effect.orDie);
+    return testHooks ? [...adapters, ReplayAdapter] : adapters;
+  }),
 );

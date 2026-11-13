@@ -111,6 +111,8 @@ interface RunningTurn {
 const LIST_EVENTS = new Set<ThreadEvent["_tag"]>(["user.message", "request.opened", "request.resolved", "turn.finished"]);
 
 export const SERVER_STOPPED = "The server stopped during this turn.";
+/** Why a turn fails in a thread whose provider the app no longer runs (replay outside tests, say). */
+export const PROVIDER_GONE = "This thread's provider isn't available any more. Start a new thread to carry on.";
 
 /**
  * The ThreadActor: one mailbox and one fiber per thread, so a send, an interrupt,
@@ -130,7 +132,11 @@ export const makeThreadActor = Effect.fnUntraced(function* (
   const thread = Option.getOrUndefined(yield* repository.find(threadId));
   if (thread === undefined) return yield* new ThreadNotFound({ threadId });
   const { vault, project, cwd } = yield* threadWorkspace(thread);
-  const { adapter } = yield* (yield* ProviderRegistry).get(thread.providerInstanceId);
+  // A thread whose provider is gone can still be read and marked done; its turns fail.
+  const adapter = yield* (yield* ProviderRegistry).get(thread.providerInstanceId).pipe(
+    Effect.map((found) => found.adapter),
+    Effect.catchTag("ProviderInstanceNotFound", () => Effect.succeed(undefined)),
+  );
   const catalog = yield* AgentCatalog;
   const fs = yield* FileSystem.FileSystem;
   const contextServices = yield* Effect.context<FileSystem.FileSystem | VaultIndex | VaultRepository>();
@@ -169,6 +175,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
   /** Opens the provider session on first use, continuing the thread's earlier one if the provider still has it. */
   const openSession = Effect.fnUntraced(function* (setup: SessionSetup) {
     if (session !== undefined) return session;
+    if (adapter === undefined) return yield* new ProviderError({ message: PROVIDER_GONE });
     const stored = yield* repository.providerSession(threadId);
     const opened = yield* adapter
       .openSession({ threadId, cwd, nativeSessionId: stored.nativeSessionId, model: stored.model, setup })
@@ -267,7 +274,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     turn = current;
     yield* trackChanges(current.id);
     if (!open.dispatched) return yield* dispatch(current, open.input);
-    const resumed = adapter.capabilities.resume
+    const resumed = adapter?.capabilities.resume === true
       ? yield* Effect.flatMap(currentSetup, (setup) =>
           Effect.flatMap(openSession(setup), (session) =>
             session.resumeTurn({

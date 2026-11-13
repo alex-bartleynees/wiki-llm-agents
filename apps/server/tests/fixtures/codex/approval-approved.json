@@ -1,0 +1,753 @@
+{
+  "scenario": "approval-approved",
+  "codexVersion": "0.166.0",
+  "model": "gpt-5.6-luna",
+  "autonomy": {
+    "read": "allow",
+    "create": "ask",
+    "edit": "ask",
+    "commands": "ask",
+    "web": "ask"
+  },
+  "turns": [
+    {
+      "prompt": "Use apply_patch to add the line 'Oolong too.' at the end of Notes/Tea.md. Keep the reply to one sentence.",
+      "steps": [
+        {
+          "message": {
+            "method": "turn/started",
+            "params": {
+              "threadId": "__thread__",
+              "turn": {
+                "id": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+                "rootTurnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+                "items": [],
+                "itemsView": "notLoaded",
+                "status": "inProgress",
+                "error": null,
+                "startedAt": 1794528544,
+                "completedAt": null,
+                "durationMs": null
+              }
+            },
+            "emittedAtMs": 1794528544488
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "fileChange",
+                "id": "exec-825b0e30-d070-4e7a-b3fa-eb39e9fb1e5f",
+                "changes": [
+                  {
+                    "path": "/__vault__/Notes/Tea.md",
+                    "kind": {
+                      "type": "update",
+                      "move_path": null
+                    },
+                    "diff": "@@ -3 +3,2 @@\n Green tea in the afternoon.\n+Oolong too.\n"
+                  }
+                ],
+                "status": "inProgress",
+                "startedAtMs": 1794528549493,
+                "completedAtMs": null
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "startedAtMs": 1794528549493
+            },
+            "emittedAtMs": 1794528549494
+          }
+        },
+        {
+          "message": {
+            "method": "item/fileChange/requestApproval",
+            "id": 0,
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "exec-825b0e30-d070-4e7a-b3fa-eb39e9fb1e5f",
+              "startedAtMs": 1794528549495,
+              "reason": null,
+              "grantRoot": null
+            }
+          }
+        },
+        {
+          "response": {
+            "id": 0,
+            "result": {
+              "decision": "accept"
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "serverRequest/resolved",
+            "params": {
+              "threadId": "__thread__",
+              "requestId": 0
+            },
+            "emittedAtMs": 1794528549498
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "fileChange",
+                "id": "exec-825b0e30-d070-4e7a-b3fa-eb39e9fb1e5f",
+                "changes": [
+                  {
+                    "path": "/__vault__/Notes/Tea.md",
+                    "kind": {
+                      "type": "update",
+                      "move_path": null
+                    },
+                    "diff": "@@ -3 +3,2 @@\n Green tea in the afternoon.\n+Oolong too.\n"
+                  }
+                ],
+                "status": "completed",
+                "startedAtMs": 1794528549493,
+                "completedAtMs": 1794528549611
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "completedAtMs": 1794528549611
+            },
+            "emittedAtMs": 1794528549630
+          }
+        },
+        {
+          "message": {
+            "method": "thread/tokenUsage/updated",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "tokenUsage": {
+                "total": {
+                  "totalTokens": 14483,
+                  "inputTokens": 14365,
+                  "cachedInputTokens": 7808,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 118,
+                  "reasoningOutputTokens": 50
+                },
+                "last": {
+                  "totalTokens": 14483,
+                  "inputTokens": 14365,
+                  "cachedInputTokens": 7808,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 118,
+                  "reasoningOutputTokens": 50
+                },
+                "modelContextWindow": 258400
+              }
+            },
+            "emittedAtMs": 1794528549641
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "id": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+                "text": "",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1794528550473,
+                "completedAtMs": null
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "startedAtMs": 1794528550473
+            },
+            "emittedAtMs": 1794528550473
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": "Added"
+            },
+            "emittedAtMs": 1794528550473
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": " “"
+            },
+            "emittedAtMs": 1794528550579
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": "O"
+            },
+            "emittedAtMs": 1794528550579
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": "olong"
+            },
+            "emittedAtMs": 1794528550579
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": " too"
+            },
+            "emittedAtMs": 1794528550579
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": ".”"
+            },
+            "emittedAtMs": 1794528550579
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": " to"
+            },
+            "emittedAtMs": 1794528550579
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": " the"
+            },
+            "emittedAtMs": 1794528550579
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": " end"
+            },
+            "emittedAtMs": 1794528550579
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": " of"
+            },
+            "emittedAtMs": 1794528550688
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": " ["
+            },
+            "emittedAtMs": 1794528550688
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": "Notes"
+            },
+            "emittedAtMs": 1794528550688
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": "/"
+            },
+            "emittedAtMs": 1794528550688
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": "Tea"
+            },
+            "emittedAtMs": 1794528550688
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": ".md"
+            },
+            "emittedAtMs": 1794528550688
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": "]"
+            },
+            "emittedAtMs": 1794528550688
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": "(/"
+            },
+            "emittedAtMs": 1794528550977
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": "tmp"
+            },
+            "emittedAtMs": 1794528550977
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": "/n"
+            },
+            "emittedAtMs": 1794528550977
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": "ix"
+            },
+            "emittedAtMs": 1794528550977
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": "-shell"
+            },
+            "emittedAtMs": 1794528550977
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": ".Z"
+            },
+            "emittedAtMs": 1794528550977
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": "x"
+            },
+            "emittedAtMs": 1794528550977
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": "k"
+            },
+            "emittedAtMs": 1794528550977
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": "H"
+            },
+            "emittedAtMs": 1794528550991
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": "gc"
+            },
+            "emittedAtMs": 1794528550991
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": "/wiki"
+            },
+            "emittedAtMs": 1794528550992
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": "-ag"
+            },
+            "emittedAtMs": 1794528550992
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": "ents"
+            },
+            "emittedAtMs": 1794528550992
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": "-record"
+            },
+            "emittedAtMs": 1794528550992
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": "-z"
+            },
+            "emittedAtMs": 1794528550992
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": "98"
+            },
+            "emittedAtMs": 1794528550992
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": "W"
+            },
+            "emittedAtMs": 1794528551297
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": "f"
+            },
+            "emittedAtMs": 1794528551297
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": "C"
+            },
+            "emittedAtMs": 1794528551297
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": "/"
+            },
+            "emittedAtMs": 1794528551297
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": "Notes"
+            },
+            "emittedAtMs": 1794528551297
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": "/"
+            },
+            "emittedAtMs": 1794528551297
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": "Tea"
+            },
+            "emittedAtMs": 1794528551297
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": ".md"
+            },
+            "emittedAtMs": 1794528551297
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "itemId": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+              "delta": ")."
+            },
+            "emittedAtMs": 1794528551297
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "id": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+                "text": "Added “Oolong too.” to the end of [Notes/Tea.md](/__vault__/Notes/Tea.md).",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1794528550473,
+                "completedAtMs": 1794528551297
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "completedAtMs": 1794528551297
+            },
+            "emittedAtMs": 1794528551299
+          }
+        },
+        {
+          "message": {
+            "method": "thread/tokenUsage/updated",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+              "tokenUsage": {
+                "total": {
+                  "totalTokens": 29046,
+                  "inputTokens": 28872,
+                  "cachedInputTokens": 22016,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 174,
+                  "reasoningOutputTokens": 59
+                },
+                "last": {
+                  "totalTokens": 14563,
+                  "inputTokens": 14507,
+                  "cachedInputTokens": 14208,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 56,
+                  "reasoningOutputTokens": 9
+                },
+                "modelContextWindow": 258400
+              }
+            },
+            "emittedAtMs": 1794528551302
+          }
+        },
+        {
+          "message": {
+            "method": "turn/completed",
+            "params": {
+              "threadId": "__thread__",
+              "turn": {
+                "id": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+                "rootTurnId": "01a1d23c-86de-7450-8f8b-1187091ecad2",
+                "items": [
+                  {
+                    "type": "agentMessage",
+                    "id": "msg_09b59504383b026c016af6552660b087d0a3094b30f28fffac",
+                    "text": "Added “Oolong too.” to the end of [Notes/Tea.md](/__vault__/Notes/Tea.md).",
+                    "phase": "final_answer",
+                    "memoryCitation": null,
+                    "delivery": null,
+                    "questions": null,
+                    "startedAtMs": 1794528550473,
+                    "completedAtMs": 1794528551297
+                  }
+                ],
+                "itemsView": "summary",
+                "status": "completed",
+                "error": null,
+                "startedAt": 1794528544,
+                "completedAt": 1794528551,
+                "durationMs": 6824
+              }
+            },
+            "emittedAtMs": 1794528551312
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -11,7 +11,8 @@
     "build": "tsc -p tsconfig.json",
     "db:generate": "drizzle-kit generate",
     "record:opencode": "node --conditions=source --import tsx scripts/record-opencode.ts",
-    "record:claude-code": "node --conditions=source --import tsx scripts/record-claude-code.ts"
+    "record:claude-code": "node --conditions=source --import tsx scripts/record-claude-code.ts",
+    "record:codex": "node --conditions=source --import tsx scripts/record-codex.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "0.3.316",

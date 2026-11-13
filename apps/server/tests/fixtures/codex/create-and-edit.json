@@ -1,0 +1,888 @@
+{
+  "scenario": "create-and-edit",
+  "codexVersion": "0.166.0",
+  "model": "gpt-5.6-luna",
+  "autonomy": {
+    "read": "allow",
+    "create": "allow",
+    "edit": "ask",
+    "commands": "deny",
+    "web": "allow"
+  },
+  "turns": [
+    {
+      "prompt": "Make two separate apply_patch calls, in this order: 1. create Notes/Oolong.md containing exactly '# Oolong'. 2. add the line 'See [[Oolong]].' at the end of Notes/Tea.md. Then reply in one sentence.",
+      "steps": [
+        {
+          "message": {
+            "method": "turn/started",
+            "params": {
+              "threadId": "__thread__",
+              "turn": {
+                "id": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+                "rootTurnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+                "items": [],
+                "itemsView": "notLoaded",
+                "status": "inProgress",
+                "error": null,
+                "startedAt": 1794528565,
+                "completedAt": null,
+                "durationMs": null
+              }
+            },
+            "emittedAtMs": 1794528565977
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "id": "msg_07dcc41d93b401cd016af65539dff487d0a9d33a836824ca1f",
+                "text": "",
+                "phase": "commentary",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1794528569929,
+                "completedAtMs": null
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "startedAtMs": 1794528569929
+            },
+            "emittedAtMs": 1794528569929
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af65539dff487d0a9d33a836824ca1f",
+              "delta": "I"
+            },
+            "emittedAtMs": 1794528569929
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af65539dff487d0a9d33a836824ca1f",
+              "delta": "’ll"
+            },
+            "emittedAtMs": 1794528569929
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af65539dff487d0a9d33a836824ca1f",
+              "delta": " make"
+            },
+            "emittedAtMs": 1794528569929
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af65539dff487d0a9d33a836824ca1f",
+              "delta": " the"
+            },
+            "emittedAtMs": 1794528570056
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af65539dff487d0a9d33a836824ca1f",
+              "delta": " two"
+            },
+            "emittedAtMs": 1794528570056
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af65539dff487d0a9d33a836824ca1f",
+              "delta": " requested"
+            },
+            "emittedAtMs": 1794528570056
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af65539dff487d0a9d33a836824ca1f",
+              "delta": " patches"
+            },
+            "emittedAtMs": 1794528570056
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af65539dff487d0a9d33a836824ca1f",
+              "delta": " in"
+            },
+            "emittedAtMs": 1794528570056
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af65539dff487d0a9d33a836824ca1f",
+              "delta": " order"
+            },
+            "emittedAtMs": 1794528570056
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af65539dff487d0a9d33a836824ca1f",
+              "delta": "."
+            },
+            "emittedAtMs": 1794528570056
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "id": "msg_07dcc41d93b401cd016af65539dff487d0a9d33a836824ca1f",
+                "text": "I’ll make the two requested patches in order.",
+                "phase": "commentary",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1794528569929,
+                "completedAtMs": 1794528570390
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "completedAtMs": 1794528570390
+            },
+            "emittedAtMs": 1794528570391
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "fileChange",
+                "id": "exec-dd993932-f2b6-4f6b-95b1-01969740fe2d",
+                "changes": [
+                  {
+                    "path": "/__vault__/Notes/Oolong.md",
+                    "kind": {
+                      "type": "add"
+                    },
+                    "diff": "# Oolong\n"
+                  }
+                ],
+                "status": "inProgress",
+                "startedAtMs": 1794528570976,
+                "completedAtMs": null
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "startedAtMs": 1794528570976
+            },
+            "emittedAtMs": 1794528570977
+          }
+        },
+        {
+          "message": {
+            "method": "item/fileChange/requestApproval",
+            "id": 0,
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "exec-dd993932-f2b6-4f6b-95b1-01969740fe2d",
+              "startedAtMs": 1794528570978,
+              "reason": null,
+              "grantRoot": null
+            }
+          }
+        },
+        {
+          "response": {
+            "id": 0,
+            "result": {
+              "decision": "accept"
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "serverRequest/resolved",
+            "params": {
+              "threadId": "__thread__",
+              "requestId": 0
+            },
+            "emittedAtMs": 1794528570980
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "fileChange",
+                "id": "exec-dd993932-f2b6-4f6b-95b1-01969740fe2d",
+                "changes": [
+                  {
+                    "path": "/__vault__/Notes/Oolong.md",
+                    "kind": {
+                      "type": "add"
+                    },
+                    "diff": "# Oolong\n"
+                  }
+                ],
+                "status": "completed",
+                "startedAtMs": 1794528570976,
+                "completedAtMs": 1794528571094
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "completedAtMs": 1794528571094
+            },
+            "emittedAtMs": 1794528571112
+          }
+        },
+        {
+          "message": {
+            "method": "thread/tokenUsage/updated",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "tokenUsage": {
+                "total": {
+                  "totalTokens": 16961,
+                  "inputTokens": 16848,
+                  "cachedInputTokens": 10240,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 113,
+                  "reasoningOutputTokens": 53
+                },
+                "last": {
+                  "totalTokens": 16961,
+                  "inputTokens": 16848,
+                  "cachedInputTokens": 10240,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 113,
+                  "reasoningOutputTokens": 53
+                },
+                "modelContextWindow": 258400
+              }
+            },
+            "emittedAtMs": 1794528571123
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "fileChange",
+                "id": "exec-3de8aa3d-8430-4fb6-bb13-21147e454b77",
+                "changes": [
+                  {
+                    "path": "/__vault__/Notes/Tea.md",
+                    "kind": {
+                      "type": "update",
+                      "move_path": null
+                    },
+                    "diff": "@@ -3 +3,2 @@\n Green tea in the afternoon.\n+See [[Oolong]].\n"
+                  }
+                ],
+                "status": "inProgress",
+                "startedAtMs": 1794528572610,
+                "completedAtMs": null
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "startedAtMs": 1794528572610
+            },
+            "emittedAtMs": 1794528572611
+          }
+        },
+        {
+          "message": {
+            "method": "item/fileChange/requestApproval",
+            "id": 1,
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "exec-3de8aa3d-8430-4fb6-bb13-21147e454b77",
+              "startedAtMs": 1794528572612,
+              "reason": null,
+              "grantRoot": null
+            }
+          }
+        },
+        {
+          "response": {
+            "id": 1,
+            "result": {
+              "decision": "accept"
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "serverRequest/resolved",
+            "params": {
+              "threadId": "__thread__",
+              "requestId": 1
+            },
+            "emittedAtMs": 1794528572616
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "fileChange",
+                "id": "exec-3de8aa3d-8430-4fb6-bb13-21147e454b77",
+                "changes": [
+                  {
+                    "path": "/__vault__/Notes/Tea.md",
+                    "kind": {
+                      "type": "update",
+                      "move_path": null
+                    },
+                    "diff": "@@ -3 +3,2 @@\n Green tea in the afternoon.\n+See [[Oolong]].\n"
+                  }
+                ],
+                "status": "completed",
+                "startedAtMs": 1794528572610,
+                "completedAtMs": 1794528572727
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "completedAtMs": 1794528572727
+            },
+            "emittedAtMs": 1794528572745
+          }
+        },
+        {
+          "message": {
+            "method": "thread/tokenUsage/updated",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "tokenUsage": {
+                "total": {
+                  "totalTokens": 33994,
+                  "inputTokens": 33833,
+                  "cachedInputTokens": 26880,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 161,
+                  "reasoningOutputTokens": 53
+                },
+                "last": {
+                  "totalTokens": 17033,
+                  "inputTokens": 16985,
+                  "cachedInputTokens": 16640,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 48,
+                  "reasoningOutputTokens": 0
+                },
+                "modelContextWindow": 258400
+              }
+            },
+            "emittedAtMs": 1794528572756
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "id": "msg_07dcc41d93b401cd016af6553da89487d0b87cdb7960a121f6",
+                "text": "",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1794528573714,
+                "completedAtMs": null
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "startedAtMs": 1794528573714
+            },
+            "emittedAtMs": 1794528573714
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af6553da89487d0b87cdb7960a121f6",
+              "delta": "Created"
+            },
+            "emittedAtMs": 1794528573714
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af6553da89487d0b87cdb7960a121f6",
+              "delta": " `"
+            },
+            "emittedAtMs": 1794528573896
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af6553da89487d0b87cdb7960a121f6",
+              "delta": "Notes"
+            },
+            "emittedAtMs": 1794528573896
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af6553da89487d0b87cdb7960a121f6",
+              "delta": "/O"
+            },
+            "emittedAtMs": 1794528573896
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af6553da89487d0b87cdb7960a121f6",
+              "delta": "olong"
+            },
+            "emittedAtMs": 1794528573896
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af6553da89487d0b87cdb7960a121f6",
+              "delta": ".md"
+            },
+            "emittedAtMs": 1794528573896
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af6553da89487d0b87cdb7960a121f6",
+              "delta": "`"
+            },
+            "emittedAtMs": 1794528573945
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af6553da89487d0b87cdb7960a121f6",
+              "delta": " with"
+            },
+            "emittedAtMs": 1794528573945
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af6553da89487d0b87cdb7960a121f6",
+              "delta": " `"
+            },
+            "emittedAtMs": 1794528573945
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af6553da89487d0b87cdb7960a121f6",
+              "delta": "#"
+            },
+            "emittedAtMs": 1794528573945
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af6553da89487d0b87cdb7960a121f6",
+              "delta": " O"
+            },
+            "emittedAtMs": 1794528573945
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af6553da89487d0b87cdb7960a121f6",
+              "delta": "olong"
+            },
+            "emittedAtMs": 1794528573946
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af6553da89487d0b87cdb7960a121f6",
+              "delta": "`"
+            },
+            "emittedAtMs": 1794528573946
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af6553da89487d0b87cdb7960a121f6",
+              "delta": " and"
+            },
+            "emittedAtMs": 1794528573946
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af6553da89487d0b87cdb7960a121f6",
+              "delta": " appended"
+            },
+            "emittedAtMs": 1794528573946
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af6553da89487d0b87cdb7960a121f6",
+              "delta": " `"
+            },
+            "emittedAtMs": 1794528574236
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af6553da89487d0b87cdb7960a121f6",
+              "delta": "See"
+            },
+            "emittedAtMs": 1794528574236
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af6553da89487d0b87cdb7960a121f6",
+              "delta": " [["
+            },
+            "emittedAtMs": 1794528574236
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af6553da89487d0b87cdb7960a121f6",
+              "delta": "O"
+            },
+            "emittedAtMs": 1794528574236
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af6553da89487d0b87cdb7960a121f6",
+              "delta": "olong"
+            },
+            "emittedAtMs": 1794528574236
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af6553da89487d0b87cdb7960a121f6",
+              "delta": "]]."
+            },
+            "emittedAtMs": 1794528574236
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af6553da89487d0b87cdb7960a121f6",
+              "delta": "`"
+            },
+            "emittedAtMs": 1794528574236
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af6553da89487d0b87cdb7960a121f6",
+              "delta": " to"
+            },
+            "emittedAtMs": 1794528574236
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af6553da89487d0b87cdb7960a121f6",
+              "delta": " `"
+            },
+            "emittedAtMs": 1794528574236
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af6553da89487d0b87cdb7960a121f6",
+              "delta": "Notes"
+            },
+            "emittedAtMs": 1794528574236
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af6553da89487d0b87cdb7960a121f6",
+              "delta": "/"
+            },
+            "emittedAtMs": 1794528574236
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af6553da89487d0b87cdb7960a121f6",
+              "delta": "Tea"
+            },
+            "emittedAtMs": 1794528574236
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af6553da89487d0b87cdb7960a121f6",
+              "delta": ".md"
+            },
+            "emittedAtMs": 1794528574236
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "itemId": "msg_07dcc41d93b401cd016af6553da89487d0b87cdb7960a121f6",
+              "delta": "`."
+            },
+            "emittedAtMs": 1794528574236
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "id": "msg_07dcc41d93b401cd016af6553da89487d0b87cdb7960a121f6",
+                "text": "Created `Notes/Oolong.md` with `# Oolong` and appended `See [[Oolong]].` to `Notes/Tea.md`.",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1794528573714,
+                "completedAtMs": 1794528574526
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "completedAtMs": 1794528574526
+            },
+            "emittedAtMs": 1794528574528
+          }
+        },
+        {
+          "message": {
+            "method": "thread/tokenUsage/updated",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+              "tokenUsage": {
+                "total": {
+                  "totalTokens": 51103,
+                  "inputTokens": 50890,
+                  "cachedInputTokens": 43648,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 213,
+                  "reasoningOutputTokens": 70
+                },
+                "last": {
+                  "totalTokens": 17109,
+                  "inputTokens": 17057,
+                  "cachedInputTokens": 16768,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 52,
+                  "reasoningOutputTokens": 17
+                },
+                "modelContextWindow": 258400
+              }
+            },
+            "emittedAtMs": 1794528574532
+          }
+        },
+        {
+          "message": {
+            "method": "turn/completed",
+            "params": {
+              "threadId": "__thread__",
+              "turn": {
+                "id": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+                "rootTurnId": "01a1d23c-dab8-76e0-a28f-e79a8491eb09",
+                "items": [
+                  {
+                    "type": "agentMessage",
+                    "id": "msg_07dcc41d93b401cd016af6553da89487d0b87cdb7960a121f6",
+                    "text": "Created `Notes/Oolong.md` with `# Oolong` and appended `See [[Oolong]].` to `Notes/Tea.md`.",
+                    "phase": "final_answer",
+                    "memoryCitation": null,
+                    "delivery": null,
+                    "questions": null,
+                    "startedAtMs": 1794528573714,
+                    "completedAtMs": 1794528574526
+                  }
+                ],
+                "itemsView": "summary",
+                "status": "completed",
+                "error": null,
+                "startedAt": 1794528565,
+                "completedAt": 1794528574,
+                "durationMs": 8586
+              }
+            },
+            "emittedAtMs": 1794528574542
+          }
+        }
+      ]
+    }
+  ]
+}
