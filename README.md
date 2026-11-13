@@ -398,7 +398,47 @@ that machine's fresh defaults would win over your edits. A Syncthing conflict co
   The Agents tab (phone) or the right pane's Agents switch (desktop) lists agents
   with what they are doing in this vault, and shows each one's autonomy as written
   and as each provider enforces it.
-- `GET /api/agents`, `GET /api/agents/:id`, `PUT /api/threads/:id/agent`
+- **Editing in the app**: **New agent** and **Edit** (on an agent's detail) open
+  `/agents/edit`; the rules files are listed under the agents, with **New rules file**
+  (`/agents/rules`). The agent form has name, description, provider and model (from
+  the provider's list, `GET /api/providers/:id/models`), autonomy per action, knowledge
+  sources, tasks at once and the instructions; **What each provider enforces** shows
+  the saved version as each provider applies it. Saves are explicit (**Save**), and
+  leaving with unsaved changes asks first.
+  - **Only what the loader accepts**: the server builds the file and parses it exactly
+    as the loader does, so the app never writes a file it would refuse. A refusal is
+    a 422 with one `field: problem` per line, shown under its field.
+  - **Edited in place**: an existing file's frontmatter is changed where it is, so
+    comments, key order and keys the form doesn't show (`tags`) stay; settings at
+    their defaults (no provider, model, description or sources) are removed.
+  - **Hash-checked and atomic**, like note saves: `GET` returns the SHA-256 of the
+    file, a save or delete sends it back (`baseHash`, or `hash` for a delete; `null`
+    creates a file that mustn't exist), and anything else gets a 409 and writes
+    nothing. The file is written to a hidden temporary file beside it and renamed over
+    it (or hard-linked into place when new, so a file created meanwhile is never
+    replaced). A 409 shows what is on disk against yours: field by field for an
+    agent, a line diff for rules, with **Save mine over it** or **Use the disk
+    version**.
+  - **Deleting** moves the file to `.trash/agents/` or `.trash/rules/` in the config
+    directory (`researcher 1.md` when the name is taken). Threads with a deleted
+    agent keep their history and fail their next turn until they get another agent.
+  - The catalog reloads before a save answers, so threads use the change from their
+    next message.
+- **Knowledge sources** (`sources`) limit what the agent may look things up in:
+  `vault` (whichever vault the thread works in), `web`, and registered vaults by name,
+  whole or some folders (`- vault: obsidian-vault` with `folders: [1-Active,
+  3-Resources]`). No sources means no limits. Otherwise the vault tools reach only
+  the listed vaults and folders: search and recent changes are filtered in SQL,
+  backlinks, related notes and link resolution leave other notes out, and a note
+  outside is refused with the agent's folders named; a vault not listed refuses every
+  vault tool, while `vault_status` still answers. Without `web` among them, the web is
+  denied whatever the autonomy says (the agent screen notes it). Vaults are named, not
+  by id, because the config is synced between machines; a source naming a vault that
+  isn't registered here is kept and shown as such. Sources limit the vault tools only:
+  a provider's own file tools follow autonomy and the project's folders.
+- `GET /api/agents`, `GET /api/agents/:id`, `PUT /api/agents/:id`
+  (`{"agent": {...}, "baseHash"}`), `DELETE /api/agents/:id?hash=`, `GET`/`PUT`/`DELETE`
+  `/api/rules/:id` (`{"content", "baseHash"}`), `PUT /api/threads/:id/agent`
   (`{"agentId": "researcher"}` or `null`), and `agentId` on `POST
   /api/vaults/:id/threads`.
 

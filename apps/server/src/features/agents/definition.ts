@@ -1,4 +1,4 @@
-import { type Autonomy, DEFAULT_AUTONOMY } from "@wiki-agents/contracts/agents/model";
+import { type Autonomy, DEFAULT_AUTONOMY, type KnowledgeSource } from "@wiki-agents/contracts/agents/model";
 import { Result, Schema, SchemaIssue } from "effect";
 import { parse as parseYaml } from "yaml";
 
@@ -9,7 +9,8 @@ export interface AgentDefinition {
   readonly description: string;
   readonly provider: string | null;
   readonly model: string | null;
-  readonly sources: ReadonlyArray<string>;
+  /** Where it may look things up; empty for no limits (see `sources.ts`). */
+  readonly sources: ReadonlyArray<KnowledgeSource>;
   readonly autonomy: Autonomy;
   readonly concurrency: number;
   readonly path: string;
@@ -30,13 +31,34 @@ const LEVEL_ALIASES = { always: "allow", never: "deny" } as const;
 
 const NonEmpty = Schema.String.check(Schema.isNonEmpty());
 
+/** A vault-relative folder: no leading `/`, no `..` or dot-names (which the app hides). */
+const Folder = NonEmpty.check(
+  Schema.makeFilter((folder: string) =>
+    normaliseFolder(folder) === undefined ? "A folder inside the vault, written like `Projects/Active`." : undefined,
+  ),
+);
+
+/** `vault`, `web`, or `{ vault: <name>, folders: [...] }`. */
+const Source = Schema.Union([
+  Schema.Literals(["vault", "web"]),
+  Schema.Struct({ vault: NonEmpty, folders: Schema.optionalKey(Schema.Array(Folder)) }),
+]);
+
+/** `Projects//Active/` → `Projects/Active`; undefined for anything outside the vault or hidden. */
+export const normaliseFolder = (folder: string): string | undefined => {
+  if (folder.startsWith("/") || folder.includes("\0")) return undefined;
+  const segments = folder.split("/").filter((segment) => segment !== "" && segment !== ".");
+  if (segments.length === 0 || segments.some((segment) => segment === ".." || segment.startsWith("."))) return undefined;
+  return segments.join("/");
+};
+
 /** Unknown keys are errors, so a typo (`comands: deny`) can't quietly leave the default. */
 const Frontmatter = Schema.Struct({
   name: Schema.optionalKey(NonEmpty),
   description: Schema.optionalKey(Schema.String),
   provider: Schema.optionalKey(Schema.NullOr(NonEmpty)),
   model: Schema.optionalKey(Schema.NullOr(NonEmpty)),
-  sources: Schema.optionalKey(Schema.Array(NonEmpty)),
+  sources: Schema.optionalKey(Schema.Array(Source)),
   autonomy: Schema.optionalKey(
     Schema.Struct({
       read: Schema.optionalKey(Level),
@@ -123,7 +145,9 @@ export const parseAgent = (id: string, path: string, text: string): Result.Resul
     description: front.description ?? "",
     provider: front.provider ?? null,
     model: front.model ?? null,
-    sources: front.sources ?? [],
+    sources: (front.sources ?? []).map((source) =>
+      typeof source === "string" ? source : { vault: source.vault, folders: (source.folders ?? []).map((folder) => normaliseFolder(folder) ?? folder) },
+    ),
     autonomy: { read: level("read"), create: level("create"), edit: level("edit"), commands: level("commands"), web: level("web") },
     concurrency: front.concurrency ?? 1,
     path,

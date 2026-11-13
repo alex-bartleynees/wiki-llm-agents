@@ -4,6 +4,7 @@ import { getNote } from "../../../notes/get-note/use-case.js";
 import { resolveLinks } from "../../../notes/resolve-links/use-case.js";
 import { ThreadActors } from "../../../threads/thread-actors.js";
 import { VaultCaller } from "../../auth.js";
+import { requireInScope, usableScope } from "../../scope.js";
 import { indexUnavailable, Notices, ToolFailure, VaultPath, vaultTool } from "../shared.js";
 import { citation } from "../vault-note-info/tool.js";
 
@@ -26,6 +27,7 @@ export const VaultOpenNote = vaultTool(
 
 export const vaultOpenNote = Effect.fnUntraced(function* (params: typeof VaultOpenNote.parametersSchema.Type) {
   const { vaultId, threadId } = yield* VaultCaller;
+  yield* requireInScope(yield* usableScope, params.path);
   if (!params.path.toLowerCase().endsWith(".md")) {
     return yield* new ToolFailure({ message: `"${params.path}" isn't a note; vault_open_note opens markdown files (.md).` });
   }

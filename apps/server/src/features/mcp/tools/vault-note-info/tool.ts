@@ -2,7 +2,9 @@ import { Effect, Schema } from "effect";
 import { Tool } from "effect/ai";
 import { VaultIndex } from "../../../indexing/vault-index.js";
 import { getNote } from "../../../notes/get-note/use-case.js";
+import { inScope } from "../../../agents/sources.js";
 import { VaultCaller } from "../../auth.js";
+import { requireInScope, scopeNotices, usableScope } from "../../scope.js";
 import { indexUnavailable, iso, Notices, ToolFailure, VaultPath, vaultTool } from "../shared.js";
 
 /** Most outgoing links listed. */
@@ -47,12 +49,14 @@ export const citation = (path: string, heading?: string) =>
 
 export const vaultNoteInfo = Effect.fnUntraced(function* (params: typeof VaultNoteInfo.parametersSchema.Type) {
   const { vaultId } = yield* VaultCaller;
+  const scope = yield* usableScope;
+  yield* requireInScope(scope, params.path);
   if (!params.path.toLowerCase().endsWith(".md")) {
     return yield* new ToolFailure({ message: `"${params.path}" isn't a note; vault_note_info takes a markdown file (.md).` });
   }
   const note = yield* getNote({ vaultId, path: params.path });
-  const backlinks = yield* (yield* VaultIndex).backlinks(vaultId, note.path);
-  const notices: Array<string> = [];
+  const backlinks = (yield* (yield* VaultIndex).backlinks(vaultId, note.path)).filter((backlink) => inScope(scope, backlink.path));
+  const notices: Array<string> = [...scopeNotices(scope)];
   if (note.links.length > MAX_LINKS) notices.push(`Showing the first ${MAX_LINKS} of ${note.links.length} links.`);
   return {
     path: note.path,

@@ -2,6 +2,7 @@ import { Clock, Duration, Effect, Schema } from "effect";
 import { Tool } from "effect/ai";
 import { VaultIndex } from "../../../indexing/vault-index.js";
 import { VaultCaller } from "../../auth.js";
+import { scopeFolders, scopeNotices, usableScope } from "../../scope.js";
 import { IntBetween, indexUnavailable, iso, Notices, ToolFailure, vaultTool } from "../shared.js";
 
 const DEFAULT_DAYS = 7;
@@ -38,11 +39,12 @@ export const VaultRecentChanges = vaultTool(
 
 export const vaultRecentChanges = Effect.fnUntraced(function* (params: typeof VaultRecentChanges.parametersSchema.Type) {
   const { vaultId } = yield* VaultCaller;
+  const scope = yield* usableScope;
   const days = params.days ?? DEFAULT_DAYS;
   const limit = params.limit ?? DEFAULT_LIMIT;
   const since = (yield* Clock.currentTimeMillis) - Duration.toMillis(Duration.days(days));
-  const { files, truncated } = yield* (yield* VaultIndex).recentFiles(vaultId, { since, limit });
-  const notices: Array<string> = [];
+  const { files, truncated } = yield* (yield* VaultIndex).recentFiles(vaultId, { since, limit, folders: scopeFolders(scope) });
+  const notices: Array<string> = [...scopeNotices(scope)];
   if (truncated) notices.push(`Showing the ${limit} most recent; more changed in the last ${days} days. Raise \`limit\` (up to ${MAX_LIMIT}) or lower \`days\`.`);
   if (files.length === 0) notices.push(`Nothing changed in the last ${days} days.`);
   notices.push(NO_ATTRIBUTION);

@@ -1,7 +1,9 @@
 import { Effect, Schema } from "effect";
 import { Tool } from "effect/ai";
 import { getBacklinks } from "../../../notes/get-backlinks/use-case.js";
+import { inScope } from "../../../agents/sources.js";
 import { VaultCaller } from "../../auth.js";
+import { requireInScope, scopeNotices, usableScope } from "../../scope.js";
 import { IntBetween, indexUnavailable, Notices, ToolFailure, VaultPath, vaultTool } from "../shared.js";
 
 const DEFAULT_LIMIT = 50;
@@ -27,9 +29,11 @@ export const VaultBacklinks = vaultTool(
 
 export const vaultBacklinks = Effect.fnUntraced(function* (params: typeof VaultBacklinks.parametersSchema.Type) {
   const { vaultId } = yield* VaultCaller;
+  const scope = yield* usableScope;
+  yield* requireInScope(scope, params.path);
   const limit = params.limit ?? DEFAULT_LIMIT;
-  const { backlinks } = yield* getBacklinks({ vaultId, path: params.path });
-  const notices: Array<string> = [];
+  const backlinks = (yield* getBacklinks({ vaultId, path: params.path })).backlinks.filter((backlink) => inScope(scope, backlink.path));
+  const notices: Array<string> = [...scopeNotices(scope)];
   if (backlinks.length > limit) notices.push(`Showing ${limit} of ${backlinks.length} backlinks, by title. Raise \`limit\` (up to ${MAX_LIMIT}) for more.`);
   if (backlinks.length === 0) notices.push("No note links here. If the path may be wrong, check it with vault_resolve_link.");
   return { path: params.path, total: backlinks.length, backlinks: backlinks.slice(0, limit), notices };

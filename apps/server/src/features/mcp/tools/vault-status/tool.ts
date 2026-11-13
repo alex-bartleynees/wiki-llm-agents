@@ -3,6 +3,7 @@ import { Tool } from "effect/ai";
 import { VaultIndex } from "../../../indexing/vault-index.js";
 import { findVault } from "../../../vaults/find-vault.js";
 import { VaultCaller } from "../../auth.js";
+import { callerScope, scopeNotices } from "../../scope.js";
 import { Notices, vaultTool } from "../shared.js";
 
 const Unavailable = Schema.Struct({ feature: Schema.String, reason: Schema.String });
@@ -52,13 +53,19 @@ export const vaultStatus = (tools: ReadonlyArray<string>) =>
         return Effect.succeed(null);
       }),
     );
+    const scope = yield* callerScope.pipe(Effect.orElseSucceed(() => null));
+    if (scope?._tag === "none") {
+      unavailable.push({ feature: "every vault tool", reason: "This vault isn't one of this thread's agent's knowledge sources (or the agent is missing)." });
+    } else if (scope !== null) {
+      notices.push(...scopeNotices(scope));
+    }
     if (index !== null && index.notes === 0) notices.push("The index has no notes: the vault is empty or still being indexed for the first time.");
     notices.push("The index follows the files on disk as they change, usually within a second.");
     return {
       vault,
       index,
       search: "keyword (SQLite FTS5, bm25 ranking: title, then tags, then body)",
-      tools: vault === null ? [] : tools,
+      tools: vault === null || scope?._tag === "none" ? [] : tools,
       unavailable,
       notices,
     };

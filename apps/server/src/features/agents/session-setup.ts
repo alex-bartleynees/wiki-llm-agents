@@ -4,13 +4,14 @@ import { Effect, FileSystem } from "effect";
 import type { AgentSetup, Instruction } from "../providers/port.js";
 import { AgentCatalog } from "./catalog.js";
 import { MAX_FILE_BYTES } from "./definition.js";
+import { effectiveAutonomy } from "./sources.js";
 
 /**
  * What a thread's provider session is given for its next turn: every rules file,
  * then the agent's instructions, then the vault's own `AGENTS.md` if it has one
  * (vault-specific, so it goes last and wins), and the agent's autonomy. Without
  * an agent, the rules alone and the default autonomy (read freely, ask for the
- * rest). Fails with `AgentNotFound` when the thread's agent is gone or broken:
+ * rest). The web is denied to an agent whose sources leave it out. Fails with `AgentNotFound` when the thread's agent is gone or broken:
  * running it with other rules than it asked for would be a silent fallback.
  */
 export const sessionSetup = Effect.fnUntraced(function* (agentId: string | null, vaultRoot: string) {
@@ -29,7 +30,7 @@ export const sessionSetup = Effect.fnUntraced(function* (agentId: string | null,
   }
   const vaultRules = yield* readVaultRules(vaultRoot);
   if (vaultRules !== null) instructions.push(vaultRules);
-  const setup: AgentSetup = { instructions, autonomy: agent?.autonomy ?? DEFAULT_AUTONOMY };
+  const setup: AgentSetup = { instructions, autonomy: agent === null ? DEFAULT_AUTONOMY : effectiveAutonomy(agent) };
   return setup;
 });
 

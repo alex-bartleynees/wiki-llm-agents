@@ -1,7 +1,10 @@
+import { basename } from "node:path";
 import { Effect, Schema } from "effect";
 import { Tool } from "effect/ai";
 import { resolveLinks } from "../../../notes/resolve-links/use-case.js";
+import { inScope } from "../../../agents/sources.js";
 import { VaultCaller } from "../../auth.js";
+import { scopeNotices, usableScope } from "../../scope.js";
 import { indexUnavailable, Notices, ToolFailure, vaultTool } from "../shared.js";
 
 export const VaultResolveLink = vaultTool(
@@ -33,10 +36,17 @@ export const VaultResolveLink = vaultTool(
 
 export const vaultResolveLink = Effect.fnUntraced(function* (params: typeof VaultResolveLink.parametersSchema.Type) {
   const { vaultId } = yield* VaultCaller;
+  const scope = yield* usableScope;
   const { links } = yield* resolveLinks({ vaultId, links: [params.from === undefined ? { link: params.link } : { link: params.link, from: params.from }] });
-  const resolved = links[0];
-  if (resolved === undefined) return yield* new ToolFailure({ message: "The link couldn't be resolved." });
-  const notices: Array<string> = [];
+  const found = links[0];
+  if (found === undefined) return yield* new ToolFailure({ message: "The link couldn't be resolved." });
+  // Files outside the agent's folders are as if they weren't there.
+  const reachable = [found.path, ...found.alternatives].filter((path): path is string => path !== null && inScope(scope, path));
+  const resolved =
+    found.path !== null && inScope(scope, found.path)
+      ? { ...found, alternatives: found.alternatives.filter((path) => inScope(scope, path)) }
+      : { ...found, path: reachable[0] ?? null, title: reachable[0] === undefined ? null : basename(reachable[0]).replace(/\.md$/i, ""), alternatives: reachable.slice(1) };
+  const notices: Array<string> = [...scopeNotices(scope)];
   if (resolved.path === null) notices.push("Nothing in the vault matches this link. Search for the note with vault_search.");
   if (resolved.alternatives.length > 0) {
     notices.push(

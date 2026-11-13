@@ -5,6 +5,8 @@ import { rankNeighbours } from "../../../search/link-hops.js";
 import { relatedGraph, rankRelated } from "../../../search/related.js";
 import { searchNotes } from "../../../search/search-notes/use-case.js";
 import { VaultCaller } from "../../auth.js";
+import { scopeFolders, scopeNotices, usableScope } from "../../scope.js";
+import { inScope } from "../../../agents/sources.js";
 import { IntBetween, indexUnavailable, Notices, ToolFailure, vaultTool } from "../shared.js";
 
 export const DEFAULT_LIMIT = 10;
@@ -58,17 +60,21 @@ type Params = typeof VaultSearch.parametersSchema.Type;
 
 export const vaultSearch = Effect.fnUntraced(function* (params: Params) {
   const { vaultId } = yield* VaultCaller;
+  const scope = yield* usableScope;
   const limit = params.limit ?? DEFAULT_LIMIT;
   const hops = params.hops ?? 0;
   const tags = params.tags ?? [];
-  const notices: Array<string> = [];
+  const notices: Array<string> = [...scopeNotices(scope)];
 
-  const found = yield* searchNotes({
-    vaultId,
-    q: params.query,
-    tags: tags.join(","),
-    limit,
-  });
+  const found = yield* searchNotes(
+    {
+      vaultId,
+      q: params.query,
+      tags: tags.join(","),
+      limit,
+    },
+    scopeFolders(scope),
+  );
   if (found.results.length === 0 && tags.length > 0 && params.query.trim() !== "") {
     notices.push(`Nothing matched with the tag filter (${tags.join(", ")}); try without it.`);
   }
@@ -86,7 +92,7 @@ export const vaultSearch = Effect.fnUntraced(function* (params: Params) {
   let frontier = found.results.map((result) => result.path);
   const graph = hops > 0 ? yield* relatedGraph(vaultId) : null;
   for (let hop = 1; hop <= hops && frontier.length > 0; hop++) {
-    const ranked = rankNeighbours(frontier, graph?.edges ?? [], seen);
+    const ranked = rankNeighbours(frontier, graph?.edges ?? [], seen).filter((note) => inScope(scope, note.path));
     const related = frontier.map((path) => rankRelated(path, graph?.notes ?? [], graph?.edges ?? []));
     const scores = new Map<string, number>();
     for (const notes of related) for (const note of notes) scores.set(note.path, (scores.get(note.path) ?? 0) + note.score);

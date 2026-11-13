@@ -2,6 +2,7 @@
   import { AUTONOMY_ACTIONS, type AgentSummary } from "@wiki-agents/contracts/agents/model";
   import { errorMessage, isAbort } from "#lib/api/client.ts";
   import { providers } from "#lib/features/threads/providers.svelte.ts";
+  import { describeSources } from "./agent-form.ts";
   import { getAgent } from "./api.ts";
   import { ACTION_LABEL, LEVEL_LABEL } from "./autonomy.ts";
 
@@ -34,6 +35,7 @@
 <header>
   <button type="button" class="back" aria-label="All agents" onclick={onback}>←</button>
   <h2>◆ {agent.name}</h2>
+  <a class="edit" href="/agents/edit?agent={encodeURIComponent(agent.id)}">Edit</a>
 </header>
 
 <div class="body">
@@ -45,7 +47,7 @@
     <dt>Model</dt>
     <dd class:mono={agent.model !== null}>{agent.model ?? "The provider's default"}</dd>
     <dt>Sources</dt>
-    <dd>{agent.sources.length === 0 ? "None listed" : agent.sources.join(", ")}</dd>
+    <dd>{describeSources(agent.sources)}</dd>
     <dt>Tasks at once</dt>
     <dd>{agent.concurrency}</dd>
     <dt>File</dt>
@@ -94,7 +96,7 @@
   {:else}
     <pre class="instructions">{instructions}</pre>
   {/if}
-  <p class="muted">Edit the file to change this agent; threads use the new version from their next message.</p>
+  <p class="muted">Edit the agent here or its file; threads use the new version from their next message.</p>
 </div>
 
 <style>
@@ -115,6 +117,15 @@
     background: transparent;
     color: var(--ink-2);
     cursor: pointer;
+  }
+  .edit {
+    margin-left: auto;
+    padding: 5px 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    color: var(--ink);
+    font-size: 13px;
+    text-decoration: none;
   }
   h2 {
     margin: 0;

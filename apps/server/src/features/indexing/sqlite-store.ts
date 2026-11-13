@@ -5,7 +5,7 @@ import { Context, Effect, Layer } from "effect";
 import { DbError } from "../../shared/persistence/errors.js";
 import { Sqlite } from "../../shared/persistence/sqlite.js";
 import { fileChanges } from "../changes/table.js";
-import { searchNotes } from "./sqlite-search.js";
+import { folderFilter, searchNotes } from "./sqlite-search.js";
 import { IndexStore } from "./store.js";
 import { blobs, links, notes, vaultFiles } from "./table.js";
 import { type NoteEdge, VaultIndex } from "./vault-index.js";
@@ -255,13 +255,13 @@ const make = Effect.gen(function* () {
           ),
       ),
 
-    recentFiles: (vaultId, { since, limit }) =>
+    recentFiles: (vaultId, { since, limit, folders }) =>
       query(() => {
         const rows = db
           .select({ path: vaultFiles.path, kind: vaultFiles.kind, title: notes.title, modifiedAt: vaultFiles.mtimeMs })
           .from(vaultFiles)
           .leftJoin(notes, and(eq(notes.vaultId, vaultFiles.vaultId), eq(notes.path, vaultFiles.path)))
-          .where(and(eq(vaultFiles.vaultId, vaultId), gte(vaultFiles.mtimeMs, since)))
+          .where(and(eq(vaultFiles.vaultId, vaultId), gte(vaultFiles.mtimeMs, since), sql`1${folderFilter(sql`${vaultFiles.path}`, folders)}`))
           .orderBy(desc(vaultFiles.mtimeMs), asc(vaultFiles.path))
           .limit(limit + 1)
           .all()

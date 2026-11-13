@@ -44,6 +44,28 @@ export const AutonomyEnforcement = Schema.Struct({
 });
 export type AutonomyEnforcement = typeof AutonomyEnforcement.Type;
 
+/** A registered vault, by name, limited to some of its folders. */
+export const VaultSource = Schema.Struct({
+  /** A registered vault's name, as Settings shows it. */
+  vault: Schema.String,
+  /** Vault-relative folders; empty means the whole vault. */
+  folders: Schema.Array(Schema.String),
+});
+export type VaultSource = typeof VaultSource.Type;
+
+/**
+ * Where an agent may look things up:
+ * - `vault`: the vault the thread works in, whichever it is
+ * - `web`: the web, as its autonomy allows
+ * - `{ vault, folders }`: a registered vault by name, limited to `folders` when any
+ *   are listed
+ *
+ * No sources at all means no limits. Otherwise the vault tools reach only the
+ * listed vaults and folders, and the web is off unless `web` is listed.
+ */
+export const KnowledgeSource = Schema.Union([Schema.Literals(["vault", "web"]), VaultSource]);
+export type KnowledgeSource = typeof KnowledgeSource.Type;
+
 export const AgentSummary = Schema.Struct({
   /** The file name without `.md`, e.g. `researcher`. */
   id: Schema.String,
@@ -53,8 +75,8 @@ export const AgentSummary = Schema.Struct({
   provider: Schema.NullOr(Schema.String),
   /** The model new threads with this agent use; null for the provider's default. */
   model: Schema.NullOr(Schema.String),
-  /** Knowledge sources, e.g. `vault`, `web`. Informational until the vault MCP server (slice 7). */
-  sources: Schema.Array(Schema.String),
+  /** Where it may look things up; empty for no limits. */
+  sources: Schema.Array(KnowledgeSource),
   autonomy: Autonomy,
   /** How many background tasks it runs at once (slice 14). */
   concurrency: Schema.Number,
@@ -78,3 +100,19 @@ export const ConfigProblem = Schema.Struct({
   message: Schema.String,
 });
 export type ConfigProblem = typeof ConfigProblem.Type;
+
+/** An agent's settings and instructions, as the editor saves them. */
+export const AgentInput = Schema.Struct({
+  name: Schema.String,
+  description: Schema.String,
+  /** A provider instance id; null for the one picked for each thread. */
+  provider: Schema.NullOr(Schema.String),
+  /** null for the provider's default. */
+  model: Schema.NullOr(Schema.String),
+  sources: Schema.Array(KnowledgeSource),
+  autonomy: Autonomy,
+  concurrency: Schema.Number,
+  /** The file's body, as markdown. */
+  instructions: Schema.String,
+});
+export type AgentInput = typeof AgentInput.Type;

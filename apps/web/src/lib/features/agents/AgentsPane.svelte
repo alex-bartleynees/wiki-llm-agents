@@ -41,7 +41,10 @@
   {:else}
     <header>
       <h2 class="mono">Agents</h2>
-      <button type="button" class="refresh" onclick={() => void agents.refresh()}>Reload</button>
+      <span class="header-actions">
+        <button type="button" class="refresh" onclick={() => void agents.refresh()}>Reload</button>
+        <a class="new" href="/agents/edit">New agent</a>
+      </span>
     </header>
 
     <div class="body">
@@ -76,13 +79,22 @@
         {/each}
       </ul>
 
+      <section class="rules" aria-label="Rules">
+        <h3>Rules for every agent</h3>
+        <ul>
+          {#each agents.rules as rules (rules.id)}
+            <li><a href="/agents/rules?rules={encodeURIComponent(rules.id)}" class="mono">rules/{rules.id}.md</a></li>
+          {/each}
+        </ul>
+        <a class="add" href="/agents/rules">New rules file</a>
+      </section>
+
       {#if agents.configDir}
         <footer>
           <p>
             Agents and rules are files in <span class="mono">{agents.configDir}</span>: one
-            <span class="mono">agents/&lt;name&gt;.md</span> per agent, and
-            {#each agents.rules as rules, index (rules.id)}{index > 0 ? ", " : ""}<span class="mono">rules/{rules.id}.md</span>{/each}
-            for every agent. Edit them in any editor; changes apply from the next message. Agents can't change them.
+            <span class="mono">agents/&lt;name&gt;.md</span> per agent, and the rules for every agent. Edit them here or in any
+            editor; changes apply from the next message. Agents can't change them.
           </p>
           <p>A vault's own <span class="mono">AGENTS.md</span> is added on top.</p>
         </footer>
@@ -114,6 +126,50 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--ink-3);
+  }
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .new {
+    display: inline-flex;
+    align-items: center;
+    height: 30px;
+    padding: 0 10px;
+    border-radius: var(--radius);
+    background: var(--accent);
+    color: var(--on-accent, #fff);
+    font-size: 12px;
+    text-decoration: none;
+  }
+  .rules {
+    margin: 4px 12px 0;
+    padding: 10px 4px;
+    border-top: 1px solid var(--line-soft);
+    font-size: 13px;
+  }
+  .rules h3 {
+    margin: 0 0 6px;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ink-3);
+  }
+  .rules ul {
+    margin: 0 0 8px;
+    padding: 0;
+    list-style: none;
+  }
+  .rules li a {
+    display: block;
+    padding: 6px 0;
+    color: var(--ink);
+  }
+  .add {
+    font-size: 12px;
+    color: var(--accent-ink);
   }
   .refresh {
     height: 30px;

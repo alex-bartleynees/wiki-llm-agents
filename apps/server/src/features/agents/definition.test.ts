@@ -123,3 +123,21 @@ describe("conflictCopyProblem", () => {
     expect(conflictCopyProblem("code-reviewer.md")).toBeNull();
   });
 });
+
+describe("sources", () => {
+  const withSources = (yaml: string) => `---\nsources:\n${yaml}\n---\nGo.`;
+
+  it("reads `vault`, `web`, and named vaults with folders, tidying the folder paths", () => {
+    expect(agent(withSources("  - web\n  - vault: Notes\n    folders: [Projects/, ./Areas//Home]\n  - vault: Work")).sources).toEqual([
+      "web",
+      { vault: "Notes", folders: ["Projects", "Areas/Home"] },
+      { vault: "Work", folders: [] },
+    ]);
+  });
+
+  it("refuses other words and folders that leave the vault, naming the entry", () => {
+    expect(problems(withSources("  - notes"))[0]).toMatch(/^sources\.0: /);
+    expect(problems(withSources("  - vault: Notes\n    folders: [../Secrets]"))).toEqual([expect.stringMatching(/^sources\.0\.folders\.0: A folder inside the vault/)]);
+    expect(problems(withSources("  - vault: Notes\n    folders: [/etc]"))[0]).toMatch(/^sources\.0\.folders\.0: /);
+  });
+});

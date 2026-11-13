@@ -11,6 +11,7 @@ import { Effect, Layer, PubSub } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/http";
 import { AgentCatalog } from "../../src/features/agents/catalog.js";
 import { makeAgentCatalog } from "../../src/features/agents/catalog-live.js";
+import { writeConfigFile } from "../../src/features/agents/config-files.js";
 import { TestApp } from "./infrastructure/test-app.js";
 import { decode, isTag, newVault, post, sendOk, watch } from "./infrastructure/threads.js";
 
@@ -167,6 +168,21 @@ layer(Watched, { excludeTestServices: true })("agents, watched", (it) => {
         if (config.agents.some((agent) => agent.name === "Scout")) break;
       }
       expect((yield* catalog.get("scout")).instructions).toBe("Look around.");
+    }),
+  );
+
+  it.effect("reloads a file the app writes, as it does any other change", () =>
+    Effect.gen(function* () {
+      const catalog = yield* AgentCatalog;
+      const loaded = yield* catalog.subscribe;
+      const path = join(configDir, "agents", "writer.md");
+      yield* writeConfigFile(path, "---\nname: Writer\n---\nWrite.", null).pipe(Effect.provide(NodeFileSystem.layer));
+      while (true) {
+        const config = yield* PubSub.take(loaded);
+        if (config.agents.some((agent) => agent.name === "Writer")) break;
+      }
+      // The temporary file it wrote through was never loaded, nor reported.
+      expect((yield* catalog.current).problems).toEqual([]);
     }),
   );
 });

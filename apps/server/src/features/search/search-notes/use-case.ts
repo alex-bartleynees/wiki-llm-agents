@@ -16,13 +16,15 @@ export const parseTags = (tags: string | undefined): ReadonlyArray<string> => [
   ),
 ];
 
-export const searchNotes = Effect.fn("searchNotes")(function* (request: SearchNotesRequest) {
+/** `folders` limits it to those vault-relative folders (an agent's knowledge sources). */
+export const searchNotes = Effect.fn("searchNotes")(function* (request: SearchNotesRequest, folders?: ReadonlyArray<string>) {
   const vault = yield* findVault(request.vaultId);
   const index = yield* VaultIndex;
   const response: SearchNotesResponse = yield* index.search(vault.id, {
     text: request.q ?? "",
     tags: parseTags(request.tags),
     limit: request.limit ?? DEFAULT_LIMIT,
+    folders,
   });
   return response;
 });

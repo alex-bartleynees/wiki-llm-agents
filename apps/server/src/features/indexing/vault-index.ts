@@ -20,6 +20,8 @@ export interface SearchQuery {
   /** Lower-case tags the note must all have (`a` also matches `a/b`). */
   readonly tags: ReadonlyArray<string>;
   readonly limit: number;
+  /** Only notes in these vault-relative folders (an agent's knowledge sources); all when absent. */
+  readonly folders?: ReadonlyArray<string> | undefined;
 }
 
 export interface SearchResults {
@@ -79,7 +81,7 @@ export interface VaultIndexService {
    */
   readonly recentFiles: (
     vaultId: string,
-    query: { readonly since: number; readonly limit: number },
+    query: { readonly since: number; readonly limit: number; readonly folders?: ReadonlyArray<string> | undefined },
   ) => Effect.Effect<{ readonly files: ReadonlyArray<ModifiedFile>; readonly truncated: boolean }, DbError>;
 }
 

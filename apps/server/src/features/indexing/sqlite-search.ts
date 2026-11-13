@@ -33,7 +33,18 @@ const hasTag = (tag: string): SQL =>
 const tagFilter = (tags: ReadonlyArray<string>): SQL =>
   tags.length === 0 ? sql`` : sql` AND ${sql.join(tags.map(hasTag), sql` AND `)}`;
 
-const toResult = (row: Row, snippet: SearchResult["snippet"]): SearchResult => {
+/** `path` is one of `folders` or inside one; no condition when `folders` is absent. */
+export const folderFilter = (path: SQL, folders: ReadonlyArray<string> | undefined): SQL =>
+  folders === undefined
+    ? sql``
+    : folders.length === 0
+      ? sql` AND 0`
+      : sql` AND (${sql.join(
+          folders.map((folder) => sql`(${path} = ${folder} OR substr(${path}, 1, ${folder.length + 1}) = ${`${folder}/`})`),
+          sql` OR `,
+        )})`;
+
+const toResult =(row: Row, snippet: SearchResult["snippet"]): SearchResult => {
   const tags: unknown = JSON.parse(row.tags);
   return {
     path: row.path,
@@ -45,7 +56,7 @@ const toResult = (row: Row, snippet: SearchResult["snippet"]): SearchResult => {
 
 export const searchNotes = (db: BetterSQLite3Database, vaultId: string, query: SearchQuery): SearchResults => {
   const match = ftsMatch(query.text);
-  const tags = tagFilter(query.tags);
+  const filters = sql`${tagFilter(query.tags)}${folderFilter(sql`notes.path`, query.folders)}`;
   // One extra row tells whether there were more.
   const take = query.limit + 1;
 
@@ -57,7 +68,7 @@ export const searchNotes = (db: BetterSQLite3Database, vaultId: string, query: S
               snippet(notes_fts, 3, ${MATCH_START}, ${MATCH_END}, '…', ${SNIPPET_TOKENS}) AS text
             FROM notes_fts
             JOIN notes ON notes.vault_id = notes_fts.vault_id AND notes.path = notes_fts.path
-            WHERE notes_fts MATCH ${match} AND notes_fts.vault_id = ${vaultId}${tags}
+            WHERE notes_fts MATCH ${match} AND notes_fts.vault_id = ${vaultId}${filters}
             ORDER BY ${RANK}, notes.path
             LIMIT ${take}`,
       )
@@ -68,7 +79,7 @@ export const searchNotes = (db: BetterSQLite3Database, vaultId: string, query: S
         sql`SELECT notes.path AS path, notes.title AS title, notes.tags AS tags, blobs.content AS text
             FROM notes
             JOIN blobs ON blobs.hash = notes.content_hash
-            WHERE notes.vault_id = ${vaultId}${tags}
+            WHERE notes.vault_id = ${vaultId}${filters}
             ORDER BY notes.title COLLATE NOCASE, notes.path
             LIMIT ${take}`,
       )
