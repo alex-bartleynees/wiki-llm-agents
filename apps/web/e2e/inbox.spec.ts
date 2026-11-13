@@ -58,6 +58,8 @@ test("creates a reminder and a scheduled prompt, sees both arrive, and opens the
   await form.getByRole("checkbox", { name: "Sun" }).check();
   await form.getByLabel("Time", { exact: true }).fill("06:45");
   await form.getByLabel("Provider").selectOption({ label: "Replay (recorded, free)" });
+  // The Model field says what an empty field means for the provider the run uses.
+  await expect(form.getByLabel("Model")).toHaveAttribute("placeholder", "Replay (recorded, free) has no model choice");
   await form.getByRole("button", { name: "Create schedule" }).click();
   await expect(page.getByRole("listitem", { name: prompt })).toContainText("Every day at 06:45");
 
@@ -94,4 +96,33 @@ test("snoozes an item until later and dismisses it", async ({ page, request }, i
   await expect(item).toBeVisible();
   await item.getByRole("button", { name: "Dismiss" }).click();
   await expect(item).toHaveCount(0);
+});
+
+test("links a reminder to a note found by search, and opens it from the inbox", async ({ page, request }, info) => {
+  const title = `Brew (${info.project.name})`;
+  const form = await newSchedule(page);
+  await form.getByRole("textbox", { name: "Message" }).fill(title);
+  // The vault is picked for a new reminder once the vaults load.
+  await expect(form.getByLabel("Vault")).not.toHaveValue("");
+  const search = form.getByRole("combobox", { name: "Link a note" });
+  await search.fill("brew");
+  await expect(form.getByRole("listbox", { name: "Notes" }).getByRole("option").first()).toContainText("Notes/Brewing.md");
+  await search.press("Enter");
+  await expect(form.getByRole("button", { name: "Remove Brewing" })).toBeVisible();
+
+  // A search left unpicked isn't saved silently.
+  await form.getByRole("button", { name: "Remove Brewing" }).click();
+  await form.getByRole("combobox", { name: "Link a note" }).fill("nothing picked");
+  await form.getByRole("button", { name: "Create schedule" }).click();
+  await expect(form.getByRole("alert")).toContainText("Pick a note from the list");
+  await form.getByRole("combobox", { name: "Link a note" }).fill("brew");
+  await form.getByRole("listbox", { name: "Notes" }).getByRole("option", { name: /Brewing/ }).click();
+
+  await form.getByRole("button", { name: "Create schedule" }).click();
+  await expect(page.getByRole("listitem", { name: title })).toBeVisible();
+  await fire(request, title);
+
+  await page.goto("/inbox");
+  await page.getByRole("article", { name: title }).getByRole("link", { name: "Open note" }).click();
+  await expect(page).toHaveURL(/note=Notes%2FBrewing\.md|note=Notes\/Brewing\.md/);
 });

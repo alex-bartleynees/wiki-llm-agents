@@ -1,10 +1,14 @@
 <script lang="ts">
+  import type { ProviderModel } from "@wiki-agents/contracts/providers/model";
   import type { MissedPolicy, Recurrence, Schedule, ScheduleKind } from "@wiki-agents/contracts/schedules/model";
   import { onMount } from "svelte";
-  import { errorMessage } from "#lib/api/client.ts";
+  import { errorMessage, isAbort } from "#lib/api/client.ts";
   import { agents } from "#lib/features/agents/agents.svelte.ts";
+  import { listProviderModels } from "#lib/features/agents/api.ts";
+  import NotePicker from "#lib/features/search/NotePicker.svelte";
   import { providers } from "#lib/features/threads/providers.svelte.ts";
   import { vaults } from "#lib/features/vaults/vaults.svelte.ts";
+  import { modelPlaceholder, modelSource } from "./schedule-model.ts";
   import { schedules } from "./schedules.svelte.ts";
 
   /** A new schedule, or `schedule` to edit. */
@@ -32,7 +36,18 @@
   let agentId = $state(initial?.agentId ?? "");
   let providerInstanceId = $state(initial?.providerInstanceId ?? "");
   let model = $state(initial?.model ?? "");
-  let notePath = $state(initial?.link?._tag === "note" ? initial.link.path : "");
+  let notePath = $state<string | null>(initial?.link?._tag === "note" ? initial.link.path : null);
+  /** Typed in the note search but not picked yet. */
+  let noteQuery = $state("");
+  // A linked note belongs to its vault: changing the vault unlinks it.
+  let noteVault = initial?.vaultId ?? "";
+  $effect(() => {
+    if (vaultId !== noteVault) {
+      noteVault = vaultId;
+      notePath = null;
+      noteQuery = "";
+    }
+  });
   let missed = $state<MissedPolicy>(initial?.missed ?? "same-day");
   let saving = $state(false);
   let error = $state<string | null>(null);
@@ -45,7 +60,33 @@
     void providers.load();
   });
 
-  const toggleDay = (day: number) => (days = days.includes(day) ? days.filter((other) => other !== day) : [...days, day].sort((a, b) => a - b));
+  // The models suggested for the Model field: those of the provider the run will use.
+  const source = $derived(
+    modelSource(
+      providerInstanceId,
+      agents.list.find((agent) => agent.id === agentId),
+      providers.list,
+    ),
+  );
+  const sourceProviderId = $derived(source.provider?.capabilities.models ? source.provider.id : null);
+  let models = $state<ReadonlyArray<ProviderModel>>([]);
+  let defaultModel = $state<string | null>(null);
+  $effect(() => {
+    const id = sourceProviderId;
+    models = [];
+    defaultModel = null;
+    if (kind !== "prompt" || id === null) return;
+    const controller = new AbortController();
+    listProviderModels(id, controller.signal).then(
+      (response) => ((models = response.models), (defaultModel = response.defaultModel)),
+      (failure) => {
+        if (!isAbort(failure)) models = [];
+      },
+    );
+    return () => controller.abort();
+  });
+
+  const toggleDay =(day: number) => (days = days.includes(day) ? days.filter((other) => other !== day) : [...days, day].sort((a, b) => a - b));
 
   const currentRecurrence = (): Recurrence =>
     repeat === "once" ? { _tag: "once", date, time } : repeat === "daily" ? { _tag: "daily", time } : { _tag: "weekly", days, time };
@@ -54,6 +95,9 @@
     event.preventDefault();
     if (repeat === "weekly" && days.length === 0) return void (error = "Choose at least one day.");
     const prompt = kind === "prompt";
+    if (!prompt && vaultId !== "" && notePath === null && noteQuery.trim() !== "") {
+      return void (error = "Pick a note from the list, or clear the note search.");
+    }
     const fields = {
       title: title.trim(),
       text,
@@ -63,7 +107,7 @@
       agentId: prompt && agentId !== "" ? agentId : null,
       providerInstanceId: prompt && providerInstanceId !== "" ? providerInstanceId : null,
       model: prompt && model.trim() !== "" ? model.trim() : null,
-      link: !prompt && notePath.trim() !== "" && vaultId !== "" ? { _tag: "note" as const, vaultId, path: notePath.trim() } : null,
+      link: !prompt && notePath !== null && vaultId !== "" ? { _tag: "note" as const, vaultId, path: notePath } : null,
       missed,
     };
     saving = true;
@@ -160,7 +204,17 @@
       </label>
       <label>
         Model
-        <input bind:value={model} placeholder="The agent's" spellcheck="false" />
+        <input
+          class="mono"
+          list="schedule-models"
+          bind:value={model}
+          placeholder={modelPlaceholder(source, defaultModel)}
+          spellcheck="false"
+          autocapitalize="off"
+        />
+        <datalist id="schedule-models">
+          {#each models as option (option.id)}<option value={option.id}>{option.name}{option.free ? " · free" : ""}</option>{/each}
+        </datalist>
       </label>
     </div>
     <label>
@@ -173,10 +227,7 @@
     </label>
     <p class="hint">It runs unattended: anything the agent would ask you is denied, and its answer arrives in the inbox.</p>
   {:else if vaultId !== ""}
-    <label>
-      Link a note
-      <input bind:value={notePath} placeholder="Folder/Note.md" spellcheck="false" />
-    </label>
+    <NotePicker {vaultId} bind:path={notePath} bind:query={noteQuery} label="Link a note" />
   {/if}
 
   {#if error}<p class="error" role="alert">{error}</p>{/if}
@@ -232,6 +283,10 @@
     color: var(--ink);
     font: inherit;
     font-size: 14px;
+  }
+  /* As specific as the input rule above, and after it, so the mono font wins over `font: inherit`. */
+  input.mono {
+    font-family: var(--font-mono);
   }
   .row {
     display: flex;
