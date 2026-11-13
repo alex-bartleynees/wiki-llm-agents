@@ -75,6 +75,12 @@ export interface ThreadRepositoryService {
    * `projectId`, the vault's own threads); without, every thread in the vault.
    */
   readonly listByVault: (vaultId: string, scope?: { readonly projectId: string | null }) => Effect.Effect<ReadonlyArray<ThreadSummary>, DbError>;
+  /**
+   * In every vault, most recently updated first: threads updated since `since`, and
+   * any with a turn still running however long ago it started. The running view
+   * picks from these with `threadActivity`.
+   */
+  readonly listActive: (since: number) => Effect.Effect<ReadonlyArray<ThreadSummary>, DbError>;
   /** Events with a seq greater than `afterSeq`, in order. */
   readonly events: (threadId: string, afterSeq: number) => Effect.Effect<ReadonlyArray<StoredThreadEvent>, DbError>;
   /**

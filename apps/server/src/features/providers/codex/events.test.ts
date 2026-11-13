@@ -60,6 +60,26 @@ describe("Codex events", () => {
     expect(questionPrompt([question("a", "Tea?"), question("b", "Milk?")])).toEqual({ _tag: "question", question: "1. Tea?\n2. Milk?", options: [] });
   });
 
+  it("passes on Codex's plan updates", () => {
+    const mapper = makeTurnMapper("t", CWD, () => undefined);
+    const plan = [
+      { step: "Read", status: "completed" as const },
+      { step: "Write", status: "inProgress" as const },
+      { step: "Check", status: "pending" as const },
+    ];
+    expect(mapper.map("turn/plan/updated", { turnId: "c", explanation: null, plan })).toEqual([
+      {
+        _tag: "plan.updated",
+        turnId: "t",
+        steps: [
+          { text: "Read", status: "completed" },
+          { text: "Write", status: "in_progress" },
+          { text: "Check", status: "pending" },
+        ],
+      },
+    ]);
+  });
+
   it("accepts Codex 0.166.0 and later 0.x releases", () => {
     expect(isSupportedVersion("0.166.0")).toBe(true);
     expect(isSupportedVersion("0.170.2")).toBe(true);

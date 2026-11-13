@@ -75,6 +75,8 @@ export default defineConfig({
       WIKI_AGENTS_DATA_DIR: join(root, "data"),
       WIKI_AGENTS_CONFIG_DIR: join(root, "config"),
       WIKI_AGENTS_STATIC_DIR: join(web, "build"),
+      // This checkout's migrations, not those of an installed copy whose settings the shell may carry.
+      WIKI_AGENTS_MIGRATIONS_DIR: join(server, "drizzle"),
       WIKI_AGENTS_OPENCODE: "wiki-agents-e2e-no-opencode",
       WIKI_AGENTS_CLAUDE: "wiki-agents-e2e-no-claude",
       WIKI_AGENTS_CODEX: "wiki-agents-e2e-no-codex",

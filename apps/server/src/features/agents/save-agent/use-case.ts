@@ -19,7 +19,6 @@ const formProblems = (request: SaveAgentInput, providers: ReadonlyArray<string>)
   const problems: Array<string> = [];
   if (agent.name.trim() === "") problems.push("name: Give the agent a name.");
   if (agent.instructions.trim() === "") problems.push("instructions: Write what the agent should do.");
-  if (!Number.isInteger(agent.concurrency) || agent.concurrency < 1) problems.push("concurrency: A whole number, 1 or more.");
   if (agent.provider !== null && !providers.includes(agent.provider)) problems.push(`provider: There is no provider "${agent.provider}".`);
   if (agent.model !== null && agent.model.trim() === "") problems.push("model: Leave it unset for the provider's default.");
   for (const source of agent.sources) {

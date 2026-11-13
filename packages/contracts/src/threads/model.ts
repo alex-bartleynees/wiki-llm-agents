@@ -163,6 +163,29 @@ export const ScheduleSaved = Schema.TaggedStruct("schedule.saved", {
   href: Schema.String,
 });
 
+/** One step of the agent's plan for the turn. */
+export const PlanStep = Schema.Struct({
+  text: Schema.String,
+  status: Schema.Literals(["pending", "in_progress", "completed", "cancelled"]),
+});
+export type PlanStep = typeof PlanStep.Type;
+
+/** Steps done (completed or cancelled), in all, and the one in progress. */
+export const planProgress = (steps: ReadonlyArray<PlanStep>) => ({
+  done: steps.filter((step) => step.status === "completed" || step.status === "cancelled").length,
+  total: steps.length,
+  current: steps.find((step) => step.status === "in_progress")?.text ?? null,
+});
+
+/**
+ * The agent's plan for the turn, whole, each time it changes: Claude Code's and
+ * OpenCode's todo lists, Codex's plan updates. Providers without one never send it.
+ */
+export const PlanUpdated = Schema.TaggedStruct("plan.updated", {
+  turnId: Schema.String,
+  steps: Schema.Array(PlanStep),
+});
+
 export const TurnOutcome = Schema.Literals(["completed", "interrupted", "failed"]);
 export type TurnOutcome = typeof TurnOutcome.Type;
 
@@ -188,6 +211,7 @@ export const ThreadEvent = Schema.Union([
   TurnChanges,
   ChangeUndone,
   ScheduleSaved,
+  PlanUpdated,
   TurnFinished,
 ]);
 export type ThreadEvent = typeof ThreadEvent.Type;
@@ -210,6 +234,30 @@ export type StoredThreadEvent = typeof StoredThreadEvent.Type;
 export const ThreadStatus = Schema.Literals(["idle", "running", "waiting"]);
 export type ThreadStatus = typeof ThreadStatus.Type;
 
+/** The running turn: when it started, and how far through its plan the agent is. */
+export const RunningTurn = Schema.Struct({
+  startedAt: Schema.Number,
+  /** Steps done (completed or cancelled) and in all; null until the agent reports a plan. */
+  progress: Schema.NullOr(
+    Schema.Struct({
+      done: Schema.Number,
+      total: Schema.Number,
+      /** The step in progress, if any. */
+      current: Schema.NullOr(Schema.String),
+    }),
+  ),
+});
+export type RunningTurn = typeof RunningTurn.Type;
+
+/** How the thread's latest finished turn ended. */
+export const LastTurn = Schema.Struct({
+  outcome: TurnOutcome,
+  /** Why it failed or stopped, when it wasn't you pressing Stop. */
+  reason: Schema.NullOr(Schema.String),
+  endedAt: Schema.Number,
+});
+export type LastTurn = typeof LastTurn.Type;
+
 export const ThreadSummary = Schema.Struct({
   id: Schema.String,
   vaultId: Schema.String,
@@ -223,6 +271,10 @@ export const ThreadSummary = Schema.Struct({
   /** The named agent whose instructions and autonomy the thread uses; null for none. */
   agentId: Schema.NullOr(Schema.String),
   status: ThreadStatus,
+  /** The turn running or waiting for you; null when idle. */
+  runningTurn: Schema.NullOr(RunningTurn),
+  /** The latest finished turn; null before any. */
+  lastTurn: Schema.NullOr(LastTurn),
   /** When you marked the thread done; null while it is open. A new message reopens it. */
   doneAt: Schema.NullOr(Schema.Number),
   /** The last event's seq; 0 for a new thread. */
@@ -231,3 +283,25 @@ export const ThreadSummary = Schema.Struct({
   updatedAt: Schema.Number,
 });
 export type ThreadSummary = typeof ThreadSummary.Type;
+
+/**
+ * Where a thread shows in the running view: `waiting` for you, `working`, or
+ * `stopped` (its last turn failed, or stopped without you pressing Stop: the server
+ * restarted, the provider gave up). Null for threads that need nothing.
+ */
+export type ThreadActivity = "waiting" | "working" | "stopped";
+
+/** How long a stopped thread stays in the running view, unless you carry on or mark it done. */
+export const STOPPED_SHOWN_FOR = 7 * 24 * 60 * 60 * 1000;
+
+export const threadActivity = (thread: ThreadSummary, now: number): ThreadActivity | null => {
+  if (thread.status === "waiting") return "waiting";
+  if (thread.status === "running") return "working";
+  const last = thread.lastTurn;
+  if (thread.doneAt !== null || last === null) return null;
+  const stopped = last.outcome === "failed" || (last.outcome === "interrupted" && last.reason !== null);
+  return stopped && now - last.endedAt < STOPPED_SHOWN_FOR ? "stopped" : null;
+};
+
+/** The running view's page in the web app. */
+export const RUNNING_PATH = "/inbox/running";

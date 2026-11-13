@@ -1,4 +1,4 @@
-import type { TurnUsage } from "@wiki-agents/contracts/threads/model";
+import type { PlanStep, TurnUsage } from "@wiki-agents/contracts/threads/model";
 
 /**
  * A recorded agent turn, in the app's normalised terms, played back by the replay
@@ -39,6 +39,8 @@ export type Step =
       /** `{answer}` in text steps is replaced by your answer. */
       readonly then: ReadonlyArray<Step>;
     }
+  /** The agent's plan, whole, as it stands now. */
+  | { readonly type: "plan"; readonly steps: ReadonlyArray<PlanStep> }
   /** The provider fails the turn. */
   | { readonly type: "fail"; readonly reason: string }
   /** Nothing happens for a while (milliseconds, before the speed factor). */

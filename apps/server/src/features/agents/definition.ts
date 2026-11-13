@@ -12,7 +12,6 @@ export interface AgentDefinition {
   /** Where it may look things up; empty for no limits (see `sources.ts`). */
   readonly sources: ReadonlyArray<KnowledgeSource>;
   readonly autonomy: Autonomy;
-  readonly concurrency: number;
   readonly path: string;
   /** The file's body, as markdown. */
   readonly instructions: string;
@@ -68,6 +67,7 @@ const Frontmatter = Schema.Struct({
       web: Schema.optionalKey(Level),
     }),
   ),
+  /** Accepted so older files still load; the task queue it was for was dropped (slice 14). */
   concurrency: Schema.optionalKey(Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))),
   tags: Schema.optionalKey(Schema.Array(Schema.String)),
 });
@@ -149,7 +149,6 @@ export const parseAgent = (id: string, path: string, text: string): Result.Resul
       typeof source === "string" ? source : { vault: source.vault, folders: (source.folders ?? []).map((folder) => normaliseFolder(folder) ?? folder) },
     ),
     autonomy: { read: level("read"), create: level("create"), edit: level("edit"), commands: level("commands"), web: level("web") },
-    concurrency: front.concurrency ?? 1,
     path,
     instructions: body,
   });

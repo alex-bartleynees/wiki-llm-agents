@@ -1,6 +1,7 @@
 import { isAbsolute, resolve } from "node:path";
 import type { ProposedEdit } from "@wiki-agents/contracts/changes/model";
 import type { RequestPrompt, TurnUsage } from "@wiki-agents/contracts/threads/model";
+import { todoSteps } from "../plan.js";
 import type { ProviderEvent } from "../port.js";
 import type { OpenCodeEvent } from "./api.js";
 
@@ -136,6 +137,8 @@ export interface TurnMapper {
 
 export const makeTurnMapper = (turnId: string, directory: string): TurnMapper => {
   const toolNames = new Map<string, string>();
+  /** `todowrite` calls shown as the plan, whose results aren't shown. */
+  const planCalls = new Set<string>();
   const totals = { input: 0, output: 0, cost: 0 };
 
   const addStep = (step: {
@@ -170,6 +173,11 @@ export const makeTurnMapper = (turnId: string, directory: string): TurnMapper =>
         return [];
       case "session.tool.called": {
         const name = toolNames.get(event.data.id) ?? "tool";
+        const steps = name === "todowrite" ? todoSteps(event.data.input) : undefined;
+        if (steps !== undefined) {
+          planCalls.add(event.data.id);
+          return [{ _tag: "plan.updated", turnId, steps }];
+        }
         const writes = inputWrites(name, event.data.input, directory);
         return [
           {
@@ -183,6 +191,7 @@ export const makeTurnMapper = (turnId: string, directory: string): TurnMapper =>
         ];
       }
       case "session.tool.success": {
+        if (planCalls.has(event.data.id)) return [];
         const metadata = (event.data as { readonly metadata?: unknown }).metadata;
         const writes = metadataFiles(metadata).map(({ file }) => (isAbsolute(file) ? file : resolve(directory, file)));
         return [
@@ -197,6 +206,7 @@ export const makeTurnMapper = (turnId: string, directory: string): TurnMapper =>
         ];
       }
       case "session.tool.failed":
+        if (planCalls.has(event.data.id)) return [];
         return [{ _tag: "tool.finished", turnId, callId: event.data.id, status: "failed", output: event.data.error.message }];
       case "permission.asked":
         return [{ _tag: "request.opened", turnId, requestId: event.data.id, prompt: approvalPrompt(event) }];

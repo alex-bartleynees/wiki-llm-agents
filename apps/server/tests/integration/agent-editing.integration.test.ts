@@ -34,7 +34,6 @@ const SCOUT: AgentInput = {
   model: null,
   sources: ["vault"],
   autonomy: { read: "allow", create: "ask", edit: "ask", commands: "deny", web: "allow" },
-  concurrency: 1,
   instructions: "# Scout\n\nLook around.",
 };
 
@@ -98,7 +97,6 @@ layer(TestApp)("editing agents and rules", (it) => {
         "instructions: Write what the agent should do.",
       ]);
       expect(yield* refused("lost", { ...SCOUT, provider: "nowhere" })).toEqual(['provider: There is no provider "nowhere".']);
-      expect(yield* refused("busy", { ...SCOUT, concurrency: 0 })).toEqual(["concurrency: A whole number, 1 or more."]);
       expect((yield* refused("escape", { ...SCOUT, sources: [{ vault: "Notes", folders: ["../up"] }] }))[0]).toMatch(/^sources\.0\.folders\.0: /);
       expect((yield* refused("Bad Name", SCOUT))[0]).toMatch(/^id: /);
 

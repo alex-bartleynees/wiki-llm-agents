@@ -11,7 +11,7 @@ import { GetThreadResponse } from "@wiki-agents/contracts/threads/get-thread/res
 import { ListThreadsResponse } from "@wiki-agents/contracts/threads/list-threads/response";
 import { MarkDoneResponse } from "@wiki-agents/contracts/threads/mark-done/response";
 import { ReopenThreadResponse } from "@wiki-agents/contracts/threads/reopen-thread/response";
-import type { RequestAnswer, StoredThreadEvent, ThreadEvent, ThreadSummary } from "@wiki-agents/contracts/threads/model";
+import { type RequestAnswer, type StoredThreadEvent, type ThreadEvent, type ThreadSummary, threadActivity } from "@wiki-agents/contracts/threads/model";
 import { SendMessageResponse } from "@wiki-agents/contracts/threads/send-message/response";
 import { RegisterVaultResponse } from "@wiki-agents/contracts/vaults/register-vault/response";
 import { sql } from "drizzle-orm";
@@ -419,6 +419,9 @@ describe("threads across a restart", () => {
       const after = yield* run(file, finishedAfterRestart(thread, Effect.void));
       expect(after.events.at(-1)?.event).toMatchObject({ _tag: "turn.finished", outcome: "interrupted", reason: SERVER_STOPPED });
       expect(after.thread.status).toBe("idle");
+      // Lost to the restart, so the running view shows it as stopped.
+      expect(after.thread.lastTurn).toMatchObject({ outcome: "interrupted", reason: SERVER_STOPPED });
+      expect(threadActivity(after.thread, after.thread.lastTurn!.endedAt)).toBe("stopped");
     }),
   );
 

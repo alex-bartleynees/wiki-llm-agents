@@ -6,6 +6,7 @@ import { CreateThreadRequest } from "@wiki-agents/contracts/threads/create-threa
 import { CreateThreadResponse } from "@wiki-agents/contracts/threads/create-thread/response";
 import { GetThreadResponse } from "@wiki-agents/contracts/threads/get-thread/response";
 import { InterruptTurnResponse } from "@wiki-agents/contracts/threads/interrupt-turn/response";
+import { ListActiveThreadsResponse } from "@wiki-agents/contracts/threads/list-active-threads/response";
 import { ListModelsResponse } from "@wiki-agents/contracts/threads/list-models/response";
 import { ListThreadsResponse } from "@wiki-agents/contracts/threads/list-threads/response";
 import { MarkDoneResponse } from "@wiki-agents/contracts/threads/mark-done/response";
@@ -21,6 +22,12 @@ import { getJson, postJson, putJson } from "#lib/api/client.ts";
 const vaultThreadsPath = (vaultId: string) => `/api/vaults/${encodeURIComponent(vaultId)}/threads`;
 const threadPath = (threadId: string) => `/api/threads/${encodeURIComponent(threadId)}`;
 const NoBody = Schema.Struct({});
+
+/** Threads working, waiting for you, or stopped, in every vault. */
+export const listActiveThreads = (signal?: AbortSignal) => getJson("/api/active-threads", ListActiveThreadsResponse, signal);
+
+/** Every thread's changes, in every vault (`ThreadsStreamMessage`). */
+export const ALL_THREADS_EVENTS_PATH = "/events/threads";
 
 export const listProviders = (signal?: AbortSignal) => getJson("/api/providers", ListProvidersResponse, signal);
 

@@ -5,6 +5,7 @@ import type { RequestPrompt, TurnUsage } from "@wiki-agents/contracts/threads/mo
 import { createPatch } from "diff";
 import { Effect, FileSystem } from "effect";
 import { ENTRY_PREFIX } from "../../mcp/vault-tools.js";
+import { todoSteps } from "../plan.js";
 import type { ProviderEvent } from "../port.js";
 import { writeTarget } from "./permissions.js";
 
@@ -196,6 +197,8 @@ export interface TurnMapper {
 export const makeTurnMapper = (turnId: string, cwd: string, cost: (result: SDKResultMessage) => number | null): TurnMapper => {
   let messageId: string | undefined;
   const streamed = new Set<string>();
+  /** `TodoWrite` calls shown as the plan, whose results aren't shown. */
+  const planCalls = new Set<string>();
 
   const map = (message: SDKMessage): ReadonlyArray<ProviderEvent> => {
     switch (message.type) {
@@ -214,6 +217,11 @@ export const makeTurnMapper = (turnId: string, cwd: string, cost: (result: SDKRe
             return [{ _tag: "message.delta", turnId, messageId: `${message.message.id}:${index}`, text: block.text }];
           }
           if (block.type !== "tool_use" && block.type !== "mcp_tool_use" && block.type !== "server_tool_use") return [];
+          const steps = block.type === "tool_use" && block.name === "TodoWrite" && !subagent ? todoSteps(block.input) : undefined;
+          if (steps !== undefined) {
+            planCalls.add(block.id);
+            return [{ _tag: "plan.updated", turnId, steps }];
+          }
           const target = block.type === "tool_use" ? writeTarget(block.name, block.input, cwd) : undefined;
           return [
             {
@@ -231,7 +239,7 @@ export const makeTurnMapper = (turnId: string, cwd: string, cost: (result: SDKRe
         const content = message.message.content;
         if (typeof content === "string") return [];
         return content.flatMap((block): Array<ProviderEvent> =>
-          block.type === "tool_result"
+          block.type === "tool_result" && !planCalls.has(block.tool_use_id)
             ? [
                 {
                   _tag: "tool.finished",

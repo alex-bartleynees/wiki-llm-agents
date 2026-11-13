@@ -23,6 +23,6 @@ export const ThreadUpdated = Schema.Struct({
 });
 export type ThreadUpdated = typeof ThreadUpdated.Type;
 
-/** Events on GET /events/vaults/:vaultId/threads. No replay: reload the list after a reconnect. */
+/** Events on GET /events/vaults/:vaultId/threads and GET /events/threads. No replay: reload the list after a reconnect. */
 export const ThreadsStreamMessage = Schema.Union([ThreadStreamReady, ThreadUpdated]);
 export type ThreadsStreamMessage = typeof ThreadsStreamMessage.Type;

@@ -75,6 +75,48 @@ export const TRANSCRIPTS: ReadonlyArray<Transcript> = [
     usage: { inputTokens: 30_877, outputTokens: 1_204, costUsd: 0.0903 },
   },
   {
+    name: "plan",
+    keywords: ["plan", "steps"],
+    steps: [
+      {
+        type: "plan",
+        steps: [
+          { text: "Read the project notes", status: "in_progress" },
+          { text: "Draft a summary", status: "pending" },
+          { text: "File the summary", status: "pending" },
+        ],
+      },
+      { type: "tool", name: "read", input: "1-Active/Wiki-LLM-Agents-App/README.md", output: "96 lines" },
+      {
+        type: "plan",
+        steps: [
+          { text: "Read the project notes", status: "completed" },
+          { text: "Draft a summary", status: "in_progress" },
+          { text: "File the summary", status: "pending" },
+        ],
+      },
+      { type: "text", text: "The project puts the vault and its agents in one app. " },
+      {
+        type: "question",
+        id: "where",
+        question: "Where should I file the summary?",
+        options: ["_Inbox", "3-Resources"],
+        then: [
+          {
+            type: "plan",
+            steps: [
+              { text: "Read the project notes", status: "completed" },
+              { text: "Draft a summary", status: "completed" },
+              { text: "File the summary", status: "completed" },
+            ],
+          },
+          { type: "text", text: "Filed it in {answer}." },
+        ],
+      },
+    ],
+    usage: { inputTokens: 10_240, outputTokens: 142, costUsd: 0.0187 },
+  },
+  {
     name: "simple",
     keywords: [],
     steps: [
@@ -86,7 +128,7 @@ export const TRANSCRIPTS: ReadonlyArray<Transcript> = [
           "The **Wiki-LLM-Agents-App** puts the vault and coding agents in one place. " +
           "Notes are the main view, and every agent reaches the vault through the app's own MCP server.\n\n" +
           "- M1 (read the vault) is done\n- M2 adds agents, starting with this chat\n\n" +
-          "This answer is a replay: try a message containing *edit*, *question*, *long*, or *fail* for the other recordings.",
+          "This answer is a replay: try a message containing *edit*, *question*, *plan*, *long*, or *fail* for the other recordings.",
       },
     ],
     usage: { inputTokens: 12_455, outputTokens: 187, costUsd: 0.0263 },

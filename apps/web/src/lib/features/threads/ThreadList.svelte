@@ -5,7 +5,7 @@
   import { projects } from "#lib/features/projects/projects.svelte.ts";
   import { vaults } from "#lib/features/vaults/vaults.svelte.ts";
   import { providers } from "./providers.svelte.ts";
-  import { STATUS_LABEL } from "./status.ts";
+  import { progressLabel, STATUS_LABEL } from "./status.ts";
   import { threads } from "./threads.svelte.ts";
 
   /**
@@ -123,6 +123,9 @@
         {/if}
         {#if thread.status !== "idle"}
           <span class="status" data-status={thread.status}>{STATUS_LABEL[thread.status]}</span> ·
+          {#if thread.runningTurn?.progress}
+            <span class="progress">{progressLabel(thread.runningTurn.progress)}</span> ·
+          {/if}
         {/if}
         {timeAgo(thread.doneAt ?? thread.updatedAt)}
       </span>

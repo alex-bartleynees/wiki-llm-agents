@@ -1,5 +1,14 @@
-import { RequestAnswer, RequestPrompt, ThreadEvent, type ThreadSummary } from "@wiki-agents/contracts/threads/model";
-import { and, asc, desc, eq, gt, isNull, sql } from "drizzle-orm";
+import {
+  LastTurn,
+  PlanStep,
+  planProgress,
+  RequestAnswer,
+  RequestPrompt,
+  type RunningTurn,
+  ThreadEvent,
+  type ThreadSummary,
+} from "@wiki-agents/contracts/threads/model";
+import { and, asc, desc, eq, gt, gte, isNull, or, sql } from "drizzle-orm";
 import { Effect, Layer, Option, Schema } from "effect";
 import { DbError } from "../../shared/persistence/errors.js";
 import { Sqlite } from "../../shared/persistence/sqlite.js";
@@ -34,12 +43,37 @@ const summaryColumns = {
     WHEN EXISTS (SELECT 1 FROM turns t WHERE t.thread_id = threads.id AND t.status = 'running') THEN 'running'
     ELSE 'idle' END`,
   lastSeq: sql<number>`COALESCE((SELECT MAX(e.seq) FROM thread_events e WHERE e.thread_id = threads.id), 0)`,
+  running: sql<string | null>`(SELECT json_object('startedAt', t.started_at, 'plan', t.plan) FROM turns t
+    WHERE t.thread_id = threads.id AND t.status = 'running' ORDER BY t.started_at DESC LIMIT 1)`,
+  last: sql<string | null>`(SELECT json_object('outcome', t.status, 'reason', t.reason, 'endedAt', t.ended_at) FROM turns t
+    WHERE t.thread_id = threads.id AND t.status <> 'running' ORDER BY t.ended_at DESC, t.rowid DESC LIMIT 1)`,
 };
 
-const toSummary = (
-  row: { readonly createdAt: Date; readonly updatedAt: Date; readonly doneAt: Date | null } & Omit<ThreadSummary, "createdAt" | "updatedAt" | "doneAt">,
-): ThreadSummary => ({
+const RunningJson = Schema.fromJsonString(Schema.Struct({ startedAt: Schema.Number, plan: Schema.NullOr(Schema.String) }));
+const decodeRunning = Schema.decodeUnknownSync(RunningJson);
+const decodeLast = Schema.decodeUnknownSync(Schema.fromJsonString(LastTurn));
+const PlanJson = Schema.fromJsonString(Schema.Array(PlanStep));
+const encodePlan = Schema.encodeSync(PlanJson);
+const decodePlan = Schema.decodeUnknownSync(PlanJson);
+
+const runningTurn = (json: string | null): RunningTurn | null => {
+  if (json === null) return null;
+  const { startedAt, plan } = decodeRunning(json);
+  const steps = plan === null ? [] : decodePlan(plan);
+  return { startedAt, progress: steps.length === 0 ? null : planProgress(steps) };
+};
+
+const toSummary = ({
+  running,
+  last,
+  ...row
+}: { readonly createdAt: Date; readonly updatedAt: Date; readonly doneAt: Date | null; readonly running: string | null; readonly last: string | null } & Omit<
+  ThreadSummary,
+  "createdAt" | "updatedAt" | "doneAt" | "runningTurn" | "lastTurn"
+>): ThreadSummary => ({
   ...row,
+  runningTurn: runningTurn(running),
+  lastTurn: last === null ? null : decodeLast(last),
   doneAt: row.doneAt?.getTime() ?? null,
   createdAt: row.createdAt.getTime(),
   updatedAt: row.updatedAt.getTime(),
@@ -121,6 +155,25 @@ export const ThreadRepositoryLive = Layer.effect(
             .map(toSummary),
         ),
 
+      listActive: (since) =>
+        query(() =>
+          db
+            .select(summaryColumns)
+            .from(threads)
+            .where(
+              and(
+                isNull(threads.deletedAt),
+                or(
+                  gte(threads.updatedAt, new Date(since)),
+                  sql`EXISTS (SELECT 1 FROM turns t WHERE t.thread_id = ${threads.id} AND t.status = 'running')`,
+                ),
+              ),
+            )
+            .orderBy(desc(threads.updatedAt), desc(threads.createdAt))
+            .all()
+            .map(toSummary),
+        ),
+
       events: (threadId, afterSeq) =>
         query(() =>
           db
@@ -174,10 +227,14 @@ export const ThreadRepositoryLive = Layer.effect(
                     .where(and(eq(runtimeRequests.id, event.requestId), eq(runtimeRequests.status, "pending")))
                     .run();
                   break;
+                case "plan.updated":
+                  tx.update(turns).set({ plan: encodePlan(event.steps) }).where(eq(turns.id, event.turnId)).run();
+                  break;
                 case "turn.finished":
                   tx.update(turns)
                     .set({
                       status: event.outcome,
+                      reason: event.reason,
                       endedAt: when,
                       inputTokens: event.usage?.inputTokens ?? null,
                       outputTokens: event.usage?.outputTokens ?? null,

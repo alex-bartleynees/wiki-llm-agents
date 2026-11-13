@@ -49,6 +49,8 @@ const summary = (id: string, projectId: string | null, vaultId = "v1"): ThreadSu
   model: null,
   agentId: null,
   status: "idle",
+  runningTurn: null,
+  lastTurn: null,
   doneAt: null,
   lastSeq: 0,
   createdAt: 1,

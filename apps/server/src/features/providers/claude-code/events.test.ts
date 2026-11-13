@@ -49,4 +49,20 @@ describe("Claude Code events", () => {
       { _tag: "turn.finished", turnId: "turn", outcome: "failed", usage: { inputTokens: 8, outputTokens: 2, costUsd: 0.01 }, reason: "API Error: overloaded" },
     ]);
   });
+
+  it("shows TodoWrite as the turn's plan, not as a tool, and leaves out its result", () => {
+    const mapper = makeTurnMapper("turn", "/vault", () => null);
+    const todos = [
+      { content: "Read the notes", status: "completed", activeForm: "Reading the notes" },
+      { content: "Draft", status: "in_progress", activeForm: "Drafting" },
+    ];
+    const call = { type: "assistant", parent_tool_use_id: null, message: { id: "m1", content: [{ type: "tool_use", id: "toolu_1", name: "TodoWrite", input: { todos } }] } } as unknown as SDKMessage;
+    expect(mapper.map(call)).toEqual([
+      { _tag: "plan.updated", turnId: "turn", steps: [{ text: "Read the notes", status: "completed" }, { text: "Draft", status: "in_progress" }] },
+    ]);
+    const result = { type: "user", parent_tool_use_id: null, message: { content: [{ type: "tool_result", tool_use_id: "toolu_1", content: "Todos updated" }] } } as unknown as SDKMessage;
+    expect(mapper.map(result)).toEqual([]);
+    const subagent = { type: "assistant", parent_tool_use_id: "toolu_9", message: { id: "m2", content: [{ type: "tool_use", id: "toolu_2", name: "TodoWrite", input: { todos } }] } } as unknown as SDKMessage;
+    expect(mapper.map(subagent)).toMatchObject([{ _tag: "tool.called", name: "TodoWrite" }]);
+  });
 });

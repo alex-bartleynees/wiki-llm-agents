@@ -107,8 +107,8 @@ interface RunningTurn {
   hold: Scope.Closeable | undefined;
 }
 
-/** Events that can change a thread's status or title, so the thread list hears about them. */
-const LIST_EVENTS = new Set<ThreadEvent["_tag"]>(["user.message", "request.opened", "request.resolved", "turn.finished"]);
+/** Events that can change a thread's status, title or progress, so the thread list hears about them. */
+const LIST_EVENTS = new Set<ThreadEvent["_tag"]>(["user.message", "request.opened", "request.resolved", "plan.updated", "turn.finished"]);
 
 export const SERVER_STOPPED = "The server stopped during this turn.";
 /** Why a turn fails in a thread whose provider the app no longer runs (replay outside tests, say). */

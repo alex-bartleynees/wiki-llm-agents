@@ -56,6 +56,10 @@ export const turns = sqliteTable(
     inputTokens: integer("input_tokens"),
     outputTokens: integer("output_tokens"),
     costUsd: real("cost_usd"),
+    /** Why it failed or stopped, from `turn.finished`; null when it completed or you pressed Stop. */
+    reason: text("reason"),
+    /** The latest `plan.updated` steps as JSON (`PlanStep[]`); null when the agent reported no plan. */
+    plan: text("plan"),
   },
   (table) => [index("turns_thread_idx").on(table.threadId, table.status)],
 );

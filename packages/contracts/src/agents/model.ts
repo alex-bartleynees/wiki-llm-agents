@@ -78,8 +78,6 @@ export const AgentSummary = Schema.Struct({
   /** Where it may look things up; empty for no limits. */
   sources: Schema.Array(KnowledgeSource),
   autonomy: Autonomy,
-  /** How many background tasks it runs at once (slice 14). */
-  concurrency: Schema.Number,
   /** Absolute path of the agent's file. */
   path: Schema.String,
   enforcement: Schema.Array(AutonomyEnforcement),
@@ -111,7 +109,6 @@ export const AgentInput = Schema.Struct({
   model: Schema.NullOr(Schema.String),
   sources: Schema.Array(KnowledgeSource),
   autonomy: Autonomy,
-  concurrency: Schema.Number,
   /** The file's body, as markdown. */
   instructions: Schema.String,
 });

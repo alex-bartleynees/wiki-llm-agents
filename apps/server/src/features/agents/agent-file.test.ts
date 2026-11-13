@@ -12,7 +12,6 @@ const INPUT: AgentInput = {
   model: null,
   sources: [],
   autonomy: { read: "allow", create: "ask", edit: "ask", commands: "deny", web: "deny" },
-  concurrency: 1,
   instructions: "# Scout\n\nLook around.",
 };
 
@@ -34,7 +33,6 @@ autonomy:
   edit: ask
   commands: deny
   web: deny
-concurrency: 1
 ---
 
 # Scout
@@ -53,10 +51,12 @@ Look around.
   });
 
   it("edits an existing file in place, keeping its comments, key order and settings the editor doesn't show", () => {
-    const existing = DEFAULT_AGENTS["researcher"]!.replace("concurrency: 1", "concurrency: 1\ntags: [agent]");
+    const existing = DEFAULT_AGENTS["researcher"]!.replace("  web: allow\n", "  web: allow\nconcurrency: 1\ntags: [agent]\n");
     const text = agentFileText({ ...parse(existing.replace("name: Researcher", "name: Researcher")), ...INPUT, name: "Researcher", provider: "opencode", model: "opencode/big-pickle" }, existing);
     expect(text).toContain("# provider: opencode        # the provider new threads");
     expect(text).toContain("tags: [ agent ]");
+    // An old file's concurrency stays as it was (the loader still accepts it).
+    expect(text).toContain("concurrency: 1\n");
     expect(text.indexOf("name:")).toBeLessThan(text.indexOf("description:"));
     // New settings go in their usual place, here after the description.
     expect(text).toContain("description: Looks around.\nprovider: opencode\nmodel: opencode/big-pickle\n");

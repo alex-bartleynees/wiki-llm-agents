@@ -6,6 +6,7 @@
   import AgentText from "./AgentText.svelte";
   import Composer from "./Composer.svelte";
   import ModelPicker from "./ModelPicker.svelte";
+  import PlanCard from "./PlanCard.svelte";
   import { providers } from "./providers.svelte.ts";
   import RequestCard from "./RequestCard.svelte";
   import ScheduleReceipt from "./ScheduleReceipt.svelte";
@@ -90,7 +91,7 @@
     <div class="muted intro">
       {#if provider?.kind === "replay"}
         <p>Ask about the vault. This thread uses the replay provider, which plays recorded turns.</p>
-        <p>Include <em>edit</em> for an approval, <em>question</em> for a question, <em>long</em> for a slow answer, or <em>fail</em> for an error.</p>
+        <p>Include <em>edit</em> for an approval, <em>question</em> for a question, <em>plan</em> for a plan with steps, <em>long</em> for a slow answer, or <em>fail</em> for an error.</p>
       {:else}
         {#if agent}
           <p>Ask the {agent.name} agent ({provider?.name ?? "its provider"}) about the vault. {agent.description}</p>
@@ -120,6 +121,8 @@
       </details>
     {:else if item.kind === "request"}
       <RequestCard request={item} />
+    {:else if item.kind === "plan"}
+      <PlanCard steps={item.steps} live={timeline.runningTurn === item.turnId} />
     {:else if item.kind === "schedule"}
       <ScheduleReceipt receipt={item.receipt} />
     {:else if item.kind === "changes"}

@@ -13,7 +13,7 @@ All commands run through the Nix dev shell; there is no global Node.
 
 | Command | What it does |
 |---|---|
-| `nix run .#dev` | Server (watch mode, port 4317) and Vite (port 5173) together; open http://127.0.0.1:5173 |
+| `nix run .#dev` | Server (watch mode, port 4317) and Vite (port 5173) together; open http://127.0.0.1:5173. The server always uses `127.0.0.1:4317`, `.data/` (or `WIKI_AGENTS_DEV_DATA_DIR`) and this checkout's migrations, even when the shell exports an installed service's `WIKI_AGENTS_*` settings |
 | `nix develop -c npm test` | All tests, including the UI flows |
 | `nix develop -c npm run test:e2e -w @wiki-agents/web` | UI flows only (Playwright, desktop and phone widths) |
 | `nix develop -c npm run check` | Type checks (tsc, svelte-check) |
@@ -213,7 +213,8 @@ provider and the agent (below) for new threads next to **New thread**:
   recording by keyword (`providers/replay/transcripts.ts`): *edit* proposes an edit
   to `Replay note.md` in the thread's folder and, once you apply it, really appends a
   line (creating the note if needed), so change review and undo can be tried for free;
-  *question* (or *ask*) asks a question, *long* streams slowly (for trying Stop and
+  *question* (or *ask*) asks a question, *plan* reports a plan step by step and then
+  asks where to file the result, *long* streams slowly (for trying Stop and
   reloads), *fail* fails, and anything else gives a plain answer.
 - A thread whose provider the app no longer runs (a replay thread from before replay
   became test-only, say) can still be read and marked done; a new message fails its
@@ -226,6 +227,24 @@ provider and the agent (below) for new threads next to **New thread**:
   **done** group at the bottom of the list (`POST /api/threads/:id/done`; 409 while a
   turn runs or waits for you). **Reopen** moves it back (`POST /api/threads/:id/reopen`),
   and so does sending it a message.
+- **Plans**: when the agent keeps a plan (Claude Code's `TodoWrite`, OpenCode's
+  `todowrite`, Codex's plan updates) the turn shows it as a checklist instead of a
+  tool call, updated in place (`plan.updated` events; the latest is kept in
+  `turns.plan`). The thread list shows the running turn's progress (`2/5`); without a
+  plan there is only the working indicator. Claude Code's newer task tools
+  (`TaskCreate`/`TaskUpdate`) still show as tool calls.
+- **Running** (`/inbox/running`, a tab next to the inbox)
+  lists every thread in every vault and project that is waiting for you, working (with
+  its plan progress and current step), or stopped: its last turn failed, or ended
+  without you pressing Stop (a restart, the provider giving up), with the reason.
+  Stopped threads stay until you send them a message or **Mark done**, for at most a
+  week. `GET /api/active-threads` lists them; `GET /events/threads` streams every
+  thread's changes (the per-vault list uses `GET /events/vaults/:id/threads`). The page
+  opens that stream only while it is shown, and the tab has no count: a vault page
+  already holds up to five event streams, and browsers allow six connections per host
+  over HTTP/1.1.
+  There is no task queue: a background task is a thread, and threads for the same
+  agent run side by side.
 - Each thread has a **ThreadActor** (`features/threads/thread-actor.ts`): one mailbox
   and one fiber, so sends, interrupts, answers, and provider events never race. It
   writes to SQLite before it publishes, and rebuilds its state from SQLite.
@@ -377,9 +396,10 @@ that machine's fresh defaults would win over your edits. A Syncthing conflict co
 
 - An agent file's body is its instructions; its frontmatter holds `name`,
   `description`, `provider` and `model` (defaults for new threads), `sources`,
-  `concurrency`, and `autonomy` per action (`read`, `create`, `edit`, `commands`,
+  and `autonomy` per action (`read`, `create`, `edit`, `commands`,
   `web`: `allow`, `ask`, or `deny`; `always` and `never` work too). Anything left out
   reads freely and asks for the rest. Unknown keys are errors, so typos can't pass.
+  `concurrency`, from before the task queue was dropped, is still accepted and ignored.
 - A file that doesn't load is listed on the Agents screen with the reason; the other
   agents still work. A thread whose agent is missing or broken fails its next turn
   saying so, rather than running without it.
@@ -402,7 +422,7 @@ that machine's fresh defaults would win over your edits. A Syncthing conflict co
   `/agents/edit`; the rules files are listed under the agents, with **New rules file**
   (`/agents/rules`). The agent form has name, description, provider and model (from
   the provider's list, `GET /api/providers/:id/models`), autonomy per action, knowledge
-  sources, tasks at once and the instructions; **What each provider enforces** shows
+  sources and the instructions; **What each provider enforces** shows
   the saved version as each provider applies it. Saves are explicit (**Save**), and
   leaving with unsaved changes asks first.
   - **Only what the loader accepts**: the server builds the file and parses it exactly

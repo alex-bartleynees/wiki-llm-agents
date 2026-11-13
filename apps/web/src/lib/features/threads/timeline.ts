@@ -1,5 +1,5 @@
 import type { FileChange } from "@wiki-agents/contracts/changes/model";
-import type { RequestAnswer, RequestPrompt, StoredThreadEvent, ThreadEvent, TurnOutcome, TurnUsage } from "@wiki-agents/contracts/threads/model";
+import type { PlanStep, RequestAnswer, RequestPrompt, StoredThreadEvent, ThreadEvent, TurnOutcome, TurnUsage } from "@wiki-agents/contracts/threads/model";
 
 /** What the conversation shows, built from the thread's events in order. */
 export type TimelineItem =
@@ -25,6 +25,8 @@ export type TimelineItem =
       /** `pending` until answered; null when cancelled because the turn ended. */
       answer: RequestAnswer | null | "pending";
     }
+  /** The agent's plan for a turn, as it last reported it; one per turn, updated in place. */
+  | { readonly kind: "plan"; readonly key: string; readonly turnId: string; steps: ReadonlyArray<PlanStep> }
   | {
       /** What the turn changed in the vault's notes; `undone` follows `change.undone`. */
       readonly kind: "changes";
@@ -100,6 +102,12 @@ export const applyEvent = (timeline: Timeline, stored: StoredThreadEvent): boole
     case "request.resolved": {
       const request = find(timeline, "request", event.requestId);
       if (request) request.answer = event.answer;
+      break;
+    }
+    case "plan.updated": {
+      const plan = find(timeline, "plan", `${event.turnId}:plan`);
+      if (plan) plan.steps = event.steps;
+      else timeline.items.push({ kind: "plan", key: `${event.turnId}:plan`, turnId: event.turnId, steps: event.steps });
       break;
     }
     case "schedule.saved":

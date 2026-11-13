@@ -8,7 +8,6 @@ export const BLANK_AGENT: AgentInput = {
   model: null,
   sources: [],
   autonomy: DEFAULT_AUTONOMY,
-  concurrency: 1,
   instructions: "",
 };
 
@@ -31,7 +30,6 @@ export const inputFromAgent = (agent: AgentSummary, instructions: string): Agent
   model: agent.model,
   sources: agent.sources,
   autonomy: agent.autonomy,
-  concurrency: agent.concurrency,
   instructions,
 });
 

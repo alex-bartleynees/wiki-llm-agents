@@ -83,7 +83,6 @@
     model: "Model",
     sources: "Knowledge sources",
     autonomy: "Autonomy",
-    concurrency: "Tasks at once",
     instructions: "Instructions",
   };
   const shownValue = (input: AgentInput, field: keyof AgentInput): string => {
@@ -277,12 +276,6 @@
         <SourcesPicker bind:sources={editor.form.sources} vaults={vaults.list} />
         {#each problems("sources") as problem (problem)}<span class="field-error">{problem}</span>{/each}
 
-        <label class="narrow">
-          Tasks at once
-          <input type="number" min="1" step="1" inputmode="numeric" bind:value={editor.form.concurrency} />
-          {#each problems("concurrency") as problem (problem)}<span class="field-error">{problem}</span>{/each}
-        </label>
-
         <label>
           Instructions
           <textarea class="mono" bind:value={editor.form.instructions} rows="16" spellcheck="true" placeholder="# Role&#10;&#10;What it does, how, and what it never does."></textarea>
@@ -350,9 +343,6 @@
   }
   .row > label {
     flex: 1 1 220px;
-  }
-  .narrow input {
-    max-width: 8em;
   }
   .file {
     display: flex;

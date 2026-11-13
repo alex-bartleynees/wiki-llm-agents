@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "WIKI_AGENTS_DATA_DIR=${WIKI_AGENTS_DATA_DIR:-../../.data} node --conditions=source --watch --import tsx src/index.ts",
+    "dev": "WIKI_AGENTS_HOST=127.0.0.1 WIKI_AGENTS_PORT=4317 WIKI_AGENTS_DATA_DIR=${WIKI_AGENTS_DEV_DATA_DIR:-../../.data} WIKI_AGENTS_MIGRATIONS_DIR=drizzle node --conditions=source --watch --import tsx src/index.ts",
     "start": "node dist/index.js",
     "check": "tsc --noEmit -p tsconfig.test.json",
     "test": "vitest run",

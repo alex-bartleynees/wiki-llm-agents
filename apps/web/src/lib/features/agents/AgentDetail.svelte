@@ -48,8 +48,6 @@
     <dd class:mono={agent.model !== null}>{agent.model ?? "The provider's default"}</dd>
     <dt>Sources</dt>
     <dd>{describeSources(agent.sources)}</dd>
-    <dt>Tasks at once</dt>
-    <dd>{agent.concurrency}</dd>
     <dt>File</dt>
     <dd class="mono path">{agent.path}</dd>
   </dl>

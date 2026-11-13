@@ -145,6 +145,8 @@ const makeSession = (cwd: string) => Effect.gen(function* () {
           emitAfter(DELAY.tool, { _tag: "tool.called", turnId, callId: id, name: step.name, input: step.input }),
           emitAfter(DELAY.tool, { _tag: "tool.finished", turnId, callId: id, status: step.status ?? "succeeded", output: step.output }),
         );
+      case "plan":
+        return emitAfter(DELAY.tool, { _tag: "plan.updated", turnId, steps: step.steps });
       case "pause":
         return Stream.unwrap(Effect.as(delay(step.ms), Stream.empty));
       case "write":

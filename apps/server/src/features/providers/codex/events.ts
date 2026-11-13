@@ -3,6 +3,7 @@ import type { ProposedEdit } from "@wiki-agents/contracts/changes/model";
 import type { RequestPrompt, TurnUsage } from "@wiki-agents/contracts/threads/model";
 import { createPatch } from "diff";
 import { Effect, type FileSystem } from "effect";
+import { planStep } from "../plan.js";
 import type { ProviderEvent } from "../port.js";
 import { changedPaths, creates } from "./permissions.js";
 import type {
@@ -252,6 +253,10 @@ export const makeTurnMapper = (turnId: string, cwd: string, deniedOutput: (itemI
         usage.outputTokens += last.outputTokens;
         usage.calls += 1;
         return [];
+      }
+      case "turn/plan/updated": {
+        const steps = (raw as Notifications["turn/plan/updated"]).plan.flatMap((item) => planStep(item.step, item.status) ?? []);
+        return [{ _tag: "plan.updated", turnId, steps }];
       }
       case "turn/completed": {
         const turn = (raw as Notifications["turn/completed"]).turn;

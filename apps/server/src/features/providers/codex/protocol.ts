@@ -111,6 +111,11 @@ export interface Notifications {
   readonly "item/agentMessage/delta": { readonly itemId: string; readonly delta: string; readonly turnId: string };
   readonly "thread/tokenUsage/updated": { readonly turnId: string; readonly tokenUsage: { readonly last: TokenUsageBreakdown } };
   readonly "turn/completed": { readonly turn: { readonly id: string; readonly status: TurnStatus; readonly error: TurnError | null } };
+  readonly "turn/plan/updated": {
+    readonly turnId: string;
+    readonly explanation: string | null;
+    readonly plan: ReadonlyArray<{ readonly step: string; readonly status: "pending" | "inProgress" | "completed" }>;
+  };
   readonly "mcpServer/startupStatus/updated": { readonly name: string; readonly status: string; readonly error: string | null };
 }
 

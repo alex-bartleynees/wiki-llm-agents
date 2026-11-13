@@ -71,7 +71,6 @@ autonomy:
   edit: ask
   commands: deny
   web: allow
-concurrency: 1
 `,
     `
 # Researcher
@@ -126,7 +125,6 @@ autonomy:
   edit: ask
   commands: deny
   web: deny
-concurrency: 1
 `,
     `
 # Librarian
@@ -185,7 +183,6 @@ autonomy:
   edit: ask
   commands: ask
   web: allow
-concurrency: 1
 `,
     `
 # Builder
@@ -219,7 +216,6 @@ autonomy:
   edit: deny
   commands: deny
   web: ask
-concurrency: 1
 `,
     `
 # Reviewer

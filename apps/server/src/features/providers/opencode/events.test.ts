@@ -142,4 +142,14 @@ describe("makeTurnMapper", () => {
       { _tag: "tool.called", turnId: "turn-1", callId: "call_1", name: "read", input: "a.md" },
     ]);
   });
+
+  it("shows todowrite as the turn's plan, not as a tool, and leaves out its result", () => {
+    const mapper = makeTurnMapper("turn-1", "/vault");
+    mapper.map(event("session.tool.input.started", { sessionID: "ses_1", id: "call_1", name: "todowrite" }));
+    const todos = [{ id: "1", content: "Read", status: "in_progress", priority: "high" }];
+    expect(mapper.map(event("session.tool.called", { sessionID: "ses_1", id: "call_1", input: { todos } }))).toEqual([
+      { _tag: "plan.updated", turnId: "turn-1", steps: [{ text: "Read", status: "in_progress" }] },
+    ]);
+    expect(mapper.map(event("session.tool.success", { sessionID: "ses_1", id: "call_1", content: [{ type: "text", text: "1 todo" }] }))).toEqual([]);
+  });
 });
