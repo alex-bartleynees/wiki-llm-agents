@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { DiffFile } from "@wiki-agents/contracts/projects/model";
   import type { NumberedDiffLine } from "#lib/features/changes/diff-lines.ts";
+  import { diffSyntaxColours } from "#lib/features/changes/diff-syntax.svelte.ts";
   import { location, type ReviewComment } from "./review-message.ts";
   import { review } from "./review.svelte.ts";
 
@@ -124,11 +125,47 @@
     return parts;
   };
 
+  let diffElement = $state<HTMLElement>();
+  diffSyntaxColours(() => ({
+    path: file.path,
+    diff: file.diff,
+    lines,
+    root: diffElement,
+    open,
+    offset: 0,
+    // Search marks split the lines' text into new nodes.
+    repaint: query,
+    prefetch: true,
+  }));
+
+  /**
+   * The file's height until it is first rendered: the browser skips laying out files
+   * off screen (`content-visibility: auto`) and reserves this much room for them, then
+   * remembers the real height. One 18px row per line, plus the header.
+   */
+  const estimatedHeight = $derived(open && !file.binary ? lines.length * 18 + 36 : 36);
+
+  /**
+   * Skipping starts once the file has been drawn. With `content-visibility: auto` from
+   * the start, the browser lays every file out twice on first load (measured: one task
+   * of ~265 ms instead of ~115 ms on a 22-file review); switched on after the first
+   * frames, it costs nothing and later restyles (theme, search) are 3–5× cheaper.
+   */
+  let skippable = $state(false);
+  $effect(() => {
+    if (typeof requestIdleCallback !== "function") {
+      const timer = setTimeout(() => (skippable = true), 1000);
+      return () => clearTimeout(timer);
+    }
+    const id = requestIdleCallback(() => (skippable = true), { timeout: 3000 });
+    return () => cancelIdleCallback(id);
+  });
+
   const lineLabel = (line: NumberedDiffLine) =>
     line.kind === "ins" ? `added line ${line.newLine}` : line.kind === "del" ? `removed line ${line.oldLine}` : `line ${line.newLine}`;
 </script>
 
-<section class="file" aria-label={file.path}>
+<section class="file" class:skippable aria-label={file.path} style:contain-intrinsic-block-size="auto {estimatedHeight}px">
   <details bind:open>
     <summary>
       <span class="status mono" data-status={file.status} title={file.status}>{LETTER[file.status]}</span>
@@ -156,7 +193,7 @@
     {:else if file.diff === "" && !file.truncated}
       <p class="note">No line changes (an empty file, or only its mode changed).</p>
     {:else}
-      <div class="diff mono" role="group" aria-label="Diff of {file.path}">
+      <div class="diff mono" role="group" aria-label="Diff of {file.path}" bind:this={diffElement}>
         {#each lines as line, index (index)}
           {#if line.kind === "hunk"}
             <div class="hunk">{line.line}</div>
@@ -173,7 +210,7 @@
             >
               <span class="num">{line.oldLine ?? ""}</span>
               <span class="num">{line.newLine ?? ""}</span>
-              <span class="code"><span class="sign">{line.line[0]}</span>{#each segments(line.line.slice(1)) as part, partIndex (partIndex)}{#if part.match}<mark>{part.text}</mark>{:else}{part.text}{/if}{/each}</span>
+              <span class="code"><span class="sign">{line.line[0]}</span><span data-line={index}>{#each segments(line.line.slice(1)) as part, partIndex (partIndex)}{#if part.match}<mark>{part.text}</mark>{:else}{part.text}{/if}{/each}</span></span>
             </button>
           {/if}
           {#each commentsAt.get(index) ?? [] as comment (comment.id)}
@@ -232,6 +269,10 @@
 </section>
 
 <style>
+  /* Files off screen aren't laid out or painted: a long review restyles like a short one. */
+  .file.skippable {
+    content-visibility: auto;
+  }
   .file {
     border: 1px solid var(--line);
     border-radius: var(--radius);

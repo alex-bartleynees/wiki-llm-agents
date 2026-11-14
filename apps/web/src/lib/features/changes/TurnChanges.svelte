@@ -80,7 +80,7 @@
         {/each}
         <details>
           <summary class="mono">Diff</summary>
-          <DiffView diff={change.diff} label={`Diff of ${change.path}`} />
+          <DiffView diff={change.diff} label={`Diff of ${change.path}`} path={change.path} />
           {#if change.truncated}
             <p class="muted">The diff was cut to fit. <button type="button" class="link" onclick={() => showVersions(change, "asked")}>Show whole versions</button></p>
           {/if}

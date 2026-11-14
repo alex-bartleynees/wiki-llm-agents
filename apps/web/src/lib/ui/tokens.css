@@ -31,6 +31,15 @@
   --warn: #b54708;
   --del: #a3262b;
   --ins: #2d7a4b;
+  /* Syntax colours in diffs; readable on the added and removed tints too. */
+  --syn-keyword: #8b3b9c;
+  --syn-string: #0b627f;
+  --syn-comment: #6b7079;
+  --syn-literal: #9a4f05;
+  --syn-function: #2c56a8;
+  --syn-type: #0f6e6a;
+  --syn-property: #4f5a75;
+  --syn-meta: #6b7079;
 
   --radius: 4px;
   --header-height: 52px;
@@ -57,7 +66,52 @@
   --warn: #f0883e;
   --del: #f08c8c;
   --ins: #72c391;
+  --syn-keyword: #d6a0e3;
+  --syn-string: #82c8e6;
+  --syn-comment: #8c919a;
+  --syn-literal: #e9ae6c;
+  --syn-function: #93b5f5;
+  --syn-type: #6fd3cb;
+  --syn-property: #b3bdd4;
+  --syn-meta: #8c919a;
   color-scheme: dark;
+}
+
+/*
+ * Syntax colours, drawn with the CSS Custom Highlight API over a diff's text
+ * (`features/changes/diff-syntax.svelte.ts`); highlights can only set colours and
+ * decorations, not weight or style.
+ */
+::highlight(syntax-keyword) {
+  color: var(--syn-keyword);
+}
+::highlight(syntax-string) {
+  color: var(--syn-string);
+}
+::highlight(syntax-comment) {
+  color: var(--syn-comment);
+}
+::highlight(syntax-literal) {
+  color: var(--syn-literal);
+}
+::highlight(syntax-function) {
+  color: var(--syn-function);
+}
+::highlight(syntax-type) {
+  color: var(--syn-type);
+}
+::highlight(syntax-property) {
+  color: var(--syn-property);
+}
+::highlight(syntax-meta) {
+  color: var(--syn-meta);
+}
+::highlight(syntax-heading) {
+  color: var(--accent-ink);
+}
+::highlight(syntax-link) {
+  color: var(--accent-ink);
+  text-decoration: underline;
 }
 
 *,

@@ -33,3 +33,18 @@ export const tab = async (page: Page, info: TestInfo, name: "Wiki" | "Chat" | "A
 export const useReplay = async (page: Page) => {
   await page.getByLabel("Provider for new threads").selectOption({ label: "Replay (recorded, free)" });
 };
+
+/** The text each syntax colour covers on the page (`syntax-keyword` → ["const", ...]), from the CSS Custom Highlight API. */
+export const syntaxColours = (page: Page) =>
+  page.evaluate(() => {
+    const colours: Record<string, Array<string>> = {};
+    for (const [name, highlight] of CSS.highlights) {
+      colours[name] = Array.from(highlight as unknown as Set<AbstractRange>, (range) => {
+        const live = document.createRange();
+        live.setStart(range.startContainer, range.startOffset);
+        live.setEnd(range.endContainer, range.endOffset);
+        return live.toString();
+      });
+    }
+    return colours;
+  });

@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@playwright/test";
-import { isPhone, projectFolder, useReplay } from "./app.ts";
+import { isPhone, projectFolder, syntaxColours, useReplay } from "./app.ts";
 
 /** git with a fixed identity and none of the user's config. */
 const git = (cwd: string, ...args: Array<string>) =>
@@ -50,9 +50,18 @@ test("reviews a project's diff from git, comments on a line, and sends the revie
   const diff = page.getByRole("group", { name: "Diff of src/app.ts" });
   await expect(diff).toBeVisible();
 
+  // Coloured by syntax, both sides of the change.
+  await expect(diff).toHaveAttribute("data-syntax", "on");
+  let colours = await syntaxColours(page);
+  expect(colours["syntax-keyword"]).toEqual(expect.arrayContaining(["const"]));
+  expect(colours["syntax-literal"]).toEqual(expect.arrayContaining(["1", "2", "3"]));
+
   // Search finds the line.
   await page.getByRole("searchbox", { name: "Search the diff" }).fill("b = 3");
   await expect(page.getByText("1 of 1")).toBeVisible();
+  // The colours follow the text the search marks split.
+  colours = await syntaxColours(page);
+  expect(colours["syntax-literal"]).toEqual(expect.arrayContaining(["2", "3"]));
 
   await diff.getByRole("button", { name: "added line 2: const b = 3;" }).click();
   await page.getByRole("textbox", { name: "Comment" }).fill("Why 3? Keep it at 2.");

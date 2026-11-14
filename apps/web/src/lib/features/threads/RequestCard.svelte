@@ -38,7 +38,7 @@
           {#each edit.warnings as warning (warning)}
             <p class="warning" role="note">⚠ {warning}</p>
           {/each}
-          <DiffView diff={edit.patch} label={`Proposed change to ${edit.path}`} />
+          <DiffView diff={edit.patch} label={`Proposed change to ${edit.path}`} path={edit.path} />
         </div>
       {/each}
     {:else if request.prompt.detail}

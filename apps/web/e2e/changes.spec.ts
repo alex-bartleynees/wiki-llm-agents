@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { openVault, tab, useReplay } from "./app.ts";
+import { openVault, syntaxColours, tab, useReplay } from "./app.ts";
 
 test("applies an agent's proposed edit, reviews the change, and undoes it", async ({ page }, info) => {
   await openVault(page);
@@ -14,6 +14,9 @@ test("applies an agent's proposed edit, reviews the change, and undoes it", asyn
   const approval = page.getByRole("region", { name: "Approval" });
   await expect(approval).toContainText("Proposed edit");
   await expect(approval.getByLabel("Proposed change to Replay note.md")).toContainText("+- A line added by the replay agent.");
+  // Markdown colours: the list mark.
+  await expect(approval.getByLabel("Proposed change to Replay note.md")).toHaveAttribute("data-syntax", "on");
+  expect((await syntaxColours(page))["syntax-meta"]).toEqual(expect.arrayContaining(["-"]));
   await approval.getByRole("button", { name: "Apply" }).click();
   await expect(page.locator(".turn-end").last()).toHaveText(/^Done/);
 
