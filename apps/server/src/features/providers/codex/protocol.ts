@@ -41,6 +41,12 @@ export interface ThreadResponse {
   readonly model: string;
 }
 
+/** An item of `turn/start`'s `input` (the forms the adapter sends; Codex 0.167 also takes image URLs, audio, skills and mentions). */
+export type UserInput =
+  | { readonly type: "text"; readonly text: string; readonly text_elements: ReadonlyArray<never> }
+  /** An image Codex reads from disk. */
+  | { readonly type: "localImage"; readonly path: string };
+
 export interface TurnStartResponse {
   readonly turn: { readonly id: string };
 }

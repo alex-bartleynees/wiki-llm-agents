@@ -224,8 +224,10 @@ const makeApi = (client: OpenCodeClient, version: string, hub: PubSub.PubSub<Ope
         Effect.catchTag("SessionNotFoundError", () => Effect.succeed(false)),
       ),
     ),
-  prompt: (sessionId, text) =>
-    call("sending the message", client.session.prompt({ sessionID: sessionId as never, text })).pipe(Effect.map((item) => item.id as string)),
+  prompt: (sessionId, text, files = []) =>
+    call("sending the message", client.session.prompt({ sessionID: sessionId as never, text, ...(files.length === 0 ? {} : { files }) })).pipe(
+      Effect.map((item) => item.id as string),
+    ),
   cancelPrompt: (sessionId, inboxId) =>
     call("withdrawing the message", client.session.inbox.cancel({ sessionID: sessionId as never, inboxID: inboxId as never })),
   interrupt: (sessionId) =>

@@ -5,6 +5,7 @@
  */
 import type { Autonomy } from "@wiki-agents/contracts/agents/model";
 import type { JsonRpcId, JsonRpcMessage } from "../../../src/features/providers/codex/protocol.js";
+import type { FixtureImage } from "../image.js";
 
 export { VAULT_FILES } from "../opencode/fixture.js";
 
@@ -26,6 +27,8 @@ export type FixtureStep =
 
 export interface FixtureTurn {
   readonly prompt: string;
+  /** Images sent with the prompt (`tests/fixtures/image.ts`). */
+  readonly images?: ReadonlyArray<FixtureImage>;
   readonly steps: ReadonlyArray<FixtureStep>;
 }
 

@@ -3,29 +3,20 @@ import { expect, layer } from "@effect/vitest";
 import type { Attachment } from "@wiki-agents/contracts/attachments/model";
 import { UploadAttachmentResponse } from "@wiki-agents/contracts/attachments/upload-attachment/response";
 import { Effect } from "effect";
-import { HttpClient, HttpClientRequest } from "effect/http";
+import { HttpClient } from "effect/http";
 import { AttachmentStore } from "../../src/features/attachments/attachment-store.js";
 import { makeTestApp } from "./infrastructure/test-app.js";
 import { makeScriptedProvider } from "./infrastructure/scripted-provider.js";
-import { decode, getThread, isTag, newThread, newVault, post, watch } from "./infrastructure/threads.js";
+import { decode, getThread, isTag, newThread, newVault, post, sendWith, upload, watch } from "./infrastructure/threads.js";
 
 const PNG = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4]);
 const CSV = new TextEncoder().encode("TimeGenerated,Message\n2026-11-14T09:00:00Z,started\n");
 
-const upload = (name: string, bytes: Uint8Array) =>
-  HttpClient.execute(
-    HttpClientRequest.post(`/api/attachments?name=${encodeURIComponent(name)}`).pipe(
-      HttpClientRequest.bodyUint8Array(bytes, "application/octet-stream"),
-    ),
-  );
 const uploadOk = (name: string, bytes: Uint8Array) =>
   upload(name, bytes).pipe(
     Effect.tap((response) => Effect.sync(() => expect(response.status).toBe(201))),
     Effect.flatMap(decode(UploadAttachmentResponse)),
   );
-const sendWith = (threadId: string, text: string, attachments: ReadonlyArray<string>) =>
-  post(`/api/threads/${threadId}/messages`, { text, attachments });
-
 /** Sends a message with attachments to a new scripted thread and waits for its turn to end. */
 const runTurn = (text: string, attachments: ReadonlyArray<Attachment>) =>
   Effect.gen(function* () {

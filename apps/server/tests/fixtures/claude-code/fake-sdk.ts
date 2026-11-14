@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import type { HookInput, McpServerConfig, ModelInfo, Options, PermissionResult, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { ClaudeCodeSdk, ClaudeQuery } from "../../../src/features/providers/claude-code/sdk.js";
+import { sha256 } from "../image.js";
 import { type Fixture, HOME, SESSION, VAULT } from "./fixture.js";
 
 export const loadFixture = (scenario: string): Fixture =>
@@ -24,12 +25,30 @@ export interface PlayOptions {
 /** What the adapter asked of Claude Code, in order. */
 export type FakeCall =
   | { readonly call: "query"; readonly options: Options }
-  | { readonly call: "send"; readonly text: string }
+  | { readonly call: "send"; readonly text: string; readonly images: ReadonlyArray<SentImage> }
   | { readonly call: "interrupt" | "close" }
   | { readonly call: "setModel"; readonly model: string | undefined }
   | { readonly call: "setMcpServers"; readonly servers: Record<string, McpServerConfig> }
   | { readonly call: "hook"; readonly toolName: string; readonly decision: string }
   | { readonly call: "permission"; readonly toolName: string; readonly result: PermissionResult };
+
+/** An image block the adapter sent, by type and the hash of its bytes. */
+export interface SentImage {
+  readonly mime: string;
+  readonly sha256: string;
+}
+
+type Block = { readonly type: "text"; readonly text: string } | { readonly type: "image"; readonly source: { readonly media_type: string; readonly data: string } };
+
+/** A sent message's text and images: content is a string, or image blocks then a text block. */
+const contentOf = (content: string | ReadonlyArray<Block>) => {
+  if (typeof content === "string") return { text: content, images: [] };
+  const text = content.flatMap((block) => (block.type === "text" ? [block.text] : [])).join("");
+  const images = content.flatMap((block) =>
+    block.type === "image" ? [{ mime: block.source.media_type, sha256: sha256(Buffer.from(block.source.data, "base64")) }] : [],
+  );
+  return { text, images };
+};
 
 const decisionOf = (output: unknown) => {
   const specific = (output as { readonly hookSpecificOutput?: { readonly permissionDecision?: string } }).hookSpecificOutput;
@@ -73,14 +92,16 @@ export const makeFakeSdk = () => {
     async function* play(): AsyncGenerator<SDKMessage> {
       for await (const sent of prompt) {
         if (closed) return;
-        const content = (sent as { readonly message: { readonly content: string } }).message.content;
-        calls.push({ call: "send", text: content });
+        const { text: content, images } = contentOf((sent as { readonly message: { readonly content: string | ReadonlyArray<Block> } }).message.content);
+        calls.push({ call: "send", text: content, images });
         if (fixture === undefined) throw new Error("no fixture loaded");
         const recorded = fixture.turns[turn];
         if (recorded === undefined) throw new Error(`the fixture has no turn ${turn + 1}`);
         const expected = recorded.prompt + (options.promptSuffixes?.[turn] ?? "");
         turn += 1;
         if (content !== expected) throw new Error(`sent ${JSON.stringify(content)}, recorded ${JSON.stringify(expected)}`);
+        const [sentImages, recordedImages] = [JSON.stringify(images), JSON.stringify((recorded.images ?? []).map(({ mime, sha256 }) => ({ mime, sha256 })))];
+        if (sentImages !== recordedImages) throw new Error(`sent images ${sentImages}, recorded ${recordedImages}`);
         stopped = false;
         let played = 0;
         for (const step of recorded.steps) {

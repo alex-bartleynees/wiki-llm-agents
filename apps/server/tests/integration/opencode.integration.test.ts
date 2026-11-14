@@ -32,6 +32,7 @@ import { ThreadBus } from "../../src/features/threads/thread-bus.js";
 import { makeSqlite, Sqlite } from "../../src/shared/persistence/sqlite.js";
 import { type FakeOpenCode, loadFixture, makeFakeOpenCode, type PlayOptions } from "../fixtures/opencode/fake-api.js";
 import { VAULT_FILES } from "../fixtures/opencode/fixture.js";
+import { RED_SQUARE, sha256 } from "../fixtures/image.js";
 import { mcpSession } from "./infrastructure/mcp.js";
 import { makeTestApp, TestAgents, TestAttachments } from "./infrastructure/test-app.js";
 import {
@@ -44,7 +45,9 @@ import {
   newVaultWith,
   requestIdOf,
   sendOk,
+  sendWithOk,
   setAgent,
+  uploadOk,
   post,
   status,
   tags,
@@ -125,10 +128,30 @@ layer(App)("OpenCode provider", (it) => {
     Effect.gen(function* () {
       const { providers } = yield* HttpClient.get("/api/providers").pipe(Effect.flatMap(decode(ListProvidersResponse)));
       expect(providers.map((provider) => provider.id)).toEqual(["opencode", "replay"]);
-      expect(providers[0]?.capabilities).toEqual({ interrupt: true, resume: false, approvals: true, questions: true, models: true, images: false });
+      expect(providers[0]?.capabilities).toEqual({ interrupt: true, resume: false, approvals: true, questions: true, models: true, images: true });
       const { status: ready } = yield* HttpClient.get("/api/providers/opencode/status").pipe(Effect.flatMap(decode(GetProviderStatusResponse)));
       expect(ready).toEqual({ _tag: "ready", version: "2.2.1", account: null });
       expect((yield* HttpClient.get("/api/providers/nope/status")).status).toBe(404);
+    }),
+  );
+
+  it.effect("sends an attached image as a file:// file OpenCode reads, and the model sees it", () =>
+    Effect.gen(function* () {
+      const { thread, fake, prompts } = yield* setUp("image");
+      const image = yield* uploadOk(RED_SQUARE.name, RED_SQUARE.bytes);
+      const events = yield* watch(thread.id);
+      yield* sendWithOk(thread.id, prompts[0]!, [image.id]);
+      const seen = yield* events.until(isTag("turn.finished"));
+
+      expect(finishedOf(seen)).toMatchObject({ outcome: "completed", reason: null });
+      expect(textOf(seen)).toMatch(/red/i);
+      expect(fake.calls.filter((call) => call.call === "prompt")).toEqual([
+        {
+          call: "prompt",
+          text: prompts[0],
+          files: [{ uri: expect.stringMatching(new RegExp(`^file:///.*/${sha256(RED_SQUARE.bytes)}/red-square\\.png$`)), name: "red-square.png" }],
+        },
+      ]);
     }),
   );
 

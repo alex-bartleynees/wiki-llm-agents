@@ -1,3 +1,4 @@
+import { UploadAttachmentResponse } from "@wiki-agents/contracts/attachments/upload-attachment/response";
 import { GetThreadResponse } from "@wiki-agents/contracts/threads/get-thread/response";
 import { CreateThreadResponse } from "@wiki-agents/contracts/threads/create-thread/response";
 import type { RequestAnswer, StoredThreadEvent, ThreadEvent } from "@wiki-agents/contracts/threads/model";
@@ -40,6 +41,21 @@ export const sendOk = (threadId: string, text: string) =>
     Effect.flatMap(decode(SendMessageResponse)),
     Effect.map((response) => response.turnId),
   );
+/** Uploads a file as an attachment, as the composer does before sending. */
+export const upload = (name: string, bytes: Uint8Array) =>
+  HttpClient.execute(
+    HttpClientRequest.post(`/api/attachments?name=${encodeURIComponent(name)}`).pipe(HttpClientRequest.bodyUint8Array(bytes, "application/octet-stream")),
+  );
+export const uploadOk = (name: string, bytes: Uint8Array) => upload(name, bytes).pipe(Effect.flatMap(decode(UploadAttachmentResponse)));
+
+export const sendWith = (threadId: string, text: string, attachmentIds: ReadonlyArray<string>) =>
+  post(`/api/threads/${threadId}/messages`, { text, attachments: attachmentIds });
+export const sendWithOk = (threadId: string, text: string, attachmentIds: ReadonlyArray<string>) =>
+  sendWith(threadId, text, attachmentIds).pipe(
+    Effect.flatMap(decode(SendMessageResponse)),
+    Effect.map((response) => response.turnId),
+  );
+
 export const interrupt = (threadId: string) => post(`/api/threads/${threadId}/interrupt`, {});
 export const markDone = (threadId: string) => post(`/api/threads/${threadId}/done`, {});
 export const reopen = (threadId: string) => post(`/api/threads/${threadId}/reopen`, {});

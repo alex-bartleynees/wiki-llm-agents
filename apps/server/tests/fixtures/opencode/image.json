@@ -1,0 +1,524 @@
+{
+  "scenario": "image",
+  "opencodeVersion": "2.2.6",
+  "model": "opencode/nemotron-3.5-super-vl-free",
+  "sessionId": "ses_e26c29327ffeHZ9Lh77HMwCG1Y",
+  "turns": [
+    {
+      "prompt": "What colour is the attached image? Reply with just the colour, in one word.",
+      "images": [
+        {
+          "name": "red-square.png",
+          "mime": "image/png",
+          "sha256": "62def9cfdd2b6b7befd18be6f93594252c6d7ef3a5ce6e10ef7d649aecb17360"
+        }
+      ],
+      "steps": [
+        {
+          "event": {
+            "id": "evt_1d93d6cdb001Bhai7paEUAd1kq",
+            "created": 1794646043867,
+            "type": "session.created",
+            "durable": {
+              "aggregateID": "ses_e26c29327ffeHZ9Lh77HMwCG1Y",
+              "seq": 0,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26c29327ffeHZ9Lh77HMwCG1Y",
+              "projectID": "b145f96a41382ef67a92f53acfc7af0b0a696a41",
+              "location": {
+                "directory": "/__vault__"
+              },
+              "subpath": "",
+              "slug": "glowing-moon",
+              "model": {
+                "id": "nemotron-3.5-super-vl-free",
+                "providerID": "opencode"
+              },
+              "permissions": [
+                {
+                  "action": "*",
+                  "resource": "*",
+                  "effect": "ask"
+                },
+                {
+                  "action": "question",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "todowrite",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "todo",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "skill",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "read",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "glob",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "grep",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "list",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "lsp",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "wiki-agents-*",
+                  "resource": "*",
+                  "effect": "deny"
+                }
+              ],
+              "version": "2.2.6"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d93d6e510016OQD4rR1zOva8N",
+            "created": 1794646044241,
+            "type": "session.inbox.enqueued",
+            "durable": {
+              "aggregateID": "ses_e26c29327ffeHZ9Lh77HMwCG1Y",
+              "seq": 1,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26c29327ffeHZ9Lh77HMwCG1Y",
+              "inboxID": "msg_1d93d6d07001qh105eMGRWRzB1",
+              "item": {
+                "type": "user",
+                "payload": {
+                  "text": "What colour is the attached image? Reply with just the colour, in one word.",
+                  "files": [
+                    {
+                      "data": "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAeUlEQVR4nO3PQQkAMAzAwEqof3WTMhF7HINABFzm7H7dcEEDWtCAFjSgBQ1oQQNa0IAWNKAFDWhBA1rQgBY0oAUNaEEDWtCAFjSgBQ1oQQNa0IAWNKAFDWhBA1rQgBY0oAUNaEEDWtCAFjSgBQ1oQQNa0IAWNKAFj13QTQDxOzzMEAAAAABJRU5ErkJggg==",
+                      "mime": "image/png",
+                      "source": {
+                        "type": "uri",
+                        "uri": "file:///__attachments__/red-square.png"
+                      },
+                      "name": "red-square.png"
+                    }
+                  ]
+                },
+                "delivery": "steer"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d93d6e5300114qCyvpB8re5za",
+            "created": 1794646044243,
+            "type": "session.execution.started",
+            "durable": {
+              "aggregateID": "ses_e26c29327ffeHZ9Lh77HMwCG1Y",
+              "seq": 2,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e26c29327ffeHZ9Lh77HMwCG1Y"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d93d6e630019Y38XCChuajiN1",
+            "created": 1794646044259,
+            "metadata": {
+              "instructions": {
+                "initial": true
+              }
+            },
+            "type": "session.instructions.updated",
+            "durable": {
+              "aggregateID": "ses_e26c29327ffeHZ9Lh77HMwCG1Y",
+              "seq": 3,
+              "version": 2
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26c29327ffeHZ9Lh77HMwCG1Y",
+              "delta": {
+                "core/codemode": "3cca2f6160e1959e237c6b88bbc49667e6b6b2041a5456468278ce5e04d8176c",
+                "core/skill-guidance": "7a5bbb2148ce6b88c4b8c09705f0f95b16b7e57695a158ae8c2ab39019889d1e",
+                "core/date": "7e11767d20af6d0a757fa2ef151926d9b692ac492d8199662599d0d5e2e86810",
+                "core/environment": "7e06e9cacf9ec8c8d9ae49ec41828bbfe3797feeed1e5cb4c8d086af83b54a6d"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d93d6e64001QQi9enB4z2X1v0",
+            "created": 1794646044260,
+            "type": "session.inbox.delivered",
+            "durable": {
+              "aggregateID": "ses_e26c29327ffeHZ9Lh77HMwCG1Y",
+              "seq": 4,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26c29327ffeHZ9Lh77HMwCG1Y",
+              "inboxID": "msg_1d93d6d07001qh105eMGRWRzB1"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d93d7165001HCxmvPQjiJr9YN",
+            "created": 1794646045029,
+            "type": "session.usage.updated",
+            "data": {
+              "sessionID": "ses_e26c29327ffeHZ9Lh77HMwCG1Y",
+              "cost": 0,
+              "tokens": {
+                "input": 476,
+                "output": 4,
+                "reasoning": 0,
+                "cache": {
+                  "read": 0,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d93d7166001iqNY7gZPIs12dk",
+            "created": 1794646045030,
+            "type": "session.renamed",
+            "durable": {
+              "aggregateID": "ses_e26c29327ffeHZ9Lh77HMwCG1Y",
+              "seq": 6,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26c29327ffeHZ9Lh77HMwCG1Y",
+              "title": "Image color identification"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d93d73c50015CglsWecH4tS3U",
+            "created": 1794646045637,
+            "type": "session.step.started",
+            "durable": {
+              "aggregateID": "ses_e26c29327ffeHZ9Lh77HMwCG1Y",
+              "seq": 7,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26c29327ffeHZ9Lh77HMwCG1Y",
+              "assistantMessageID": "msg_1d93d6e6d001BiJ9j0PSR8v0N6",
+              "agent": "build",
+              "model": {
+                "id": "nemotron-3.5-super-vl-free",
+                "providerID": "opencode",
+                "variant": "default"
+              },
+              "started": 1794646044273
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d93d73c8001PiNBoosai7PW64",
+            "created": 1794646045640,
+            "type": "session.reasoning.started",
+            "durable": {
+              "aggregateID": "ses_e26c29327ffeHZ9Lh77HMwCG1Y",
+              "seq": 8,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26c29327ffeHZ9Lh77HMwCG1Y",
+              "assistantMessageID": "msg_1d93d6e6d001BiJ9j0PSR8v0N6",
+              "ordinal": 0,
+              "native": {
+                "reasoningField": "reasoning_content"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d93d742e00186PVfQyHZG4Duq",
+            "created": 1794646045742,
+            "type": "session.reasoning.delta",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26c29327ffeHZ9Lh77HMwCG1Y",
+              "assistantMessageID": "msg_1d93d6e6d001BiJ9j0PSR8v0N6",
+              "ordinal": 0,
+              "delta": "The user is asking about the color of an attached image. The image file path is given: /__attachments__/red-square.png. The image"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d93d74c4001GGAIEqDGeo3Xyk",
+            "created": 1794646045892,
+            "type": "session.reasoning.delta",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26c29327ffeHZ9Lh77HMwCG1Y",
+              "assistantMessageID": "msg_1d93d6e6d001BiJ9j0PSR8v0N6",
+              "ordinal": 0,
+              "delta": " preview shows a red"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d93d7536001Rf5B3rHCQetO7U",
+            "created": 1794646046006,
+            "type": "session.reasoning.delta",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26c29327ffeHZ9Lh77HMwCG1Y",
+              "assistantMessageID": "msg_1d93d6e6d001BiJ9j0PSR8v0N6",
+              "ordinal": 0,
+              "delta": " square. The filename also says \"red-square.png\". The answer should be just the colour, in one"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d93d759b001T0dAe6zzlIjQ3X",
+            "created": 1794646046107,
+            "type": "session.reasoning.delta",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26c29327ffeHZ9Lh77HMwCG1Y",
+              "assistantMessageID": "msg_1d93d6e6d001BiJ9j0PSR8v0N6",
+              "ordinal": 0,
+              "delta": " word.\n\nThe colour is Red."
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d93d759b002KfL1oLtCCbJHEV",
+            "created": 1794646046107,
+            "type": "session.text.started",
+            "durable": {
+              "aggregateID": "ses_e26c29327ffeHZ9Lh77HMwCG1Y",
+              "seq": 9,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26c29327ffeHZ9Lh77HMwCG1Y",
+              "assistantMessageID": "msg_1d93d6e6d001BiJ9j0PSR8v0N6",
+              "ordinal": 0
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d93d759e001P78gIXAprzF4A9",
+            "created": 1794646046110,
+            "type": "session.reasoning.ended",
+            "durable": {
+              "aggregateID": "ses_e26c29327ffeHZ9Lh77HMwCG1Y",
+              "seq": 10,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26c29327ffeHZ9Lh77HMwCG1Y",
+              "assistantMessageID": "msg_1d93d6e6d001BiJ9j0PSR8v0N6",
+              "ordinal": 0,
+              "text": "The user is asking about the color of an attached image. The image file path is given: /__attachments__/red-square.png. The image preview shows a red square. The filename also says \"red-square.png\". The answer should be just the colour, in one word.\n\nThe colour is Red.",
+              "native": {
+                "reasoningField": "reasoning_content"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d93d759f001swRiTx1LKWgsIe",
+            "created": 1794646046111,
+            "type": "session.text.delta",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26c29327ffeHZ9Lh77HMwCG1Y",
+              "assistantMessageID": "msg_1d93d6e6d001BiJ9j0PSR8v0N6",
+              "ordinal": 0,
+              "delta": "Red"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d93d759f002uafZr40560fFPK",
+            "created": 1794646046111,
+            "type": "session.text.ended",
+            "durable": {
+              "aggregateID": "ses_e26c29327ffeHZ9Lh77HMwCG1Y",
+              "seq": 11,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26c29327ffeHZ9Lh77HMwCG1Y",
+              "assistantMessageID": "msg_1d93d6e6d001BiJ9j0PSR8v0N6",
+              "ordinal": 0,
+              "text": "Red"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d93d75a1001rKvyCIjSSYKDWm",
+            "created": 1794646046113,
+            "type": "session.step.streamed",
+            "durable": {
+              "aggregateID": "ses_e26c29327ffeHZ9Lh77HMwCG1Y",
+              "seq": 12,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26c29327ffeHZ9Lh77HMwCG1Y",
+              "assistantMessageID": "msg_1d93d6e6d001BiJ9j0PSR8v0N6"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d93d75a30010vcAqBcWV5BIt0",
+            "created": 1794646046115,
+            "type": "session.step.ended",
+            "durable": {
+              "aggregateID": "ses_e26c29327ffeHZ9Lh77HMwCG1Y",
+              "seq": 13,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26c29327ffeHZ9Lh77HMwCG1Y",
+              "assistantMessageID": "msg_1d93d6e6d001BiJ9j0PSR8v0N6",
+              "finish": "stop",
+              "rawFinish": "stop",
+              "cost": 0,
+              "tokens": {
+                "input": 11610,
+                "output": 3,
+                "reasoning": 80,
+                "cache": {
+                  "read": 0,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d93d75a40013bhtCEisyQ1Jbl",
+            "created": 1794646046116,
+            "type": "session.usage.updated",
+            "data": {
+              "sessionID": "ses_e26c29327ffeHZ9Lh77HMwCG1Y",
+              "cost": 0,
+              "tokens": {
+                "input": 12086,
+                "output": 7,
+                "reasoning": 80,
+                "cache": {
+                  "read": 0,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d93d75a5001eXeNg9sSWW8K5w",
+            "created": 1794646046117,
+            "type": "session.execution.succeeded",
+            "durable": {
+              "aggregateID": "ses_e26c29327ffeHZ9Lh77HMwCG1Y",
+              "seq": 14,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e26c29327ffeHZ9Lh77HMwCG1Y"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

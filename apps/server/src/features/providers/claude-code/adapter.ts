@@ -12,6 +12,7 @@ import {
   type ProviderEvent,
   type ProviderSession,
   type SessionSetup,
+  type TurnImage,
   type TurnInput,
   vaultToolsUnavailable,
 } from "../port.js";
@@ -19,7 +20,7 @@ import { type AuthStatus, isSupportedVersion, notInstalled, resolveBinary, SUPPO
 import { answeredInput, approvalPrompt, askedQuestions, makeTurnMapper, questionPrompt } from "./events.js";
 import { appendedPrompt } from "./instructions.js";
 import { decide, enforcedAutonomy } from "./permissions.js";
-import { type ClaudeCodeSdk, type ClaudeQuery, type Input, makeInput, userMessage } from "./sdk.js";
+import { type ClaudeCodeSdk, type ClaudeQuery, type Input, makeInput, type MessageImage, userMessage } from "./sdk.js";
 
 export interface ClaudeCodeAdapterOptions {
   readonly sdk: ClaudeCodeSdk;
@@ -87,6 +88,16 @@ interface RunningTurn {
 const tryPromise = <A>(run: () => Promise<A>, message: string) =>
   Effect.tryPromise({ try: run, catch: (cause) => new ProviderError({ message: `${message}: ${cause instanceof Error ? cause.message : String(cause)}`, cause }) });
 
+const IMAGE_TYPES: ReadonlySet<string> = new Set<MessageImage["mime"]>(["image/png", "image/jpeg", "image/gif", "image/webp"]);
+
+/** An image read into a base64 block; Claude Code takes images in the message, not by path. */
+const messageImage = (fs: FileSystem.FileSystem, image: TurnImage) =>
+  Effect.gen(function* () {
+    if (!IMAGE_TYPES.has(image.mime)) return yield* new ProviderError({ message: `Claude Code doesn't take ${image.mime} images (${image.name}).` });
+    const bytes = yield* fs.readFile(image.path).pipe(Effect.mapError((cause) => new ProviderError({ message: `Couldn't read the image ${image.name}.`, cause })));
+    return { mime: image.mime as MessageImage["mime"], data: Buffer.from(bytes).toString("base64") };
+  });
+
 /**
  * Claude Code through the Claude Agent SDK, running your installed `claude` with
  * your login, settings, skills and MCP servers. Each thread is a Claude Code session
@@ -148,7 +159,7 @@ export const makeClaudeCodeAdapter = (options: ClaudeCodeAdapterOptions) =>
 
     const adapter: ProviderAdapter = {
       kind: "claude-code",
-      capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: true, images: false },
+      capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: true, images: true },
       enforcement: enforcedAutonomy,
       status,
       listModels,
@@ -295,10 +306,11 @@ export const makeClaudeCodeAdapter = (options: ClaudeCodeAdapterOptions) =>
               return [vaultToolsUnavailable(reason)];
             });
 
-          const startTurn = ({ turnId, text, setup }: TurnInput) =>
+          const startTurn = ({ turnId, text, images, setup }: TurnInput) =>
             Stream.callback<ProviderEvent, ProviderError>((out) =>
               Effect.gen(function* () {
                 latest = setup;
+                const blocks = yield* Effect.forEach(images, (image) => messageImage(fs, image));
                 const current = yield* start(setup);
                 const notices = yield* applyTools(current, setup);
                 yield* Queue.offerAll(out, notices.map((notice): ProviderEvent => ({ _tag: "notice", turnId, text: notice })));
@@ -307,7 +319,7 @@ export const makeClaudeCodeAdapter = (options: ClaudeCodeAdapterOptions) =>
                 // Together, so a Stop either finds the turn or comes before its message was sent.
                 yield* Effect.sync(() => {
                   turn = running;
-                  current.input.push(userMessage(notices.length === 0 ? text : `${text}\n\nApp notices for this turn:\n${notices.join("\n")}`));
+                  current.input.push(userMessage(notices.length === 0 ? text : `${text}\n\nApp notices for this turn:\n${notices.join("\n")}`, blocks));
                 });
                 const mapper = makeTurnMapper(turnId, cwd, (result: SDKResultMessage) => {
                   const spent = Math.max(0, result.total_cost_usd - current.cost);

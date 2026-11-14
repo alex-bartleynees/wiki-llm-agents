@@ -17,9 +17,10 @@ import { ReplayAdapter } from "../../src/features/providers/replay/adapter.js";
 import { ThreadBus } from "../../src/features/threads/thread-bus.js";
 import { type FakeSdk, loadFixture, makeFakeSdk, type PlayOptions } from "../fixtures/claude-code/fake-sdk.js";
 import { VAULT_FILES } from "../fixtures/claude-code/fixture.js";
+import { RED_SQUARE, sha256 } from "../fixtures/image.js";
 import { mcpSession } from "./infrastructure/mcp.js";
 import { makeTestApp } from "./infrastructure/test-app.js";
-import { answer, decode, getThread, interrupt, isTag, newThread, newVaultWith, sendOk, setAgent, status } from "./infrastructure/threads.js";
+import { answer, decode, getThread, interrupt, isTag, newThread, newVaultWith, sendOk, sendWithOk, setAgent, status, uploadOk } from "./infrastructure/threads.js";
 
 /** The fake Claude Code the adapter talks to; tests load a recording into it. */
 class Fake extends Context.Service<Fake, FakeSdk>()("FakeClaudeCode") {}
@@ -113,10 +114,27 @@ layer(App)("Claude Code provider", (it) => {
         id: "claude-code",
         kind: "claude-code",
         name: "Claude Code",
-        capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: true, images: false },
+        capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: true, images: true },
       });
       const { status: ready } = yield* HttpClient.get("/api/providers/claude-code/status").pipe(Effect.flatMap(decode(GetProviderStatusResponse)));
       expect(ready).toEqual({ _tag: "ready", version: "2.1.316", account: "you@example.com (pro)" });
+    }),
+  );
+
+  it.effect("sends an attached image as a base64 image block before the text, and the model sees it", () =>
+    Effect.gen(function* () {
+      const { thread, fake, prompts } = yield* setUp("image");
+      const image = yield* uploadOk(RED_SQUARE.name, RED_SQUARE.bytes);
+      const events = yield* watch(thread.id);
+      yield* sendWithOk(thread.id, prompts[0]!, [image.id]);
+      const seen = yield* events.until(isTag("turn.finished"));
+
+      completes(seen);
+      expect(textOf(seen)).toMatch(/red/i);
+      // The text is just the message: an image isn't also listed as a file.
+      expect(fake.calls.filter((call) => call.call === "send")).toEqual([
+        { call: "send", text: prompts[0], images: [{ mime: "image/png", sha256: sha256(RED_SQUARE.bytes) }] },
+      ]);
     }),
   );
 

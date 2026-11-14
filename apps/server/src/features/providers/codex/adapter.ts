@@ -13,6 +13,7 @@ import {
   type ProviderEvent,
   type ProviderSession,
   type SessionSetup,
+  type TurnImage,
   type TurnInput,
   vaultToolsUnavailable,
 } from "../port.js";
@@ -41,6 +42,7 @@ import type {
   ThreadParams,
   ThreadResponse,
   TurnStartResponse,
+  UserInput,
   UserInputParams,
 } from "./protocol.js";
 
@@ -55,6 +57,15 @@ export interface CodexAdapterOptions {
   /** How long Stop waits for Codex to confirm the turn ended. */
   readonly stopWait?: Duration.Input;
 }
+
+/**
+ * A message as `turn/start` input: its images, which Codex reads from disk, then its
+ * text (left out when empty and there are images).
+ */
+export const turnInput = (text: string, images: ReadonlyArray<TurnImage>): ReadonlyArray<UserInput> => [
+  ...images.map((image): UserInput => ({ type: "localImage", path: image.path })),
+  ...(text === "" && images.length > 0 ? [] : [{ type: "text" as const, text, text_elements: [] }]),
+];
 
 /** Why a turn ended when Codex exited under it. */
 export const CODEX_STOPPED = "Codex stopped unexpectedly. Send a message to start it again.";
@@ -206,7 +217,7 @@ export const makeCodexAdapter = (options: CodexAdapterOptions) =>
 
     const adapter: ProviderAdapter = {
       kind: "codex",
-      capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: true, images: false },
+      capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: true, images: true },
       enforcement: enforcedAutonomy,
       status,
       listModels,
@@ -342,7 +353,7 @@ export const makeCodexAdapter = (options: CodexAdapterOptions) =>
           let activeMapper: { readonly conversation: Conversation; readonly mapper: ReturnType<typeof makeTurnMapper> } | undefined;
           const mapperOf = (current: Conversation) => (activeMapper?.conversation === current ? activeMapper.mapper : undefined);
 
-          const startTurn = ({ turnId, text, setup }: TurnInput) =>
+          const startTurn = ({ turnId, text, images, setup }: TurnInput) =>
             Stream.callback<ProviderEvent, ProviderError>((out) =>
               Effect.gen(function* () {
                 const current = yield* start(setup);
@@ -362,7 +373,7 @@ export const makeCodexAdapter = (options: CodexAdapterOptions) =>
                   current.rpc
                     .request<TurnStartResponse>("turn/start", {
                       threadId: thread,
-                      input: [{ type: "text", text, text_elements: [] }],
+                      input: turnInput(text, images),
                       ...(model === null ? {} : { model }),
                     })
                     .then(

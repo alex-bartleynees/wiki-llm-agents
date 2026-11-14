@@ -2,6 +2,7 @@
  * Recorded OpenCode 2 conversations, made by `scripts/record-opencode.ts` and
  * played back through the real adapter by the fake API in `fake-api.ts`.
  */
+import type { FixtureImage } from "../image.js";
 
 /** Recorded paths start with this instead of the temp folder they were made in. */
 export const VAULT = "/__vault__";
@@ -24,6 +25,8 @@ export type FixtureStep =
 
 export interface FixtureTurn {
   readonly prompt: string;
+  /** Images sent with the prompt (`tests/fixtures/image.ts`). */
+  readonly images?: ReadonlyArray<FixtureImage>;
   readonly steps: ReadonlyArray<FixtureStep>;
 }
 

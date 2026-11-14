@@ -37,6 +37,12 @@ export interface OpenCodePermissionRule {
   readonly effect: "allow" | "ask" | "deny";
 }
 
+/** A file sent with a message: OpenCode reads `uri` and attaches the content (images as images). */
+export interface OpenCodeFile {
+  readonly uri: string;
+  readonly name?: string;
+}
+
 /**
  * The OpenCode 2 operations the adapter uses, over one running `opencode serve`.
  * The live one wraps `@opencode/client/effect`; tests use one that plays recorded
@@ -66,8 +72,11 @@ export interface OpenCodeApi {
   readonly setInstructions: (sessionId: string, text: string | null) => Effect.Effect<void, OpenCodeError>;
   /** False when OpenCode no longer has the session (deleted, or another data directory). */
   readonly sessionExists: (sessionId: string) => Effect.Effect<boolean, OpenCodeError>;
-  /** Queues a message; OpenCode starts running it unless a turn is already running. Returns its inbox id. */
-  readonly prompt: (sessionId: string, text: string) => Effect.Effect<string, OpenCodeError>;
+  /**
+   * Queues a message, with files OpenCode reads and attaches (`PromptInput.FileAttachment`);
+   * OpenCode starts running it unless a turn is already running. Returns its inbox id.
+   */
+  readonly prompt: (sessionId: string, text: string, files?: ReadonlyArray<OpenCodeFile>) => Effect.Effect<string, OpenCodeError>;
   /** Withdraws a queued message that hasn't been delivered to the agent yet. */
   readonly cancelPrompt: (sessionId: string, inboxId: string) => Effect.Effect<void, OpenCodeError>;
   /** True when a running turn was stopped; false when nothing was running. */

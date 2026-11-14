@@ -1,0 +1,163 @@
+{
+  "scenario": "image",
+  "codexVersion": "0.167.1",
+  "model": "gpt-5.6-luna",
+  "autonomy": {
+    "read": "allow",
+    "create": "ask",
+    "edit": "ask",
+    "commands": "ask",
+    "web": "ask"
+  },
+  "turns": [
+    {
+      "prompt": "What colour is the attached image? Reply with just the colour, in one word.",
+      "images": [
+        {
+          "name": "red-square.png",
+          "mime": "image/png",
+          "sha256": "62def9cfdd2b6b7befd18be6f93594252c6d7ef3a5ce6e10ef7d649aecb17360"
+        }
+      ],
+      "steps": [
+        {
+          "message": {
+            "method": "turn/started",
+            "params": {
+              "threadId": "__thread__",
+              "turn": {
+                "id": "01a1d93d-587d-7a63-a2b6-dfad8ec7d675",
+                "rootTurnId": "01a1d93d-587d-7a63-a2b6-dfad8ec7d675",
+                "items": [],
+                "itemsView": "notLoaded",
+                "status": "inProgress",
+                "error": null,
+                "startedAt": 1794646038,
+                "completedAt": null,
+                "durationMs": null
+              }
+            },
+            "emittedAtMs": 1794646038800
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "id": "msg_02cc253bcc1fed0e016af820194e9087d08da188959d0767bd",
+                "text": "",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1794646041402,
+                "completedAtMs": null
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d93d-587d-7a63-a2b6-dfad8ec7d675",
+              "startedAtMs": 1794646041402
+            },
+            "emittedAtMs": 1794646041402
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d93d-587d-7a63-a2b6-dfad8ec7d675",
+              "itemId": "msg_02cc253bcc1fed0e016af820194e9087d08da188959d0767bd",
+              "delta": "Red"
+            },
+            "emittedAtMs": 1794646041402
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "id": "msg_02cc253bcc1fed0e016af820194e9087d08da188959d0767bd",
+                "text": "Red",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1794646041402,
+                "completedAtMs": 1794646041402
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d93d-587d-7a63-a2b6-dfad8ec7d675",
+              "completedAtMs": 1794646041402
+            },
+            "emittedAtMs": 1794646041404
+          }
+        },
+        {
+          "message": {
+            "method": "thread/tokenUsage/updated",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d93d-587d-7a63-a2b6-dfad8ec7d675",
+              "tokenUsage": {
+                "total": {
+                  "totalTokens": 15420,
+                  "inputTokens": 15415,
+                  "cachedInputTokens": 0,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 5,
+                  "reasoningOutputTokens": 0
+                },
+                "last": {
+                  "totalTokens": 15420,
+                  "inputTokens": 15415,
+                  "cachedInputTokens": 0,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 5,
+                  "reasoningOutputTokens": 0
+                },
+                "modelContextWindow": 258400
+              }
+            },
+            "emittedAtMs": 1794646041407
+          }
+        },
+        {
+          "message": {
+            "method": "turn/completed",
+            "params": {
+              "threadId": "__thread__",
+              "turn": {
+                "id": "01a1d93d-587d-7a63-a2b6-dfad8ec7d675",
+                "rootTurnId": "01a1d93d-587d-7a63-a2b6-dfad8ec7d675",
+                "items": [
+                  {
+                    "type": "agentMessage",
+                    "id": "msg_02cc253bcc1fed0e016af820194e9087d08da188959d0767bd",
+                    "text": "Red",
+                    "phase": "final_answer",
+                    "memoryCitation": null,
+                    "delivery": null,
+                    "questions": null,
+                    "startedAtMs": 1794646041402,
+                    "completedAtMs": 1794646041402
+                  }
+                ],
+                "itemsView": "summary",
+                "status": "completed",
+                "error": null,
+                "startedAt": 1794646038,
+                "completedAt": 1794646041,
+                "durationMs": 2752
+              }
+            },
+            "emittedAtMs": 1794646041414
+          }
+        }
+      ]
+    }
+  ]
+}

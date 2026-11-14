@@ -1,10 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
+import { basename } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import type { AppServerProcess, CodexLauncher, LaunchOptions } from "../../../src/features/providers/codex/app-server.js";
 import { VAULT_SERVER } from "../../../src/features/providers/codex/events.js";
-import type { JsonRpcId, JsonRpcMessage, Model } from "../../../src/features/providers/codex/protocol.js";
+import type { JsonRpcId, JsonRpcMessage, Model, UserInput } from "../../../src/features/providers/codex/protocol.js";
+import { sha256 } from "../image.js";
 import { type Fixture, HOME, THREAD, VAULT } from "./fixture.js";
 
 export const loadFixture = (scenario: string): Fixture =>
@@ -148,9 +150,14 @@ export const makeFakeAppServer = () => {
           const recorded = fixture.turns[index];
           turn += 1;
           if (recorded === undefined) return void fail(message.id, `the fixture has no turn ${index + 1}`);
-          const input = (params.input as ReadonlyArray<{ readonly text: string }>)[0]?.text;
+          const items = params.input as ReadonlyArray<UserInput>;
+          const input = items.flatMap((item) => (item.type === "text" ? [item.text] : [])).join("");
           const expected = recorded.prompt + (options.promptSuffixes?.[index] ?? "");
           if (input !== expected) return void fail(message.id, `sent ${JSON.stringify(input)}, recorded ${JSON.stringify(expected)}`);
+          // Images as Codex reads them, from disk, known by file name and hash (Codex finds the type itself).
+          const images = JSON.stringify(items.flatMap((item) => (item.type === "localImage" ? [{ name: basename(item.path), sha256: sha256(readFileSync(item.path)) }] : [])));
+          const recordedImages = JSON.stringify((recorded.images ?? []).map(({ name, sha256 }) => ({ name, sha256 })));
+          if (images !== recordedImages) return void fail(message.id, `sent images ${images}, recorded ${recordedImages}`);
           const started = recorded.steps.find((step) => "message" in step && step.message.method === "turn/started");
           const codexTurnId = started !== undefined && "message" in started ? (started.message.params as { turn: { id: string } }).turn.id : `turn-${index}`;
           void reply(message.id, { turn: { id: codexTurnId, status: "inProgress", items: [], error: null } }).then(() => play(index, codexTurnId));

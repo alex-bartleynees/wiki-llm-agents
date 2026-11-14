@@ -24,8 +24,9 @@ import { Deferred, Effect, Fiber, Stream } from "effect";
 import { makeClaudeCodeAdapter } from "../src/features/providers/claude-code/adapter.js";
 import { authStatus, binaryVersion } from "../src/features/providers/claude-code/cli.js";
 import { type ClaudeCodeSdk, ClaudeCodeSdkLive } from "../src/features/providers/claude-code/sdk.js";
-import type { SessionSetup } from "../src/features/providers/port.js";
+import type { SessionSetup, TurnImage } from "../src/features/providers/port.js";
 import { type Fixture, type FixtureStep, HOME, SESSION, VAULT, VAULT_FILES } from "../tests/fixtures/claude-code/fixture.js";
+import { ATTACHMENTS, fixtureImage, IMAGE_PROMPT, RED_SQUARE } from "../tests/fixtures/image.js";
 
 const outDir = fileURLToPath(new URL("../tests/fixtures/claude-code/", import.meta.url));
 
@@ -35,6 +36,8 @@ interface TurnScript {
   readonly answer?: RequestAnswer;
   /** Interrupt straight after sending, or after the first text arrives. */
   readonly interrupt?: "after-send" | "after-text";
+  /** Images sent with the prompt, from a folder outside the vault (as the app's attachments are). */
+  readonly images?: ReadonlyArray<typeof RED_SQUARE>;
 }
 
 interface Scenario {
@@ -89,6 +92,7 @@ const SCENARIOS: Readonly<Record<string, Scenario>> = {
   },
   "interrupt-after-send": { turns: [{ prompt: "Write a 500-word story about a lighthouse.", interrupt: "after-send" }] },
   "interrupt-mid-stream": { turns: [{ prompt: "Write a 500-word story about a lighthouse.", interrupt: "after-text" }] },
+  image: { turns: [{ prompt: IMAGE_PROMPT, images: [RED_SQUARE] }] },
 };
 
 /** Messages the adapter reads; `init` cut down to what it uses, so fixtures hold none of your setup. */
@@ -179,8 +183,8 @@ const recordingSdk = (log: { steps: Array<FixtureStep>; sent: () => void }): Cla
 });
 
 /** Temp paths, the session id and your home folder become placeholders, so fixtures don't depend on where they were made. */
-const normalise = (value: unknown, roots: ReadonlyArray<string>, sessionId: string): unknown => {
-  let text = JSON.stringify(value);
+const normalise = (value: unknown, roots: ReadonlyArray<string>, attachments: string, sessionId: string): unknown => {
+  let text = JSON.stringify(value).replaceAll(attachments, ATTACHMENTS);
   for (const root of roots) text = text.replaceAll(root, VAULT);
   return JSON.parse(text.replaceAll(sessionId, SESSION).replaceAll(homedir(), HOME));
 };
@@ -190,6 +194,10 @@ const record = (name: string, scenario: Scenario, model: string) =>
     Effect.gen(function* () {
       const root = yield* Effect.acquireRelease(
         Effect.sync(() => mkdtempSync(join(tmpdir(), "wiki-agents-record-"))),
+        (dir) => Effect.sync(() => rmSync(dir, { recursive: true, force: true })),
+      );
+      const attachments = yield* Effect.acquireRelease(
+        Effect.sync(() => mkdtempSync(join(tmpdir(), "wiki-agents-record-attachments-"))),
         (dir) => Effect.sync(() => rmSync(dir, { recursive: true, force: true })),
       );
       for (const [path, content] of Object.entries(VAULT_FILES)) {
@@ -215,7 +223,12 @@ const record = (name: string, scenario: Scenario, model: string) =>
           interrupted = true;
           yield* Effect.forkChild(session.interrupt(turnId));
         });
-        const fiber = yield* session.startTurn({ turnId, text: script.prompt, images: [], setup }).pipe(
+        const images = (script.images ?? []).map((image): TurnImage => {
+          const path = join(attachments, image.name);
+          writeFileSync(path, image.bytes);
+          return { path, name: image.name, mime: image.mime, size: image.bytes.length };
+        });
+        const fiber = yield* session.startTurn({ turnId, text: script.prompt, images, setup }).pipe(
           Stream.runForEach((event) =>
             Effect.gen(function* () {
               // Approvals the script doesn't expect are denied, so a recording never waits.
@@ -231,14 +244,14 @@ const record = (name: string, scenario: Scenario, model: string) =>
           yield* stop;
         }
         yield* Fiber.join(fiber);
-        turns.push({ prompt: script.prompt, steps });
+        turns.push({ prompt: script.prompt, ...(script.images === undefined ? {} : { images: script.images.map(fixtureImage) }), steps });
       }
       const fixture: Fixture = {
         scenario: name,
         claudeCodeVersion: yield* binaryVersion(binary),
         model,
         autonomy,
-        turns: turns.map((turn) => normalise(turn, [realpathSync(root), root], session.nativeSessionId ?? "")) as Fixture["turns"],
+        turns: turns.map((turn) => normalise(turn, [realpathSync(root), root], attachments, session.nativeSessionId ?? "")) as Fixture["turns"],
       };
       writeFileSync(join(outDir, `${name}.json`), `${JSON.stringify(fixture, null, 2)}\n`);
       yield* Effect.log(`recorded ${name}: ${turns.map((turn) => turn.steps.length).join(" + ")} steps`);

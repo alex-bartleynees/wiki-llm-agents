@@ -16,10 +16,11 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { OpenCodeEvent } from "@opencode/protocol/groups/event";
 import { Effect, Option, PubSub, Schema } from "effect";
-import { DENIED, SESSION_PERMISSIONS } from "../src/features/providers/opencode/adapter.js";
+import { DENIED, imageFile, SESSION_PERMISSIONS } from "../src/features/providers/opencode/adapter.js";
 import type { OpenCodeApi, OpenCodeSignal } from "../src/features/providers/opencode/api.js";
 import { sessionOf } from "../src/features/providers/opencode/events.js";
 import { startServer } from "../src/features/providers/opencode/server.js";
+import { ATTACHMENTS, fixtureImage, IMAGE_PROMPT, RED_SQUARE } from "../tests/fixtures/image.js";
 import { type Fixture, type FixtureStep, VAULT, VAULT_FILES } from "../tests/fixtures/opencode/fixture.js";
 
 const encode = Schema.encodeUnknownSync(OpenCodeEvent);
@@ -33,6 +34,8 @@ interface TurnScript {
   readonly answer?: Answer;
   /** Interrupt straight after sending, or after the first text arrives. */
   readonly interrupt?: "after-send" | "after-text";
+  /** Images sent with the prompt, from a folder outside the vault (as the app's attachments are). */
+  readonly images?: ReadonlyArray<typeof RED_SQUARE>;
 }
 
 const SCENARIOS: Readonly<Record<string, ReadonlyArray<TurnScript>>> = {
@@ -58,24 +61,36 @@ const SCENARIOS: Readonly<Record<string, ReadonlyArray<TurnScript>>> = {
   ],
   "interrupt-after-send": [{ prompt: "Write a 500-word story about a lighthouse.", interrupt: "after-send" }],
   "interrupt-mid-stream": [{ prompt: "Write a 500-word story about a lighthouse.", interrupt: "after-text" }],
+  image: [{ prompt: IMAGE_PROMPT, images: [RED_SQUARE] }],
 };
+
+/** Scenarios that need a model other than the default when `--model` isn't given: the default free model doesn't take images. */
+const SCENARIO_MODELS: Readonly<Record<string, string>> = { image: "opencode/nemotron-3.5-super-vl-free" };
 
 const END = new Set(["session.execution.succeeded", "session.execution.failed", "session.execution.interrupted"]);
 
-/** The vault's temp path in recorded events becomes `VAULT`, so fixtures don't depend on where they were made. */
-const normalise = (value: unknown, root: string): unknown => JSON.parse(JSON.stringify(value).replaceAll(root, VAULT));
+/** The temp paths in recorded events become `VAULT` and `ATTACHMENTS`, so fixtures don't depend on where they were made. */
+const normalise = (value: unknown, root: string, attachments: string): unknown =>
+  JSON.parse(JSON.stringify(value).replaceAll(root, VAULT).replaceAll(attachments, ATTACHMENTS));
 
-const recordTurn = (api: OpenCodeApi, sessionId: string, root: string, script: TurnScript) =>
+const recordTurn = (api: OpenCodeApi, sessionId: string, root: string, attachments: string, script: TurnScript) =>
   Effect.scoped(
     Effect.gen(function* () {
       const subscription = yield* api.subscribe;
       const steps: Array<FixtureStep> = [];
-      const inboxId = yield* api.prompt(sessionId, script.prompt);
+      const sources = script.images ?? [];
+      const files = sources.map((image) => {
+        const path = join(attachments, image.name);
+        writeFileSync(path, image.bytes);
+        return imageFile({ path, name: image.name, mime: image.mime, size: image.bytes.length });
+      });
+      const recorded = { prompt: script.prompt, ...(sources.length === 0 ? {} : { images: sources.map(fixtureImage) }) };
+      const inboxId = yield* api.prompt(sessionId, script.prompt, files);
       if (script.interrupt === "after-send") {
         const withdrawn = yield* api.cancelPrompt(sessionId, inboxId).pipe(Effect.as(true), Effect.catch(() => Effect.succeed(false)));
         const interrupted = yield* api.interrupt(sessionId);
         steps.push({ call: "interrupt", withdrawn, interrupted });
-        if (withdrawn && !interrupted) return { prompt: script.prompt, steps };
+        if (withdrawn && !interrupted) return { ...recorded, steps };
       }
       let interrupted = false;
       while (true) {
@@ -85,8 +100,8 @@ const recordTurn = (api: OpenCodeApi, sessionId: string, root: string, script: T
         if (signal === undefined) throw new Error("no events for 3 minutes");
         if (signal._tag !== "event" || sessionOf(signal.event) !== sessionId) continue;
         const event = signal.event;
-        steps.push({ event: normalise(encode(event), root) });
-        if (END.has(event.type)) return { prompt: script.prompt, steps };
+        steps.push({ event: normalise(encode(event), root, attachments) });
+        if (END.has(event.type)) return { ...recorded, steps };
         if (script.interrupt === "after-text" && !interrupted && event.type === "session.text.delta") {
           interrupted = yield* api.interrupt(sessionId);
           steps.push({ call: "interrupt", withdrawn: false, interrupted });
@@ -114,6 +129,10 @@ const record = (name: string, turns: ReadonlyArray<TurnScript>, model: string | 
         Effect.sync(() => mkdtempSync(join(tmpdir(), "wiki-agents-record-"))),
         (dir) => Effect.sync(() => rmSync(dir, { recursive: true, force: true })),
       );
+      const attachments = yield* Effect.acquireRelease(
+        Effect.sync(() => mkdtempSync(join(tmpdir(), "wiki-agents-record-attachments-"))),
+        (dir) => Effect.sync(() => rmSync(dir, { recursive: true, force: true })),
+      );
       for (const [path, content] of Object.entries(VAULT_FILES)) {
         mkdirSync(dirname(join(root, path)), { recursive: true });
         writeFileSync(join(root, path), content);
@@ -121,7 +140,7 @@ const record = (name: string, turns: ReadonlyArray<TurnScript>, model: string | 
       const api = yield* startServer({ binary: process.env.WIKI_AGENTS_OPENCODE ?? "opencode" });
       const sessionId = yield* api.createSession({ directory: root, model, permissions: SESSION_PERMISSIONS });
       const recorded = [];
-      for (const script of turns) recorded.push(yield* recordTurn(api, sessionId, root, script));
+      for (const script of turns) recorded.push(yield* recordTurn(api, sessionId, root, attachments, script));
       const fixture: Fixture = {
         scenario: name,
         opencodeVersion: api.version,
@@ -139,4 +158,4 @@ const names = positionals.length > 0 ? positionals : Object.keys(SCENARIOS);
 const unknown = names.filter((name) => SCENARIOS[name] === undefined);
 if (unknown.length > 0) throw new Error(`unknown scenario: ${unknown.join(", ")} (have ${Object.keys(SCENARIOS).join(", ")})`);
 
-await Effect.runPromise(Effect.forEach(names, (name) => record(name, SCENARIOS[name] ?? [], values.model ?? null), { discard: true }));
+await Effect.runPromise(Effect.forEach(names, (name) => record(name, SCENARIOS[name] ?? [], values.model ?? SCENARIO_MODELS[name] ?? null), { discard: true }));

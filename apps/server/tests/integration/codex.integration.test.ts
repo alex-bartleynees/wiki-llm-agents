@@ -16,9 +16,10 @@ import { ReplayAdapter } from "../../src/features/providers/replay/adapter.js";
 import { ThreadBus } from "../../src/features/threads/thread-bus.js";
 import { type FakeAppServer, loadFixture, makeFakeAppServer, type PlayOptions } from "../fixtures/codex/fake-app-server.js";
 import { VAULT_FILES } from "../fixtures/codex/fixture.js";
+import { RED_SQUARE, sha256 } from "../fixtures/image.js";
 import { mcpSession } from "./infrastructure/mcp.js";
 import { makeTestApp } from "./infrastructure/test-app.js";
-import { answer, decode, getThread, interrupt, isTag, newThread, newVaultWith, sendOk, setAgent, status } from "./infrastructure/threads.js";
+import { answer, decode, getThread, interrupt, isTag, newThread, newVaultWith, sendOk, sendWithOk, setAgent, status, uploadOk } from "./infrastructure/threads.js";
 
 /** The scripted Codex app-server the adapter talks to; tests load a recording into it. */
 class Fake extends Context.Service<Fake, FakeAppServer>()("FakeCodex") {}
@@ -115,10 +116,27 @@ layer(App)("Codex provider", (it) => {
         id: "codex",
         kind: "codex",
         name: "Codex",
-        capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: true, images: false },
+        capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: true, images: true },
       });
       const { status: ready } = yield* HttpClient.get("/api/providers/codex/status").pipe(Effect.flatMap(decode(GetProviderStatusResponse)));
       expect(ready).toEqual({ _tag: "ready", version: "0.166.0", account: "you@example.com (plus)" });
+    }),
+  );
+
+  it.effect("sends an attached image as a localImage by its path, before the text, and the model sees it", () =>
+    Effect.gen(function* () {
+      const { thread, fake, prompts } = yield* setUp("image");
+      const image = yield* uploadOk(RED_SQUARE.name, RED_SQUARE.bytes);
+      const events = yield* watch(thread.id);
+      yield* sendWithOk(thread.id, prompts[0]!, [image.id]);
+      const seen = yield* events.until(isTag("turn.finished"));
+
+      completes(seen);
+      expect(textOf(seen)).toMatch(/red/i);
+      expect(fake.requests("turn/start")[0]?.input).toEqual([
+        { type: "localImage", path: expect.stringMatching(new RegExp(`/${sha256(RED_SQUARE.bytes)}/red-square\\.png$`)) },
+        { type: "text", text: prompts[0], text_elements: [] },
+      ]);
     }),
   );
 

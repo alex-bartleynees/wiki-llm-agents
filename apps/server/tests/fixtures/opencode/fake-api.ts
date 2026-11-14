@@ -1,11 +1,34 @@
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { OpenCodeEvent } from "@opencode/protocol/groups/event";
 import { Deferred, Effect, Fiber, PubSub, Schema } from "effect";
-import type { OpenCodeApi, OpenCodeMcpStatus, OpenCodeModel, OpenCodeOutcome, OpenCodePermissionRule, OpenCodeSignal } from "../../../src/features/providers/opencode/api.js";
+import type {
+  OpenCodeApi,
+  OpenCodeFile,
+  OpenCodeMcpStatus,
+  OpenCodeModel,
+  OpenCodeOutcome,
+  OpenCodePermissionRule,
+  OpenCodeSignal,
+} from "../../../src/features/providers/opencode/api.js";
 import { OpenCodeError } from "../../../src/features/providers/opencode/api.js";
+import { type FixtureImage, sha256 } from "../image.js";
 import { type Fixture, type FixtureStep, VAULT } from "./fixture.js";
 
 const decodeEvent = Schema.decodeUnknownSync(OpenCodeEvent);
+
+/**
+ * The images behind `files`, as OpenCode would read them (only `file://` URIs, the
+ * form the adapter sends), by name and hash: OpenCode finds the type itself.
+ */
+const sentImages = (files: ReadonlyArray<OpenCodeFile>) =>
+  JSON.stringify(
+    files.map((file) => {
+      if (!file.uri.startsWith("file://")) throw new Error(`the adapter sent ${file.uri.slice(0, 40)}, not a file:// URI`);
+      return { name: file.name ?? "", sha256: sha256(readFileSync(fileURLToPath(file.uri))) };
+    }),
+  );
+const recordedImages = (images: ReadonlyArray<FixtureImage> = []) => JSON.stringify(images.map(({ name, sha256 }) => ({ name, sha256 })));
 
 export const loadFixture = (scenario: string): Fixture =>
   JSON.parse(readFileSync(new URL(`./${scenario}.json`, import.meta.url), "utf8")) as Fixture;
@@ -27,7 +50,7 @@ export interface PlayOptions {
 /** What the adapter asked of OpenCode, in order. */
 export type FakeCall =
   | { readonly call: "createSession"; readonly model: string | null; readonly permissions: ReadonlyArray<OpenCodePermissionRule> }
-  | { readonly call: "prompt"; readonly text: string }
+  | { readonly call: "prompt"; readonly text: string; readonly files?: ReadonlyArray<OpenCodeFile> }
   | { readonly call: "cancelPrompt" | "interrupt" }
   | { readonly call: "setPermissions"; readonly permissions: ReadonlyArray<OpenCodePermissionRule> }
   | { readonly call: "setInstructions"; readonly text: string | null }
@@ -151,14 +174,16 @@ export const makeFakeOpenCode = Effect.gen(function* () {
         calls.push({ call: "setInstructions", text });
       }),
     sessionExists: (sessionId) => Effect.sync(() => sessions.has(sessionId)),
-    prompt: (sessionId, text) =>
+    prompt: (sessionId, text, files = []) =>
       Effect.gen(function* () {
-        calls.push({ call: "prompt", text });
+        calls.push({ call: "prompt", text, ...(files.length === 0 ? {} : { files }) });
         const session = sessionFor(sessionId);
         const turn = session.fixture.turns[session.turn++];
         if (turn === undefined) return yield* Effect.die(new Error(`fixture ${session.fixture.scenario} has no turn ${session.turn}`));
         const expectedPrompt = turn.prompt + (session.options.promptSuffixes?.[session.turn - 1] ?? "");
         if (expectedPrompt !== text) return yield* Effect.die(new Error(`fixture prompt was "${turn.prompt}", the adapter sent "${text}"`));
+        const [sent, recorded] = [sentImages(files), recordedImages(turn.images)];
+        if (sent !== recorded) return yield* Effect.die(new Error(`fixture images were ${recorded}, the adapter sent ${sent}`));
         session.stopPressed = yield* Deferred.make<void>();
         session.startGate = session.options.holdStart === true ? yield* Deferred.make<void>() : undefined;
         session.running = session.options.holdStart !== true;

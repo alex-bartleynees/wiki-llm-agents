@@ -1,11 +1,12 @@
+import { pathToFileURL } from "node:url";
 import { NodeFileSystem } from "@effect/platform-node";
 import { DEFAULT_AUTONOMY } from "@wiki-agents/contracts/agents/model";
 import type { ProviderStatus } from "@wiki-agents/contracts/providers/model";
 import type { RequestAnswer } from "@wiki-agents/contracts/threads/model";
 import { Duration, Effect, Exit, FileSystem, Option, PubSub, Queue, RcRef, Scope, Stream } from "effect";
 import { pathsWithinRoots } from "../../../shared/vault/path-scope.js";
-import { type ProviderAdapter, ProviderError, type ProviderEvent, type ProviderSession, type SessionSetup, type TurnInput, DENIED, vaultToolsUnavailable } from "../port.js";
-import type { OpenCodeApi, OpenCodeError, OpenCodeEvent, OpenCodePermissionRule, OpenCodeSignal } from "./api.js";
+import { type ProviderAdapter, ProviderError, type ProviderEvent, type ProviderSession, type SessionSetup, type TurnImage, type TurnInput, DENIED, vaultToolsUnavailable } from "../port.js";
+import type { OpenCodeApi, OpenCodeError, OpenCodeEvent, OpenCodeFile, OpenCodePermissionRule, OpenCodeSignal } from "./api.js";
 import { formAnswer, makeTurnMapper, sessionOf } from "./events.js";
 import { instructionsText, MAX_INSTRUCTIONS_BYTES } from "./instructions.js";
 import { enforcedAutonomy, permissionRules } from "./permissions.js";
@@ -34,6 +35,13 @@ const toProviderError = (error: OpenCodeError) => new ProviderError({ message: e
 const END_EVENTS = new Set<string>(["session.execution.succeeded", "session.execution.failed", "session.execution.interrupted"]);
 
 export { DENIED } from "../port.js";
+
+/**
+ * An image as a file OpenCode reads and attaches. OpenCode 2.2 takes `file://` and
+ * `data:` URIs (not bare paths; checked 2026-11-14) and reads the file itself, without
+ * a permission request, though it is outside the session's folder.
+ */
+export const imageFile = (image: TurnImage): OpenCodeFile => ({ uri: pathToFileURL(image.path).href, name: image.name });
 
 /** How long Stop waits for OpenCode to confirm the turn ended. */
 const STOP_WAIT = Duration.seconds(5);
@@ -149,7 +157,7 @@ const makeSession = (connect: Connect, sessionId: string, cwd: string, silence: 
       return true;
     });
 
-  const startTurn = ({ turnId, text, setup }: TurnInput) =>
+  const startTurn = ({ turnId, text, images, setup }: TurnInput) =>
     Stream.callback<ProviderEvent, ProviderError>((queue) =>
       Effect.gen(function* () {
         const api = yield* connect;
@@ -159,7 +167,9 @@ const makeSession = (connect: Connect, sessionId: string, cwd: string, silence: 
         const subscription = yield* api.subscribe;
         const current: RunningTurn = { id: turnId, inboxId: undefined, started: false };
         turn = current;
-        current.inboxId = yield* api.prompt(sessionId, notices.length ? `${text}\n\nApp notices for this turn:\n${notices.join("\n")}` : text).pipe(Effect.mapError(toProviderError));
+        current.inboxId = yield* api
+          .prompt(sessionId, notices.length ? `${text}\n\nApp notices for this turn:\n${notices.join("\n")}` : text, images.map(imageFile))
+          .pipe(Effect.mapError(toProviderError));
         const mapper = makeTurnMapper(turnId, cwd);
         const waiting = new Set<string>();
         /** Checks that found the message still queued and nothing running. */
@@ -346,7 +356,7 @@ export const makeOpenCodeAdapter = (options: OpenCodeAdapterOptions) =>
 
     const adapter: ProviderAdapter = {
       kind: "opencode",
-      capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: true, images: false },
+      capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: true, images: true },
       enforcement: enforcedAutonomy,
       openSession: ({ cwd, nativeSessionId, model, setup }) =>
         Effect.gen(function* () {

@@ -72,8 +72,27 @@ export const makeInput = () => {
 
 export type Input = ReturnType<typeof makeInput>;
 
-export const userMessage = (text: string): SDKUserMessage => ({
+/** An image sent with a message: one of the types the Messages API takes, and its bytes in base64. */
+export interface MessageImage {
+  readonly mime: "image/png" | "image/jpeg" | "image/gif" | "image/webp";
+  readonly data: string;
+}
+
+/**
+ * A message from the user: just its text, or the images as image blocks followed by
+ * the text (left out when empty: the API refuses an empty text block).
+ */
+export const userMessage = (text: string, images: ReadonlyArray<MessageImage> = []): SDKUserMessage => ({
   type: "user",
-  message: { role: "user", content: text },
+  message: {
+    role: "user",
+    content:
+      images.length === 0
+        ? text
+        : [
+            ...images.map((image) => ({ type: "image" as const, source: { type: "base64" as const, media_type: image.mime, data: image.data } })),
+            ...(text === "" ? [] : [{ type: "text" as const, text }]),
+          ],
+  },
   parent_tool_use_id: null,
 });
