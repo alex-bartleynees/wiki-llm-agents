@@ -3,22 +3,8 @@ import { GetFileRequest } from "@wiki-agents/contracts/notes/get-file/request";
 import { Effect } from "effect";
 import { HttpRouter, HttpServerResponse } from "effect/http";
 import { badRequest, internalError, notFound } from "../../../shared/http-errors.js";
+import { downloadDisposition, STATIC_FILE_POLICY, UNTRUSTED_HEADERS } from "../../../shared/untrusted-files.js";
 import { getFile } from "./use-case.js";
-
-/**
- * Vault files are untrusted content served from the app's own origin, so every
- * response carries a CSP `sandbox`: the browser gives the document an opaque origin
- * (no access to the app's DOM, storage, or API) whether it is framed by the app or
- * opened directly in a tab. `no-referrer` keeps vault paths out of requests to CDNs.
- */
-const UNTRUSTED_HEADERS = {
-  "cache-control": "no-cache",
-  "referrer-policy": "no-referrer",
-  "x-content-type-options": "nosniff",
-};
-
-/** Images, SVGs, PDFs, downloads: no script at all. */
-export const STATIC_FILE_POLICY = "sandbox; default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'";
 
 /** CDNs that HTML pages in the vault (charts, reports) may load scripts and styles from. */
 const PAGE_CDNS = "https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com";
@@ -51,10 +37,7 @@ export const getFileEndpoint = Effect.gen(function* () {
       headers: { ...UNTRUSTED_HEADERS, "content-security-policy": HTML_PAGE_POLICY, "content-disposition": "inline" },
     });
   }
-  const disposition =
-    file.contentType === undefined
-      ? `attachment; filename*=UTF-8''${encodeURIComponent(posix.basename(file.path))}`
-      : "inline";
+  const disposition = file.contentType === undefined ? downloadDisposition(posix.basename(file.path)) : "inline";
   return yield* HttpServerResponse.file(file.absolute, {
     contentType: file.contentType ?? "application/octet-stream",
     headers: { ...UNTRUSTED_HEADERS, "content-security-policy": STATIC_FILE_POLICY, "content-disposition": disposition },

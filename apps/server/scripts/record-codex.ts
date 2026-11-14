@@ -196,7 +196,7 @@ const record = (name: string, scenario: Scenario, model: string) =>
           interrupted = true;
           yield* Effect.forkChild(session.interrupt(turnId));
         });
-        const fiber = yield* session.startTurn({ turnId, text: script.prompt, setup }).pipe(
+        const fiber = yield* session.startTurn({ turnId, text: script.prompt, images: [], setup }).pipe(
           Stream.runForEach((event) =>
             Effect.gen(function* () {
               // Approvals the script doesn't expect are denied, so a recording never waits.

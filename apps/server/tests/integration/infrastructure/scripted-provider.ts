@@ -1,5 +1,5 @@
 import { Effect, Stream } from "effect";
-import type { ProviderAdapter, ProviderError, ProviderEvent } from "../../../src/features/providers/port.js";
+import type { ProviderAdapter, ProviderError, ProviderEvent, TurnInput } from "../../../src/features/providers/port.js";
 import { makeProviderRegistry } from "../../../src/features/providers/registry-live.js";
 import { ReplayAdapter } from "../../../src/features/providers/replay/adapter.js";
 
@@ -11,19 +11,23 @@ export type Script = (turn: { readonly turnId: string; readonly cwd: string }) =
 
 /**
  * A provider whose turns run scripts chosen by the message's text, so tests can make
- * an agent change files exactly as they need. A turn ends after its script's events
+ * an agent change files exactly as they need: the whole text, else its first line (the
+ * message before the notes and files the app adds). Each turn's input is kept in
+ * `inputs`. A script under `*` runs for any other text. A turn ends after its script's events
  * unless the script ends it (or opened a request, which keeps it waiting).
  */
-export const makeScriptedProvider = () => {
+export const makeScriptedProvider = (options: { readonly images?: boolean } = {}) => {
   const scripts = new Map<string, Script>();
+  const inputs: Array<Omit<TurnInput, "setup">> = [];
   const adapter: ProviderAdapter = {
     kind: "scripted",
-    capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: false },
+    capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: false, images: options.images === true },
     openSession: ({ cwd }) =>
       Effect.succeed({
         nativeSessionId: null,
-        startTurn: ({ turnId, text }) => {
-          const script = scripts.get(text);
+        startTurn: ({ turnId, text, images }) => {
+          inputs.push({ turnId, text, images });
+          const script = scripts.get(text) ?? scripts.get(text.split("\n")[0]!) ?? scripts.get("*");
           if (script === undefined) return Stream.die(new Error(`no script for "${text}"`));
           return Stream.unwrap(
             Effect.map(script({ turnId, cwd }), (events) => {
@@ -46,5 +50,5 @@ export const makeScriptedProvider = () => {
   };
   /** Replay first (the default), then the scripted provider (instance id `scripted`). */
   const registry = makeProviderRegistry(Effect.succeed([ReplayAdapter, adapter]));
-  return { scripts, registry };
+  return { scripts, inputs, registry };
 };

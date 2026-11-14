@@ -56,9 +56,22 @@ export interface SessionSetup extends AgentSetup {
   readonly vaultTools: VaultToolsEntry | null;
 }
 
+/** An image from the message, for a provider with `capabilities.images`. */
+export interface TurnImage {
+  /** Absolute path of the file, in the app's attachments folder. */
+  readonly path: string;
+  readonly name: string;
+  /** `image/png`, `image/jpeg`, `image/gif` or `image/webp`. */
+  readonly mime: string;
+  readonly size: number;
+}
+
 export interface TurnInput {
   readonly turnId: string;
+  /** The message, with its notes and a list of its attached files (and images, for a provider without `images`). */
   readonly text: string;
+  /** The message's images, to send as images; always empty for a provider without `capabilities.images`. */
+  readonly images: ReadonlyArray<TurnImage>;
   readonly setup: SessionSetup;
 }
 

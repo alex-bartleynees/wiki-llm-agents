@@ -3,6 +3,8 @@ import { NodeHttpServer } from "@effect/platform-node";
 import { Effect, type FileSystem, Layer, Option } from "effect";
 import { HttpRouter } from "effect/http";
 import type { AgentCatalog } from "../features/agents/catalog.js";
+import type { AttachmentStore } from "../features/attachments/attachment-store.js";
+import { AttachmentStoreLive } from "../features/attachments/store-live.js";
 import { AgentCatalogLive } from "../features/agents/catalog-live.js";
 import { ChangeTrackerLive } from "../features/changes/change-tracker.js";
 import { EventConnectionsLive } from "../features/events/connections.js";
@@ -66,6 +68,8 @@ export interface AppOptions {
   readonly providers?: Layer.Layer<ProviderRegistry, DbError, Sqlite>;
   /** The rules and agents. Required, so a test can never fall back to your real config directory. */
   readonly agents: Layer.Layer<AgentCatalog, never, FileSystem.FileSystem>;
+  /** Where message attachments are kept. Required, so a test can never write to your real data directory. */
+  readonly attachments: Layer.Layer<AttachmentStore, never, Sqlite | FileSystem.FileSystem>;
   /** How inbox items reach you: in-app and Web Push unless a test chooses (a channel that fails, say). */
   readonly channels?: Layer.Layer<DeliveryChannels, never, InboxBus | DigestSignal | NotificationsRepository | WallClock | PushSender>;
   /** Sends Web Push notifications; the real push services unless a test stands in for them. */
@@ -121,6 +125,7 @@ export const makeHttpApp = (options: AppOptions) =>
         RepositoriesLive,
         options.providers ?? ProviderRegistryLive,
         options.agents,
+        options.attachments,
         indexing(options.watch, options.watchPollMs),
         WallClockLive,
         EventConnectionsLive,
@@ -135,9 +140,15 @@ const ServerLive = Layer.unwrap(
   }),
 );
 
-export const makeAppLive = (options: Omit<AppOptions, "watch" | "watchPollMs" | "agents">) =>
+export const makeAppLive = (options: Omit<AppOptions, "watch" | "watchPollMs" | "agents" | "attachments">) =>
   Layer.unwrap(
     Effect.map(AppConfig.watchPollMs, (pollMs) =>
-      makeHttpApp({ ...options, watch: true, watchPollMs: Option.getOrUndefined(pollMs), agents: AgentCatalogLive }),
+      makeHttpApp({
+        ...options,
+        watch: true,
+        watchPollMs: Option.getOrUndefined(pollMs),
+        agents: AgentCatalogLive,
+        attachments: AttachmentStoreLive,
+      }),
     ),
   ).pipe(Layer.provide(SqliteLive), Layer.provide(ServerLive));

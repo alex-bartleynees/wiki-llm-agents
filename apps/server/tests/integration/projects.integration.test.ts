@@ -24,7 +24,7 @@ import { makeProviderRegistry } from "../../src/features/providers/registry-live
 import { ReplayAdapter } from "../../src/features/providers/replay/adapter.js";
 import { makeSqlite, Sqlite } from "../../src/shared/persistence/sqlite.js";
 import { mcpSession } from "./infrastructure/mcp.js";
-import { makeTestApp, TestAgents } from "./infrastructure/test-app.js";
+import { makeTestApp, TestAgents, TestAttachments } from "./infrastructure/test-app.js";
 import { decode, getThread, isTag, newVault, post, sendOk, watch } from "./infrastructure/threads.js";
 
 /** The replay provider, recording every session it opens. */
@@ -373,7 +373,7 @@ describe("projects", () => {
 });
 
 const migrationsDir = fileURLToPath(new URL("../../drizzle", import.meta.url));
-const appOn = (file: string) => makeHttpApp({ vaults: [], watch: false, providers, agents: TestAgents }).pipe(
+const appOn = (file: string) => makeHttpApp({ vaults: [], watch: false, providers, agents: TestAgents, attachments: TestAttachments }).pipe(
   Layer.provideMerge(Layer.effect(Sqlite, makeSqlite({ file, migrationsDir }))),
   Layer.provideMerge(NodeHttpServer.layerTest),
 );

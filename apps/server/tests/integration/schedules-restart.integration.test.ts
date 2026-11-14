@@ -11,7 +11,7 @@ import { NOT_STARTED } from "../../src/features/schedules/runner.js";
 import { makeSqlite, Sqlite } from "../../src/shared/persistence/sqlite.js";
 import { makeScriptedProvider } from "./infrastructure/scripted-provider.js";
 import { advanceTo, AKL, createSchedule, DAY, getSchedule, itemsOf, ofKind, watchInbox } from "./infrastructure/schedules.js";
-import { TestAgents } from "./infrastructure/test-app.js";
+import { TestAgents, TestAttachments } from "./infrastructure/test-app.js";
 import { newVault } from "./infrastructure/threads.js";
 
 const migrationsDir = fileURLToPath(new URL("../../drizzle", import.meta.url));
@@ -26,7 +26,7 @@ provider.scripts.set("Morning news", ({ turnId }) =>
 
 /** The app over a database file, as if started again; closing the scope stops it. */
 const appOn = (file: string) =>
-  makeHttpApp({ vaults: [], watch: false, providers: provider.registry, agents: TestAgents }).pipe(
+  makeHttpApp({ vaults: [], watch: false, providers: provider.registry, agents: TestAgents, attachments: TestAttachments }).pipe(
     Layer.provideMerge(Layer.effect(Sqlite, makeSqlite({ file, migrationsDir }))),
     Layer.provideMerge(NodeHttpServer.layerTest),
   );

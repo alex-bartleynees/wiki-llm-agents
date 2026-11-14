@@ -346,7 +346,7 @@ export const makeOpenCodeAdapter = (options: OpenCodeAdapterOptions) =>
 
     const adapter: ProviderAdapter = {
       kind: "opencode",
-      capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: true },
+      capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: true, images: false },
       enforcement: enforcedAutonomy,
       openSession: ({ cwd, nativeSessionId, model, setup }) =>
         Effect.gen(function* () {

@@ -21,6 +21,8 @@ export const sendMessageEndpoint = Effect.gen(function* () {
     InvalidVaultPath: () => Effect.succeed(badRequest("Invalid note path or stale selection")),
     VaultFileNotFound: () => Effect.succeed(notFound("Note not found")),
     ThreadBusy: () => Effect.succeed(conflict("A turn is already running")),
+    EmptyMessage: () => Effect.succeed(badRequest("Write a message or attach a file")),
+    AttachmentNotFound: () => Effect.succeed(badRequest("An attachment wasn't found; attach it again")),
   }),
   Effect.catch(internalError("send message")),
 );

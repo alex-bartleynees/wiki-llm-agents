@@ -113,7 +113,7 @@ layer(App)("Claude Code provider", (it) => {
         id: "claude-code",
         kind: "claude-code",
         name: "Claude Code",
-        capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: true },
+        capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: true, images: false },
       });
       const { status: ready } = yield* HttpClient.get("/api/providers/claude-code/status").pipe(Effect.flatMap(decode(GetProviderStatusResponse)));
       expect(ready).toEqual({ _tag: "ready", version: "2.1.316", account: "you@example.com (pro)" });
@@ -404,7 +404,7 @@ layer(App)("Claude Code provider", (it) => {
         const first = yield* Effect.scoped(
           Effect.gen(function* () {
             const session = yield* adapter.openSession({ threadId: "t", cwd: root, nativeSessionId: null, model: null, setup });
-            yield* drain(session.startTurn({ turnId: "1", text: loadFixture("multi-turn").turns[0]!.prompt, setup }));
+            yield* drain(session.startTurn({ turnId: "1", text: loadFixture("multi-turn").turns[0]!.prompt, images: [], setup }));
             return session.nativeSessionId;
           }),
         );
@@ -414,7 +414,7 @@ layer(App)("Claude Code provider", (it) => {
           Effect.gen(function* () {
             const session = yield* adapter.openSession({ threadId: "t", cwd: root, nativeSessionId: first, model: "haiku", setup });
             expect(session.nativeSessionId).toBe(first);
-            yield* drain(session.startTurn({ turnId: "2", text: loadFixture("multi-turn").turns[1]!.prompt, setup }));
+            yield* drain(session.startTurn({ turnId: "2", text: loadFixture("multi-turn").turns[1]!.prompt, images: [], setup }));
           }),
         );
         expect(fake.queries()[1]).toMatchObject({ resume: first, model: "haiku" });

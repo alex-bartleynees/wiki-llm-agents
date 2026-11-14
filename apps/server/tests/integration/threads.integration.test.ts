@@ -23,7 +23,7 @@ import { PROVIDER_GONE, SERVER_STOPPED } from "../../src/features/threads/thread
 import { ThreadActors } from "../../src/features/threads/thread-actors.js";
 import { ThreadBus } from "../../src/features/threads/thread-bus.js";
 import { makeSqlite, Sqlite } from "../../src/shared/persistence/sqlite.js";
-import { ReplayOnly, TestAgents, TestApp } from "./infrastructure/test-app.js";
+import { ReplayOnly, TestAgents, TestApp, TestAttachments } from "./infrastructure/test-app.js";
 import { makeTestVault } from "./infrastructure/test-vault.js";
 
 import {
@@ -51,7 +51,7 @@ layer(TestApp)("threads", (it) => {
     Effect.gen(function* () {
       const { providers } = yield* HttpClient.get("/api/providers").pipe(Effect.flatMap(decode(ListProvidersResponse)));
       expect(providers).toEqual([
-        expect.objectContaining({ id: "replay", kind: "replay", capabilities: { interrupt: true, resume: true, approvals: true, questions: true, models: false } }),
+        expect.objectContaining({ id: "replay", kind: "replay", capabilities: { interrupt: true, resume: true, approvals: true, questions: true, models: false, images: false } }),
       ]);
     }),
   );
@@ -276,7 +276,7 @@ const migrationsDir = fileURLToPath(new URL("../../drizzle", import.meta.url));
  * part of it. Closing the scope stops it, like stopping the server.
  */
 const appOn = (file: string, providers: typeof ReplayOnly = ReplayOnly) =>
-  makeHttpApp({ vaults: [], watch: false, providers, agents: TestAgents }).pipe(
+  makeHttpApp({ vaults: [], watch: false, providers, agents: TestAgents, attachments: TestAttachments }).pipe(
     Layer.provideMerge(Layer.effect(Sqlite, makeSqlite({ file, migrationsDir }))),
     Layer.provideMerge(NodeHttpServer.layerTest),
   );

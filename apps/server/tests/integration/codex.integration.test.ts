@@ -115,7 +115,7 @@ layer(App)("Codex provider", (it) => {
         id: "codex",
         kind: "codex",
         name: "Codex",
-        capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: true },
+        capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: true, images: false },
       });
       const { status: ready } = yield* HttpClient.get("/api/providers/codex/status").pipe(Effect.flatMap(decode(GetProviderStatusResponse)));
       expect(ready).toEqual({ _tag: "ready", version: "0.166.0", account: "you@example.com (plus)" });
@@ -388,7 +388,7 @@ layer(App)("Codex provider", (it) => {
         const first = yield* Effect.scoped(
           Effect.gen(function* () {
             const session = yield* adapter.openSession({ threadId: "t", cwd: root, nativeSessionId: null, model: null, setup });
-            yield* Stream.runDrain(session.startTurn({ turnId: "1", text: fixture.turns[0]!.prompt, setup }));
+            yield* Stream.runDrain(session.startTurn({ turnId: "1", text: fixture.turns[0]!.prompt, images: [], setup }));
             return session.nativeSessionId;
           }),
         );
@@ -397,7 +397,7 @@ layer(App)("Codex provider", (it) => {
           Effect.gen(function* () {
             const session = yield* adapter.openSession({ threadId: "t", cwd: root, nativeSessionId: first, model: "gpt-5.6-luna", setup });
             expect(session.nativeSessionId).toBe(first);
-            yield* Stream.runDrain(session.startTurn({ turnId: "2", text: fixture.turns[1]!.prompt, setup }));
+            yield* Stream.runDrain(session.startTurn({ turnId: "2", text: fixture.turns[1]!.prompt, images: [], setup }));
           }),
         );
         expect(fake.requests("thread/resume")).toEqual([expect.objectContaining({ threadId: first, model: "gpt-5.6-luna", sandbox: "read-only" })]);

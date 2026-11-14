@@ -85,7 +85,7 @@ describe("Stop keeps context, live", () => {
 
             // Turn 1: stop it once the agent starts the sleep (as the app does: ask the provider, stop reading).
             const first: Array<ProviderEvent> = [];
-            const reading = yield* Stream.runForEach(session.startTurn({ turnId: "turn-1", text: TASK, setup: SETUP }), (event) =>
+            const reading = yield* Stream.runForEach(session.startTurn({ turnId: "turn-1", text: TASK, images: [], setup: SETUP }), (event) =>
               Effect.sync(() => first.push(event)),
             ).pipe(Effect.forkChild);
             const sawSleep = () => first.some((event) => event._tag === "tool.called" && event.input.includes("sleep"));
@@ -101,7 +101,7 @@ describe("Stop keeps context, live", () => {
             expect(sawSleep()).toBe(true);
 
             // Turn 2, same session: what does the agent remember?
-            const second: ReadonlyArray<ProviderEvent> = yield* Stream.runCollect(session.startTurn({ turnId: "turn-2", text: QUESTION, setup: SETUP }));
+            const second: ReadonlyArray<ProviderEvent> = yield* Stream.runCollect(session.startTurn({ turnId: "turn-2", text: QUESTION, images: [], setup: SETUP }));
             const reply = text(second);
             console.log(`[${testCase.name}] turn 2 finished:`, second.at(-1));
             console.log(`[${testCase.name}] turn 2 reply:\n${reply}`);

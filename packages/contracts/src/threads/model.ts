@@ -1,3 +1,4 @@
+import { Attachment } from "../attachments/model.js";
 import { FileChange, ProposedEdit } from "../changes/model.js";
 import { NoteContext } from "./context.js";
 import { Schema } from "effect";
@@ -26,6 +27,8 @@ export const UserMessage = Schema.TaggedStruct("user.message", {
    * approval or a question) is denied instead of waiting.
    */
   unattended: Schema.optionalKey(Schema.Boolean),
+  /** Files sent with the message (images and other files), in the order they were attached. */
+  attachments: Schema.optionalKey(Schema.Array(Attachment)),
 });
 
 export const TurnStarted = Schema.TaggedStruct("turn.started", {

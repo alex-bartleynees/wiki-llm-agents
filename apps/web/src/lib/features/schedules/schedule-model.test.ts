@@ -7,7 +7,7 @@ const provider = (id: string, models = true): ProviderInstance => ({
   id,
   kind: id,
   name: id === "opencode" ? "OpenCode" : id === "claude" ? "Claude Code" : "Replay",
-  capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models },
+  capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models, images: false },
 });
 const providers = [provider("opencode"), provider("claude"), provider("replay", false)];
 

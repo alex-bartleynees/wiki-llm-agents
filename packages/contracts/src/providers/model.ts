@@ -9,6 +9,11 @@ export const ProviderCapabilities = Schema.Struct({
   questions: Schema.Boolean,
   /** Offers a choice of models (`GET /api/threads/:id/models`). */
   models: Schema.Boolean,
+  /**
+   * Takes images from a message as images (the model sees them). Without it, images
+   * are sent like any other file: listed by path for the agent to read.
+   */
+  images: Schema.Boolean,
 });
 export type ProviderCapabilities = typeof ProviderCapabilities.Type;
 

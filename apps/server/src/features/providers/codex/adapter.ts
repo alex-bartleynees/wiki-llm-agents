@@ -206,7 +206,7 @@ export const makeCodexAdapter = (options: CodexAdapterOptions) =>
 
     const adapter: ProviderAdapter = {
       kind: "codex",
-      capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: true },
+      capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: true, images: false },
       enforcement: enforcedAutonomy,
       status,
       listModels,

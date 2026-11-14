@@ -148,7 +148,7 @@ export const makeClaudeCodeAdapter = (options: ClaudeCodeAdapterOptions) =>
 
     const adapter: ProviderAdapter = {
       kind: "claude-code",
-      capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: true },
+      capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: true, images: false },
       enforcement: enforcedAutonomy,
       status,
       listModels,

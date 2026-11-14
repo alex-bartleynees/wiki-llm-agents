@@ -80,8 +80,10 @@ const toSummary = ({
 });
 
 const TITLE_LENGTH = 80;
-const titleFrom = (text: string) => {
-  const line = text.trim().split("\n")[0]!.trim();
+/** The message's first line, or the name of its first attachment when it has no text; null when neither. */
+const titleFrom = (event: { readonly text: string; readonly attachments?: ReadonlyArray<{ readonly name: string }> }) => {
+  const line = event.text.trim().split("\n")[0]!.trim() || (event.attachments?.[0]?.name ?? "");
+  if (line === "") return null;
   return line.length > TITLE_LENGTH ? `${line.slice(0, TITLE_LENGTH - 1)}…` : line;
 };
 
@@ -201,7 +203,7 @@ export const ThreadRepositoryLive = Layer.effect(
                 case "user.message":
                   tx.insert(turns).values({ id: event.turnId, threadId, input: event.text, status: "running", unattended: event.unattended === true, startedAt: when }).run();
                   tx.update(threads)
-                    .set({ title: sql`COALESCE(${threads.title}, ${titleFrom(event.text)})`, doneAt: null })
+                    .set({ title: sql`COALESCE(${threads.title}, ${titleFrom(event)})`, doneAt: null })
                     .where(eq(threads.id, threadId))
                     .run();
                   break;

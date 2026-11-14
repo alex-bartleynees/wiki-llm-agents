@@ -50,7 +50,7 @@ describe.skipIf(!live)("OpenCode, live", () => {
           // Reading needs no approval; anything else (a command, say) is denied, and the agent carries on.
           const events = yield* Stream.runCollect(
             session
-              .startTurn({ turnId: "turn-1", text: "What do I like to drink in the afternoon? Read the notes; answer in one sentence.", setup: SETUP })
+              .startTurn({ turnId: "turn-1", text: "What do I like to drink in the afternoon? Read the notes; answer in one sentence.", images: [], setup: SETUP })
               .pipe(
                 Stream.tap((event) =>
                   event._tag === "request.opened" && event.prompt._tag === "approval"

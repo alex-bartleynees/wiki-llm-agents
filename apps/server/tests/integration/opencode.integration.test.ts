@@ -33,7 +33,7 @@ import { makeSqlite, Sqlite } from "../../src/shared/persistence/sqlite.js";
 import { type FakeOpenCode, loadFixture, makeFakeOpenCode, type PlayOptions } from "../fixtures/opencode/fake-api.js";
 import { VAULT_FILES } from "../fixtures/opencode/fixture.js";
 import { mcpSession } from "./infrastructure/mcp.js";
-import { makeTestApp, TestAgents } from "./infrastructure/test-app.js";
+import { makeTestApp, TestAgents, TestAttachments } from "./infrastructure/test-app.js";
 import {
   answer,
   decode,
@@ -125,7 +125,7 @@ layer(App)("OpenCode provider", (it) => {
     Effect.gen(function* () {
       const { providers } = yield* HttpClient.get("/api/providers").pipe(Effect.flatMap(decode(ListProvidersResponse)));
       expect(providers.map((provider) => provider.id)).toEqual(["opencode", "replay"]);
-      expect(providers[0]?.capabilities).toEqual({ interrupt: true, resume: false, approvals: true, questions: true, models: true });
+      expect(providers[0]?.capabilities).toEqual({ interrupt: true, resume: false, approvals: true, questions: true, models: true, images: false });
       const { status: ready } = yield* HttpClient.get("/api/providers/opencode/status").pipe(Effect.flatMap(decode(GetProviderStatusResponse)));
       expect(ready).toEqual({ _tag: "ready", version: "2.2.1", account: null });
       expect((yield* HttpClient.get("/api/providers/nope/status")).status).toBe(404);
@@ -626,7 +626,7 @@ const migrationsDir = fileURLToPath(new URL("../../drizzle", import.meta.url));
 
 /** The app over a database file and an OpenCode that outlives it (sessions are OpenCode's own data). */
 const appOn = (file: string, fake: FakeOpenCode) =>
-  makeHttpApp({ vaults: [], watch: false, providers: providersOver(Layer.succeed(Fake, fake)), agents: TestAgents }).pipe(
+  makeHttpApp({ vaults: [], watch: false, providers: providersOver(Layer.succeed(Fake, fake)), agents: TestAgents, attachments: TestAttachments }).pipe(
     Layer.provideMerge(Layer.effect(Sqlite, makeSqlite({ file, migrationsDir }))),
     Layer.provideMerge(NodeHttpServer.layerTest),
   );

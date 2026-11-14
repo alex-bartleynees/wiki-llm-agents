@@ -1,3 +1,4 @@
+import { attachmentsRouter } from "../features/attachments/router.js";
 import { changesRouter } from "../features/changes/router.js";
 import { foldersRouter } from "../features/folders/router.js";
 import { projectsRouter } from "../features/projects/router.js";
@@ -30,6 +31,7 @@ export const router = Layer.mergeAll(
   indexingRouter,
   searchRouter,
   pinsRouter,
+  attachmentsRouter,
   providersRouter,
   threadsRouter,
   changesRouter,

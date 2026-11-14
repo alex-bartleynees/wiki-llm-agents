@@ -230,7 +230,7 @@ const makeSession = (cwd: string) => Effect.gen(function* () {
  */
 export const ReplayAdapter: ProviderAdapter = {
   kind: "replay",
-  capabilities: { interrupt: true, resume: true, approvals: true, questions: true, models: false },
+  capabilities: { interrupt: true, resume: true, approvals: true, questions: true, models: false, images: false },
   openSession: ({ cwd }) => makeSession(cwd),
   enforcement: () => ({
     autonomy: null,
