@@ -27,7 +27,13 @@ test("follows a turn's plan, finds the thread waiting in Running, and answers it
   await expect(plan.getByRole("listitem").nth(1)).toContainText(/In progress:\s*Draft a summary/);
   await expect(page.getByRole("region", { name: "Question" })).toBeVisible();
 
-  await openRunning(page);
+  // The header shows it from any page, without opening the Running tab first. Other
+  // specs share the server, so counts are only checked to be there.
+  const indicator = page.getByRole("banner").getByRole("link", { name: /\d+ waiting for you/ });
+  await expect(indicator).toBeVisible();
+  await indicator.click();
+  await expect(page).toHaveURL(/\/inbox\/running$/);
+  await expect(page.getByRole("navigation", { name: "Inbox view" }).getByRole("link", { name: /^Running\s\(\d+\)$/ })).toBeVisible();
   const waiting = page.getByRole("region", { name: "Waiting for you" });
   const row = waiting.getByRole("listitem").filter({ hasText: title });
   await expect(row).toContainText("Needs you · 1/3");

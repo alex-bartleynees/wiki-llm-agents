@@ -12,9 +12,6 @@ import { reopenThreadEndpoint } from "./reopen-thread/endpoint.js";
 import { sendMessageEndpoint } from "./send-message/endpoint.js";
 import { setAgentEndpoint } from "./set-agent/endpoint.js";
 import { setModelEndpoint } from "./set-model/endpoint.js";
-import { streamAllThreadsEndpoint } from "./stream-all-threads/endpoint.js";
-import { streamThreadEventsEndpoint } from "./stream-thread-events/endpoint.js";
-import { streamThreadsEndpoint } from "./stream-threads/endpoint.js";
 
 import { listNoteContextEndpoint } from "./list-note-context/endpoint.js";
 
@@ -32,7 +29,4 @@ export const threadsRouter = Layer.mergeAll(
   HttpRouter.add("PUT", "/api/threads/:threadId/agent", setAgentEndpoint),
   HttpRouter.add("POST", "/api/threads/:threadId/done", markDoneEndpoint),
   HttpRouter.add("POST", "/api/threads/:threadId/reopen", reopenThreadEndpoint),
-  HttpRouter.add("GET", "/events/threads/:threadId", streamThreadEventsEndpoint),
-  HttpRouter.add("GET", "/events/vaults/:vaultId/threads", streamThreadsEndpoint),
-  HttpRouter.add("GET", "/events/threads", streamAllThreadsEndpoint),
 );

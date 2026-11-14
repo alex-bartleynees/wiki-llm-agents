@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy, onMount } from "svelte";
+  import { onMount } from "svelte";
   import type { ThreadSummary } from "@wiki-agents/contracts/threads/model";
   import { errorMessage } from "#lib/api/client.ts";
   import { agents } from "#lib/features/agents/agents.svelte.ts";
@@ -12,12 +12,11 @@
   import { progressLabel } from "./status.ts";
   import { threadHref } from "./thread-link.ts";
 
+  // The layout keeps `running` live on every page.
   onMount(() => {
-    running.start();
     void vaults.load();
     void agents.load();
   });
-  onDestroy(() => running.stop());
 
   let actionError = $state<string | null>(null);
 
@@ -42,7 +41,7 @@
 
   const STOPPED_LABEL = { failed: "Failed", interrupted: "Stopped", completed: "Done" } as const;
 
-  const empty = $derived(running.waiting.length + running.working.length + running.stopped.length === 0);
+  const empty = $derived(running.count === 0);
 </script>
 
 <div class="running-page">

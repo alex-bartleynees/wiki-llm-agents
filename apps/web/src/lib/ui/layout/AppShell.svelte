@@ -2,7 +2,9 @@
   import type { Snippet } from "svelte";
   import { afterNavigate } from "$app/navigation";
   import { page } from "$app/state";
+  import { RUNNING_PATH } from "@wiki-agents/contracts/threads/model";
   import { inbox } from "#lib/features/inbox/inbox.svelte.ts";
+  import { running } from "#lib/features/threads/running.svelte.ts";
   import Splitter from "#lib/ui/primitives/Splitter.svelte";
   import { theme } from "#lib/ui/theme.svelte.ts";
   import BottomBar from "./BottomBar.svelte";
@@ -31,6 +33,15 @@
 
   const onProjects = $derived(page.url.pathname.startsWith("/projects"));
   const onInbox = $derived(page.url.pathname.startsWith("/inbox"));
+
+  /** Threads at work right now (working or waiting for you); stopped ones only show on the Running tab. */
+  const busy = $derived(running.working.length + running.waiting.length);
+  const runningLabel = $derived(
+    [
+      `${running.working.length} ${running.working.length === 1 ? "thread" : "threads"} working`,
+      ...(running.waiting.length > 0 ? [`${running.waiting.length} waiting for you`] : []),
+    ].join(", "),
+  );
 
   // Phone: opening a note (from the drawer or a link) shows it full screen.
   afterNavigate(({ to }) => {
@@ -79,6 +90,25 @@
       <span class="search-label">Search or open a note</span>
       <kbd class="mono">{shortcutLabel("K")}</kbd>
     </button>
+    {#if busy > 0}
+      <a
+        class="running"
+        class:needs-you={running.waiting.length > 0}
+        href={RUNNING_PATH}
+        aria-label={runningLabel}
+        title={runningLabel}
+        aria-current={page.url.pathname === RUNNING_PATH ? "page" : undefined}
+      >
+        <span class="dot" aria-hidden="true"></span>
+        {#if running.waiting.length > 0}
+          <span class="mono" aria-hidden="true">{running.waiting.length}</span>
+          <span class="running-word" aria-hidden="true">{running.waiting.length === 1 ? "needs you" : "need you"}</span>
+        {:else}
+          <span class="mono" aria-hidden="true">{running.working.length}</span>
+          <span class="running-word" aria-hidden="true">running</span>
+        {/if}
+      </a>
+    {/if}
     <button
       type="button"
       class="icon"
@@ -234,8 +264,56 @@
     color: var(--ink-2);
     cursor: pointer;
   }
-  .search + .icon {
+  .search + .icon,
+  .running + .icon {
     margin-left: 0;
+  }
+
+  /*
+   * Threads at work: an amber dot that pulses and how many are working, or, once one
+   * needs you, a solid dot and how many are waiting. The accessible name says both.
+   */
+  .running {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 30px;
+    padding: 0 10px;
+    border: 1px solid var(--line);
+    border-radius: 15px;
+    color: var(--ink-2);
+    font-size: 13px;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .search + .running {
+    margin-left: 0;
+  }
+  .running:hover,
+  .running[aria-current="page"] {
+    border-color: var(--ink-3);
+    color: var(--ink);
+  }
+  .running .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--agent);
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  .running.needs-you {
+    border-color: var(--agent);
+    background: var(--agent-soft);
+    color: var(--ink);
+  }
+  .running.needs-you .dot {
+    animation: none;
+  }
+  @keyframes pulse {
+    50% {
+      opacity: 0.3;
+    }
   }
 
   .panes {
@@ -294,8 +372,12 @@
       gap: 14px;
     }
     /* Room for the section links and the inbox badge; the icon still links home. */
-    .brand-name {
+    .brand-name,
+    .running-word {
       display: none;
+    }
+    .running {
+      padding: 0 8px;
     }
     .panes {
       position: relative;
@@ -350,6 +432,9 @@
   @media (prefers-reduced-motion: reduce) {
     .vault {
       transition: none;
+    }
+    .running .dot {
+      animation: none;
     }
   }
 </style>

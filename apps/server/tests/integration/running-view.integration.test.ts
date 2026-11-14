@@ -2,9 +2,10 @@ import { expect, layer } from "@effect/vitest";
 import { ThreadsStreamMessage } from "@wiki-agents/contracts/threads/event";
 import { ListActiveThreadsResponse } from "@wiki-agents/contracts/threads/list-active-threads/response";
 import type { ThreadSummary } from "@wiki-agents/contracts/threads/model";
-import { Deferred, Effect, Fiber, Schema, Stream } from "effect";
+import { Effect, Schema } from "effect";
 import { HttpClient } from "effect/http";
 import { TestClock } from "effect/testing";
+import { type Delivered, openEvents } from "./infrastructure/events.js";
 import { TestApp } from "./infrastructure/test-app.js";
 import { answer, decode, getThread, interrupt, isTag, markDone, newThread, newVault, requestIdOf, sendOk, watch } from "./infrastructure/threads.js";
 
@@ -82,33 +83,24 @@ layer(TestApp)("running view", (it) => {
     }),
   );
 
-  it.effect("streams thread changes from every vault", () =>
+  it.effect("streams thread changes from every vault on the all-threads topic", () =>
     Effect.gen(function* () {
       const first = yield* newThread((yield* newVault).id);
       const second = yield* newThread((yield* newVault).id);
-      const decodeMessage = Schema.decodeUnknownSync(Schema.fromJsonString(ThreadsStreamMessage));
-      const ready = yield* Deferred.make<void>();
-      const response = yield* HttpClient.get("/events/threads");
-      expect(response.status).toBe(200);
+      const decodeMessage = Schema.decodeUnknownSync(ThreadsStreamMessage);
+      const updated = (frame: Delivered): ReadonlyArray<ThreadSummary> => {
+        const message = decodeMessage(frame.message);
+        return message.type === "thread.updated" ? [message.thread] : [];
+      };
       const progressed = (thread: ThreadSummary) => thread.id === second.id && thread.runningTurn?.progress != null;
-      const reader = yield* response.stream.pipe(
-        Stream.decodeText,
-        Stream.splitLines,
-        Stream.filter((line) => line.startsWith("data: ")),
-        Stream.map((line) => decodeMessage(line.slice("data: ".length))),
-        Stream.tap((message) => (message.type === "ready" ? Deferred.succeed(ready, undefined) : Effect.void)),
-        Stream.filter((message) => message.type === "thread.updated"),
-        Stream.map((message) => message.thread),
-        Stream.takeUntil(progressed),
-        Stream.runCollect,
-        Effect.forkChild,
-      );
-      yield* Deferred.await(ready);
+      const stream = yield* openEvents;
+      // Answers once `ready` is queued, so no update below can be missed.
+      yield* stream.subscribe("all", { type: "all-threads" });
       yield* runTurn(first.id, "hello");
       const events = yield* watch(second.id);
       yield* sendOk(second.id, "make a plan");
       yield* events.until(isTag("request.opened"));
-      const threads = yield* Fiber.join(reader);
+      const threads = (yield* stream.until((frame) => updated(frame).some(progressed))).flatMap(updated);
       expect(new Set(threads.map((thread) => thread.vaultId))).toEqual(new Set([first.vaultId, second.vaultId]));
       expect(threads.at(-1)?.runningTurn?.progress).toEqual({ done: 0, total: 3, current: "Read the project notes" });
     }),

@@ -1,20 +1,19 @@
 import type { ThreadStreamMessage } from "@wiki-agents/contracts/threads/event";
-import type { StreamThreadEventsRequest } from "@wiki-agents/contracts/threads/stream-thread-events/request";
 import { Effect, Stream } from "effect";
 import { findThread } from "../find-thread.js";
 import { ThreadRepository } from "../repository.js";
 import { ThreadBus } from "../thread-bus.js";
 
 /**
- * The thread's events after `after`: `ready`, then stored ones, then live ones.
+ * The `thread` topic: the thread's events after `after`: `ready`, then stored ones, then live ones.
  * Subscribes before reading the store, and skips live events it already sent, so
  * nothing falls in the gap between the two and nothing is sent twice.
  */
-export const streamThreadEvents = Effect.fn("streamThreadEvents")(function* (request: StreamThreadEventsRequest) {
+export const streamThreadEvents = Effect.fn("streamThreadEvents")(function* (request: { readonly threadId: string; readonly after: number }) {
   const thread = yield* findThread(request.threadId);
   const repository = yield* ThreadRepository;
   const bus = yield* ThreadBus;
-  const after = request.after ?? 0;
+  const { after } = request;
   return Stream.unwrap(
     Effect.gen(function* () {
       const subscription = yield* bus.subscribeEvents;

@@ -1,11 +1,10 @@
 import type { ThreadsStreamMessage } from "@wiki-agents/contracts/threads/event";
-import type { StreamThreadsRequest } from "@wiki-agents/contracts/threads/stream-threads/request";
 import { Effect, Stream } from "effect";
 import { findVault } from "../../vaults/find-vault.js";
 import { ThreadBus } from "../thread-bus.js";
 
-/** Changes to the vault's threads (new, renamed, status); `ready` once subscribed. */
-export const streamThreads = Effect.fn("streamThreads")(function* (request: StreamThreadsRequest) {
+/** The `vault-threads` topic: changes to the vault's threads (new, renamed, status); `ready` once subscribed. */
+export const streamThreads = Effect.fn("streamThreads")(function* (request: { readonly vaultId: string }) {
   const vault = yield* findVault(request.vaultId);
   const bus = yield* ThreadBus;
   return Stream.unwrap(

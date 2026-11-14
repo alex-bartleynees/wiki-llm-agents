@@ -52,6 +52,7 @@ describe("running threads", () => {
     running.start();
     await vi.waitFor(() => expect(running.status).toBe("loaded"));
     expect([running.working, running.waiting, running.stopped].map((group) => group.map((item) => item.id))).toEqual([["a"], ["b"], ["c"]]);
+    expect(running.count).toBe(3);
 
     updated(finished("a"));
     updated(thread("d", { vaultId: "v2", runningTurn: { startedAt: 2, progress: { done: 1, total: 3, current: "Write" } } }));
@@ -59,6 +60,7 @@ describe("running threads", () => {
     expect(running.working.map((item) => item.id)).toEqual(["d"]);
     expect(running.working[0]?.runningTurn?.progress?.current).toBe("Write");
     expect(running.stopped).toEqual([]);
+    expect(running.count).toBe(2);
   });
 
   it("keeps updates that arrive while the list loads, over the list's older answer", async () => {

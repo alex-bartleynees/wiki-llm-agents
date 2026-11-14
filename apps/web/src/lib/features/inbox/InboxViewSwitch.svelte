@@ -3,6 +3,7 @@
   import { NOTIFICATIONS_PATH } from "@wiki-agents/contracts/notifications/model";
   import { SCHEDULES_PATH } from "@wiki-agents/contracts/schedules/model";
   import { RUNNING_PATH } from "@wiki-agents/contracts/threads/model";
+  import { running } from "#lib/features/threads/running.svelte.ts";
   import { inbox } from "./inbox.svelte.ts";
 
   /** The inbox, the threads still at work, the schedules that put things in it, or how it reaches your devices. */
@@ -11,7 +12,7 @@
 
 <nav class="switch" aria-label="Inbox view">
   <a href={INBOX_PATH} aria-current={view === "inbox" ? "page" : undefined}>Inbox{#if inbox.unread > 0}&nbsp;({inbox.unread}){/if}</a>
-  <a href={RUNNING_PATH} aria-current={view === "running" ? "page" : undefined}>Running</a>
+  <a href={RUNNING_PATH} aria-current={view === "running" ? "page" : undefined}>Running{#if running.count > 0}&nbsp;({running.count}){/if}</a>
   <a href={SCHEDULES_PATH} aria-current={view === "schedules" ? "page" : undefined}>Schedules</a>
   <a href={NOTIFICATIONS_PATH} aria-current={view === "notifications" ? "page" : undefined}>Notifications</a>
 </nav>

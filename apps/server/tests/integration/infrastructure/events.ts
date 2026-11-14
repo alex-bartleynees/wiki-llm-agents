@@ -1,6 +1,6 @@
 import { EventStreamFrame } from "@wiki-agents/contracts/events/event";
 import type { EventTopic } from "@wiki-agents/contracts/events/model";
-import { Effect, Queue, Schema, Stream } from "effect";
+import { Deferred, Effect, Queue, Schema, Stream } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/http";
 import { post } from "./threads.js";
 
@@ -15,17 +15,19 @@ export interface Delivered {
 /**
  * Opens `GET /events` for the rest of the scope, like one browser tab. `subscribe`
  * answers once the topic's `ready` is queued; `until` collects delivered messages up
- * to the first one matching `done`.
+ * to the first one matching `done`; `ended` waits for the server to end the stream.
  */
 export const openEvents = Effect.gen(function* () {
   const response = yield* HttpClient.get("/events");
   const frames = yield* Queue.unbounded<EventStreamFrame>();
+  const ended = yield* Deferred.make<void>();
   yield* response.stream.pipe(
     Stream.decodeText,
     Stream.splitLines,
     Stream.filter((line) => line.startsWith("data: ")),
     Stream.map((line) => decodeFrame(line.slice("data: ".length))),
     Stream.runForEach((frame) => Queue.offer(frames, frame)),
+    Effect.ensuring(Deferred.succeed(ended, undefined)),
     Effect.forkScoped,
   );
   const first = yield* Queue.take(frames);
@@ -46,5 +48,13 @@ export const openEvents = Effect.gen(function* () {
         if (done(frame)) return seen;
       }
     });
-  return { status: response.status, contentType: response.headers["content-type"], connectionId, subscribe, unsubscribe, until };
+  return {
+    status: response.status,
+    contentType: response.headers["content-type"],
+    connectionId,
+    subscribe,
+    unsubscribe,
+    until,
+    ended: Deferred.await(ended),
+  };
 });

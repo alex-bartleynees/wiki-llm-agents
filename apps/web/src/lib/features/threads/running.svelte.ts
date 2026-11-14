@@ -7,9 +7,9 @@ import { byRecent } from "./thread-order.ts";
 
 /**
  * Every thread that is working, waiting for you, or stopped, across agents, vaults
- * and projects, kept current by the all-threads topic on the event stream while the Running page is open.
- * Only then: a tab already has up to five event streams open elsewhere, and browsers
- * allow six connections per host over HTTP/1.1.
+ * and projects, kept current by the all-threads topic on the tab's event stream. The
+ * layout starts it, so the header's running indicator and the Running tab's count are
+ * live on every page (a topic costs no extra connection).
  */
 class RunningStore {
   threads = $state<ReadonlyArray<ThreadSummary>>([]);
@@ -34,6 +34,11 @@ class RunningStore {
 
   get stopped() {
     return this.#group("stopped");
+  }
+
+  /** Threads the Running page lists: waiting, working and stopped. */
+  get count() {
+    return this.waiting.length + this.working.length + this.stopped.length;
   }
 
   /** Loads the running threads and follows them until `stop`. */

@@ -1,14 +1,13 @@
 import type { VaultEvent } from "@wiki-agents/contracts/indexing/event";
-import type { StreamVaultEventsRequest } from "@wiki-agents/contracts/indexing/stream-vault-events/request";
 import { Effect, Stream } from "effect";
 import { findVault } from "../../vaults/find-vault.js";
 import { Indexer } from "../indexer.js";
 
 /**
- * The vault's change events. Subscribes before sending `ready`, so a client that
+ * The `vault` topic: the vault's change events. Subscribes before sending `ready`, so a client that
  * waits for `ready` never misses a change.
  */
-export const streamVaultEvents = Effect.fn("streamVaultEvents")(function* (request: StreamVaultEventsRequest) {
+export const streamVaultEvents = Effect.fn("streamVaultEvents")(function* (request: { readonly vaultId: string }) {
   const vault = yield* findVault(request.vaultId);
   const indexer = yield* Indexer;
   return Stream.unwrap(

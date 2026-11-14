@@ -98,6 +98,29 @@ layer(TestApp)("one event stream per tab", (it) => {
     }),
   );
 
+  it.effect("replays all of a finished thread's stored events from 0, or the rest from a later seq", () =>
+    Effect.gen(function* () {
+      const thread = yield* newThread((yield* newVault).id);
+      const watched = yield* watch(thread.id);
+      yield* sendOk(thread.id, "hello");
+      yield* watched.until(isTag("turn.finished"));
+      const { thread: done } = yield* getThread(thread.id);
+      const last = (subscriptionId: string) => (frame: Delivered) => {
+        if (frame.subscriptionId !== subscriptionId) return false;
+        const message = threadMessage(frame.message);
+        return message.type === "event" && message.event.seq === done.lastSeq;
+      };
+
+      const events = yield* openEvents;
+      yield* events.subscribe("all", { type: "thread", threadId: thread.id, after: 0 });
+      const all = yield* events.until(last("all"));
+      expect(threadMessage(all[0]?.message)).toEqual({ type: "ready" });
+      expect(seqs(all, "all")).toEqual(Array.from({ length: done.lastSeq }, (_, index) => index + 1));
+      yield* events.subscribe("rest", { type: "thread", threadId: thread.id, after: 3 });
+      expect(seqs(yield* events.until(last("rest")), "rest")).toEqual(seqs(all, "all").slice(3));
+    }),
+  );
+
   it.effect("rejects unknown connections, vaults and threads, and invalid topics", () =>
     Effect.gen(function* () {
       const events = yield* openEvents;
@@ -105,6 +128,7 @@ layer(TestApp)("one event stream per tab", (it) => {
       expect((yield* events.subscribe("t", { type: "thread", threadId: "nope", after: 0 })).status).toBe(404);
       expect((yield* post(`/api/events/${events.connectionId}/subscriptions`, { subscriptionId: "x", topic: { type: "weather" } })).status).toBe(400);
       expect((yield* events.subscribe("", { type: "inbox" })).status).toBe(400);
+      expect((yield* post(`/api/events/${events.connectionId}/subscriptions`, { subscriptionId: "t", topic: { type: "thread", threadId: "nope", after: -1 } })).status).toBe(400);
 
       expect((yield* post("/api/events/missing/subscriptions", { subscriptionId: "i", topic: { type: "inbox" } })).status).toBe(404);
       const unknown = yield* HttpClient.execute(HttpClientRequest.delete("/api/events/missing/subscriptions/i"));

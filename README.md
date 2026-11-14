@@ -261,10 +261,13 @@ provider and the agent (below) for new threads next to **New thread**:
   a reconnect gets a new connection id and subscribes everything again.
 - The `thread` topic sends the thread's stored events after `after`, then live ones;
   after a reconnect the client subscribes with the last seq it has, so a reload or a
-  dropped connection mid-turn misses nothing and repeats nothing. The older
-  single-topic streams (`/events/inbox`, `/events/threads`, `/events/threads/:id`,
-  `/events/vaults/:id`, `/events/vaults/:id/threads`) still answer, for curl and
-  debugging; the web app no longer uses them.
+  dropped connection mid-turn misses nothing and repeats nothing. `GET /events` is the
+  only event stream; the older single-topic ones were removed (any other path under
+  `/events` is a 404). To watch a topic with curl, open `/events`, then POST a
+  subscription with the connection id it sends first.
+- The web app follows `inbox` and `all-threads` on every page, so the header shows
+  the unread count and, while threads are at work, a running indicator (how many are
+  working, or how many wait for you) that links to the Running tab.
 - At startup the server wakes threads left mid-turn: a turn that never reached the
   provider is started, one waiting on an approval or question stays answerable
   (replay), and one that was streaming is closed as interrupted. OpenCode can't

@@ -8,12 +8,13 @@ import { GetTreeResponse } from "@wiki-agents/contracts/notes/get-tree/response"
 import type { Vault } from "@wiki-agents/contracts/vaults/model";
 import { RegisterVaultResponse } from "@wiki-agents/contracts/vaults/register-vault/response";
 import { sql } from "drizzle-orm";
-import { Deferred, Duration, Effect, Fiber, PubSub, Schema, Stream } from "effect";
+import { Duration, Effect, PubSub, Schema } from "effect";
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http";
 import { VaultRepository } from "../../src/features/vaults/repository.js";
 import { VaultWatcher } from "../../src/features/indexing/watcher.js";
 import { Indexer } from "../../src/features/indexing/indexer.js";
 import { Sqlite } from "../../src/shared/persistence/sqlite.js";
+import { openEvents } from "./infrastructure/events.js";
 import { makeTestApp, TestApp } from "./infrastructure/test-app.js";
 import { makeTestVault } from "./infrastructure/test-vault.js";
 
@@ -218,26 +219,16 @@ layer(TestApp)("vault index", (it) => {
     }),
   );
 
-  it.effect("streams change events after `ready`", () =>
+  it.effect("streams change events after `ready` on the vault topic", () =>
     Effect.gen(function* () {
       const { vault, write } = yield* newVault();
-      const ready = yield* Deferred.make<void>();
-      const response = yield* HttpClient.get(`/events/vaults/${vault.id}`);
-      expect(response.headers["content-type"]).toBe("text/event-stream");
-      const events = yield* response.stream.pipe(
-        Stream.decodeText(),
-        Stream.splitLines,
-        Stream.filter((line) => line.startsWith("data: ")),
-        Stream.map((line) => Schema.decodeUnknownSync(Schema.fromJsonString(VaultEvent))(line.slice(6))),
-        Stream.tap((event) => (event.type === "ready" ? Deferred.succeed(ready, undefined) : Effect.void)),
-        Stream.take(2),
-        Stream.runCollect,
-        Effect.forkChild,
-      );
-      yield* Deferred.await(ready);
+      const events = yield* openEvents;
+      // Answers once `ready` is queued, so the change below can't be missed.
+      yield* events.subscribe("vault", { type: "vault", vaultId: vault.id });
       write("Fresh.md", "new");
       yield* sync(vault, "Fresh.md");
-      expect(yield* Fiber.join(events)).toEqual([
+      const delivered = yield* events.until((frame) => Schema.decodeUnknownSync(VaultEvent)(frame.message).type === "vault.changed");
+      expect(delivered.map((frame) => frame.message)).toEqual([
         { type: "ready" },
         { type: "vault.changed", vaultId: vault.id, paths: ["Fresh.md"] },
       ]);
@@ -248,7 +239,6 @@ layer(TestApp)("vault index", (it) => {
     Effect.gen(function* () {
       expect((yield* HttpClient.get("/api/vaults/nope/backlinks?path=a.md")).status).toBe(404);
       expect((yield* HttpClient.execute(HttpClientRequest.post("/api/vaults/nope/rebuild-index"))).status).toBe(404);
-      expect((yield* HttpClient.get("/events/vaults/nope")).status).toBe(404);
     }),
   );
 });

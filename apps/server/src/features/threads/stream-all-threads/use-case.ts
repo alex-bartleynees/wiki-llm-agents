@@ -2,7 +2,7 @@ import type { ThreadsStreamMessage } from "@wiki-agents/contracts/threads/event"
 import { Effect, Stream } from "effect";
 import { ThreadBus } from "../thread-bus.js";
 
-/** Changes to every thread in every vault (new, renamed, status, progress); `ready` once subscribed. */
+/** The `all-threads` topic: changes to every thread in every vault (new, renamed, status, progress); `ready` once subscribed. */
 export const streamAllThreads = Effect.fn("streamAllThreads")(function* () {
   const bus = yield* ThreadBus;
   return Stream.unwrap(

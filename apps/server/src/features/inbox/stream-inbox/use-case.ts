@@ -2,7 +2,7 @@ import type { InboxStreamMessage } from "@wiki-agents/contracts/inbox/event";
 import { Effect, Stream } from "effect";
 import { InboxBus } from "../inbox-bus.js";
 
-/** Inbox items as they arrive or change; `ready` once subscribed. */
+/** The `inbox` topic: inbox items as they arrive or change; `ready` once subscribed. */
 export const streamInbox = Effect.gen(function* () {
   const bus = yield* InboxBus;
   return Stream.unwrap(

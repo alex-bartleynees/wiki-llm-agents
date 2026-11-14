@@ -8,6 +8,7 @@
   import { projects } from "#lib/features/projects/projects.svelte.ts";
   import QuickSwitcher from "#lib/features/search/QuickSwitcher.svelte";
   import SearchPanel from "#lib/features/search/SearchPanel.svelte";
+  import { running } from "#lib/features/threads/running.svelte.ts";
   import ThreadsPane from "#lib/features/threads/ThreadsPane.svelte";
   import AppShell from "#lib/ui/layout/AppShell.svelte";
   import { shell } from "#lib/ui/layout/shell.svelte.ts";
@@ -18,6 +19,7 @@
   onMount(() => {
     void projects.load();
     inbox.start();
+    running.start();
   });
 
   const vaultId = $derived(page.params["vaultId"]);

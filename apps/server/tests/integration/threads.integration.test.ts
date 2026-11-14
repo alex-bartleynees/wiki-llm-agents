@@ -5,7 +5,6 @@ import { fileURLToPath } from "node:url";
 import { NodeHttpServer } from "@effect/platform-node";
 import { describe, expect, it, layer } from "@effect/vitest";
 import { ListProvidersResponse } from "@wiki-agents/contracts/providers/list-providers/response";
-import { ThreadStreamMessage } from "@wiki-agents/contracts/threads/event";
 import { CreateThreadResponse } from "@wiki-agents/contracts/threads/create-thread/response";
 import { GetThreadResponse } from "@wiki-agents/contracts/threads/get-thread/response";
 import { ListThreadsResponse } from "@wiki-agents/contracts/threads/list-threads/response";
@@ -15,7 +14,7 @@ import { type RequestAnswer, type StoredThreadEvent, type ThreadEvent, type Thre
 import { SendMessageResponse } from "@wiki-agents/contracts/threads/send-message/response";
 import { RegisterVaultResponse } from "@wiki-agents/contracts/vaults/register-vault/response";
 import { sql } from "drizzle-orm";
-import { Clock, type Duration, Effect, Fiber, Layer, PubSub, Schema, type Scope, Stream } from "effect";
+import { Clock, type Duration, Effect, Layer, PubSub, type Scope } from "effect";
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http";
 import { TestClock } from "effect/testing";
 import { makeHttpApp } from "../../src/app/layers.js";
@@ -266,67 +265,6 @@ layer(TestApp)("threads", (it) => {
         ),
       );
       expect(foreign.status).toBe(403);
-    }),
-  );
-});
-
-/** Reads `data:` messages from an SSE response until `done` matches one. */
-const readStream = (
-  path: string,
-  done: (message: ThreadStreamMessage) => boolean,
-  headers: Record<string, string> = {},
-) =>
-  Effect.gen(function* () {
-    const response = yield* HttpClient.execute(HttpClientRequest.get(path).pipe(HttpClientRequest.setHeaders(headers)));
-    expect(response.status).toBe(200);
-    const decodeMessage = Schema.decodeUnknownSync(Schema.fromJsonString(ThreadStreamMessage));
-    return yield* response.stream.pipe(
-      Stream.decodeText,
-      Stream.splitLines,
-      Stream.filter((line) => line.startsWith("data: ")),
-      Stream.map((line) => decodeMessage(line.slice("data: ".length))),
-      Stream.takeUntil(done),
-      Stream.runCollect,
-    );
-  });
-
-const seqs = (messages: ReadonlyArray<ThreadStreamMessage>) => messages.flatMap((message) => (message.type === "event" ? [message.event.seq] : []));
-
-layer(TestApp)("thread event stream", (it) => {
-  it.effect("replays stored events after a seq, from ?after= or Last-Event-ID", () =>
-    Effect.gen(function* () {
-      const thread = yield* newThread((yield* newVault).id);
-      const events = yield* watch(thread.id);
-      yield* sendOk(thread.id, "hello");
-      yield* events.until(isTag("turn.finished"));
-      const { thread: done } = yield* getThread(thread.id);
-      const last = (message: ThreadStreamMessage) => message.type === "event" && message.event.seq === done.lastSeq;
-
-      const all = yield* readStream(`/events/threads/${thread.id}`, last);
-      expect(all[0]).toEqual({ type: "ready" });
-      expect(seqs(all)).toEqual(Array.from({ length: done.lastSeq }, (_, index) => index + 1));
-      expect(seqs(yield* readStream(`/events/threads/${thread.id}?after=3`, last))).toEqual(seqs(all).slice(3));
-      expect(seqs(yield* readStream(`/events/threads/${thread.id}?after=1`, last, { "last-event-id": "5" }))).toEqual(seqs(all).slice(5));
-      expect((yield* HttpClient.get(`/events/threads/${thread.id}?after=-1`)).status).toBe(400);
-      expect((yield* HttpClient.get("/events/threads/missing")).status).toBe(404);
-    }),
-  );
-
-  it.effect("continues from stored events into live ones without gaps or repeats", () =>
-    Effect.gen(function* () {
-      const thread = yield* newThread((yield* newVault).id);
-      const events = yield* watch(thread.id);
-      yield* sendOk(thread.id, "edit the plan");
-      const requestId = requestIdOf(yield* events.until(isTag("request.opened")));
-      const finished = (message: ThreadStreamMessage) => message.type === "event" && message.event.event._tag === "turn.finished";
-      const reader = yield* Effect.forkChild(readStream(`/events/threads/${thread.id}?after=2`, finished));
-      // However the reader's connection interleaves with the turn, stored and live events
-      // together must give every seq after 2 exactly once.
-      yield* answer(thread.id, requestId, { _tag: "approval", decision: "approve" });
-      yield* events.until(isTag("turn.finished"));
-      const messages = yield* Fiber.join(reader);
-      const { thread: done } = yield* getThread(thread.id);
-      expect(seqs(messages)).toEqual(Array.from({ length: done.lastSeq - 2 }, (_, index) => index + 3));
     }),
   );
 });
