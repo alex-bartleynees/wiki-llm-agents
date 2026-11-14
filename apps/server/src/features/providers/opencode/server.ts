@@ -27,7 +27,27 @@ const RECONNECT_DELAY = Duration.seconds(1);
 export interface ServerOptions {
   /** The `opencode` executable: a path, or a name looked up on `PATH`. */
   readonly binary: string;
+  /** Turn on the experimental `todowrite` tool (see `withTodo`). */
+  readonly todo?: boolean;
 }
+
+/**
+ * `OPENCODE_CONFIG_CONTENT` with `experimental.todo` on, keeping whatever inline config
+ * was already there. OpenCode merges this inline config over your own config files.
+ */
+export const withTodo = (existing: string | undefined): string => {
+  let config: Record<string, unknown> = {};
+  if (existing !== undefined && existing.trim() !== "") {
+    try {
+      const parsed: unknown = JSON.parse(existing);
+      if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) config = parsed as Record<string, unknown>;
+    } catch {
+      // Not JSON: OpenCode couldn't use it either, so only the flag goes through.
+    }
+  }
+  const experimental = typeof config.experimental === "object" && config.experimental !== null ? config.experimental : {};
+  return JSON.stringify({ ...config, experimental: { ...experimental, todo: true } });
+};
 
 const describe = (cause: unknown): string => {
   if (typeof cause === "object" && cause !== null) {
@@ -90,6 +110,7 @@ const launch = (options: ServerOptions, password: string) =>
   Effect.gen(function* () {
     const env: NodeJS.ProcessEnv = { ...process.env, OPENCODE_PASSWORD: password };
     delete env.OPENCODE_SERVER_PASSWORD;
+    if (options.todo === true) env.OPENCODE_CONFIG_CONTENT = withTodo(env.OPENCODE_CONFIG_CONTENT);
     const child = yield* Effect.acquireRelease(
       Effect.sync(() => spawn(options.binary, ["serve", "--hostname=127.0.0.1", "--port=0"], { env, stdio: ["ignore", "pipe", "pipe"] })),
       stop,

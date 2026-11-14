@@ -25,6 +25,12 @@ export const AppConfig = {
   watchPollMs: Config.option(Config.Int("WIKI_AGENTS_WATCH_POLL_MS")),
   /** The OpenCode executable: a path, or a name looked up on `PATH`. */
   opencodeBinary: Config.String("WIKI_AGENTS_OPENCODE").pipe(Config.withDefault("opencode")),
+  /**
+   * Turns on OpenCode's experimental `todowrite` tool (`experimental.todo`) for the
+   * app's `opencode serve`, so OpenCode threads show the agent's plan. Off by default:
+   * it adds tool calls to every multi-step turn.
+   */
+  opencodeTodo: Config.Boolean("WIKI_AGENTS_OPENCODE_TODO").pipe(Config.withDefault(false)),
   /** The Claude Code executable: a path, or a name looked up on `PATH`. */
   claudeBinary: Config.String("WIKI_AGENTS_CLAUDE").pipe(Config.withDefault("claude")),
   /** The Codex executable: a path, or a name looked up on `PATH`. */

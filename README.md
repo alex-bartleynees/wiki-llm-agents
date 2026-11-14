@@ -231,8 +231,9 @@ provider and the agent (below) for new threads next to **New thread**:
   `todowrite`, Codex's plan updates) the turn shows it as a checklist instead of a
   tool call, updated in place (`plan.updated` events; the latest is kept in
   `turns.plan`). The thread list shows the running turn's progress (`2/5`); without a
-  plan there is only the working indicator. Claude Code's newer task tools
-  (`TaskCreate`/`TaskUpdate`) still show as tool calls.
+  plan there is only the working indicator. As of 2026-11-14 only OpenCode sends
+  plans, and only with `WIKI_AGENTS_OPENCODE_TODO=true`: Claude Code 2.1.321 has no
+  todo tool in SDK mode, and Codex 0.167.1 has no `update_plan`.
 - **Running** (`/inbox/running`, a tab next to the inbox)
   lists every thread in every vault and project that is waiting for you, working (with
   its plan progress and current step), or stopped: its last turn failed, or ended
@@ -701,6 +702,7 @@ design/             Claude Design mockup
 | `WIKI_AGENTS_STATIC_DIR` | unset; the packaged binary points it at the web build |
 | `WIKI_AGENTS_MIGRATIONS_DIR` | `apps/server/drizzle` |
 | `WIKI_AGENTS_OPENCODE` | `opencode` (looked up on `PATH`) |
+| `WIKI_AGENTS_OPENCODE_TODO` | `false`; `true` turns on OpenCode's experimental `todowrite` tool (`experimental.todo`, added to any `OPENCODE_CONFIG_CONTENT`) for the app's OpenCode server, so OpenCode threads show plans. It adds tool calls to multi-step turns; restart the app after changing it |
 | `WIKI_AGENTS_CLAUDE` | `claude` (looked up on `PATH`) |
 | `WIKI_AGENTS_CONFIG_DIR` | `$XDG_CONFIG_HOME/wiki-agents` (rules and agents) |
 | `WIKI_AGENTS_TIMEZONE` | `Pacific/Auckland`: the timezone new schedules use unless they say otherwise |
@@ -738,7 +740,8 @@ services.wiki-agents = {
 
 Options: `vaults`, `host` (default `127.0.0.1`), `port` (default `4317`), `dataDir`,
 `configDir` (rules and agents; never written by Nix), `watchPollMs`, `opencode` (a
-package; default: `opencode` from your user profile, which must be 2.2.x), `claudeCode`
+package; default: `opencode` from your user profile, which must be 2.2.x), `opencodeTodo`
+(default off; sets `WIKI_AGENTS_OPENCODE_TODO`), `claudeCode`
 (a package; default: `claude` from your user profile, which must be 2.1.x), `codex`
 (a package; default: `codex` from your user profile, 0.166 or later),
 `environment`, `enableLinger` and `desktopEntry` (default off). `nix flake check`

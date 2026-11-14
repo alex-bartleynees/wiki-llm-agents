@@ -92,10 +92,11 @@ export const makeProviderRegistry = <E, R>(makeAdapters: Effect.Effect<ReadonlyA
     }),
   );
 
-/** OpenCode, run from the `opencode` on PATH (or `WIKI_AGENTS_OPENCODE`). */
+/** OpenCode, run from the `opencode` on PATH (or `WIKI_AGENTS_OPENCODE`), with its todo tool if `WIKI_AGENTS_OPENCODE_TODO`. */
 export const OpenCodeAdapterLive: Effect.Effect<ProviderAdapter, never, Scope.Scope> = Effect.gen(function* () {
   const binary = yield* AppConfig.opencodeBinary.pipe(Effect.orDie);
-  return yield* makeOpenCodeAdapter({ start: startServer({ binary }), installedVersion: binaryVersion(binary) });
+  const todo = yield* AppConfig.opencodeTodo.pipe(Effect.orDie);
+  return yield* makeOpenCodeAdapter({ start: startServer({ binary, todo }), installedVersion: binaryVersion(binary) });
 });
 
 /** Claude Code, run from the `claude` on PATH (or `WIKI_AGENTS_CLAUDE`), with your login. */

@@ -95,6 +95,16 @@ in
       '';
     };
 
+    opencodeTodo = mkOption {
+      type = types.bool;
+      default = false;
+      description = ''
+        Turn on OpenCode's experimental todowrite tool (`experimental.todo`) for the app's
+        OpenCode server, so OpenCode threads show the agent's plan as a checklist. Off by
+        default: it adds tool calls to multi-step turns, and OpenCode may change it.
+      '';
+    };
+
     claudeCode = mkOption {
       type = types.nullOr types.package;
       default = null;
@@ -170,6 +180,7 @@ in
           }
           // lib.optionalAttrs (cfg.watchPollMs != null) { WIKI_AGENTS_WATCH_POLL_MS = toString cfg.watchPollMs; }
           // lib.optionalAttrs (cfg.opencode != null) { WIKI_AGENTS_OPENCODE = lib.getExe cfg.opencode; }
+          // lib.optionalAttrs cfg.opencodeTodo { WIKI_AGENTS_OPENCODE_TODO = "true"; }
           // lib.optionalAttrs (cfg.claudeCode != null) { WIKI_AGENTS_CLAUDE = lib.getExe cfg.claudeCode; }
           // lib.optionalAttrs (cfg.codex != null) { WIKI_AGENTS_CODEX = lib.getExe cfg.codex; }
           // cfg.environment

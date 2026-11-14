@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chatModels, isSupportedVersion, listeningUrl, printedPassword, type ListedModel } from "./server.js";
+import { chatModels, isSupportedVersion, listeningUrl, printedPassword, type ListedModel, withTodo } from "./server.js";
 
 describe("listeningUrl", () => {
   it.each([
@@ -62,5 +62,20 @@ describe("chatModels", () => {
       model("big-pickle", { providerID: "opencode", cost: [{ input: 0, output: 0 }] }),
     ]);
     expect(listed).toEqual([{ id: "opencode/big-pickle", name: "big-pickle", free: true }]);
+  });
+});
+
+describe("withTodo", () => {
+  it("turns on the todo tool, keeping inline config that was already set", () => {
+    expect(JSON.parse(withTodo(undefined))).toEqual({ experimental: { todo: true } });
+    expect(JSON.parse(withTodo('{"model":"opencode/big-pickle","experimental":{"todo":false,"other":1}}'))).toEqual({
+      model: "opencode/big-pickle",
+      experimental: { todo: true, other: 1 },
+    });
+  });
+
+  it("ignores inline config that isn't a JSON object", () => {
+    expect(JSON.parse(withTodo("not json"))).toEqual({ experimental: { todo: true } });
+    expect(JSON.parse(withTodo("[1]"))).toEqual({ experimental: { todo: true } });
   });
 });
