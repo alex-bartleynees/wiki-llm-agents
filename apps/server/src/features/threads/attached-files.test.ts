@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { attachedFilesText, formatSize } from "./attached-files.js";
+import { formatSize } from "@wiki-agents/contracts/attachments/model";
+import { attachedFilesText } from "./attached-files.js";
 
 describe("attachedFilesText", () => {
   it("is empty without files", () => expect(attachedFilesText([])).toBe(""));

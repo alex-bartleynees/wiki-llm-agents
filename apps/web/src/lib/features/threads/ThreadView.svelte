@@ -3,6 +3,7 @@
   import AgentPicker from "#lib/features/agents/AgentPicker.svelte";
   import { agents } from "#lib/features/agents/agents.svelte.ts";
   import { describeAutonomy, enforcedAutonomy } from "#lib/features/agents/autonomy.ts";
+  import MessageAttachments from "#lib/features/attachments/MessageAttachments.svelte";
   import AgentText from "./AgentText.svelte";
   import Composer from "./Composer.svelte";
   import ModelPicker from "./ModelPicker.svelte";
@@ -107,7 +108,11 @@
     {#if item.kind === "notice"}
       <p class="muted">{#if item.href}<a href={item.href}>{item.text}</a>{:else if item.path && openThread.thread}<a href={`/vaults/${openThread.thread.vaultId}?note=${encodeURIComponent(item.path)}`}>{item.text}</a>{:else}{item.text}{/if}</p>
     {:else if item.kind === "user"}
-      <p class="user">{#if item.unattended}<span class="unattended mono">Scheduled run · unattended</span>{/if}{item.text}</p>
+      <div class="user">
+        {#if item.unattended}<span class="unattended mono">Scheduled run · unattended</span>{/if}
+        {#if item.attachments.length > 0}<MessageAttachments attachments={item.attachments} imagesAsFiles={item.imagesAsFiles} />{/if}
+        {#if item.text !== ""}<p class="text">{item.text}</p>{/if}
+      </div>
     {:else if item.kind === "agent"}
       <div class="agent"><AgentText text={item.text} /></div>
     {:else if item.kind === "tool"}
@@ -230,7 +235,8 @@
   .timeline > p {
     margin: 0;
   }
-  .user {
+  .user .text {
+    margin: 0;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
   }

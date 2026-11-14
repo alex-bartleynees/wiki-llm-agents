@@ -57,8 +57,11 @@ export const setModel = (threadId: string, model: string) => putJson(`${threadPa
 
 export const getThread = (threadId: string, signal?: AbortSignal) => getJson(threadPath(threadId), GetThreadResponse, signal);
 
-export const sendMessage = (threadId: string, text: string, notes: SendMessageRequest["notes"] = []) =>
-  postJson(`${threadPath(threadId)}/messages`, SendMessageRequest, { text, notes }, SendMessageResponse);
+/** Files sent with a message: attachment ids, and whether its images go as files. */
+export type MessageFiles = Pick<SendMessageRequest, "attachments" | "imagesAsFiles">;
+
+export const sendMessage = (threadId: string, text: string, notes: SendMessageRequest["notes"] = [], files: MessageFiles = {}) =>
+  postJson(`${threadPath(threadId)}/messages`, SendMessageRequest, { text, notes, ...files }, SendMessageResponse);
 
 export const interruptTurn = (threadId: string) => postJson(`${threadPath(threadId)}/interrupt`, NoBody, {}, InterruptTurnResponse);
 

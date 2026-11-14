@@ -1,11 +1,19 @@
+import type { Attachment } from "@wiki-agents/contracts/attachments/model";
 import type { FileChange } from "@wiki-agents/contracts/changes/model";
 import type { PlanStep, RequestAnswer, RequestPrompt, StoredThreadEvent, ThreadEvent, TurnOutcome, TurnUsage } from "@wiki-agents/contracts/threads/model";
 
 /** What the conversation shows, built from the thread's events in order. */
 export type TimelineItem =
   | { readonly kind: "notice"; readonly key: string; readonly text: string; readonly href?: string; readonly path?: string }
-  /** `unattended`: sent by a schedule, with nobody watching. */
-  | { readonly kind: "user"; readonly key: string; readonly text: string; readonly unattended: boolean }
+  /** `unattended`: sent by a schedule, with nobody watching. `imagesAsFiles`: its images went as files. */
+  | {
+      readonly kind: "user";
+      readonly key: string;
+      readonly text: string;
+      readonly unattended: boolean;
+      readonly attachments: ReadonlyArray<Attachment>;
+      readonly imagesAsFiles: boolean;
+    }
   /** The receipt of a schedule the agent saved, with a link to edit it. */
   | { readonly kind: "schedule"; readonly key: string; readonly receipt: Extract<ThreadEvent, { readonly _tag: "schedule.saved" }> }
   | { readonly kind: "agent"; readonly key: string; text: string }
@@ -74,7 +82,14 @@ export const applyEvent = (timeline: Timeline, stored: StoredThreadEvent): boole
       timeline.items.push({ kind: "notice", key: String(stored.seq), path: event.note.path, text: `${event.note.reason}: ${event.note.path} · sha256 ${event.note.hash.slice(0, 12)}${event.note.notices.length ? ` · ${event.note.notices.join(" ")}` : ""}` });
       break;
     case "user.message":
-      timeline.items.push({ kind: "user", key: event.turnId, text: event.text, unattended: event.unattended === true });
+      timeline.items.push({
+        kind: "user",
+        key: event.turnId,
+        text: event.text,
+        unattended: event.unattended === true,
+        attachments: event.attachments ?? [],
+        imagesAsFiles: event.imagesAsFiles === true,
+      });
       break;
     case "turn.started":
       timeline.runningTurn = event.turnId;

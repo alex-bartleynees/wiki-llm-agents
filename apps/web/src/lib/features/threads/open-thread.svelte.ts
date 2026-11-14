@@ -4,7 +4,8 @@ import { ThreadStreamMessage } from "@wiki-agents/contracts/threads/event";
 import type { RequestAnswer, ThreadSummary } from "@wiki-agents/contracts/threads/model";
 import { errorMessage, isAbort } from "#lib/api/client.ts";
 import { listen } from "#lib/api/sse.ts";
-import { answerRequest, getThread, interruptTurn, sendMessage, threadTopic } from "./api.ts";
+import type { SendMessageRequest } from "@wiki-agents/contracts/threads/send-message/request";
+import { answerRequest, getThread, interruptTurn, type MessageFiles, sendMessage, threadTopic } from "./api.ts";
 import { applyEvent, emptyTimeline, type Timeline } from "./timeline.ts";
 
 /**
@@ -88,12 +89,12 @@ class OpenThreadStore {
     if (thread.id === this.#threadId) this.thread = thread;
   }
 
-  async send(text: string, notes: import("@wiki-agents/contracts/threads/send-message/request").SendMessageRequest["notes"] = []): Promise<boolean> {
+  async send(text: string, notes: SendMessageRequest["notes"] = [], files: MessageFiles = {}): Promise<boolean> {
     const threadId = this.#threadId;
     if (threadId === null || this.sending) return false;
     this.sending = true;
     try {
-      await sendMessage(threadId, text, notes);
+      await sendMessage(threadId, text, notes, files);
       this.error = undefined;
       return true;
     } catch (error) {

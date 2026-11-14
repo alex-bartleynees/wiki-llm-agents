@@ -47,3 +47,18 @@ describe("the plan in the timeline", () => {
     expect(plan?.kind === "plan" ? plan.steps.map((step) => step.status) : []).toEqual(["completed", "in_progress"]);
   });
 });
+
+describe("a message's attachments in the timeline", () => {
+  it("keeps the files sent with a message, and whether its images went as files", () => {
+    const shot = { id: "i1", name: "shot.png", mime: "image/png", size: 1500, kind: "image" } as const;
+    const csv = { id: "f1", name: "sales.csv", mime: "text/csv", size: 49, kind: "file" } as const;
+    const timeline = apply([
+      { _tag: "user.message", turnId: "a", text: "", attachments: [shot, csv], imagesAsFiles: true },
+      { _tag: "user.message", turnId: "b", text: "plain" },
+    ]);
+    expect(timeline.items).toEqual([
+      expect.objectContaining({ kind: "user", text: "", attachments: [shot, csv], imagesAsFiles: true }),
+      expect.objectContaining({ kind: "user", text: "plain", attachments: [], imagesAsFiles: false }),
+    ]);
+  });
+});

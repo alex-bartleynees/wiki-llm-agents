@@ -1,11 +1,4 @@
-import type { Attachment } from "@wiki-agents/contracts/attachments/model";
-
-/** `12 B`, `3.4 KB`, `12.3 MB`. */
-export const formatSize = (bytes: number) => {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-};
+import { type Attachment, formatSize } from "@wiki-agents/contracts/attachments/model";
 
 /**
  * What the agent is told about files sent with a message: not their content (a log

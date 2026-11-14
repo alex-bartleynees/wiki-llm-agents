@@ -1,9 +1,9 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
+import { formatSize } from "@wiki-agents/contracts/attachments/model";
 import type { RequestAnswer, RequestPrompt } from "@wiki-agents/contracts/threads/model";
 import { createTwoFilesPatch } from "diff";
 import { Context, Deferred, Effect, Option, Stream } from "effect";
-import { formatSize } from "../../threads/attached-files.js";
 import { type ProviderAdapter, ProviderError, type ProviderEvent, type ProviderSession, type TurnImage } from "../port.js";
 import type { Step } from "./transcript.js";
 import { chooseTranscript } from "./transcripts.js";
