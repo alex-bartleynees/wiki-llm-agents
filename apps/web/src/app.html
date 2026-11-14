@@ -12,24 +12,37 @@
     <meta name="apple-mobile-web-app-title" content="wiki-agents" />
     <meta name="mobile-web-app-capable" content="yes" />
     <!--
-      Set the theme before the first paint. The app's CSS and JS load after this, so
-      without it a dark-mode reload flashes white. Keep the storage key and logic in
-      sync with src/lib/ui/theme.svelte.ts, and the colours with --bg in tokens.css.
+      Set the theme and fonts before the first paint. The app's CSS and JS load after
+      this, so without it a dark-mode reload flashes white. Keep the storage keys and
+      logic in sync with src/lib/features/appearance/appearance.svelte.ts, the theme ids
+      with themes.ts, and the colours with --bg in tokens.css (themes.test.ts checks).
     -->
     <style>
       html { background: #f5f6f8; color-scheme: light; }
       html[data-theme="dark"] { background: #0d0e11; color-scheme: dark; }
+      html[data-theme="gruvbox-dark-hard"] { background: #1d2021; color-scheme: dark; }
+      html[data-theme="tokyo-night"] { background: #1f2335; color-scheme: dark; }
+      html[data-theme="everforest"] { background: #232a2e; color-scheme: dark; }
+      html[data-theme="catppuccin-mocha"] { background: #181825; color-scheme: dark; }
     </style>
     <script>
       (function () {
+        var themes = ["light", "dark", "gruvbox-dark-hard", "tokyo-night", "everforest", "catppuccin-mocha"];
+        var fontTokens = ["--font-ui", "--font-mono", "--font-read"];
+        var root = document.documentElement;
         var theme;
+        var fonts;
         try {
           theme = localStorage.getItem("wiki-agents:theme");
+          fonts = JSON.parse(localStorage.getItem("wiki-agents:fonts") || "{}").stacks;
         } catch (e) {}
-        if (theme !== "light" && theme !== "dark") {
+        if (themes.indexOf(theme) === -1) {
           theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
         }
-        document.documentElement.dataset.theme = theme;
+        root.dataset.theme = theme;
+        for (var i = 0; fonts && i < fontTokens.length; i++) {
+          if (typeof fonts[fontTokens[i]] === "string") root.style.setProperty(fontTokens[i], fonts[fontTokens[i]]);
+        }
       })();
     </script>
     %sveltekit.head%

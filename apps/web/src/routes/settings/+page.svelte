@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
+  import AppearanceSettings from "#lib/features/appearance/AppearanceSettings.svelte";
   import ProviderList from "#lib/features/threads/ProviderList.svelte";
   import AddVaultForm from "#lib/features/vaults/AddVaultForm.svelte";
   import VaultList from "#lib/features/vaults/VaultList.svelte";
@@ -10,7 +11,9 @@
 </svelte:head>
 
 <section>
-  <h1>Vaults</h1>
+  <h1>Appearance</h1>
+  <AppearanceSettings />
+  <h1 class="next">Vaults</h1>
   <VaultList />
   <h2>Add a vault</h2>
   <AddVaultForm onadded={(vault) => goto(`/vaults/${vault.id}`)} />

@@ -7,11 +7,28 @@
 @import "@fontsource/source-serif-4/400.css";
 @import "@fontsource/source-serif-4/600.css";
 
+/*
+ * Fonts and sizes, the same in every theme. Settings → Appearance can override the
+ * fonts per device, as inline styles on <html> (`features/appearance/fonts.ts`).
+ */
 :root {
   --font-ui: "IBM Plex Sans", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
   --font-read: "Source Serif 4", Georgia, serif;
 
+  --radius: 4px;
+  --header-height: 52px;
+  --bottom-bar-height: 64px;
+}
+
+/*
+ * Colour themes (`features/appearance/themes.ts` lists them). `data-theme` on <html>
+ * picks the app's theme; `data-theme-preview` gives an element a theme of its own, for
+ * the swatches in Settings. Each theme's --bg is repeated in src/app.html for the first
+ * paint (a unit test checks they match).
+ */
+:root,
+[data-theme-preview="light"] {
   --bg: #f5f6f8;
   --surface: #ffffff;
   --sunken: #eef0f3;
@@ -40,14 +57,11 @@
   --syn-type: #0f6e6a;
   --syn-property: #4f5a75;
   --syn-meta: #6b7079;
-
-  --radius: 4px;
-  --header-height: 52px;
-  --bottom-bar-height: 64px;
   color-scheme: light;
 }
 
-:root[data-theme="dark"] {
+:root[data-theme="dark"],
+[data-theme-preview="dark"] {
   --bg: #0d0e11;
   --surface: #15171b;
   --sunken: #0a0b0d;
@@ -74,6 +88,141 @@
   --syn-type: #6fd3cb;
   --syn-property: #b3bdd4;
   --syn-meta: #8c919a;
+  color-scheme: dark;
+}
+
+/*
+ * Gruvbox Dark Hard, to match the desktop's Stylix theme (base16 gruvbox-dark-hard).
+ * The accent is Gruvbox orange, like the window borders; orange sits too close to the
+ * usual amber, so agent content is Gruvbox aqua here.
+ */
+:root[data-theme="gruvbox-dark-hard"],
+[data-theme-preview="gruvbox-dark-hard"] {
+  --bg: #1d2021;
+  --surface: #282828;
+  --sunken: #161819;
+  --line: #3c3836;
+  --line-soft: #32302f;
+  --ink: #ebdbb2;
+  --ink-2: #d5c4a1;
+  --ink-3: #a89984;
+  --accent: #fe8019;
+  --accent-ink: #fe8019;
+  --accent-soft: #3d2d1f;
+  --on-accent: #1d2021;
+  --agent: #8ec07c;
+  --agent-soft: #2b332c;
+  --ok: #b8bb26;
+  --warn: #fabd2f;
+  --del: #fb4934;
+  --ins: #b8bb26;
+  --syn-keyword: #fb4934;
+  --syn-string: #b8bb26;
+  --syn-comment: #928374;
+  --syn-literal: #d3869b;
+  --syn-function: #8ec07c;
+  --syn-type: #fabd2f;
+  --syn-property: #83a598;
+  --syn-meta: #928374;
+  color-scheme: dark;
+}
+
+/*
+ * The other desktop themes, from the same base16 schemes Stylix uses: Tokyo Night
+ * Storm, Everforest (dark, medium) and Catppuccin Mocha. The accent is the window
+ * border colour; the palette's yellow or peach keeps amber for agent content. Comments
+ * stay as dim as each theme draws them; the rest reads at 4.5:1 or better on --surface.
+ */
+:root[data-theme="tokyo-night"],
+[data-theme-preview="tokyo-night"] {
+  --bg: #1f2335;
+  --surface: #24283b;
+  --sunken: #171a28;
+  --line: #3b4261;
+  --line-soft: #292e42;
+  --ink: #c0caf5;
+  --ink-2: #a9b1d6;
+  --ink-3: #8b93bf;
+  --accent: #7aa2f7;
+  --accent-ink: #7aa2f7;
+  --accent-soft: #2d3652;
+  --on-accent: #1f2335;
+  --agent: #e0af68;
+  --agent-soft: #36343b;
+  --ok: #9ece6a;
+  --warn: #ff9e64;
+  --del: #f7768e;
+  --ins: #9ece6a;
+  --syn-keyword: #bb9af7;
+  --syn-string: #9ece6a;
+  --syn-comment: #7a83ad;
+  --syn-literal: #ff9e64;
+  --syn-function: #7aa2f7;
+  --syn-type: #2ac3de;
+  --syn-property: #73daca;
+  --syn-meta: #7a83ad;
+  color-scheme: dark;
+}
+
+:root[data-theme="everforest"],
+[data-theme-preview="everforest"] {
+  --bg: #232a2e;
+  --surface: #2d353b;
+  --sunken: #1e2326;
+  --line: #3d484d;
+  --line-soft: #343f44;
+  --ink: #d3c6aa;
+  --ink-2: #b9b49b;
+  --ink-3: #9da9a0;
+  --accent: #a7c080;
+  --accent-ink: #a7c080;
+  --accent-soft: #37413a;
+  --on-accent: #232a2e;
+  --agent: #dbbc7f;
+  --agent-soft: #393c38;
+  --ok: #a7c080;
+  --warn: #e69875;
+  --del: #e67e80;
+  --ins: #a7c080;
+  --syn-keyword: #e67e80;
+  --syn-string: #83c092;
+  --syn-comment: #859289;
+  --syn-literal: #d699b6;
+  --syn-function: #a7c080;
+  --syn-type: #dbbc7f;
+  --syn-property: #7fbbb3;
+  --syn-meta: #859289;
+  color-scheme: dark;
+}
+
+:root[data-theme="catppuccin-mocha"],
+[data-theme-preview="catppuccin-mocha"] {
+  --bg: #181825;
+  --surface: #1e1e2e;
+  --sunken: #11111b;
+  --line: #313244;
+  --line-soft: #2a2b3c;
+  --ink: #cdd6f4;
+  --ink-2: #bac2de;
+  --ink-3: #9399b2;
+  --accent: #cba6f7;
+  --accent-ink: #cba6f7;
+  --accent-soft: #332d45;
+  --on-accent: #1e1e2e;
+  --agent: #fab387;
+  --agent-soft: #332b31;
+  --ok: #a6e3a1;
+  --warn: #f9e2af;
+  --del: #f38ba8;
+  --ins: #a6e3a1;
+  --syn-keyword: #cba6f7;
+  --syn-string: #a6e3a1;
+  --syn-comment: #9399b2;
+  --syn-literal: #fab387;
+  --syn-function: #89b4fa;
+  --syn-type: #f9e2af;
+  --syn-property: #b4befe;
+  --syn-meta: #9399b2;
   color-scheme: dark;
 }
 

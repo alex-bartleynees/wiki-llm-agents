@@ -6,7 +6,6 @@
   import { inbox } from "#lib/features/inbox/inbox.svelte.ts";
   import { running } from "#lib/features/threads/running.svelte.ts";
   import Splitter from "#lib/ui/primitives/Splitter.svelte";
-  import { theme } from "#lib/ui/theme.svelte.ts";
   import BottomBar from "./BottomBar.svelte";
   import { paneWidths, THREADS_PANE, VAULT_PANE } from "./pane-widths.svelte.ts";
   import { shell, shortcutLabel } from "./shell.svelte.ts";
@@ -109,14 +108,6 @@
         {/if}
       </a>
     {/if}
-    <button
-      type="button"
-      class="icon"
-      aria-label={theme.current === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-      onclick={() => theme.toggle()}
-    >
-      {theme.current === "dark" ? "☀" : "☾"}
-    </button>
   </header>
 
   {#if full}
@@ -257,16 +248,11 @@
   .icon {
     width: 36px;
     height: 36px;
-    margin-left: auto;
     border: 1px solid var(--line);
     border-radius: var(--radius);
     background: transparent;
     color: var(--ink-2);
     cursor: pointer;
-  }
-  .search + .icon,
-  .running + .icon {
-    margin-left: 0;
   }
 
   /*
@@ -363,7 +349,6 @@
     }
     .drawer-toggle {
       display: block;
-      margin-left: 0;
     }
     .full .drawer-toggle {
       display: none;

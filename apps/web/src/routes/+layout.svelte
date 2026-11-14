@@ -3,6 +3,8 @@
   import { onMount } from "svelte";
   import { page } from "$app/state";
   import AgentsPane from "#lib/features/agents/AgentsPane.svelte";
+  // Applies the theme and fonts, and follows the device's dark setting for "System".
+  import "#lib/features/appearance/appearance.svelte.ts";
   import VaultPane from "#lib/features/notes/VaultPane.svelte";
   import { inbox } from "#lib/features/inbox/inbox.svelte.ts";
   import { projects } from "#lib/features/projects/projects.svelte.ts";
