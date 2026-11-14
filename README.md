@@ -641,9 +641,9 @@ through the service worker (`src/service-worker/index.ts`) and adds it as a devi
 the item outlined.
 
 - Browsers allow it only on a secure origin: `http://127.0.0.1`/`localhost` on this
-  computer, otherwise HTTPS. A phone needs the app's HTTPS address (remote access is
-  the next part of slice 12b). iPhone and iPad allow it only from the app added to the
-  Home Screen (the app has a manifest and icons for that).
+  computer, otherwise HTTPS. A phone needs the app's HTTPS address: serve it on your
+  tailnet with `tailscale serve` (Run as a service, below). iPhone and iPad allow it
+  only from the app added to the Home Screen (the app has a manifest and icons for that).
 - Each device is one push subscription (`push_devices`). The push service answering
   404 or 410 removes the device; five other failures in a row disable it until it
   subscribes again. Each item's delivery to each device is recorded
@@ -774,6 +774,19 @@ builds a home-manager configuration with the module (`checks.hm-module`).
   (`networking.firewall.allowedTCPPorts`). There is no login yet: whoever reaches
   the port can use the app, and the folder picker lists folder names this user can
   read, so don't listen on an address others can reach.
+- **From a phone: `tailscale serve`.** Keep the app on loopback and let Tailscale
+  give it HTTPS on your tailnet. Turn on MagicDNS and HTTPS Certificates in the
+  Tailscale admin console once, then on the host:
+
+  ```sh
+  sudo tailscale serve --bg 4320      # https://<host>.<tailnet>.ts.net → 127.0.0.1:4320
+  tailscale serve status              # what is served; `sudo tailscale serve reset` stops it
+  ```
+
+  Open `https://<host>.<tailnet>.ts.net` on any device on the tailnet. HTTPS makes it a
+  secure origin, so notifications work there (on iPhone, add it to the Home Screen
+  first). Only devices on your tailnet can reach it; the app still has no login, so
+  don't share the tailnet or the machine without adding ACLs or a login.
 - **The real vault.** Agent edits to the vault's notes are listed on each turn with a
   diff and undo (Change review, above); they follow each agent's autonomy, which asks
   before edits by default. Files other than notes, and anything outside the vault,
