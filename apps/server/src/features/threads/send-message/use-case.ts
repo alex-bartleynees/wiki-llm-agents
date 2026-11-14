@@ -14,5 +14,11 @@ export const sendMessage = Effect.fnUntraced(function* (threadId: string, reques
   const thread = yield* findThread(threadId);
   const context = yield* Effect.forEach(request.notes ?? [], (note) => loadContext(thread.vaultId, note));
   const attachments = (yield* (yield* AttachmentStore).find([...new Set(ids)])).map(({ path: _path, ...attachment }) => attachment);
-  return yield* (yield* ThreadActors).sendMessage(threadId, request.text, context, attachments.length ? { attachments } : {});
+  const asFiles = request.imagesAsFiles === true && attachments.some((attachment) => attachment.kind === "image");
+  return yield* (yield* ThreadActors).sendMessage(
+    threadId,
+    request.text,
+    context,
+    attachments.length ? { attachments, ...(asFiles ? { imagesAsFiles: true } : {}) } : {},
+  );
 });

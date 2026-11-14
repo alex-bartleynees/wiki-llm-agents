@@ -2,7 +2,8 @@ import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import type { HookInput, McpServerConfig, ModelInfo, Options, PermissionResult, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { ClaudeCodeSdk, ClaudeQuery } from "../../../src/features/providers/claude-code/sdk.js";
-import { sha256 } from "../image.js";
+import { attachmentsRootIn } from "../csv.js";
+import { ATTACHMENTS, sha256 } from "../image.js";
 import { type Fixture, HOME, SESSION, VAULT } from "./fixture.js";
 
 export const loadFixture = (scenario: string): Fixture =>
@@ -70,9 +71,13 @@ export const makeFakeSdk = () => {
   let options: PlayOptions = {};
   let turn = 0;
   let crashes = 0;
+  /** The attachments folder the turn being played sent its files from (recorded as `ATTACHMENTS`). */
+  let attachments: string | undefined;
 
-  const restore = (value: unknown, sessionId: string): unknown =>
-    JSON.parse(JSON.stringify(value).replaceAll(VAULT, root).replaceAll(SESSION, sessionId).replaceAll(HOME, homedir()));
+  const restore = (value: unknown, sessionId: string): unknown => {
+    const text = JSON.stringify(value).replaceAll(VAULT, root).replaceAll(SESSION, sessionId).replaceAll(HOME, homedir());
+    return JSON.parse(attachments === undefined ? text : text.replaceAll(ATTACHMENTS, attachments));
+  };
 
   const query = ({ prompt, options: queryOptions }: { readonly prompt: AsyncIterable<unknown>; readonly options: Options }): ClaudeQuery => {
     calls.push({ call: "query", options: queryOptions });
@@ -98,8 +103,9 @@ export const makeFakeSdk = () => {
         const recorded = fixture.turns[turn];
         if (recorded === undefined) throw new Error(`the fixture has no turn ${turn + 1}`);
         const expected = recorded.prompt + (options.promptSuffixes?.[turn] ?? "");
+        attachments = attachmentsRootIn(expected, content);
         turn += 1;
-        if (content !== expected) throw new Error(`sent ${JSON.stringify(content)}, recorded ${JSON.stringify(expected)}`);
+        if (content !== (attachments === undefined ? expected : expected.replaceAll(ATTACHMENTS, attachments))) throw new Error(`sent ${JSON.stringify(content)}, recorded ${JSON.stringify(expected)}`);
         const [sentImages, recordedImages] = [JSON.stringify(images), JSON.stringify((recorded.images ?? []).map(({ mime, sha256 }) => ({ mime, sha256 })))];
         if (sentImages !== recordedImages) throw new Error(`sent images ${sentImages}, recorded ${recordedImages}`);
         stopped = false;

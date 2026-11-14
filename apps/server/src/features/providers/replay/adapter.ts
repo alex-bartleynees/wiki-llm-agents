@@ -1,9 +1,10 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { basename, dirname, resolve } from "node:path";
 import type { RequestAnswer, RequestPrompt } from "@wiki-agents/contracts/threads/model";
 import { createTwoFilesPatch } from "diff";
 import { Context, Deferred, Effect, Option, Stream } from "effect";
-import { type ProviderAdapter, ProviderError, type ProviderEvent, type ProviderSession } from "../port.js";
+import { formatSize } from "../../threads/attached-files.js";
+import { type ProviderAdapter, ProviderError, type ProviderEvent, type ProviderSession, type TurnImage } from "../port.js";
 import type { Step } from "./transcript.js";
 import { chooseTranscript } from "./transcripts.js";
 
@@ -77,6 +78,27 @@ const emitAfter = (ms: number, event: ProviderEvent): Events => Stream.fromEffec
 
 /** Stops after the turn's last event, so steps after a `fail` never play. */
 const untilFinished = (events: Events) => events.pipe(Stream.takeUntil((event) => event._tag === "turn.finished"));
+
+/** A file the message listed (`- "<path>" (<type>, <size>)`, as `threads/attached-files.ts` writes them). */
+const LISTED_FILE = /^- ("(?:[^"\\]|\\.)*") \(([^,]+), ([^)]+)\)$/;
+
+/**
+ * What arrived with the message, for tests to check: images (sent as images) and the
+ * files listed in the text, by name, type and size. Null when nothing did.
+ */
+export const receivedText = (text: string, images: ReadonlyArray<TurnImage>): string | null => {
+  const files = text.split("\n").flatMap((line) => {
+    const match = LISTED_FILE.exec(line);
+    if (match === null) return [];
+    const path = JSON.parse(match[1]!) as string;
+    return [`file ${basename(path)} (${match[2]}, ${match[3]})`];
+  });
+  const received = [...images.map((image) => `image ${image.name} (${image.mime}, ${formatSize(image.size)})`), ...files];
+  return received.length === 0 ? null : `Replay received: ${received.join("; ")}.`;
+};
+
+/** The transcript for a message: chosen by what you wrote, not by the names of the files listed after it. */
+const transcriptFor = (text: string) => chooseTranscript(text.split(/^Attached files \(/m)[0]!);
 
 /**
  * Plays transcripts for one thread. Ids come from the turn id and the step's
@@ -193,18 +215,22 @@ const makeSession = (cwd: string) => Effect.gen(function* () {
 
   const session: ProviderSession = {
     nativeSessionId: null,
-    startTurn: ({ turnId, text }) => {
-      const transcript = chooseTranscript(text);
+    startTurn: ({ turnId, text, images }) => {
+      const transcript = transcriptFor(text);
+      const received = receivedText(text, images);
       return untilFinished(
         Stream.concat(
-          play(turnId, transcript.steps, "", {}),
-          Stream.succeed<ProviderEvent>({ _tag: "turn.finished", turnId, outcome: "completed", usage: transcript.usage, reason: null }),
+          received === null ? Stream.empty : Stream.succeed<ProviderEvent>({ _tag: "notice", turnId, text: received }),
+          Stream.concat(
+            play(turnId, transcript.steps, "", {}),
+            Stream.succeed<ProviderEvent>({ _tag: "turn.finished", turnId, outcome: "completed", usage: transcript.usage, reason: null }),
+          ),
         ),
       );
     },
     resumeTurn: ({ turnId, text, pendingRequestIds }) =>
       Effect.sync(() => {
-        const transcript = chooseTranscript(text);
+        const transcript = transcriptFor(text);
         const requestId = pendingRequestIds[0];
         if (requestId === undefined) return Option.none();
         return Option.map(resumeAt(turnId, transcript.steps, "", requestId), (events) =>
@@ -227,10 +253,11 @@ const makeSession = (cwd: string) => Effect.gen(function* () {
  * Plays recorded turns instead of running an agent. The message picks the
  * recording by keyword (see `transcripts.ts`). A turn waiting on a request when the
  * server stopped resumes from that request; one stopped mid-stream can't resume.
+ * A turn that brought images or files starts with a notice saying what arrived.
  */
 export const ReplayAdapter: ProviderAdapter = {
   kind: "replay",
-  capabilities: { interrupt: true, resume: true, approvals: true, questions: true, models: false, images: false },
+  capabilities: { interrupt: true, resume: true, approvals: true, questions: true, models: false, images: true },
   openSession: ({ cwd }) => makeSession(cwd),
   enforcement: () => ({
     autonomy: null,

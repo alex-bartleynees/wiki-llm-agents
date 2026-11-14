@@ -25,6 +25,8 @@ export interface OpenCodeModel {
   readonly name: string;
   /** Free to use (OpenCode Zen's free models, local models). */
   readonly free: boolean;
+  /** Takes images as input. */
+  readonly images: boolean;
 }
 
 /** How a session's last turn ended, from its newest `idle` message. */

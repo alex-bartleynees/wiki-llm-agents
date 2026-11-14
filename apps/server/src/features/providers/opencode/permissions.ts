@@ -35,8 +35,17 @@ export const mcpToolsAction = (server: string) => `${server.replace(/[^a-zA-Z0-9
  * so the catch-all `ask` comes first: anything not listed (files outside the
  * working directory, subagents, MCP tools, tools this list doesn't know) asks.
  * Only `allow` and `deny` need rules of their own.
+ *
+ * The thread's own attachment folders may be reached without asking (OpenCode asks
+ * `external_directory` with `<folder>/*` before any tool works outside the session's
+ * folder), so reading there follows `read`; writes there name the absolute file and
+ * still ask, or stay denied. Checked live with OpenCode 2.2.6.
  */
-export const permissionRules = (autonomy: Autonomy, vaultTools: string | null = null): ReadonlyArray<OpenCodePermissionRule> => {
+export const permissionRules = (
+  autonomy: Autonomy,
+  vaultTools: string | null = null,
+  attachmentFolders: ReadonlyArray<string> = [],
+): ReadonlyArray<OpenCodePermissionRule> => {
   const levels: ReadonlyArray<readonly [ReadonlyArray<string>, AutonomyLevel]> = [
     [HARMLESS_ACTIONS, "allow"],
     [ACTIONS.read, autonomy.read],
@@ -51,6 +60,10 @@ export const permissionRules = (autonomy: Autonomy, vaultTools: string | null = 
     { action: `${ENTRY_PREFIX}*`, resource: "*", effect: "deny" },
     // The vault tools read the vault (and open notes in the app), so they follow `read`.
     ...(vaultTools === null ? [] : [{ action: mcpToolsAction(vaultTools), resource: "*", effect: autonomy.read } as const]),
+    ...attachmentFolders.flatMap((folder) => [
+      { action: "external_directory", resource: `${folder}/*`, effect: "allow" } as const,
+      ...ACTIONS.edit.map((action) => ({ action, resource: `${folder}/*`, effect: strictest(fileWrites(autonomy), "ask") }) as const),
+    ]),
   ];
 };
 
@@ -63,6 +76,19 @@ export const enforcedAutonomy = (autonomy: Autonomy) => {
   if (autonomy.create !== autonomy.edit) {
     notes.push(`OpenCode can't tell creating a file from editing one, so both ${LEVEL_WORD[writes]}.`);
   }
-  notes.push("Anything outside the working folder asks first, whatever the autonomy says.");
+  notes.push("Anything outside the working folder asks first, whatever the autonomy says, except reading the thread's own attachments.");
   return { autonomy: { ...autonomy, create: writes, edit: writes }, notes };
 };
+
+/** OpenCode's wildcard match: `*` is any characters (slashes too), `?` one; the whole string must match. */
+const wildcard = (pattern: string, value: string) =>
+  new RegExp(`^${pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&").replaceAll("*", ".*").replaceAll("?", ".")}$`, "s").test(value);
+
+/**
+ * What OpenCode decides for an action on a resource under `rules`: the last rule
+ * matching both wins, and nothing matching asks. The app leaves deciding to OpenCode;
+ * this says what it will decide, for tests and the tests' fake OpenCode. Checked live
+ * with OpenCode 2.2.6 for `external_directory` and `edit` on attachment folders.
+ */
+export const ruleEffect = (rules: ReadonlyArray<OpenCodePermissionRule>, action: string, resource: string): AutonomyLevel =>
+  rules.findLast((rule) => wildcard(rule.action, action) && wildcard(rule.resource, resource))?.effect ?? "ask";

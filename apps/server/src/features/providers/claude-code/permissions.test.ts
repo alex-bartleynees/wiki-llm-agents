@@ -10,8 +10,14 @@ import { decide, enforcedAutonomy } from "./permissions.js";
 const root = realpathSync(mkdtempSync(join(tmpdir(), "wiki-agents-claude-permissions-")));
 const vault = join(root, "vault");
 const outside = join(root, "outside");
+const own = join(root, "attachments", "a1");
+const others = join(root, "attachments", "b2");
 mkdirSync(join(vault, "Notes"), { recursive: true });
 mkdirSync(outside);
+mkdirSync(own, { recursive: true });
+mkdirSync(others, { recursive: true });
+writeFileSync(join(own, "sales.csv"), "region,amount\n");
+writeFileSync(join(others, "other.csv"), "a,b\n");
 writeFileSync(join(vault, "Notes/Tea.md"), "# Tea\n");
 writeFileSync(join(outside, "secret.md"), "secret");
 symlinkSync(outside, join(vault, "escape"));
@@ -20,9 +26,9 @@ afterAll(() => rmSync(root, { recursive: true, force: true }));
 const RESEARCHER: Autonomy = { read: "allow", create: "allow", edit: "ask", commands: "deny", web: "allow" };
 const TRUSTED: Autonomy = { read: "allow", create: "allow", edit: "allow", commands: "allow", web: "allow" };
 
-const decision = (toolName: string, toolInput: unknown, autonomy: Autonomy = DEFAULT_AUTONOMY, roots = [vault]) =>
+const decision = (toolName: string, toolInput: unknown, autonomy: Autonomy = DEFAULT_AUTONOMY, roots = [vault], readable = [own]) =>
   Effect.runPromise(
-    decide({ autonomy, roots, cwd: vault, vaultTools: "wiki-agents-thread-1", toolName, toolInput }).pipe(Effect.provide(NodeFileSystem.layer)),
+    decide({ autonomy, roots, readable, cwd: vault, vaultTools: "wiki-agents-thread-1", toolName, toolInput }).pipe(Effect.provide(NodeFileSystem.layer)),
   );
 
 describe("autonomy → Claude Code tool decisions", () => {
@@ -33,6 +39,15 @@ describe("autonomy → Claude Code tool decisions", () => {
     expect(await decision("Read", { file_path: join(vault, "escape/secret.md") })).toBe("ask");
     expect(await decision("Glob", { pattern: `${outside}/**/*.md` })).toBe("ask");
     expect(await decision("Read", { file_path: join(vault, "Notes/Tea.md") }, { ...DEFAULT_AUTONOMY, read: "deny" })).toBe("deny");
+  });
+
+  it("reads the thread's own attachments as the read autonomy says; writing there, or reading another thread's, asks", async () => {
+    expect(await decision("Read", { file_path: join(own, "sales.csv") })).toBe("allow");
+    expect(await decision("Grep", { pattern: "north", path: own })).toBe("allow");
+    expect(await decision("Read", { file_path: join(own, "sales.csv") }, { ...DEFAULT_AUTONOMY, read: "deny" })).toBe("deny");
+    expect(await decision("Read", { file_path: join(others, "other.csv") })).toBe("ask");
+    expect(await decision("Edit", { file_path: join(own, "sales.csv"), old_string: "a", new_string: "b" }, TRUSTED)).toBe("ask");
+    expect(await decision("Write", { file_path: join(own, "result.csv"), content: "x" }, TRUSTED)).toBe("ask");
   });
 
   it("tells creating a file from editing one by whether it exists", async () => {

@@ -1,7 +1,7 @@
 import { type Autonomy, DEFAULT_AUTONOMY } from "@wiki-agents/contracts/agents/model";
 import { describe, expect, it } from "vitest";
 import type { OpenCodePermissionRule } from "./api.js";
-import { enforcedAutonomy, permissionRules } from "./permissions.js";
+import { enforcedAutonomy, permissionRules, ruleEffect } from "./permissions.js";
 
 /** What OpenCode decides for an action: the last matching rule wins. */
 const decide = (rules: ReadonlyArray<OpenCodePermissionRule>, action: string) =>
@@ -47,6 +47,19 @@ describe("autonomy → OpenCode permission rules", () => {
     ],
   ])("%s", (_name, autonomy, expected) => {
     expect(decisions(autonomy)).toMatchObject(expected);
+  });
+
+  it("reaches the thread's own attachment folders, where reading follows read and writing still asks", () => {
+    const own = "/data/attachments/a1";
+    const trusted = permissionRules({ read: "allow", create: "allow", edit: "allow", commands: "allow", web: "allow" }, null, [own]);
+    expect(ruleEffect(trusted, "external_directory", `${own}/*`)).toBe("allow");
+    expect(ruleEffect(trusted, "read", `${own}/sales.csv`)).toBe("allow");
+    expect(ruleEffect(trusted, "edit", `${own}/sales.csv`)).toBe("ask");
+    expect(ruleEffect(trusted, "write", `${own}/result.csv`)).toBe("ask");
+    expect(ruleEffect(trusted, "edit", "Notes/Tea.md")).toBe("allow");
+    expect(ruleEffect(trusted, "external_directory", "/data/attachments/b2/*")).toBe("ask");
+    const reviewer = permissionRules({ read: "allow", create: "deny", edit: "deny", commands: "deny", web: "ask" }, null, [own]);
+    expect(ruleEffect(reviewer, "edit", `${own}/sales.csv`)).toBe("deny");
   });
 
   it("always allows talking to you and planning, and always asks outside the folder, for subagents and unknown tools", () => {

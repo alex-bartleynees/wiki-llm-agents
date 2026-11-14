@@ -1,4 +1,5 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { dirname } from "node:path";
 import { expect, layer } from "@effect/vitest";
 import type { Attachment } from "@wiki-agents/contracts/attachments/model";
 import { UploadAttachmentResponse } from "@wiki-agents/contracts/attachments/upload-attachment/response";
@@ -7,7 +8,7 @@ import { HttpClient } from "effect/http";
 import { AttachmentStore } from "../../src/features/attachments/attachment-store.js";
 import { makeTestApp } from "./infrastructure/test-app.js";
 import { makeScriptedProvider } from "./infrastructure/scripted-provider.js";
-import { decode, getThread, isTag, newThread, newVault, post, sendWith, upload, watch } from "./infrastructure/threads.js";
+import { decode, getThread, isTag, newThread, newVault, post, sendOk, sendWith, upload, watch } from "./infrastructure/threads.js";
 
 const PNG = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4]);
 const CSV = new TextEncoder().encode("TimeGenerated,Message\n2026-11-14T09:00:00Z,started\n");
@@ -96,6 +97,36 @@ layer(makeTestApp({ providers: files.registry }))("attachments", (it) => {
     }),
   );
 
+  it.effect("lets a thread read the files sent in it, in later turns too, but not another thread's", () =>
+    Effect.gen(function* () {
+      const csv = yield* uploadOk("query_data.csv", CSV);
+      const thread = yield* runTurn("Analyse this", [csv]);
+      const [stored] = yield* (yield* AttachmentStore).find([csv.id]);
+      const folder = realpathSync(dirname(stored!.path));
+      expect(files.inputs.at(-1)!.attachmentFolders).toEqual([folder]);
+
+      const events = yield* watch(thread.id);
+      yield* sendOk(thread.id, "And the busiest hour?");
+      yield* events.until(isTag("turn.finished"));
+      expect(files.inputs.at(-1)!.attachmentFolders).toEqual([folder]);
+
+      yield* runTurn("Something else", []);
+      expect(files.inputs.at(-1)!.attachmentFolders).toEqual([]);
+    }),
+  );
+
+  it.effect("tells the agent what the replay provider received, for tests", () =>
+    Effect.gen(function* () {
+      const csv = yield* uploadOk("query_data.csv", CSV);
+      const vault = yield* newVault;
+      const thread = yield* newThread(vault.id, "replay");
+      const events = yield* watch(thread.id);
+      expect((yield* sendWith(thread.id, "Here it is", [csv.id])).status).toBe(202);
+      const seen = yield* events.until(isTag("turn.finished"));
+      expect(seen).toContainEqual(expect.objectContaining({ _tag: "notice", text: `Replay received: file query_data.csv (text/csv, ${CSV.length} B).` }));
+    }),
+  );
+
   it.effect("refuses a message with neither text nor attachments, or an unknown attachment", () =>
     Effect.gen(function* () {
       const vault = yield* newVault;
@@ -125,6 +156,25 @@ layer(makeTestApp({ providers: images.registry }))("attachments to a provider th
       expect(input.text.startsWith("What's in this screenshot?\n")).toBe(true);
       expect(input.text).toContain(JSON.stringify(storedCsv!.path));
       expect(input.text).not.toContain("shot.png");
+    }),
+  );
+
+  it.effect("sends images as files when asked, for a model that can't see them, and remembers that", () =>
+    Effect.gen(function* () {
+      const image = yield* uploadOk("shot.png", PNG);
+      const vault = yield* newVault;
+      const thread = yield* newThread(vault.id, "scripted");
+      const events = yield* watch(thread.id);
+      const sent = yield* post(`/api/threads/${thread.id}/messages`, { text: "What's in this screenshot?", attachments: [image.id], imagesAsFiles: true });
+      expect(sent.status).toBe(202);
+      yield* events.until(isTag("turn.finished"));
+
+      const input = images.inputs.at(-1)!;
+      const [stored] = yield* (yield* AttachmentStore).find([image.id]);
+      expect(input.images).toEqual([]);
+      expect(input.text).toContain(`- ${JSON.stringify(stored!.path)} (image/png, `);
+      const { events: history } = yield* getThread(thread.id);
+      expect(history.find((event) => event.event._tag === "user.message")?.event).toMatchObject({ imagesAsFiles: true, attachments: [image] });
     }),
   );
 });

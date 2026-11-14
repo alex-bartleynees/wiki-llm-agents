@@ -16,6 +16,7 @@ import { ReplayAdapter } from "../../src/features/providers/replay/adapter.js";
 import { ThreadBus } from "../../src/features/threads/thread-bus.js";
 import { type FakeAppServer, loadFixture, makeFakeAppServer, type PlayOptions } from "../fixtures/codex/fake-app-server.js";
 import { VAULT_FILES } from "../fixtures/codex/fixture.js";
+import { CSV_PROMPT, SALES_CSV, SALES_TOTAL } from "../fixtures/csv.js";
 import { RED_SQUARE, sha256 } from "../fixtures/image.js";
 import { mcpSession } from "./infrastructure/mcp.js";
 import { makeTestApp } from "./infrastructure/test-app.js";
@@ -120,6 +121,23 @@ layer(App)("Codex provider", (it) => {
       });
       const { status: ready } = yield* HttpClient.get("/api/providers/codex/status").pipe(Effect.flatMap(decode(GetProviderStatusResponse)));
       expect(ready).toEqual({ _tag: "ready", version: "0.166.0", account: "you@example.com (plus)" });
+    }),
+  );
+
+  it.effect("reads a CSV attached in the thread, outside the vault, in its read-only sandbox without asking, and answers from it", () =>
+    Effect.gen(function* () {
+      const { thread } = yield* setUp("csv");
+      const csv = yield* uploadOk(SALES_CSV.name, SALES_CSV.bytes);
+      const events = yield* watch(thread.id);
+      yield* sendWithOk(thread.id, CSV_PROMPT, [csv.id]);
+      const seen = yield* events.until(isTag("turn.finished"));
+
+      completes(seen);
+      expect(seen.map((event) => event._tag)).not.toContain("request.opened");
+      expect(seen).toContainEqual(
+        expect.objectContaining({ _tag: "tool.called", input: expect.stringMatching(new RegExp(`/${sha256(SALES_CSV.bytes)}/sales\\.csv`)) }),
+      );
+      expect(textOf(seen)).toContain(SALES_TOTAL);
     }),
   );
 
@@ -378,8 +396,12 @@ layer(App)("Codex provider", (it) => {
     Effect.gen(function* () {
       const { thread, fake, prompts } = yield* setUp("multi-turn");
       const models = yield* HttpClient.get(`/api/threads/${thread.id}/models`).pipe(Effect.flatMap(decode(ListModelsResponse)));
-      // Hidden models aren't offered.
-      expect(models.models.map((model) => model.id)).toEqual(["gpt-6.1-sol", "gpt-5.6-luna"]);
+      // Hidden models aren't offered; a model takes images unless Codex says it only takes text.
+      expect(models.models.map(({ id, images }) => ({ id, images }))).toEqual([
+        { id: "gpt-6.1-sol", images: true },
+        { id: "gpt-5.6-luna", images: true },
+        { id: "codex-text", images: false },
+      ]);
       expect(models.current).toBe("gpt-6.1-sol");
 
       completes(yield* playTurn(thread.id, prompts[0]!));
@@ -402,7 +424,7 @@ layer(App)("Codex provider", (it) => {
         const fixture = loadFixture("multi-turn");
         fake.load(fixture, root);
         const adapter = yield* adapterOver(fake);
-        const setup = { instructions: [], autonomy: fixture.autonomy, projectRoots: null, vaultTools: null };
+        const setup = { instructions: [], autonomy: fixture.autonomy, projectRoots: null, attachmentFolders: [], vaultTools: null };
         const first = yield* Effect.scoped(
           Effect.gen(function* () {
             const session = yield* adapter.openSession({ threadId: "t", cwd: root, nativeSessionId: null, model: null, setup });

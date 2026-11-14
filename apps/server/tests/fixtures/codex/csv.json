@@ -1,0 +1,491 @@
+{
+  "scenario": "csv",
+  "codexVersion": "0.167.1",
+  "model": "gpt-5.6-luna",
+  "autonomy": {
+    "read": "allow",
+    "create": "ask",
+    "edit": "ask",
+    "commands": "ask",
+    "web": "ask"
+  },
+  "turns": [
+    {
+      "prompt": "Read the attached CSV and reply with the total of the amount column, as just the number. Don't write any files.\nAttached files (kept by the app outside the vault and the working folders; read them with your tools, and don't copy them into the vault unless asked):\n- \"/__attachments__/80bcf3377a7b435d5b94c07a7663c0333f83e629a7088ea5d7ff7d366605ba67/sales.csv\" (text/csv, 49 B)",
+      "steps": [
+        {
+          "message": {
+            "method": "turn/started",
+            "params": {
+              "threadId": "__thread__",
+              "turn": {
+                "id": "01a1d9ba-b555-7712-a71e-30533d586b3a",
+                "rootTurnId": "01a1d9ba-b555-7712-a71e-30533d586b3a",
+                "items": [],
+                "itemsView": "notLoaded",
+                "status": "inProgress",
+                "error": null,
+                "startedAt": 1794654254,
+                "completedAt": null,
+                "durationMs": null
+              }
+            },
+            "emittedAtMs": 1794654254476
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "id": "msg_07c5355445cf4fb1016af84031b89487d08f6ba70fee04b1d2",
+                "text": "",
+                "phase": "commentary",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1794654257770,
+                "completedAtMs": null
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d9ba-b555-7712-a71e-30533d586b3a",
+              "startedAtMs": 1794654257770
+            },
+            "emittedAtMs": 1794654257770
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d9ba-b555-7712-a71e-30533d586b3a",
+              "itemId": "msg_07c5355445cf4fb1016af84031b89487d08f6ba70fee04b1d2",
+              "delta": "I"
+            },
+            "emittedAtMs": 1794654257770
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d9ba-b555-7712-a71e-30533d586b3a",
+              "itemId": "msg_07c5355445cf4fb1016af84031b89487d08f6ba70fee04b1d2",
+              "delta": "’m"
+            },
+            "emittedAtMs": 1794654257770
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d9ba-b555-7712-a71e-30533d586b3a",
+              "itemId": "msg_07c5355445cf4fb1016af84031b89487d08f6ba70fee04b1d2",
+              "delta": " using"
+            },
+            "emittedAtMs": 1794654257770
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d9ba-b555-7712-a71e-30533d586b3a",
+              "itemId": "msg_07c5355445cf4fb1016af84031b89487d08f6ba70fee04b1d2",
+              "delta": " the"
+            },
+            "emittedAtMs": 1794654257770
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d9ba-b555-7712-a71e-30533d586b3a",
+              "itemId": "msg_07c5355445cf4fb1016af84031b89487d08f6ba70fee04b1d2",
+              "delta": " spreadsheet"
+            },
+            "emittedAtMs": 1794654258092
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d9ba-b555-7712-a71e-30533d586b3a",
+              "itemId": "msg_07c5355445cf4fb1016af84031b89487d08f6ba70fee04b1d2",
+              "delta": "-file"
+            },
+            "emittedAtMs": 1794654258092
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d9ba-b555-7712-a71e-30533d586b3a",
+              "itemId": "msg_07c5355445cf4fb1016af84031b89487d08f6ba70fee04b1d2",
+              "delta": " guidance"
+            },
+            "emittedAtMs": 1794654258092
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d9ba-b555-7712-a71e-30533d586b3a",
+              "itemId": "msg_07c5355445cf4fb1016af84031b89487d08f6ba70fee04b1d2",
+              "delta": " to"
+            },
+            "emittedAtMs": 1794654258092
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d9ba-b555-7712-a71e-30533d586b3a",
+              "itemId": "msg_07c5355445cf4fb1016af84031b89487d08f6ba70fee04b1d2",
+              "delta": " read"
+            },
+            "emittedAtMs": 1794654258092
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d9ba-b555-7712-a71e-30533d586b3a",
+              "itemId": "msg_07c5355445cf4fb1016af84031b89487d08f6ba70fee04b1d2",
+              "delta": " the"
+            },
+            "emittedAtMs": 1794654258092
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d9ba-b555-7712-a71e-30533d586b3a",
+              "itemId": "msg_07c5355445cf4fb1016af84031b89487d08f6ba70fee04b1d2",
+              "delta": " CSV"
+            },
+            "emittedAtMs": 1794654258092
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d9ba-b555-7712-a71e-30533d586b3a",
+              "itemId": "msg_07c5355445cf4fb1016af84031b89487d08f6ba70fee04b1d2",
+              "delta": " and"
+            },
+            "emittedAtMs": 1794654258092
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d9ba-b555-7712-a71e-30533d586b3a",
+              "itemId": "msg_07c5355445cf4fb1016af84031b89487d08f6ba70fee04b1d2",
+              "delta": " calculate"
+            },
+            "emittedAtMs": 1794654258093
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d9ba-b555-7712-a71e-30533d586b3a",
+              "itemId": "msg_07c5355445cf4fb1016af84031b89487d08f6ba70fee04b1d2",
+              "delta": " the"
+            },
+            "emittedAtMs": 1794654258093
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d9ba-b555-7712-a71e-30533d586b3a",
+              "itemId": "msg_07c5355445cf4fb1016af84031b89487d08f6ba70fee04b1d2",
+              "delta": " sum"
+            },
+            "emittedAtMs": 1794654258093
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d9ba-b555-7712-a71e-30533d586b3a",
+              "itemId": "msg_07c5355445cf4fb1016af84031b89487d08f6ba70fee04b1d2",
+              "delta": "."
+            },
+            "emittedAtMs": 1794654258093
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "id": "msg_07c5355445cf4fb1016af84031b89487d08f6ba70fee04b1d2",
+                "text": "I’m using the spreadsheet-file guidance to read the CSV and calculate the sum.",
+                "phase": "commentary",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1794654257770,
+                "completedAtMs": 1794654258289
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d9ba-b555-7712-a71e-30533d586b3a",
+              "completedAtMs": 1794654258289
+            },
+            "emittedAtMs": 1794654258290
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "commandExecution",
+                "id": "exec-52365d8d-3e59-4d30-bffd-751ac351cd85",
+                "pluginId": null,
+                "scriptPath": null,
+                "command": "/run/current-system/sw/bin/zsh -lc \"sed -n '1,20p' '/__attachments__/80bcf3377a7b435d5b94c07a7663c0333f83e629a7088ea5d7ff7d366605ba67/sales.csv'\"",
+                "cwd": "/__vault__",
+                "processId": "45424",
+                "source": "unifiedExecStartup",
+                "status": "inProgress",
+                "commandActions": [
+                  {
+                    "type": "read",
+                    "command": "sed -n '1,20p' /__attachments__/80bcf3377a7b435d5b94c07a7663c0333f83e629a7088ea5d7ff7d366605ba67/sales.csv",
+                    "name": "sales.csv",
+                    "path": "/__attachments__/80bcf3377a7b435d5b94c07a7663c0333f83e629a7088ea5d7ff7d366605ba67/sales.csv"
+                  }
+                ],
+                "aggregatedOutput": null,
+                "exitCode": null,
+                "durationMs": null,
+                "startedAtMs": 1794654260808,
+                "completedAtMs": null
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d9ba-b555-7712-a71e-30533d586b3a",
+              "startedAtMs": 1794654260808
+            },
+            "emittedAtMs": 1794654260819
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "commandExecution",
+                "id": "exec-52365d8d-3e59-4d30-bffd-751ac351cd85",
+                "pluginId": null,
+                "scriptPath": null,
+                "command": "/run/current-system/sw/bin/zsh -lc \"sed -n '1,20p' '/__attachments__/80bcf3377a7b435d5b94c07a7663c0333f83e629a7088ea5d7ff7d366605ba67/sales.csv'\"",
+                "cwd": "/__vault__",
+                "processId": "45424",
+                "source": "unifiedExecStartup",
+                "status": "completed",
+                "commandActions": [
+                  {
+                    "type": "read",
+                    "command": "sed -n '1,20p' /__attachments__/80bcf3377a7b435d5b94c07a7663c0333f83e629a7088ea5d7ff7d366605ba67/sales.csv",
+                    "name": "sales.csv",
+                    "path": "/__attachments__/80bcf3377a7b435d5b94c07a7663c0333f83e629a7088ea5d7ff7d366605ba67/sales.csv"
+                  }
+                ],
+                "aggregatedOutput": "region,amount\nnorth,120\nsouth,75\neast,40\nwest,15\n",
+                "exitCode": 0,
+                "durationMs": 0,
+                "startedAtMs": 1794654260808,
+                "completedAtMs": 1794654260813
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d9ba-b555-7712-a71e-30533d586b3a",
+              "completedAtMs": 1794654260813
+            },
+            "emittedAtMs": 1794654260820
+          }
+        },
+        {
+          "message": {
+            "method": "thread/tokenUsage/updated",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d9ba-b555-7712-a71e-30533d586b3a",
+              "tokenUsage": {
+                "total": {
+                  "totalTokens": 15698,
+                  "inputTokens": 15493,
+                  "cachedInputTokens": 0,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 205,
+                  "reasoningOutputTokens": 44
+                },
+                "last": {
+                  "totalTokens": 15698,
+                  "inputTokens": 15493,
+                  "cachedInputTokens": 0,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 205,
+                  "reasoningOutputTokens": 44
+                },
+                "modelContextWindow": 258400
+              }
+            },
+            "emittedAtMs": 1794654260843
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "id": "msg_07c5355445cf4fb1016af8403604e887d08e4092c4df152569",
+                "text": "",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1794654262083,
+                "completedAtMs": null
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d9ba-b555-7712-a71e-30533d586b3a",
+              "startedAtMs": 1794654262083
+            },
+            "emittedAtMs": 1794654262083
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d9ba-b555-7712-a71e-30533d586b3a",
+              "itemId": "msg_07c5355445cf4fb1016af8403604e887d08e4092c4df152569",
+              "delta": "250"
+            },
+            "emittedAtMs": 1794654262083
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "id": "msg_07c5355445cf4fb1016af8403604e887d08e4092c4df152569",
+                "text": "250",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1794654262083,
+                "completedAtMs": 1794654262633
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1d9ba-b555-7712-a71e-30533d586b3a",
+              "completedAtMs": 1794654262633
+            },
+            "emittedAtMs": 1794654262635
+          }
+        },
+        {
+          "message": {
+            "method": "thread/tokenUsage/updated",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1d9ba-b555-7712-a71e-30533d586b3a",
+              "tokenUsage": {
+                "total": {
+                  "totalTokens": 31457,
+                  "inputTokens": 31234,
+                  "cachedInputTokens": 15360,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 223,
+                  "reasoningOutputTokens": 55
+                },
+                "last": {
+                  "totalTokens": 15759,
+                  "inputTokens": 15741,
+                  "cachedInputTokens": 15360,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 18,
+                  "reasoningOutputTokens": 11
+                },
+                "modelContextWindow": 258400
+              }
+            },
+            "emittedAtMs": 1794654262639
+          }
+        },
+        {
+          "message": {
+            "method": "turn/completed",
+            "params": {
+              "threadId": "__thread__",
+              "turn": {
+                "id": "01a1d9ba-b555-7712-a71e-30533d586b3a",
+                "rootTurnId": "01a1d9ba-b555-7712-a71e-30533d586b3a",
+                "items": [
+                  {
+                    "type": "agentMessage",
+                    "id": "msg_07c5355445cf4fb1016af8403604e887d08e4092c4df152569",
+                    "text": "250",
+                    "phase": "final_answer",
+                    "memoryCitation": null,
+                    "delivery": null,
+                    "questions": null,
+                    "startedAtMs": 1794654262083,
+                    "completedAtMs": 1794654262633
+                  }
+                ],
+                "itemsView": "summary",
+                "status": "completed",
+                "error": null,
+                "startedAt": 1794654254,
+                "completedAt": 1794654262,
+                "durationMs": 8216
+              }
+            },
+            "emittedAtMs": 1794654262658
+          }
+        }
+      ]
+    }
+  ]
+}

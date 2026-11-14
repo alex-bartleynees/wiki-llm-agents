@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { NodeHttpServer } from "@effect/platform-node";
 import { describe, expect, it, layer } from "@effect/vitest";
@@ -20,6 +20,7 @@ import { Context, Effect, Fiber, Layer, PubSub, type Scope } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/http";
 import { TestClock } from "effect/testing";
 import { makeHttpApp } from "../../src/app/layers.js";
+import { makeAttachmentStore } from "../../src/features/attachments/store-live.js";
 import { DENIED, makeOpenCodeAdapter, OPENCODE_STOPPED, SESSION_PERMISSIONS, vaultToolsUnavailable } from "../../src/features/providers/opencode/adapter.js";
 import { type OpenCodeApi, OpenCodeError } from "../../src/features/providers/opencode/api.js";
 import { permissionRules } from "../../src/features/providers/opencode/permissions.js";
@@ -32,6 +33,7 @@ import { ThreadBus } from "../../src/features/threads/thread-bus.js";
 import { makeSqlite, Sqlite } from "../../src/shared/persistence/sqlite.js";
 import { type FakeOpenCode, loadFixture, makeFakeOpenCode, type PlayOptions } from "../fixtures/opencode/fake-api.js";
 import { VAULT_FILES } from "../fixtures/opencode/fixture.js";
+import { CSV_PROMPT, csvMessage, csvPath, SALES_CSV, SALES_TOTAL } from "../fixtures/csv.js";
 import { RED_SQUARE, sha256 } from "../fixtures/image.js";
 import { mcpSession } from "./infrastructure/mcp.js";
 import { makeTestApp, TestAgents, TestAttachments } from "./infrastructure/test-app.js";
@@ -49,6 +51,7 @@ import {
   setAgent,
   uploadOk,
   post,
+  watch as watchStored,
   status,
   tags,
 } from "./infrastructure/threads.js";
@@ -67,7 +70,10 @@ const providersOver = (fake: Layer.Layer<Fake>) =>
   ).pipe(Layer.provide(fake));
 
 const FakeLive = Layer.effect(Fake, makeFakeOpenCode);
-const App = Layer.merge(makeTestApp({ providers: providersOver(FakeLive) }), FakeLive);
+/** The app's attachments folder, known here so a test can name another thread's attachment by its path. */
+const attachmentsDir = realpathSync(mkdtempSync(join(tmpdir(), "wiki-agents-opencode-attachments-")));
+afterAll(() => rmSync(attachmentsDir, { recursive: true, force: true }));
+const App = Layer.merge(makeTestApp({ providers: providersOver(FakeLive), attachments: makeAttachmentStore(attachmentsDir) }), FakeLive);
 
 /** A vault with the recordings' notes, an OpenCode thread in it, and `scenario` loaded. */
 const setUp = (scenario: string, options?: PlayOptions) =>
@@ -132,6 +138,53 @@ layer(App)("OpenCode provider", (it) => {
       const { status: ready } = yield* HttpClient.get("/api/providers/opencode/status").pipe(Effect.flatMap(decode(GetProviderStatusResponse)));
       expect(ready).toEqual({ _tag: "ready", version: "2.2.1", account: null });
       expect((yield* HttpClient.get("/api/providers/nope/status")).status).toBe(404);
+    }),
+  );
+
+  it.effect("lets OpenCode read a CSV attached in the thread, outside the vault, without asking, but not write there", () =>
+    Effect.gen(function* () {
+      const { thread, fake } = yield* setUp("csv");
+      const csv = yield* uploadOk(SALES_CSV.name, SALES_CSV.bytes);
+      const events = yield* watch(thread.id);
+      yield* sendWithOk(thread.id, CSV_PROMPT, [csv.id]);
+      const seen = yield* events.until(isTag("turn.finished"));
+
+      expect(finishedOf(seen)).toMatchObject({ outcome: "completed", reason: null });
+      expect(seen.map((event) => event._tag)).not.toContain("request.opened");
+      expect(textOf(seen)).toContain(SALES_TOTAL);
+      expect(fake.calls.some((call) => call.call === "reply")).toBe(false);
+      const folder = dirname(csvPath(attachmentsDir));
+      const rules = fake.calls.findLast((call) => call.call === "setPermissions" || call.call === "createSession");
+      expect(rules).toMatchObject({ permissions: permissionRules(DEFAULT_AUTONOMY, entryName(thread.id), [folder]) });
+      expect(rules && "permissions" in rules ? rules.permissions.slice(-4) : []).toEqual([
+        { action: "external_directory", resource: `${folder}/*`, effect: "allow" },
+        { action: "edit", resource: `${folder}/*`, effect: "ask" },
+        { action: "write", resource: `${folder}/*`, effect: "ask" },
+        { action: "patch", resource: `${folder}/*`, effect: "ask" },
+      ]);
+    }),
+  );
+
+  it.effect("asks before OpenCode reaches a file another thread was sent", () =>
+    Effect.gen(function* () {
+      const { vault, thread, fake } = yield* setUp("csv");
+      // The CSV is sent in a replay thread, so it is that thread's attachment.
+      const csv = yield* uploadOk(SALES_CSV.name, SALES_CSV.bytes);
+      const other = yield* newThread(vault.id, "replay");
+      const otherEvents = yield* watchStored(other.id);
+      yield* sendWithOk(other.id, "Here is the export.", [csv.id]);
+      yield* otherEvents.until((event) => event._tag === "turn.finished");
+
+      // This thread names the same file by path, as the recording did.
+      const events = yield* watch(thread.id);
+      yield* sendOk(thread.id, csvMessage(attachmentsDir));
+      const opened = yield* events.until(isTag("request.opened"));
+      expect(opened.at(-1)).toMatchObject({ prompt: { _tag: "approval" } });
+      yield* answer(thread.id, requestIdOf(opened), { _tag: "approval", decision: "approve" });
+      const seen = yield* events.until(isTag("turn.finished"));
+      expect(finishedOf(seen).outcome).toBe("completed");
+      expect(textOf(seen)).toContain(SALES_TOTAL);
+      expect(fake.calls).toContainEqual({ call: "reply", requestId: requestIdOf(opened), reply: "once" });
     }),
   );
 
@@ -430,6 +483,11 @@ layer(App)("OpenCode provider", (it) => {
       const models = yield* HttpClient.get(`/api/threads/${thread.id}/models`).pipe(Effect.flatMap(decode(ListModelsResponse)));
       expect(models.current).toBe("opencode/big-pickle");
       expect(models.models.map((model) => model.id)).toContain("anthropic/claude-sonnet-5-5");
+      // Which take images, for the composer's "send as files" offer.
+      expect(models.models.map(({ id, images }) => ({ id, images }))).toEqual([
+        { id: "opencode/big-pickle", images: false },
+        { id: "anthropic/claude-sonnet-5-5", images: true },
+      ]);
 
       const put = (model: string) =>
         HttpClient.execute(HttpClientRequest.put(`/api/threads/${thread.id}/model`).pipe(HttpClientRequest.bodyJsonUnsafe({ model })));

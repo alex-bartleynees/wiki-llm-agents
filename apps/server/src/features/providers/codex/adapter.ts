@@ -36,6 +36,7 @@ import type {
   ElicitationParams,
   FileChangeApprovalParams,
   JsonRpcId,
+  Model,
   ModelListResponse,
   Notifications,
   PermissionsApprovalParams,
@@ -66,6 +67,9 @@ export const turnInput = (text: string, images: ReadonlyArray<TurnImage>): Reado
   ...images.map((image): UserInput => ({ type: "localImage", path: image.path })),
   ...(text === "" && images.length > 0 ? [] : [{ type: "text" as const, text, text_elements: [] }]),
 ];
+
+/** Whether a listed model takes images; a Codex that doesn't report input modalities is taken to. */
+export const takesImages = (model: Pick<Model, "inputModalities">) => model.inputModalities?.includes("image") ?? true;
 
 /** Why a turn ended when Codex exited under it. */
 export const CODEX_STOPPED = "Codex stopped unexpectedly. Send a message to start it again.";
@@ -208,7 +212,7 @@ export const makeCodexAdapter = (options: CodexAdapterOptions) =>
         });
         const visible = offered.filter((model) => !model.hidden);
         const list: ModelList = {
-          models: visible.map((model): ProviderModel => ({ id: model.id, name: model.displayName, free: false })),
+          models: visible.map((model): ProviderModel => ({ id: model.id, name: model.displayName, free: false, images: takesImages(model) })),
           defaultModel: visible.find((model) => model.isDefault)?.id ?? null,
         };
         models = { at: now, list };

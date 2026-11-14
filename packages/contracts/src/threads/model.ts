@@ -29,6 +29,8 @@ export const UserMessage = Schema.TaggedStruct("user.message", {
   unattended: Schema.optionalKey(Schema.Boolean),
   /** Files sent with the message (images and other files), in the order they were attached. */
   attachments: Schema.optionalKey(Schema.Array(Attachment)),
+  /** The images went to the agent as files (listed by path), not as images. */
+  imagesAsFiles: Schema.optionalKey(Schema.Boolean),
 });
 
 export const TurnStarted = Schema.TaggedStruct("turn.started", {

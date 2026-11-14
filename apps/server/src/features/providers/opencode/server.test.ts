@@ -61,7 +61,20 @@ describe("chatModels", () => {
       model("old", { status: "deprecated" }),
       model("big-pickle", { providerID: "opencode", cost: [{ input: 0, output: 0 }] }),
     ]);
-    expect(listed).toEqual([{ id: "opencode/big-pickle", name: "big-pickle", free: true }]);
+    expect(listed).toEqual([{ id: "opencode/big-pickle", name: "big-pickle", free: true, images: true }]);
+  });
+
+  it("says which models take images, from their input capabilities", () => {
+    const listed = chatModels([
+      model("text-only", { capabilities: { input: ["text"] } }),
+      model("vision", { capabilities: { input: ["text", "image", "pdf"] } }),
+      model("unknown"),
+    ]);
+    expect(listed.map(({ id, images }) => ({ id, images }))).toEqual([
+      { id: "github-copilot/text-only", images: false },
+      { id: "github-copilot/vision", images: true },
+      { id: "github-copilot/unknown", images: true },
+    ]);
   });
 });
 

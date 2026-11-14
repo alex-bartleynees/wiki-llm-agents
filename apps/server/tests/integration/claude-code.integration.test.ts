@@ -1,5 +1,7 @@
-import { realpathSync, writeFileSync } from "node:fs";
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { afterAll } from "vitest";
 import { describe, expect, layer } from "@effect/vitest";
 import type { Options } from "@anthropic-ai/claude-agent-sdk";
 import { GetProviderStatusResponse } from "@wiki-agents/contracts/providers/get-provider-status/response";
@@ -9,6 +11,7 @@ import type { ThreadEvent } from "@wiki-agents/contracts/threads/model";
 import { SetModelResponse } from "@wiki-agents/contracts/threads/set-model/response";
 import { Context, Effect, Layer, PubSub, Stream } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/http";
+import { makeAttachmentStore } from "../../src/features/attachments/store-live.js";
 import { entryName } from "../../src/features/mcp/vault-tools.js";
 import { CLAUDE_STOPPED, makeClaudeCodeAdapter, NOT_ALLOWED, SETTING_SOURCES } from "../../src/features/providers/claude-code/adapter.js";
 import { DENIED, ProviderError, vaultToolsUnavailable } from "../../src/features/providers/port.js";
@@ -16,11 +19,12 @@ import { makeProviderRegistry } from "../../src/features/providers/registry-live
 import { ReplayAdapter } from "../../src/features/providers/replay/adapter.js";
 import { ThreadBus } from "../../src/features/threads/thread-bus.js";
 import { type FakeSdk, loadFixture, makeFakeSdk, type PlayOptions } from "../fixtures/claude-code/fake-sdk.js";
-import { VAULT_FILES } from "../fixtures/claude-code/fixture.js";
+import { type Fixture, type FixtureStep, VAULT_FILES } from "../fixtures/claude-code/fixture.js";
+import { CSV_PROMPT, csvMessage, SALES_CSV, SALES_TOTAL } from "../fixtures/csv.js";
 import { RED_SQUARE, sha256 } from "../fixtures/image.js";
 import { mcpSession } from "./infrastructure/mcp.js";
 import { makeTestApp } from "./infrastructure/test-app.js";
-import { answer, decode, getThread, interrupt, isTag, newThread, newVaultWith, sendOk, sendWithOk, setAgent, status, uploadOk } from "./infrastructure/threads.js";
+import { answer, decode, getThread, interrupt, isTag, newThread, newVaultWith, sendOk, sendWithOk, setAgent, status, uploadOk, watch as watchStored } from "./infrastructure/threads.js";
 
 /** The fake Claude Code the adapter talks to; tests load a recording into it. */
 class Fake extends Context.Service<Fake, FakeSdk>()("FakeClaudeCode") {}
@@ -46,13 +50,17 @@ const providers = makeProviderRegistry(
   }),
 ).pipe(Layer.provide(FakeLive));
 
-const App = Layer.merge(makeTestApp({ providers }), FakeLive);
+/** The app's attachments folder, known here so a test can name another thread's attachment by its path. */
+const attachmentsDir = realpathSync(mkdtempSync(join(tmpdir(), "wiki-agents-claude-attachments-")));
+afterAll(() => rmSync(attachmentsDir, { recursive: true, force: true }));
 
-/** A vault with the recordings' notes, a Claude Code thread in it, and `scenario` loaded. */
-const setUp = (scenario: string, options?: PlayOptions) =>
+const App = Layer.merge(makeTestApp({ providers, attachments: makeAttachmentStore(attachmentsDir) }), FakeLive);
+
+/** A vault with the recordings' notes, a Claude Code thread in it, and `scenario` loaded (changed by `edit`). */
+const setUp = (scenario: string, options?: PlayOptions, edit: (fixture: Fixture) => Fixture = (fixture) => fixture) =>
   Effect.gen(function* () {
     const vault = yield* newVaultWith(VAULT_FILES);
-    const fixture = loadFixture(scenario);
+    const fixture = edit(loadFixture(scenario));
     const fake = yield* Fake;
     fake.load(fixture, realpathSync(vault.rootPath), options);
     const thread = yield* newThread(vault.id, "claude-code");
@@ -98,6 +106,20 @@ const completes = (events: ReadonlyArray<ThreadEvent>) => {
   return finished;
 };
 
+/**
+ * The recording as if the hook had asked about `toolName` and you approved: Claude
+ * Code then asks `canUseTool`, which waits for your answer.
+ */
+const askingAbout = (toolName: string) => (fixture: Fixture): Fixture => ({
+  ...fixture,
+  turns: fixture.turns.map((turn) => ({
+    ...turn,
+    steps: turn.steps.flatMap((step): ReadonlyArray<FixtureStep> =>
+      "hook" in step && step.hook.toolName === toolName ? [{ ...step, decision: "ask" }, { permission: step.hook, behavior: "allow" }] : [step],
+    ),
+  })),
+});
+
 /** Reads a provider turn to its end. */
 const drain = Stream.runDrain;
 
@@ -135,6 +157,44 @@ layer(App)("Claude Code provider", (it) => {
       expect(fake.calls.filter((call) => call.call === "send")).toEqual([
         { call: "send", text: prompts[0], images: [{ mime: "image/png", sha256: sha256(RED_SQUARE.bytes) }] },
       ]);
+    }),
+  );
+
+  it.effect("reads a CSV attached in the thread, outside the vault, without asking, and answers from it", () =>
+    Effect.gen(function* () {
+      const { thread, fake } = yield* setUp("csv");
+      const csv = yield* uploadOk(SALES_CSV.name, SALES_CSV.bytes);
+      const events = yield* watch(thread.id);
+      yield* sendWithOk(thread.id, CSV_PROMPT, [csv.id]);
+      const seen = yield* events.until(isTag("turn.finished"));
+
+      completes(seen);
+      expect(seen.map((event) => event._tag)).not.toContain("request.opened");
+      expect(textOf(seen)).toContain(SALES_TOTAL);
+      expect(fake.calls.filter((call) => call.call === "hook")).toEqual([{ call: "hook", toolName: "Read", decision: "allow" }]);
+    }),
+  );
+
+  it.effect("asks before reading a file another thread was sent", () =>
+    Effect.gen(function* () {
+      const { vault, thread, fake } = yield* setUp("csv", undefined, askingAbout("Read"));
+      // The CSV is sent in a replay thread, so it is that thread's attachment.
+      const csv = yield* uploadOk(SALES_CSV.name, SALES_CSV.bytes);
+      const other = yield* newThread(vault.id, "replay");
+      const otherEvents = yield* watchStored(other.id);
+      yield* sendWithOk(other.id, "Here is the export.", [csv.id]);
+      yield* otherEvents.until((event) => event._tag === "turn.finished");
+
+      // This thread names the same file by path, as the recording did.
+      const events = yield* watch(thread.id);
+      yield* sendOk(thread.id, csvMessage(attachmentsDir));
+      const opened = yield* events.request;
+      expect(opened.prompt).toMatchObject({ _tag: "approval", title: expect.stringContaining("Read") });
+      yield* answer(thread.id, opened.requestId, { _tag: "approval", decision: "approve" });
+      const seen = yield* events.until(isTag("turn.finished"));
+      completes(seen);
+      expect(fake.calls).toContainEqual({ call: "hook", toolName: "Read", decision: "ask" });
+      expect(textOf(seen)).toContain(SALES_TOTAL);
     }),
   );
 
@@ -395,6 +455,7 @@ layer(App)("Claude Code provider", (it) => {
       const { thread, fake, prompts } = yield* setUp("multi-turn");
       const models = yield* HttpClient.get(`/api/threads/${thread.id}/models`).pipe(Effect.flatMap(decode(ListModelsResponse)));
       expect(models.models.map((model) => model.id)).toEqual(["default", "haiku"]);
+      expect(models.models.every((model) => model.images)).toBe(true);
       expect(models.current).toBe("default");
 
       const events = yield* watch(thread.id);
@@ -417,7 +478,7 @@ layer(App)("Claude Code provider", (it) => {
         const root = realpathSync(vault.rootPath);
         fake.load(loadFixture("multi-turn"), root);
         const adapter = yield* adapterOver(fake.sdk);
-        const setup = { instructions: [], autonomy: loadFixture("multi-turn").autonomy, projectRoots: null, vaultTools: null };
+        const setup = { instructions: [], autonomy: loadFixture("multi-turn").autonomy, projectRoots: null, attachmentFolders: [], vaultTools: null };
         // First run: a new session id, given to Claude Code to create.
         const first = yield* Effect.scoped(
           Effect.gen(function* () {

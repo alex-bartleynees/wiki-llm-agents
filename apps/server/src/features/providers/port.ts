@@ -49,6 +49,12 @@ export interface SessionSetup extends AgentSetup {
    */
   readonly projectRoots: ReadonlyArray<string> | null;
   /**
+   * Canonical folders holding the attachments sent in this thread (one per file, in
+   * the app's attachments folder). The agent may read them without asking; writing
+   * there still asks, and another thread's attachments ask like anything outside.
+   */
+  readonly attachmentFolders: ReadonlyArray<string>;
+  /**
    * The vault MCP server for this thread, which the provider registers for the
    * session; null when there is none (the replay provider ignores it). A provider
    * that can't register it still runs the turn, without the tools.

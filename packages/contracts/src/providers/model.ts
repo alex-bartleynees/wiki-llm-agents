@@ -50,5 +50,11 @@ export const ProviderModel = Schema.Struct({
   name: Schema.String,
   /** Costs nothing per token (free tiers, local models). */
   free: Schema.Boolean,
+  /**
+   * Takes images as input, as its provider reports (Codex `inputModalities`, OpenCode
+   * `capabilities.input`; every Claude model does). The composer offers to send
+   * images as files to a model without it.
+   */
+  images: Schema.Boolean,
 });
 export type ProviderModel = typeof ProviderModel.Type;

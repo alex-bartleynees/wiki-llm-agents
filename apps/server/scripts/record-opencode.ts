@@ -9,7 +9,7 @@
  * With no scenario, records them all. Uses your installed `opencode` and its login;
  * nothing outside the temp folder is touched.
  */
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -20,6 +20,7 @@ import { DENIED, imageFile, SESSION_PERMISSIONS } from "../src/features/provider
 import type { OpenCodeApi, OpenCodeSignal } from "../src/features/providers/opencode/api.js";
 import { sessionOf } from "../src/features/providers/opencode/events.js";
 import { startServer } from "../src/features/providers/opencode/server.js";
+import { CSV_PROMPT, csvMessage, csvPath, SALES_CSV } from "../tests/fixtures/csv.js";
 import { ATTACHMENTS, fixtureImage, IMAGE_PROMPT, RED_SQUARE } from "../tests/fixtures/image.js";
 import { type Fixture, type FixtureStep, VAULT, VAULT_FILES } from "../tests/fixtures/opencode/fixture.js";
 
@@ -36,6 +37,12 @@ interface TurnScript {
   readonly interrupt?: "after-send" | "after-text";
   /** Images sent with the prompt, from a folder outside the vault (as the app's attachments are). */
   readonly images?: ReadonlyArray<typeof RED_SQUARE>;
+  /**
+   * Attach `SALES_CSV` as the app does: kept in the attachments folder and listed by
+   * path after the prompt. Recorded with the default rules, so OpenCode asks to reach
+   * the folder; the tests' fake skips that ask when the session's rules allow it.
+   */
+  readonly csv?: true;
 }
 
 const SCENARIOS: Readonly<Record<string, ReadonlyArray<TurnScript>>> = {
@@ -62,6 +69,7 @@ const SCENARIOS: Readonly<Record<string, ReadonlyArray<TurnScript>>> = {
   "interrupt-after-send": [{ prompt: "Write a 500-word story about a lighthouse.", interrupt: "after-send" }],
   "interrupt-mid-stream": [{ prompt: "Write a 500-word story about a lighthouse.", interrupt: "after-text" }],
   image: [{ prompt: IMAGE_PROMPT, images: [RED_SQUARE] }],
+  csv: [{ prompt: CSV_PROMPT, csv: true, answer: { reply: "once" } }],
 };
 
 /** Scenarios that need a model other than the default when `--model` isn't given: the default free model doesn't take images. */
@@ -84,8 +92,13 @@ const recordTurn = (api: OpenCodeApi, sessionId: string, root: string, attachmen
         writeFileSync(path, image.bytes);
         return imageFile({ path, name: image.name, mime: image.mime, size: image.bytes.length });
       });
-      const recorded = { prompt: script.prompt, ...(sources.length === 0 ? {} : { images: sources.map(fixtureImage) }) };
-      const inboxId = yield* api.prompt(sessionId, script.prompt, files);
+      if (script.csv === true) {
+        mkdirSync(dirname(csvPath(attachments)), { recursive: true });
+        writeFileSync(csvPath(attachments), SALES_CSV.bytes);
+      }
+      const text = script.csv === true ? csvMessage(attachments) : script.prompt;
+      const recorded = { prompt: normalise(text, root, attachments) as string, ...(sources.length === 0 ? {} : { images: sources.map(fixtureImage) }) };
+      const inboxId = yield* api.prompt(sessionId, text, files);
       if (script.interrupt === "after-send") {
         const withdrawn = yield* api.cancelPrompt(sessionId, inboxId).pipe(Effect.as(true), Effect.catch(() => Effect.succeed(false)));
         const interrupted = yield* api.interrupt(sessionId);
@@ -130,7 +143,7 @@ const record = (name: string, turns: ReadonlyArray<TurnScript>, model: string | 
         (dir) => Effect.sync(() => rmSync(dir, { recursive: true, force: true })),
       );
       const attachments = yield* Effect.acquireRelease(
-        Effect.sync(() => mkdtempSync(join(tmpdir(), "wiki-agents-record-attachments-"))),
+        Effect.sync(() => realpathSync(mkdtempSync(join(tmpdir(), "wiki-agents-record-attachments-")))),
         (dir) => Effect.sync(() => rmSync(dir, { recursive: true, force: true })),
       );
       for (const [path, content] of Object.entries(VAULT_FILES)) {

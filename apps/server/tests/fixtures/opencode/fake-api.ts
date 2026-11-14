@@ -12,8 +12,10 @@ import type {
   OpenCodeSignal,
 } from "../../../src/features/providers/opencode/api.js";
 import { OpenCodeError } from "../../../src/features/providers/opencode/api.js";
-import { type FixtureImage, sha256 } from "../image.js";
+import { attachmentsRootIn } from "../csv.js";
+import { ATTACHMENTS, type FixtureImage, sha256 } from "../image.js";
 import { type Fixture, type FixtureStep, VAULT } from "./fixture.js";
+import { ruleEffect } from "../../../src/features/providers/opencode/permissions.js";
 
 const decodeEvent = Schema.decodeUnknownSync(OpenCodeEvent);
 
@@ -34,8 +36,8 @@ export const loadFixture = (scenario: string): Fixture =>
   JSON.parse(readFileSync(new URL(`./${scenario}.json`, import.meta.url), "utf8")) as Fixture;
 
 export const FAKE_MODELS: ReadonlyArray<OpenCodeModel> = [
-  { id: "opencode/big-pickle", name: "Big Pickle", free: true },
-  { id: "anthropic/claude-sonnet-5-5", name: "Claude Sonnet 5.5", free: false },
+  { id: "opencode/big-pickle", name: "Big Pickle", free: true, images: false },
+  { id: "anthropic/claude-sonnet-5-5", name: "Claude Sonnet 5.5", free: false, images: true },
 ];
 
 export interface PlayOptions {
@@ -75,13 +77,19 @@ interface Session {
   startGate: Deferred.Deferred<void> | undefined;
   /** Done once the adapter has sent this session's next prompt. */
   prompted: Deferred.Deferred<void>;
+  /** The session's permission rules, as the adapter last set them. */
+  rules: ReadonlyArray<OpenCodePermissionRule>;
+  /** Where the turn being played keeps its attachments (recorded as `ATTACHMENTS`). */
+  attachments: string | undefined;
 }
 
 /**
  * An OpenCode server that plays recorded fixtures, one per session: each prompt
  * plays the session's next recorded turn, pausing at a request until the adapter
  * answers it (with the answer that was recorded) and at a recorded Stop until the
- * adapter presses it. `load` starts over with one fixture between tests, `add`
+ * adapter presses it. A recorded ask to reach a folder outside the session's
+ * (`external_directory`) is skipped when the session's rules allow it, as OpenCode
+ * does, so recordings made with the default rules play under narrower ones. `load` starts over with one fixture between tests, `add`
  * plays another at the same time; `createSession` hands them out in that order.
  * The API object stays the same, as the adapter keeps it for the server's lifetime.
  */
@@ -113,18 +121,32 @@ export const makeFakeOpenCode = Effect.gen(function* () {
   });
 
   const requestIds = (session: Session, text: string) => text.replace(/\b(per|frm)_[A-Za-z0-9]+/g, (id) => `${id}${session.suffix}`);
-  const toEvent = (session: Session, raw: unknown) =>
-    decodeEvent(JSON.parse(requestIds(session, JSON.stringify(raw)).replaceAll(VAULT, session.directory)));
+  const toEvent = (session: Session, raw: unknown) => {
+    const text = requestIds(session, JSON.stringify(raw)).replaceAll(VAULT, session.directory);
+    return decodeEvent(JSON.parse(session.attachments === undefined ? text : text.replaceAll(ATTACHMENTS, session.attachments)));
+  };
+
+  /** OpenCode doesn't ask what the session's rules already allow. */
+  const allowedByRules = (session: Session, event: ReturnType<typeof decodeEvent>) =>
+    event.type === "permission.asked" &&
+    event.data.action === "external_directory" &&
+    event.data.resources.every((resource) => ruleEffect(session.rules, "external_directory", resource) === "allow");
 
   const play = (session: Session, steps: ReadonlyArray<FixtureStep>) =>
     Effect.gen(function* () {
       let published = 0;
+      const skipped = new Set<string>();
       for (const [index, step] of steps.entries()) {
         if ("call" in step) {
           if (step.call === "interrupt") yield* Deferred.await(session.stopPressed ?? (yield* Deferred.make<void>()));
           continue;
         }
         const event = toEvent(session, step.event);
+        if (event.type === "permission.asked" && allowedByRules(session, event)) {
+          skipped.add(event.data.id);
+          continue;
+        }
+        if (event.type === "permission.replied" && skipped.has(event.data.requestID)) continue;
         if (event.type === "session.execution.started" && session.startGate !== undefined) yield* Deferred.await(session.startGate);
         if (event.type === "session.execution.started") session.running = true;
         if (event.type === "session.execution.succeeded" || event.type === "session.execution.failed" || event.type === "session.execution.interrupted") {
@@ -163,11 +185,14 @@ export const makeFakeOpenCode = Effect.gen(function* () {
         const next = [...sessions.values()].find((session) => !session.created);
         if (next === undefined) throw new Error("no fixture left for a new session");
         next.created = true;
+        next.rules = permissions;
         return next.fixture.sessionId;
       }),
-    setPermissions: (_sessionId, permissions) =>
+    setPermissions: (sessionId, permissions) =>
       Effect.sync(() => {
         calls.push({ call: "setPermissions", permissions });
+        const session = sessions.get(sessionId);
+        if (session !== undefined) session.rules = permissions;
       }),
     setInstructions: (_sessionId, text) =>
       Effect.sync(() => {
@@ -180,7 +205,9 @@ export const makeFakeOpenCode = Effect.gen(function* () {
         const session = sessionFor(sessionId);
         const turn = session.fixture.turns[session.turn++];
         if (turn === undefined) return yield* Effect.die(new Error(`fixture ${session.fixture.scenario} has no turn ${session.turn}`));
-        const expectedPrompt = turn.prompt + (session.options.promptSuffixes?.[session.turn - 1] ?? "");
+        const recordedPrompt = turn.prompt + (session.options.promptSuffixes?.[session.turn - 1] ?? "");
+        session.attachments = attachmentsRootIn(recordedPrompt, text);
+        const expectedPrompt = session.attachments === undefined ? recordedPrompt : recordedPrompt.replaceAll(ATTACHMENTS, session.attachments);
         if (expectedPrompt !== text) return yield* Effect.die(new Error(`fixture prompt was "${turn.prompt}", the adapter sent "${text}"`));
         const [sent, recorded] = [sentImages(files), recordedImages(turn.images)];
         if (sent !== recorded) return yield* Effect.die(new Error(`fixture images were ${recorded}, the adapter sent ${sent}`));
@@ -257,6 +284,8 @@ export const makeFakeOpenCode = Effect.gen(function* () {
         stopPressed: undefined,
         startGate: undefined,
         prompted: yield* Deferred.make<void>(),
+        rules: [],
+        attachments: undefined,
       });
     });
 

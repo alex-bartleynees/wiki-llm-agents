@@ -86,7 +86,7 @@ interface Applied {
   tools: { readonly api: OpenCodeApi; readonly name: string; readonly key: string } | undefined;
 }
 
-const sessionRules = (setup: SessionSetup) => permissionRules(setup.autonomy, setup.vaultTools?.name ?? null);
+const sessionRules = (setup: SessionSetup) => permissionRules(setup.autonomy, setup.vaultTools?.name ?? null, setup.attachmentFolders);
 const rulesKey = (setup: SessionSetup) => JSON.stringify(sessionRules(setup));
 
 export { vaultToolsUnavailable } from "../port.js";

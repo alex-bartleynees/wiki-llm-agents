@@ -175,6 +175,8 @@ export interface ListedModel {
   readonly status: string;
   readonly enabled: boolean;
   readonly cost: ReadonlyArray<{ readonly input: number; readonly output: number }>;
+  /** What it takes and gives: `input` holds `"text"`, `"image"`, `"pdf"`... */
+  readonly capabilities?: { readonly input: ReadonlyArray<string> } | undefined;
 }
 
 /**
@@ -189,6 +191,8 @@ export const chatModels = (models: ReadonlyArray<ListedModel>): Array<OpenCodeMo
       id: modelName(model),
       name: model.name,
       free: model.cost.every((cost) => cost.input === 0 && cost.output === 0),
+      // A model that doesn't say is taken to take images.
+      images: model.capabilities?.input.includes("image") ?? true,
     }));
 
 /** The live API over a started client. */

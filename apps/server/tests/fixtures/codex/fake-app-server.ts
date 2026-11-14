@@ -6,15 +6,17 @@ import { isDeepStrictEqual } from "node:util";
 import type { AppServerProcess, CodexLauncher, LaunchOptions } from "../../../src/features/providers/codex/app-server.js";
 import { VAULT_SERVER } from "../../../src/features/providers/codex/events.js";
 import type { JsonRpcId, JsonRpcMessage, Model, UserInput } from "../../../src/features/providers/codex/protocol.js";
-import { sha256 } from "../image.js";
+import { attachmentsRootIn } from "../csv.js";
+import { ATTACHMENTS, sha256 } from "../image.js";
 import { type Fixture, HOME, THREAD, VAULT } from "./fixture.js";
 
 export const loadFixture = (scenario: string): Fixture =>
   JSON.parse(readFileSync(new URL(`./${scenario}.json`, import.meta.url), "utf8")) as Fixture;
 
 export const FAKE_MODELS: ReadonlyArray<Model> = [
-  { id: "gpt-6.1-sol", model: "gpt-6.1-sol", displayName: "GPT-6.1-Sol", hidden: false, isDefault: true },
+  { id: "gpt-6.1-sol", model: "gpt-6.1-sol", displayName: "GPT-6.1-Sol", hidden: false, isDefault: true, inputModalities: ["text", "image"] },
   { id: "gpt-5.6-luna", model: "gpt-5.6-luna", displayName: "GPT-5.6-Luna", hidden: false, isDefault: false },
+  { id: "codex-text", model: "codex-text", displayName: "Codex Text", hidden: false, isDefault: false, inputModalities: ["text"] },
   { id: "codex-auto-review", model: "codex-auto-review", displayName: "Codex Auto Review", hidden: true, isDefault: false },
 ];
 
@@ -63,9 +65,13 @@ export const makeFakeAppServer = () => {
     const answers = new Map<JsonRpcId, (result: unknown) => void>();
     let stop: (() => void) | undefined;
     let stopped = false;
+    /** Where the turn being played keeps its attachments (recorded as `ATTACHMENTS`). */
+    let attachments: string | undefined;
 
-    const restore = (value: unknown): unknown =>
-      JSON.parse(JSON.stringify(value).replaceAll(VAULT, root).replaceAll(THREAD, threadId).replaceAll(HOME, homedir()));
+    const restore = (value: unknown): unknown => {
+      const text = JSON.stringify(value).replaceAll(VAULT, root).replaceAll(THREAD, threadId).replaceAll(HOME, homedir());
+      return JSON.parse(attachments === undefined ? text : text.replaceAll(ATTACHMENTS, attachments));
+    };
     const emit = async (message: JsonRpcMessage) => {
       await tick();
       if (!closed) handlers?.message(message);
@@ -152,7 +158,9 @@ export const makeFakeAppServer = () => {
           if (recorded === undefined) return void fail(message.id, `the fixture has no turn ${index + 1}`);
           const items = params.input as ReadonlyArray<UserInput>;
           const input = items.flatMap((item) => (item.type === "text" ? [item.text] : [])).join("");
-          const expected = recorded.prompt + (options.promptSuffixes?.[index] ?? "");
+          const recordedPrompt = recorded.prompt + (options.promptSuffixes?.[index] ?? "");
+          attachments = attachmentsRootIn(recordedPrompt, input);
+          const expected = attachments === undefined ? recordedPrompt : recordedPrompt.replaceAll(ATTACHMENTS, attachments);
           if (input !== expected) return void fail(message.id, `sent ${JSON.stringify(input)}, recorded ${JSON.stringify(expected)}`);
           // Images as Codex reads them, from disk, known by file name and hash (Codex finds the type itself).
           const images = JSON.stringify(items.flatMap((item) => (item.type === "localImage" ? [{ name: basename(item.path), sha256: sha256(readFileSync(item.path)) }] : [])));

@@ -150,7 +150,8 @@ export const makeClaudeCodeAdapter = (options: ClaudeCodeAdapterOptions) =>
           }
         }, "Claude Code didn't list its models");
         const list: ModelList = {
-          models: offered.map((model): ProviderModel => ({ id: model.value, name: model.displayName, free: false })),
+          // Every Claude model takes images.
+          models: offered.map((model): ProviderModel => ({ id: model.value, name: model.displayName, free: false, images: true })),
           defaultModel: offered.some((model) => model.value === "default") ? "default" : null,
         };
         models = { at: now, list };
@@ -198,6 +199,7 @@ export const makeClaudeCodeAdapter = (options: ClaudeCodeAdapterOptions) =>
               decide({
                 autonomy: setup.autonomy,
                 roots: setup.projectRoots ?? [realCwd],
+                readable: setup.attachmentFolders,
                 cwd,
                 vaultTools: setup.vaultTools?.name ?? null,
                 toolName: input.tool_name,

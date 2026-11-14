@@ -11,5 +11,7 @@ export const SendMessageRequest = Schema.Struct({
   notes: Schema.optionalKey(Schema.Array(NoteReference).check(Schema.isMaxLength(10))),
   /** Ids from `POST /api/attachments`, in the order to show and send them. */
   attachments: Schema.optionalKey(Schema.Array(Schema.String).check(Schema.isMaxLength(MAX_ATTACHMENTS))),
+  /** Send the images like other files (listed by path), for a model that can't see images. */
+  imagesAsFiles: Schema.optionalKey(Schema.Boolean),
 });
 export type SendMessageRequest = typeof SendMessageRequest.Type;

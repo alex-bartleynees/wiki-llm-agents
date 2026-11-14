@@ -10,6 +10,7 @@ import { resolveLinks } from "../notes/resolve-links/use-case.js";
 import { loadContext } from "./note-context.js";
 import { attachedFilesText } from "./attached-files.js";
 import { randomUUID } from "node:crypto";
+import { dirname } from "node:path";
 import type { ContextNote } from "@wiki-agents/contracts/threads/context";
 import type { RequestAnswer, ThreadEvent, ThreadSummary, TurnOutcome, TurnUsage } from "@wiki-agents/contracts/threads/model";
 import { Cause, Clock, Deferred, Effect, Exit, Fiber, FileSystem, Option, Queue, Scope, Stream } from "effect";
@@ -66,6 +67,8 @@ export interface SendOptions {
   readonly turnId?: string;
   /** Files sent with the message, already kept by the attachment store. */
   readonly attachments?: ReadonlyArray<Attachment>;
+  /** Send the images as files (listed by path), for a model that can't see images. */
+  readonly imagesAsFiles?: boolean;
 }
 
 /** A schedule the agent saved with the schedule tools, shown as a receipt in the turn. */
@@ -158,6 +161,24 @@ export const makeThreadActor = Effect.fnUntraced(function* (
   const pending = new Map<string, PendingRequest>();
   let replyText = "";
 
+  /** Canonical folders of the attachments sent in this thread; read from its history on first use. */
+  let attachmentFolders: Set<string> | undefined;
+  /** Where these attachments are kept; one that is gone (or can't be resolved) is left out. */
+  const foldersOf = (attachments: ReadonlyArray<Attachment>) =>
+    Effect.forEach(attachments, (attachment) =>
+      attachmentStore.find([attachment.id]).pipe(
+        Effect.flatMap(([stored]) => (stored === undefined ? Effect.succeedNone : Effect.option(fs.realPath(dirname(stored.path))))),
+        Effect.orElseSucceed(() => Option.none<string>()),
+      ),
+    ).pipe(Effect.map((folders) => folders.flatMap(Option.toArray)));
+  const ownAttachmentFolders = Effect.gen(function* () {
+    if (attachmentFolders === undefined) {
+      const sent = (yield* repository.events(threadId, 0)).flatMap(({ event }) => (event._tag === "user.message" ? (event.attachments ?? []) : []));
+      attachmentFolders = new Set(yield* foldersOf(sent));
+    }
+    return [...attachmentFolders].sort();
+  });
+
   /**
    * The rules, the thread's agent and the vault's `AGENTS.md`, read for every turn so
    * edits apply from the next one. A missing or broken agent fails the turn with why.
@@ -173,6 +194,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
       ...agent,
       instructions: project === null ? agent.instructions : [...agent.instructions, projectInstruction(project, vault.rootPath)],
       projectRoots: project === null ? null : projectRoots(project, vault.rootPath),
+      attachmentFolders: yield* ownAttachmentFolders,
       vaultTools: yield* vaultTools.current,
     };
     return setup;
@@ -268,12 +290,13 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     const events = (yield* repository.events(threadId, 0)).map(({ event }) => event).filter((event) => event.turnId === current.id);
     const context = events.flatMap((event) => event._tag === "note.context" && event.note.reason === "supplied" ? [event.note] : []);
     const attached = events.flatMap((event) => (event._tag === "user.message" ? (event.attachments ?? []) : []));
+    const imagesAsFiles = events.some((event) => event._tag === "user.message" && event.imagesAsFiles === true);
     // Kept by the store before the message was recorded; gone only if someone removed them since.
     const stored = yield* Effect.result(attachmentStore.find(attached.map((attachment) => attachment.id)));
     if (stored._tag === "Failure") {
       return yield* finish("failed", null, stored.failure._tag === "AttachmentNotFound" ? "An attachment of this message is missing." : "Couldn't read this message's attachments.");
     }
-    const asImage = (attachment: Attachment) => adapter?.capabilities.images === true && attachment.kind === "image";
+    const asImage = (attachment: Attachment) => adapter?.capabilities.images === true && !imagesAsFiles && attachment.kind === "image";
     const images = stored.success.filter(asImage).map(({ path, name, mime, size }): TurnImage => ({ path, name, mime, size }));
     const input = [
       text,
@@ -326,6 +349,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
           text,
           ...(unattended ? { unattended } : {}),
           ...(options.attachments?.length ? { attachments: options.attachments } : {}),
+          ...(options.attachments?.length && options.imagesAsFiles === true ? { imagesAsFiles: true } : {}),
         },
         { _tag: "turn.started", turnId: current.id },
         ...notes.map((note): ThreadEvent => ({ _tag: "note.context", turnId: current.id, note })),
@@ -333,6 +357,8 @@ export const makeThreadActor = Effect.fnUntraced(function* (
       { startTurn: current.id },
     );
     turn = current;
+    // Once known, the thread's folders grow with each message; otherwise its history (with this message) is read at dispatch.
+    if (attachmentFolders !== undefined) for (const folder of yield* foldersOf(options.attachments ?? [])) attachmentFolders.add(folder);
     yield* trackChanges(current.id);
     yield* dispatch(current, text);
     return current.id;

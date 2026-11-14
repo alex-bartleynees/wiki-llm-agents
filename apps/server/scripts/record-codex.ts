@@ -27,6 +27,7 @@ import { VAULT_SERVER } from "../src/features/providers/codex/events.js";
 import type { JsonRpcMessage } from "../src/features/providers/codex/protocol.js";
 import type { SessionSetup, TurnImage } from "../src/features/providers/port.js";
 import { type Fixture, type FixtureStep, HOME, THREAD, VAULT, VAULT_FILES } from "../tests/fixtures/codex/fixture.js";
+import { CSV_PROMPT, csvMessage, csvPath, SALES_CSV } from "../tests/fixtures/csv.js";
 import { ATTACHMENTS, fixtureImage, IMAGE_PROMPT, RED_SQUARE } from "../tests/fixtures/image.js";
 
 const outDir = fileURLToPath(new URL("../tests/fixtures/codex/", import.meta.url));
@@ -39,6 +40,8 @@ interface TurnScript {
   readonly interrupt?: "after-send" | "after-text";
   /** Images sent with the prompt, from a folder outside the vault (as the app's attachments are). */
   readonly images?: ReadonlyArray<typeof RED_SQUARE>;
+  /** Attach `SALES_CSV` as the app does: kept in the attachments folder and listed by path after the prompt. */
+  readonly csv?: true;
 }
 
 interface Scenario {
@@ -96,6 +99,7 @@ const SCENARIOS: Readonly<Record<string, Scenario>> = {
   "interrupt-after-send": { turns: [{ prompt: "Write a 500-word story about a lighthouse.", interrupt: "after-send" }] },
   "interrupt-mid-stream": { turns: [{ prompt: "Write a 500-word story about a lighthouse.", interrupt: "after-text" }] },
   image: { turns: [{ prompt: IMAGE_PROMPT, images: [RED_SQUARE] }] },
+  csv: { turns: [{ prompt: CSV_PROMPT, csv: true }] },
 };
 
 /** Notifications the adapter reads; the rest (rate limits, moderation, status) would only make fixtures bigger. */
@@ -125,21 +129,21 @@ const kept = (message: JsonRpcMessage): boolean => {
 };
 
 
-/** Output of a command that read files outside the vault (your skills, say) isn't kept in fixtures. */
+/** Output of a command that read files outside the vault and the recording's attachments (your skills, say) isn't kept in fixtures. */
 const OUTSIDE = "[output of a command that read outside the vault, left out of the fixture]";
 
-const redacted = (message: JsonRpcMessage, root: string): JsonRpcMessage => {
+const redacted = (message: JsonRpcMessage, roots: ReadonlyArray<string>): JsonRpcMessage => {
   const item = (message.params as { readonly item?: { readonly type: string; readonly command?: string; readonly commandActions?: ReadonlyArray<{ readonly path?: string | null }> } } | undefined)?.item;
   if (item?.type !== "commandExecution") return message;
   const outside =
     (item.command ?? "").includes(homedir()) ||
-    (item.commandActions ?? []).some((action) => typeof action.path === "string" && action.path.startsWith("/") && !action.path.startsWith(root));
+    (item.commandActions ?? []).some((action) => typeof action.path === "string" && action.path.startsWith("/") && !roots.some((root) => action.path!.startsWith(root)));
   if (!outside) return message;
   return { ...message, params: { ...(message.params as object), item: { ...item, aggregatedOutput: OUTSIDE } } };
 };
 
 /** Wraps the real launcher, logging each turn's steps into `log.steps`. */
-const recordingLauncher = (log: { steps: Array<FixtureStep>; sent: () => void }, root: string): CodexLauncher => ({
+const recordingLauncher = (log: { steps: Array<FixtureStep>; sent: () => void }, roots: ReadonlyArray<string>): CodexLauncher => ({
   launch: (options) => {
     const process = CodexLauncherLive.launch(options);
     return {
@@ -152,7 +156,7 @@ const recordingLauncher = (log: { steps: Array<FixtureStep>; sent: () => void },
       listen: (handlers) =>
         process.listen({
           message: (message) => {
-            if (kept(message)) log.steps.push({ message: redacted(message, root) });
+            if (kept(message)) log.steps.push({ message: redacted(message, roots) });
             handlers.message(message);
           },
           exit: handlers.exit,
@@ -177,7 +181,7 @@ const record = (name: string, scenario: Scenario, model: string) =>
         (dir) => Effect.sync(() => rmSync(dir, { recursive: true, force: true })),
       );
       const attachments = yield* Effect.acquireRelease(
-        Effect.sync(() => mkdtempSync(join(tmpdir(), "wiki-agents-record-attachments-"))),
+        Effect.sync(() => realpathSync(mkdtempSync(join(tmpdir(), "wiki-agents-record-attachments-")))),
         (dir) => Effect.sync(() => rmSync(dir, { recursive: true, force: true })),
       );
       for (const [path, content] of Object.entries(VAULT_FILES)) {
@@ -186,10 +190,10 @@ const record = (name: string, scenario: Scenario, model: string) =>
       }
       const binary = process.env.WIKI_AGENTS_CODEX ?? "codex";
       const log = { steps: [] as Array<FixtureStep>, sent: () => {} };
-      const launcher = recordingLauncher(log, realpathSync(root));
+      const launcher = recordingLauncher(log, [realpathSync(root), attachments]);
       const adapter = yield* makeCodexAdapter({ launcher, binary, installedVersion: binaryVersion, authStatus: (path) => authStatus(CodexLauncherLive, path) });
       const autonomy = scenario.autonomy ?? DEFAULT_AUTONOMY;
-      const setup: SessionSetup = { instructions: [], autonomy, projectRoots: null, vaultTools: null };
+      const setup: SessionSetup = { instructions: [], autonomy, projectRoots: null, attachmentFolders: [], vaultTools: null };
       const session = yield* adapter.openSession({ threadId: "record", cwd: root, nativeSessionId: null, model, setup });
       const turns = [];
       for (const script of scenario.turns) {
@@ -209,7 +213,13 @@ const record = (name: string, scenario: Scenario, model: string) =>
           writeFileSync(path, image.bytes);
           return { path, name: image.name, mime: image.mime, size: image.bytes.length };
         });
-        const fiber = yield* session.startTurn({ turnId, text: script.prompt, images, setup }).pipe(
+        if (script.csv === true) {
+          mkdirSync(dirname(csvPath(attachments)), { recursive: true });
+          writeFileSync(csvPath(attachments), SALES_CSV.bytes);
+        }
+        const text = script.csv === true ? csvMessage(attachments) : script.prompt;
+        const turnSetup: SessionSetup = script.csv === true ? { ...setup, attachmentFolders: [dirname(csvPath(attachments))] } : setup;
+        const fiber = yield* session.startTurn({ turnId, text, images, setup: turnSetup }).pipe(
           Stream.runForEach((event) =>
             Effect.gen(function* () {
               // Approvals the script doesn't expect are denied, so a recording never waits.
@@ -226,7 +236,7 @@ const record = (name: string, scenario: Scenario, model: string) =>
           yield* stop;
         }
         yield* Fiber.join(fiber);
-        turns.push({ prompt: script.prompt, ...(script.images === undefined ? {} : { images: script.images.map(fixtureImage) }), steps });
+        turns.push({ prompt: text, ...(script.images === undefined ? {} : { images: script.images.map(fixtureImage) }), steps });
       }
       const fixture: Fixture = {
         scenario: name,

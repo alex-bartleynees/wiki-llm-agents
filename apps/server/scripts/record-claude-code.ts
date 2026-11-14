@@ -26,6 +26,7 @@ import { authStatus, binaryVersion } from "../src/features/providers/claude-code
 import { type ClaudeCodeSdk, ClaudeCodeSdkLive } from "../src/features/providers/claude-code/sdk.js";
 import type { SessionSetup, TurnImage } from "../src/features/providers/port.js";
 import { type Fixture, type FixtureStep, HOME, SESSION, VAULT, VAULT_FILES } from "../tests/fixtures/claude-code/fixture.js";
+import { CSV_PROMPT, csvMessage, csvPath, SALES_CSV } from "../tests/fixtures/csv.js";
 import { ATTACHMENTS, fixtureImage, IMAGE_PROMPT, RED_SQUARE } from "../tests/fixtures/image.js";
 
 const outDir = fileURLToPath(new URL("../tests/fixtures/claude-code/", import.meta.url));
@@ -38,6 +39,8 @@ interface TurnScript {
   readonly interrupt?: "after-send" | "after-text";
   /** Images sent with the prompt, from a folder outside the vault (as the app's attachments are). */
   readonly images?: ReadonlyArray<typeof RED_SQUARE>;
+  /** Attach `SALES_CSV` as the app does: kept in the attachments folder, listed by path after the prompt, its folder readable. */
+  readonly csv?: true;
 }
 
 interface Scenario {
@@ -93,6 +96,7 @@ const SCENARIOS: Readonly<Record<string, Scenario>> = {
   "interrupt-after-send": { turns: [{ prompt: "Write a 500-word story about a lighthouse.", interrupt: "after-send" }] },
   "interrupt-mid-stream": { turns: [{ prompt: "Write a 500-word story about a lighthouse.", interrupt: "after-text" }] },
   image: { turns: [{ prompt: IMAGE_PROMPT, images: [RED_SQUARE] }] },
+  csv: { turns: [{ prompt: CSV_PROMPT, csv: true }] },
 };
 
 /** Messages the adapter reads; `init` cut down to what it uses, so fixtures hold none of your setup. */
@@ -197,7 +201,7 @@ const record = (name: string, scenario: Scenario, model: string) =>
         (dir) => Effect.sync(() => rmSync(dir, { recursive: true, force: true })),
       );
       const attachments = yield* Effect.acquireRelease(
-        Effect.sync(() => mkdtempSync(join(tmpdir(), "wiki-agents-record-attachments-"))),
+        Effect.sync(() => realpathSync(mkdtempSync(join(tmpdir(), "wiki-agents-record-attachments-")))),
         (dir) => Effect.sync(() => rmSync(dir, { recursive: true, force: true })),
       );
       for (const [path, content] of Object.entries(VAULT_FILES)) {
@@ -208,7 +212,7 @@ const record = (name: string, scenario: Scenario, model: string) =>
       const log = { steps: [] as Array<FixtureStep>, sent: () => {} };
       const adapter = yield* makeClaudeCodeAdapter({ sdk: recordingSdk(log), binary, installedVersion: binaryVersion, authStatus });
       const autonomy = scenario.autonomy ?? DEFAULT_AUTONOMY;
-      const setup: SessionSetup = { instructions: [], autonomy, projectRoots: null, vaultTools: null };
+      const setup: SessionSetup = { instructions: [], autonomy, projectRoots: null, attachmentFolders: [], vaultTools: null };
       const session = yield* adapter.openSession({ threadId: "record", cwd: root, nativeSessionId: null, model, setup });
       const turns = [];
       for (const script of scenario.turns) {
@@ -228,7 +232,13 @@ const record = (name: string, scenario: Scenario, model: string) =>
           writeFileSync(path, image.bytes);
           return { path, name: image.name, mime: image.mime, size: image.bytes.length };
         });
-        const fiber = yield* session.startTurn({ turnId, text: script.prompt, images, setup }).pipe(
+        if (script.csv === true) {
+          mkdirSync(dirname(csvPath(attachments)), { recursive: true });
+          writeFileSync(csvPath(attachments), SALES_CSV.bytes);
+        }
+        const text = script.csv === true ? csvMessage(attachments) : script.prompt;
+        const turnSetup: SessionSetup = script.csv === true ? { ...setup, attachmentFolders: [dirname(csvPath(attachments))] } : setup;
+        const fiber = yield* session.startTurn({ turnId, text, images, setup: turnSetup }).pipe(
           Stream.runForEach((event) =>
             Effect.gen(function* () {
               // Approvals the script doesn't expect are denied, so a recording never waits.
@@ -244,7 +254,7 @@ const record = (name: string, scenario: Scenario, model: string) =>
           yield* stop;
         }
         yield* Fiber.join(fiber);
-        turns.push({ prompt: script.prompt, ...(script.images === undefined ? {} : { images: script.images.map(fixtureImage) }), steps });
+        turns.push({ prompt: text, ...(script.images === undefined ? {} : { images: script.images.map(fixtureImage) }), steps });
       }
       const fixture: Fixture = {
         scenario: name,

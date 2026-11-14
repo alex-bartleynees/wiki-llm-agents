@@ -177,6 +177,8 @@ export interface Model {
   readonly displayName: string;
   readonly hidden: boolean;
   readonly isDefault: boolean;
+  /** `"text"`, `"image"`, `"audio"` (0.167.1). */
+  readonly inputModalities?: ReadonlyArray<string>;
 }
 
 export interface ModelListResponse {

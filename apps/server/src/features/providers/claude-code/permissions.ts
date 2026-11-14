@@ -61,6 +61,8 @@ export interface DecisionInput {
   readonly autonomy: Autonomy;
   /** Canonical folders the agent may reach without asking (the working folder; a project's directories and vault). */
   readonly roots: ReadonlyArray<string>;
+  /** Canonical folders the agent may also read, but not write, without asking (the thread's own attachments). */
+  readonly readable: ReadonlyArray<string>;
   readonly cwd: string;
   /** The thread's vault tools MCP server; null when it has none. */
   readonly vaultTools: string | null;
@@ -76,7 +78,8 @@ export type Decision = AutonomyLevel | "defer";
 
 /**
  * Allow, ask or deny one tool call, from the agent's autonomy. Files outside `roots`
- * ask (or stay denied), whatever the autonomy says. `Write` to a file that doesn't
+ * ask (or stay denied), whatever the autonomy says, except reading in `readable`.
+ * `Write` to a file that doesn't
  * exist yet is creating; any other write is editing. Tools this doesn't know ask,
  * as do `AskUserQuestion` (it is how a question reaches you) and other MCP servers'
  * tools; other threads' vault tools are denied.
@@ -99,7 +102,9 @@ export const decide = Effect.fnUntraced(function* (input: DecisionInput): Effect
   const fs = yield* FileSystem.FileSystem;
   const level = reads ? autonomy.read : toolName === "Write" && !(yield* fs.exists(target!).pipe(Effect.orElseSucceed(() => true))) ? autonomy.create : autonomy.edit;
   if (level === "deny") return level;
-  const inside = yield* pathsWithinRoots(input.roots, cwd, target === undefined ? toolPaths(toolName, toolInput, cwd) : [target]);
+  const inside = reads
+    ? yield* pathsWithinRoots([...input.roots, ...input.readable], cwd, toolPaths(toolName, toolInput, cwd))
+    : yield* pathsWithinRoots(input.roots, cwd, [target!]);
   return inside ? level : strictest(level, "ask");
 });
 
@@ -107,7 +112,7 @@ export const decide = Effect.fnUntraced(function* (input: DecisionInput): Effect
 export const enforcedAutonomy = (autonomy: Autonomy) => ({
   autonomy,
   notes: [
-    "Anything outside the working folder asks first, whatever the autonomy says.",
+    "Anything outside the working folder asks first, whatever the autonomy says, except reading the thread's own attachments.",
     ...(autonomy.commands === "ask"
       ? ["Claude Code lists and searches files with shell commands; it runs the ones it judges read-only (ls, find, grep...) without asking, and allow rules in your Claude Code settings apply to commands."]
       : []),

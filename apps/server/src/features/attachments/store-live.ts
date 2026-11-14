@@ -15,13 +15,17 @@ type Row = typeof attachments.$inferSelect;
 /**
  * Attachments in SQLite, their bytes under `root` at `<sha256>/<name>`: written to a
  * hidden temp file in `root` and renamed into place, so a file there is always whole.
+ * `root` is made if missing and used with symlinks resolved, so the paths agents are
+ * given are the ones their permissions name.
  */
-export const makeAttachmentStore = (root: string) =>
+export const makeAttachmentStore = (configuredRoot: string) =>
   Layer.effect(
     AttachmentStore,
     Effect.gen(function* () {
       const { db } = yield* Sqlite;
       const fs = yield* FileSystem.FileSystem;
+      yield* fs.makeDirectory(configuredRoot, { recursive: true }).pipe(Effect.orDie);
+      const root = yield* fs.realPath(configuredRoot).pipe(Effect.orDie);
       const query = <A>(run: () => A) => Effect.try({ try: run, catch: (cause) => new DbError({ cause }) });
       const stored = (row: Row): StoredAttachment => ({
         id: row.id,

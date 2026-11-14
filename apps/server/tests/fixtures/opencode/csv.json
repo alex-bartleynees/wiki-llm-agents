@@ -1,0 +1,690 @@
+{
+  "scenario": "csv",
+  "opencodeVersion": "2.2.6",
+  "model": "opencode/big-pickle",
+  "sessionId": "ses_e26473d1cffeSEdlFumt38prSk",
+  "turns": [
+    {
+      "prompt": "Read the attached CSV and reply with the total of the amount column, as just the number. Don't write any files.\nAttached files (kept by the app outside the vault and the working folders; read them with your tools, and don't copy them into the vault unless asked):\n- \"/__attachments__/80bcf3377a7b435d5b94c07a7663c0333f83e629a7088ea5d7ff7d366605ba67/sales.csv\" (text/csv, 49 B)",
+      "steps": [
+        {
+          "event": {
+            "id": "evt_1d9b8c2e8001MAzniCcVvJywdW",
+            "created": 1794654126824,
+            "type": "session.created",
+            "durable": {
+              "aggregateID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "seq": 0,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "projectID": "524534136548a974a889abd5ddfdb49684b8b6ab",
+              "location": {
+                "directory": "/__vault__"
+              },
+              "subpath": "",
+              "slug": "gentle-pixel",
+              "permissions": [
+                {
+                  "action": "*",
+                  "resource": "*",
+                  "effect": "ask"
+                },
+                {
+                  "action": "question",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "todowrite",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "todo",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "skill",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "read",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "glob",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "grep",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "list",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "lsp",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "wiki-agents-*",
+                  "resource": "*",
+                  "effect": "deny"
+                }
+              ],
+              "version": "2.2.6"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d9b8c46e001iWDq9aeVNHh4M3",
+            "created": 1794654127214,
+            "type": "session.inbox.enqueued",
+            "durable": {
+              "aggregateID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "seq": 1,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "inboxID": "msg_1d9b8c31a001uTG5cyeRv4g6fD",
+              "item": {
+                "type": "user",
+                "payload": {
+                  "text": "Read the attached CSV and reply with the total of the amount column, as just the number. Don't write any files.\nAttached files (kept by the app outside the vault and the working folders; read them with your tools, and don't copy them into the vault unless asked):\n- \"/__attachments__/80bcf3377a7b435d5b94c07a7663c0333f83e629a7088ea5d7ff7d366605ba67/sales.csv\" (text/csv, 49 B)"
+                },
+                "delivery": "steer"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d9b8c471001FO9Mvy35OtA5db",
+            "created": 1794654127217,
+            "type": "session.execution.started",
+            "durable": {
+              "aggregateID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "seq": 2,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e26473d1cffeSEdlFumt38prSk"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d9b8c484001gY6S25cQFSMuBN",
+            "created": 1794654127236,
+            "metadata": {
+              "instructions": {
+                "initial": true
+              }
+            },
+            "type": "session.instructions.updated",
+            "durable": {
+              "aggregateID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "seq": 3,
+              "version": 2
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "delta": {
+                "core/codemode": "3cca2f6160e1959e237c6b88bbc49667e6b6b2041a5456468278ce5e04d8176c",
+                "core/skill-guidance": "7a5bbb2148ce6b88c4b8c09705f0f95b16b7e57695a158ae8c2ab39019889d1e",
+                "core/date": "2b193b1507a9510b1d26e3cfbee5a9fffd8aad6c9e6f1c4387a6c344344e45b1",
+                "core/environment": "4ad8cc782abb08c45a84798ebb00f126cf57e92707a85c798f6382c2a19ad814"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d9b8c4850011fV0TqoTJbFk5H",
+            "created": 1794654127237,
+            "type": "session.inbox.delivered",
+            "durable": {
+              "aggregateID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "seq": 4,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "inboxID": "msg_1d9b8c31a001uTG5cyeRv4g6fD"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d9b8ce6a001qZfz9JPBdmak3w",
+            "created": 1794654129770,
+            "type": "session.usage.updated",
+            "data": {
+              "sessionID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "cost": 0,
+              "tokens": {
+                "input": 217,
+                "output": 7,
+                "reasoning": 0,
+                "cache": {
+                  "read": 384,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d9b8ce6a00207TEDqjcyTJbMH",
+            "created": 1794654129770,
+            "type": "session.renamed",
+            "durable": {
+              "aggregateID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "seq": 6,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "title": "Sum sales.csv amount column"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d9b8d288001KbFXmtlGJAg5om",
+            "created": 1794654130824,
+            "type": "session.step.started",
+            "durable": {
+              "aggregateID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "seq": 7,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "assistantMessageID": "msg_1d9b8c490001O9CeCJAGHfzRPZ",
+              "agent": "build",
+              "model": {
+                "id": "big-pickle",
+                "providerID": "opencode"
+              },
+              "started": 1794654127251
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d9b8d28b001e9uGCSTyNdiyhc",
+            "created": 1794654130827,
+            "type": "session.tool.input.started",
+            "durable": {
+              "aggregateID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "seq": 8,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "assistantMessageID": "msg_1d9b8c490001O9CeCJAGHfzRPZ",
+              "id": "chatcmpl-tool-9794a44686cf0e32",
+              "name": "read"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d9b8d439001pZZ2rYLb3b65pI",
+            "created": 1794654131257,
+            "type": "session.tool.input.ended",
+            "durable": {
+              "aggregateID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "seq": 9,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "assistantMessageID": "msg_1d9b8c490001O9CeCJAGHfzRPZ",
+              "id": "chatcmpl-tool-9794a44686cf0e32",
+              "text": "{\"path\": \"/__attachments__/80bcf3377a7b435d5b94c07a7663c0333f83e629a7088ea5d7ff7d366605ba67/sales.csv\"}"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d9b8d43b001AbGiXpPgrru5W2",
+            "created": 1794654131259,
+            "type": "session.tool.called",
+            "durable": {
+              "aggregateID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "seq": 10,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "assistantMessageID": "msg_1d9b8c490001O9CeCJAGHfzRPZ",
+              "id": "chatcmpl-tool-9794a44686cf0e32",
+              "input": {
+                "path": "/__attachments__/80bcf3377a7b435d5b94c07a7663c0333f83e629a7088ea5d7ff7d366605ba67/sales.csv"
+              },
+              "executed": false
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d9b8d43d001Ytt7UqosrWnYQJ",
+            "created": 1794654131261,
+            "type": "session.step.streamed",
+            "durable": {
+              "aggregateID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "seq": 11,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "assistantMessageID": "msg_1d9b8c490001O9CeCJAGHfzRPZ"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d9b8d449002gG0ME1IP4qlFG6",
+            "created": 1794654131273,
+            "type": "permission.asked",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "id": "per_1d9b8d449001H0ke07yLCfD8X6",
+              "sessionID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "action": "external_directory",
+              "resources": [
+                "/__attachments__/80bcf3377a7b435d5b94c07a7663c0333f83e629a7088ea5d7ff7d366605ba67/*"
+              ],
+              "save": [
+                "/__attachments__/80bcf3377a7b435d5b94c07a7663c0333f83e629a7088ea5d7ff7d366605ba67/*"
+              ],
+              "source": {
+                "type": "tool",
+                "messageID": "msg_1d9b8c490001O9CeCJAGHfzRPZ",
+                "id": "chatcmpl-tool-9794a44686cf0e32"
+              }
+            }
+          }
+        },
+        {
+          "call": "reply",
+          "requestId": "per_1d9b8d449001H0ke07yLCfD8X6",
+          "reply": "once"
+        },
+        {
+          "event": {
+            "id": "evt_1d9b8d44d001MP3Nc5UbPa1uHE",
+            "created": 1794654131277,
+            "type": "permission.replied",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "requestID": "per_1d9b8d449001H0ke07yLCfD8X6",
+              "reply": "once"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d9b8d44f001mJrH39UBotK6aj",
+            "created": 1794654131279,
+            "type": "session.tool.success",
+            "durable": {
+              "aggregateID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "seq": 12,
+              "version": 2
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "assistantMessageID": "msg_1d9b8c490001O9CeCJAGHfzRPZ",
+              "id": "chatcmpl-tool-9794a44686cf0e32",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Read file /__attachments__/80bcf3377a7b435d5b94c07a7663c0333f83e629a7088ea5d7ff7d366605ba67/sales.csv, lines 1-5\n1: region,amount\n2: north,120\n3: south,75\n4: east,40\n5: west,15"
+                }
+              ],
+              "metadata": {
+                "truncated": false
+              },
+              "executed": false
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d9b8d454001oY8Ge9iHk3pv6V",
+            "created": 1794654131284,
+            "type": "session.step.ended",
+            "durable": {
+              "aggregateID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "seq": 13,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "assistantMessageID": "msg_1d9b8c490001O9CeCJAGHfzRPZ",
+              "finish": "tool-calls",
+              "rawFinish": "tool_calls",
+              "cost": 0,
+              "tokens": {
+                "input": 8305,
+                "output": 103,
+                "reasoning": 0,
+                "cache": {
+                  "read": 2560,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d9b8d456001L5PAVu20S0x4y5",
+            "created": 1794654131286,
+            "type": "session.usage.updated",
+            "data": {
+              "sessionID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "cost": 0,
+              "tokens": {
+                "input": 8522,
+                "output": 110,
+                "reasoning": 0,
+                "cache": {
+                  "read": 2944,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d9b8db2d00177gcVSmGhY6Pfl",
+            "created": 1794654133037,
+            "type": "session.step.started",
+            "durable": {
+              "aggregateID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "seq": 14,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "assistantMessageID": "msg_1d9b8d45b0010bdLHzNNnXvnI2",
+              "agent": "build",
+              "model": {
+                "id": "big-pickle",
+                "providerID": "opencode"
+              },
+              "started": 1794654131294
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d9b8db2f001doQaoXyssYcUQV",
+            "created": 1794654133039,
+            "type": "session.reasoning.started",
+            "durable": {
+              "aggregateID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "seq": 15,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "assistantMessageID": "msg_1d9b8d45b0010bdLHzNNnXvnI2",
+              "ordinal": 0,
+              "native": {
+                "reasoningField": "reasoning_content"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d9b8db31001MH5DnVBTKcuPea",
+            "created": 1794654133041,
+            "type": "session.reasoning.delta",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "assistantMessageID": "msg_1d9b8d45b0010bdLHzNNnXvnI2",
+              "ordinal": 0,
+              "delta": "120+75=195, +40=235, +15=250."
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d9b8db31002U334hnrc5UXxiJ",
+            "created": 1794654133041,
+            "type": "session.text.started",
+            "durable": {
+              "aggregateID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "seq": 16,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "assistantMessageID": "msg_1d9b8d45b0010bdLHzNNnXvnI2",
+              "ordinal": 0
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d9b8db33001TVQcbOmfRNrqnG",
+            "created": 1794654133043,
+            "type": "session.reasoning.ended",
+            "durable": {
+              "aggregateID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "seq": 17,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "assistantMessageID": "msg_1d9b8d45b0010bdLHzNNnXvnI2",
+              "ordinal": 0,
+              "text": "120+75=195, +40=235, +15=250.",
+              "native": {
+                "reasoningField": "reasoning_content"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d9b8db34001UncZA4WHU0z54X",
+            "created": 1794654133044,
+            "type": "session.text.delta",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "assistantMessageID": "msg_1d9b8d45b0010bdLHzNNnXvnI2",
+              "ordinal": 0,
+              "delta": "250"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d9b8db34002AbORiI97pr7kMv",
+            "created": 1794654133044,
+            "type": "session.text.ended",
+            "durable": {
+              "aggregateID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "seq": 18,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "assistantMessageID": "msg_1d9b8d45b0010bdLHzNNnXvnI2",
+              "ordinal": 0,
+              "text": "250"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d9b8db36001kNU4ha31mhebuX",
+            "created": 1794654133046,
+            "type": "session.step.streamed",
+            "durable": {
+              "aggregateID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "seq": 19,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "assistantMessageID": "msg_1d9b8d45b0010bdLHzNNnXvnI2"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d9b8db37001UTyN9eQYcHPUmz",
+            "created": 1794654133047,
+            "type": "session.step.ended",
+            "durable": {
+              "aggregateID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "seq": 20,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "assistantMessageID": "msg_1d9b8d45b0010bdLHzNNnXvnI2",
+              "finish": "stop",
+              "rawFinish": "stop",
+              "cost": 0,
+              "tokens": {
+                "input": 203,
+                "output": 3,
+                "reasoning": 16,
+                "cache": {
+                  "read": 10880,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d9b8db38001WSaZp1KEcEfDR6",
+            "created": 1794654133048,
+            "type": "session.usage.updated",
+            "data": {
+              "sessionID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "cost": 0,
+              "tokens": {
+                "input": 8725,
+                "output": 113,
+                "reasoning": 16,
+                "cache": {
+                  "read": 13824,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1d9b8db3900158QB9e0cf1PyVq",
+            "created": 1794654133049,
+            "type": "session.execution.succeeded",
+            "durable": {
+              "aggregateID": "ses_e26473d1cffeSEdlFumt38prSk",
+              "seq": 21,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e26473d1cffeSEdlFumt38prSk"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
