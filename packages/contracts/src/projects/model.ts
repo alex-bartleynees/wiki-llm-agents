@@ -6,7 +6,10 @@ export const Project = Schema.Struct({
   name: Schema.String,
   /** The shared vault the project's threads use. */
   vaultId: Schema.String,
-  /** Main working directory first. Paths are canonical and belong to this machine. */
+  /**
+   * Main working directory first; never empty. Paths are canonical and belong to this
+   * machine. A vault-only project's single working directory is its notes folder.
+   */
   workingDirectories: Schema.Array(Schema.String),
   /** A folder inside the shared vault for this project's notes. */
   notesFolder: Schema.NullOr(Schema.String),

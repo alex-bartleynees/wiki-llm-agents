@@ -6,7 +6,10 @@ import { Schema } from "effect";
  */
 export const RegisterProjectRequest = Schema.Struct({
   name: Schema.String.check(Schema.isNonEmpty()),
-  /** Absolute paths (`~/` allowed), main working directory first. */
+  /**
+   * Absolute paths (`~/` allowed), main working directory first. May be empty when
+   * `notesFolder` is given: a vault-only project then works in its notes folder.
+   */
   workingDirectories: Schema.Array(Schema.String.check(Schema.isNonEmpty())),
   /** Create missing working directories, once every other check has passed. */
   createDirectories: Schema.optionalKey(Schema.Boolean),

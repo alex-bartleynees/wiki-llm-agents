@@ -16,7 +16,8 @@
   let { vault, vaultLabel, onregistered }: { vault: Vault | null; vaultLabel: string | null; onregistered: (project: Project) => void } = $props();
 
   let name = $state("");
-  let kind = $state<"existing" | "new">("existing");
+  /** `vault`: no repo; the project works in its notes folder. */
+  let kind = $state<"existing" | "new" | "vault">("existing");
   /** The existing main directory, or the folder to create it in. */
   let main = $state("");
   let newFolderName = $state("");
@@ -54,7 +55,13 @@
   };
 
   const mainDirectory = $derived(
-    kind === "existing" ? main.trim() : main.trim() === "" || newFolderName.trim() === "" ? "" : `${main.trim().replace(/\/+$/, "")}/${newFolderName.trim()}`,
+    kind === "vault"
+      ? ""
+      : kind === "existing"
+        ? main.trim()
+        : main.trim() === "" || newFolderName.trim() === ""
+          ? ""
+          : `${main.trim().replace(/\/+$/, "")}/${newFolderName.trim()}`,
   );
 
   async function submit(event: SubmitEvent) {
@@ -64,7 +71,7 @@
     try {
       const { project } = await registerProject({
         name,
-        workingDirectories: [mainDirectory, ...more].filter((path) => path !== ""),
+        workingDirectories: kind === "vault" ? [] : [mainDirectory, ...more].filter((path) => path !== ""),
         createDirectories: kind === "new",
         ...(notesFolder.trim() === "" ? {} : { notesFolder: notesFolder.trim() }),
       });
@@ -94,6 +101,10 @@
     <legend>Main directory</legend>
     <label class="choice"><input type="radio" name="kind" value="existing" bind:group={kind} />Existing repo or folder</label>
     <label class="choice"><input type="radio" name="kind" value="new" bind:group={kind} />Create a new empty folder</label>
+    <label class="choice"><input type="radio" name="kind" value="vault" bind:group={kind} />Vault notes only (no repo)</label>
+    {#if kind === "vault"}
+      <span class="hint">Threads work in the notes folder below.</span>
+    {:else}
     <div class="path">
       <input
         class="mono"
@@ -110,8 +121,10 @@
       <input class="mono" aria-label="New folder name" bind:value={newFolderName} required placeholder="New folder name" autocomplete="off" spellcheck="false" />
       {#if mainDirectory !== ""}<span class="hint mono">Creates {mainDirectory}</span>{/if}
     {/if}
+    {/if}
   </fieldset>
 
+  {#if kind !== "vault"}
   <div class="field">
     <span>More directories (optional)</span>
     {#each more as path (path)}
@@ -122,6 +135,7 @@
     {/each}
     <button type="button" class="browse wide" onclick={() => pickMachine("more")}>Add directory…</button>
   </div>
+  {/if}
 
   <div class="field">
     <span>Vault</span>
@@ -129,9 +143,9 @@
   </div>
 
   <div class="field">
-    <span>Notes folder (optional)</span>
+    <span>Notes folder{kind === "vault" ? "" : " (optional)"}</span>
     <div class="path">
-      <input class="mono" aria-label="Notes folder" bind:value={notesFolder} placeholder="1-Active/homelab-rebuild" autocomplete="off" spellcheck="false" />
+      <input class="mono" aria-label="Notes folder" bind:value={notesFolder} required={kind === "vault"} placeholder="1-Active/homelab-rebuild" autocomplete="off" spellcheck="false" />
       <button type="button" class="browse" disabled={vault === null} onclick={openNotes}>Browse…</button>
     </div>
   </div>

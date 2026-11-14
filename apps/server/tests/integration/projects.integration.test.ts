@@ -123,6 +123,23 @@ layer(makeTestApp({ providers, vaults: [sharedRoot] }))("projects", (test) => {
     ]) expect((yield* post("/api/projects", body)).status).toBe(400);
   }));
 
+  test.effect("registers a vault-only project that works in its notes folder", () => Effect.gen(function* () {
+    const vault = yield* shared;
+    const notes = join(vault.rootPath, "Move Plan");
+    mkdirSync(notes);
+    writeFileSync(join(notes, "Checklist.md"), "# Checklist");
+    expect((yield* post("/api/projects", { name: "X", workingDirectories: [], notesFolder: "Missing" })).status).toBe(400);
+    const project = yield* register({ name: "Move", workingDirectories: [], notesFolder: "Move Plan" });
+    expect(project).toMatchObject({ workingDirectories: [notes], notesFolder: "Move Plan" });
+
+    const thread = yield* createThread(vault.id, { projectId: project.id });
+    const session = yield* sessionOf(thread.id);
+    expect(session.cwd).toBe(notes);
+    expect(session.setup.projectRoots).toEqual([notes, vault.rootPath]);
+    writeFileSync(join(notes, "Checklist.md"), "# Checklist\n\n- [ ] Book movers");
+    expect(yield* changes(project.id)).toEqual([{ directory: notes, path: "Checklist.md", status: "modified" }]);
+  }));
+
   test.effect("runs project threads in the main directory with the shared vault's tools, kept apart from other threads", () => Effect.gen(function* () {
     const vault = yield* shared;
     const dir = yield* temp;

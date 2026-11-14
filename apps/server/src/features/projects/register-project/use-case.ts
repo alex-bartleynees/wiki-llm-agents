@@ -24,21 +24,30 @@ const tooBroad = (path: string) => isInside(path, homedir());
  */
 export const registerProject = Effect.fn("registerProject")(function* (request: RegisterProjectRequest) {
   const name = request.name.trim();
-  if (!name || request.workingDirectories.length === 0) return yield* invalid("Provide a name and at least one working directory");
+  const notesFolder = request.notesFolder?.trim() || null;
+  if (!name) return yield* invalid("Provide a name");
+  if (request.workingDirectories.length === 0 && notesFolder === null) return yield* invalid("Provide a working directory or a notes folder");
   const vault = yield* (yield* VaultRepository).firstRegistered;
   if (Option.isNone(vault)) return yield* invalid("Register the shared vault before registering projects");
   const fs = yield* FileSystem.FileSystem;
 
-  const notesFolder = request.notesFolder?.trim() || null;
+  let notesPath: string | null = null;
   if (notesFolder !== null) {
     const resolved = yield* resolveInVault(vault.value.rootPath, notesFolder).pipe(Effect.mapError(() => invalid("Notes folder must exist inside the shared vault")));
     const info = yield* fs.stat(resolved.absolute).pipe(Effect.mapError(() => invalid("Cannot read notes folder")));
     if (info.type !== "Directory") return yield* invalid("Notes folder must be a directory");
+    notesPath = resolved.absolute;
   }
+
+  /**
+   * A vault-only project (no repo, e.g. a move plan) works in its notes folder:
+   * threads run there and its changed files and diffs are the notes folder's.
+   */
+  const inputs = request.workingDirectories.length > 0 ? request.workingDirectories : [notesPath!];
 
   /** Each input in order: its canonical path if it exists, else the path to create. */
   const planned: Array<{ readonly path: string; readonly exists: boolean }> = [];
-  for (const input of request.workingDirectories) {
+  for (const input of inputs) {
     const expanded = expandHome(input.trim());
     if (!isAbsolute(expanded)) return yield* invalid("Working directories must be absolute paths");
     const path = resolve(expanded);

@@ -1,4 +1,4 @@
-import { writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, type Locator, test } from "@playwright/test";
 import { e2eRoot, isPhone, projectFolder, useReplay } from "./app.ts";
@@ -73,6 +73,25 @@ test("registers a project through the folder picker, tracks its changed files, a
   await expect(doneThreads).toBeHidden();
   await overviewThreads.getByText("done · 1").click();
   await expect(doneThreads).toContainText("Hello project");
+});
+
+test("registers a vault-only project that works in its notes folder", async ({ page }, info) => {
+  const notesFolder = `Plans/Move-${info.project.name}`;
+  const notes = join(e2eRoot(), "vault", notesFolder);
+  mkdirSync(notes, { recursive: true });
+  const name = `Move ${info.project.name}`;
+
+  await page.goto("/projects");
+  const form = page.getByRole("complementary", { name: "Register project" });
+  await form.getByLabel("Name").fill(name);
+  await form.getByLabel("Vault notes only (no repo)").check();
+  await expect(form.getByLabel("Directory path")).toBeHidden();
+  await form.getByRole("textbox", { name: "Notes folder" }).fill(notesFolder);
+  await form.getByRole("button", { name: "Register" }).click();
+
+  await expect(page).toHaveURL(/\/projects\/[^/]+$/);
+  await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Working directories" })).toContainText(notes);
 });
 
 test("archives a project out of the way and restores it", async ({ page }, info) => {
