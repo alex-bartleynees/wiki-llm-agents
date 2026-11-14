@@ -2,13 +2,13 @@ import { InboxStreamMessage } from "@wiki-agents/contracts/inbox/event";
 import { type InboxItem, isUnread } from "@wiki-agents/contracts/inbox/model";
 import { errorMessage } from "#lib/api/client.ts";
 import { listen } from "#lib/api/sse.ts";
-import { dismissItem, INBOX_EVENTS_PATH, listInbox, markItemDone, markRead, snoozeItem } from "./api.ts";
+import { dismissItem, INBOX_TOPIC, listInbox, markItemDone, markRead, snoozeItem } from "./api.ts";
 
 const newestFirst = (a: InboxItem, b: InboxItem) => b.updatedAt - a.updatedAt;
 
 /**
  * The one inbox, across agents, vaults and projects: loaded once and kept current by
- * GET /events/inbox, so the header's unread count is live on every page.
+ * the inbox topic on the event stream, so the header's unread count is live on every page.
  */
 class InboxStore {
   items = $state<ReadonlyArray<InboxItem>>([]);
@@ -38,7 +38,7 @@ class InboxStore {
   /** Loads the inbox and follows it; once for the app's life. */
   start() {
     if (this.#close !== undefined) return;
-    this.#close = listen(INBOX_EVENTS_PATH, InboxStreamMessage, {
+    this.#close = listen(INBOX_TOPIC, InboxStreamMessage, {
       onEvent: (message) => {
         if (message.type === "item.updated") this.upsert(message.item);
       },

@@ -1,11 +1,8 @@
-import { InboxStreamMessage } from "@wiki-agents/contracts/inbox/event";
-import { Effect, Schema, Stream } from "effect";
-import { sseFrame } from "../../../shared/sse.js";
+import type { InboxStreamMessage } from "@wiki-agents/contracts/inbox/event";
+import { Effect, Stream } from "effect";
 import { InboxBus } from "../inbox-bus.js";
 
-const encode = Schema.encodeSync(Schema.fromJsonString(InboxStreamMessage));
-
-/** Inbox items as they arrive or change, as SSE frames; `ready` once subscribed. */
+/** Inbox items as they arrive or change; `ready` once subscribed. */
 export const streamInbox = Effect.gen(function* () {
   const bus = yield* InboxBus;
   return Stream.unwrap(
@@ -15,5 +12,5 @@ export const streamInbox = Effect.gen(function* () {
         Stream.fromSubscription(subscription).pipe(Stream.map((item): InboxStreamMessage => ({ type: "item.updated", item }))),
       ),
     ),
-  ).pipe(Stream.map((message) => sseFrame(encode(message))));
+  );
 });

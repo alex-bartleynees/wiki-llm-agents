@@ -18,11 +18,11 @@ layer(App)("event streams when the server starts closing", (it) => {
         Effect.flatMap(HttpClient.execute(HttpClientRequest.get(path)), (response) =>
           response.stream.pipe(Stream.decodeText, Stream.runCollect, Effect.map((chunks) => chunks.join(""))),
         );
-      const paths = [`/events/vaults/${vault.id}`, `/events/vaults/${vault.id}/threads`, `/events/threads/${thread.id}?after=0`];
+      const paths = ["/events", `/events/vaults/${vault.id}`, `/events/vaults/${vault.id}/threads`, `/events/threads/${thread.id}?after=0`];
       const streams = yield* Effect.forkChild(Effect.forEach(paths, open, { concurrency: "unbounded" }));
       yield* Deferred.succeed(closing, undefined);
       // Each stream's body ends instead of running forever.
-      expect(yield* Fiber.join(streams)).toHaveLength(3);
+      expect(yield* Fiber.join(streams)).toHaveLength(4);
     }),
   );
 });

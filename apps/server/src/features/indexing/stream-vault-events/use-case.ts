@@ -1,15 +1,12 @@
-import { VaultEvent } from "@wiki-agents/contracts/indexing/event";
+import type { VaultEvent } from "@wiki-agents/contracts/indexing/event";
 import type { StreamVaultEventsRequest } from "@wiki-agents/contracts/indexing/stream-vault-events/request";
-import { Effect, Schema, Stream } from "effect";
-import { sseFrame } from "../../../shared/sse.js";
+import { Effect, Stream } from "effect";
 import { findVault } from "../../vaults/find-vault.js";
 import { Indexer } from "../indexer.js";
 
-const encode = Schema.encodeSync(Schema.fromJsonString(VaultEvent));
-
 /**
- * The vault's change events as SSE frames. Subscribes before sending `ready`, so a
- * client that waits for `ready` never misses a change.
+ * The vault's change events. Subscribes before sending `ready`, so a client that
+ * waits for `ready` never misses a change.
  */
 export const streamVaultEvents = Effect.fn("streamVaultEvents")(function* (request: StreamVaultEventsRequest) {
   const vault = yield* findVault(request.vaultId);
@@ -21,5 +18,5 @@ export const streamVaultEvents = Effect.fn("streamVaultEvents")(function* (reque
         Stream.fromSubscription(subscription).pipe(Stream.filter((event) => event.vaultId === vault.id)),
       ),
     ),
-  ).pipe(Stream.map((event) => sseFrame(encode(event))));
+  );
 });

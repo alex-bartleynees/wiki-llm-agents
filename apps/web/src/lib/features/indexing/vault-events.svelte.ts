@@ -3,7 +3,7 @@ import { SvelteMap } from "svelte/reactivity";
 import { listen } from "#lib/api/sse.ts";
 
 /**
- * Live changes in the open vault, from GET /events/vaults/:vaultId. Views read
+ * Live changes in the open vault, from the vault topic on the event stream. Views read
  * `revision` (anything changed) or `versionOf(path)` (that file changed) in an effect
  * and reload when it moves.
  */
@@ -20,7 +20,7 @@ class VaultEventsStore {
     if (vaultId === this.#vaultId) return;
     this.disconnect();
     this.#vaultId = vaultId;
-    this.#close = listen(`/events/vaults/${encodeURIComponent(vaultId)}`, VaultEvent, {
+    this.#close = listen({ type: "vault", vaultId }, VaultEvent, {
       onEvent: (event) => {
         if (event.type !== "vault.changed" || event.vaultId !== this.#vaultId) return;
         for (const path of event.paths) this.#versions.set(path, (this.#versions.get(path) ?? 0) + 1);

@@ -15,8 +15,8 @@ const api = vi.hoisted(() => ({
 }));
 vi.mock("./api.ts", () => ({
   ...api,
-  vaultThreadsEventsPath: (vaultId: string) => `/events/vaults/${vaultId}/threads`,
-  threadEventsPath: (threadId: string) => `/events/threads/${threadId}`,
+  vaultThreadsTopic: (vaultId: string) => ({ type: "vault-threads", vaultId }),
+  threadTopic: (threadId: string, after: number) => ({ type: "thread", threadId, after }),
   answerRequest: vi.fn(),
   interruptTurn: vi.fn(),
   sendMessage: vi.fn(),
@@ -24,17 +24,18 @@ vi.mock("./api.ts", () => ({
   getProviderStatus: vi.fn(),
 }));
 
-/** Each stream opened, so a test can send it messages. */
-const streams = vi.hoisted(() => [] as Array<{ path: string; onEvent: (message: unknown) => void; closed: boolean }>);
+/** Each topic followed, so a test can send it messages. */
+const streams = vi.hoisted(() => [] as Array<{ topic: unknown; onEvent: (message: unknown) => void; closed: boolean }>);
 vi.mock("#lib/api/sse.ts", () => ({
-  listen: (path: string | (() => string), _schema: unknown, handlers: { onEvent: (message: unknown) => void }) => {
-    const stream = { path: typeof path === "string" ? path : path(), onEvent: handlers.onEvent, closed: false };
+  listen: (topic: unknown, _schema: unknown, handlers: { onEvent: (message: unknown) => void }) => {
+    const stream = { topic: typeof topic === "function" ? (topic as () => unknown)() : topic, onEvent: handlers.onEvent, closed: false };
     streams.push(stream);
     return () => {
       stream.closed = true;
     };
   },
 }));
+const isVaultThreads = (topic: unknown) => JSON.stringify(topic) === JSON.stringify({ type: "vault-threads", vaultId: "v1" });
 vi.mock("$app/navigation", () => ({ goto: vi.fn() }));
 
 const { threads } = await import("./threads.svelte.ts");
@@ -107,7 +108,7 @@ describe("thread list scope", () => {
   it("adds live updates only for threads in the scope shown", async () => {
     api.listThreads.mockResolvedValue({ threads: [] });
     await threads.connect({ vaultId: "v1", projectId: "p1" });
-    const stream = streams.find((candidate) => candidate.path === "/events/vaults/v1/threads" && !candidate.closed)!;
+    const stream = streams.find((candidate) => isVaultThreads(candidate.topic) && !candidate.closed)!;
     stream.onEvent({ type: "thread.updated", thread: summary("vault-thread", null) });
     stream.onEvent({ type: "thread.updated", thread: summary("other-project", "p2") });
     stream.onEvent({ type: "thread.updated", thread: summary("mine", "p1") });
@@ -187,7 +188,7 @@ describe("done threads", () => {
   it("moves a done thread back to the open ones when another device sends it a message", async () => {
     api.listThreads.mockResolvedValue({ threads: [done("a", 10)] });
     await threads.connect({ vaultId: "v1", projectId: null });
-    const stream = streams.find((candidate) => candidate.path === "/events/vaults/v1/threads" && !candidate.closed)!;
+    const stream = streams.find((candidate) => isVaultThreads(candidate.topic) && !candidate.closed)!;
     stream.onEvent({ type: "thread.updated", thread: { ...summary("a", null), status: "running", updatedAt: 40 } });
     expect([openIds(), doneIds()]).toEqual([["a"], []]);
   });

@@ -1,13 +1,10 @@
-import { ThreadsStreamMessage } from "@wiki-agents/contracts/threads/event";
+import type { ThreadsStreamMessage } from "@wiki-agents/contracts/threads/event";
 import type { StreamThreadsRequest } from "@wiki-agents/contracts/threads/stream-threads/request";
-import { Effect, Schema, Stream } from "effect";
-import { sseFrame } from "../../../shared/sse.js";
+import { Effect, Stream } from "effect";
 import { findVault } from "../../vaults/find-vault.js";
 import { ThreadBus } from "../thread-bus.js";
 
-const encode = Schema.encodeSync(Schema.fromJsonString(ThreadsStreamMessage));
-
-/** Changes to the vault's threads (new, renamed, status) as SSE frames. */
+/** Changes to the vault's threads (new, renamed, status); `ready` once subscribed. */
 export const streamThreads = Effect.fn("streamThreads")(function* (request: StreamThreadsRequest) {
   const vault = yield* findVault(request.vaultId);
   const bus = yield* ThreadBus;
@@ -21,5 +18,5 @@ export const streamThreads = Effect.fn("streamThreads")(function* (request: Stre
         ),
       ),
     ),
-  ).pipe(Stream.map((message) => sseFrame(encode(message))));
+  );
 });

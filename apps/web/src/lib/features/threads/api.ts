@@ -1,3 +1,4 @@
+import type { EventTopic } from "@wiki-agents/contracts/events/model";
 import { GetProviderStatusResponse } from "@wiki-agents/contracts/providers/get-provider-status/response";
 import { ListProvidersResponse } from "@wiki-agents/contracts/providers/list-providers/response";
 import { AnswerRequestRequest } from "@wiki-agents/contracts/threads/answer-request/request";
@@ -26,8 +27,8 @@ const NoBody = Schema.Struct({});
 /** Threads working, waiting for you, or stopped, in every vault. */
 export const listActiveThreads = (signal?: AbortSignal) => getJson("/api/active-threads", ListActiveThreadsResponse, signal);
 
-/** Every thread's changes, in every vault (`ThreadsStreamMessage`). */
-export const ALL_THREADS_EVENTS_PATH = "/events/threads";
+/** Every thread's changes, in every vault, on the event stream (`ThreadsStreamMessage`). */
+export const ALL_THREADS_TOPIC: EventTopic = { type: "all-threads" };
 
 export const listProviders = (signal?: AbortSignal) => getJson("/api/providers", ListProvidersResponse, signal);
 
@@ -69,6 +70,7 @@ export const reopenThread = (threadId: string) => postJson(`${threadPath(threadI
 export const answerRequest = (threadId: string, requestId: string, answer: RequestAnswer) =>
   postJson(`${threadPath(threadId)}/requests/${encodeURIComponent(requestId)}`, AnswerRequestRequest, { answer }, AnswerRequestResponse);
 
-/** SSE paths; see `lib/api/sse.ts`. */
-export const threadEventsPath = (threadId: string, after: number) => `/events/threads/${encodeURIComponent(threadId)}?after=${after}`;
-export const vaultThreadsEventsPath = (vaultId: string) => `/events/vaults/${encodeURIComponent(vaultId)}/threads`;
+/** Topics on the event stream; see `lib/api/sse.ts`. A thread's events after seq `after` (`ThreadStreamMessage`). */
+export const threadTopic = (threadId: string, after: number): EventTopic => ({ type: "thread", threadId, after });
+/** A vault's thread list (`ThreadsStreamMessage`). */
+export const vaultThreadsTopic = (vaultId: string): EventTopic => ({ type: "vault-threads", vaultId });

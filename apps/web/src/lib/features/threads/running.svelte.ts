@@ -2,12 +2,12 @@ import { ThreadsStreamMessage } from "@wiki-agents/contracts/threads/event";
 import { type ThreadActivity, type ThreadSummary, threadActivity } from "@wiki-agents/contracts/threads/model";
 import { errorMessage } from "#lib/api/client.ts";
 import { listen } from "#lib/api/sse.ts";
-import { ALL_THREADS_EVENTS_PATH, listActiveThreads } from "./api.ts";
+import { ALL_THREADS_TOPIC, listActiveThreads } from "./api.ts";
 import { byRecent } from "./thread-order.ts";
 
 /**
  * Every thread that is working, waiting for you, or stopped, across agents, vaults
- * and projects, kept current by GET /events/threads while the Running page is open.
+ * and projects, kept current by the all-threads topic on the event stream while the Running page is open.
  * Only then: a tab already has up to five event streams open elsewhere, and browsers
  * allow six connections per host over HTTP/1.1.
  */
@@ -39,7 +39,7 @@ class RunningStore {
   /** Loads the running threads and follows them until `stop`. */
   start() {
     if (this.#close !== undefined) return;
-    this.#close = listen(ALL_THREADS_EVENTS_PATH, ThreadsStreamMessage, {
+    this.#close = listen(ALL_THREADS_TOPIC, ThreadsStreamMessage, {
       onEvent: (message) => {
         if (message.type === "thread.updated") this.upsert(message.thread);
       },

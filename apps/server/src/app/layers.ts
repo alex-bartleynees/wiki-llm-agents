@@ -5,6 +5,7 @@ import { HttpRouter } from "effect/http";
 import type { AgentCatalog } from "../features/agents/catalog.js";
 import { AgentCatalogLive } from "../features/agents/catalog-live.js";
 import { ChangeTrackerLive } from "../features/changes/change-tracker.js";
+import { EventConnectionsLive } from "../features/events/connections.js";
 import { ChangeLogLive } from "../features/changes/sqlite-repository.js";
 import { DeliveryChannels, inAppChannel } from "../features/inbox/delivery.js";
 import { InboxLive } from "../features/inbox/inbox.js";
@@ -122,6 +123,7 @@ export const makeHttpApp = (options: AppOptions) =>
         options.agents,
         indexing(options.watch, options.watchPollMs),
         WallClockLive,
+        EventConnectionsLive,
       )),
   );
 

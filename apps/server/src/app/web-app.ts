@@ -9,14 +9,14 @@ export const IMMUTABLE_CACHE = "public, max-age=31536000, immutable";
 export const REVALIDATE_CACHE = "no-cache";
 
 /** Server-owned paths. An unknown path under these is a 404, never the app shell. */
-const SERVER_PREFIXES = ["/api", "/events"] as const;
+const SERVER_PREFIXES = ["/api"] as const;
 
 /**
- * Paths below `/mcp` (a wildcard claims its parent too, so `/mcp/*` would take
- * `/mcp` itself and `/mcp/:a/*` would take `/mcp/:a`). The MCP
- * server owns `/mcp` and answers every method there.
+ * Paths below `/mcp` and `/events` (a wildcard claims its parent too, so `/mcp/*` would
+ * take `/mcp` itself and `/mcp/:a/*` would take `/mcp/:a`). The MCP server owns `/mcp`
+ * and answers every method there; `GET /events` is the event stream.
  */
-const MCP_SUBPATHS = ["/mcp/:a", "/mcp/:a/:b/*"] as const;
+const SUBPATHS = ["/mcp/:a", "/mcp/:a/:b/*", "/events/:a", "/events/:a/:b/*"] as const;
 
 const notFound = HttpServerResponse.text("Not found", { status: 404 });
 
@@ -37,7 +37,7 @@ export const makeWebAppRouter = (root: string) =>
     }),
     HttpStaticServer.layer({ root, spa: true, cacheControl: REVALIDATE_CACHE }),
     ...SERVER_PREFIXES.map((prefix) => HttpRouter.add("*", `${prefix}/*`, notFound)),
-    ...MCP_SUBPATHS.map((path) => HttpRouter.add("*", path, notFound)),
+    ...SUBPATHS.map((path) => HttpRouter.add("*", path, notFound)),
   );
 
 /** Mounted only when WIKI_AGENTS_STATIC_DIR is set; in development Vite serves the UI. */

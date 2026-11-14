@@ -3,6 +3,7 @@ import { foldersRouter } from "../features/folders/router.js";
 import { projectsRouter } from "../features/projects/router.js";
 import { Layer } from "effect";
 import { HttpRouter, HttpServerResponse } from "effect/http";
+import { eventsRouter } from "../features/events/router.js";
 import { agentsRouter } from "../features/agents/router.js";
 import { inboxRouter } from "../features/inbox/router.js";
 import { notificationsRouter } from "../features/notifications/router.js";
@@ -35,6 +36,7 @@ export const router = Layer.mergeAll(
   agentsRouter,
   schedulesRouter,
   inboxRouter,
+  eventsRouter,
   notificationsRouter,
   testHooksRouter,
   mcpRouter,

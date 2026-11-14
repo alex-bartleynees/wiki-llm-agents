@@ -1,11 +1,8 @@
-import { ThreadsStreamMessage } from "@wiki-agents/contracts/threads/event";
-import { Effect, Schema, Stream } from "effect";
-import { sseFrame } from "../../../shared/sse.js";
+import type { ThreadsStreamMessage } from "@wiki-agents/contracts/threads/event";
+import { Effect, Stream } from "effect";
 import { ThreadBus } from "../thread-bus.js";
 
-const encode = Schema.encodeSync(Schema.fromJsonString(ThreadsStreamMessage));
-
-/** Changes to every thread in every vault (new, renamed, status, progress) as SSE frames. */
+/** Changes to every thread in every vault (new, renamed, status, progress); `ready` once subscribed. */
 export const streamAllThreads = Effect.fn("streamAllThreads")(function* () {
   const bus = yield* ThreadBus;
   return Stream.unwrap(
@@ -15,5 +12,5 @@ export const streamAllThreads = Effect.fn("streamAllThreads")(function* () {
         Stream.fromSubscription(subscription).pipe(Stream.map((thread): ThreadsStreamMessage => ({ type: "thread.updated", thread }))),
       ),
     ),
-  ).pipe(Stream.map((message) => sseFrame(encode(message))));
+  );
 });

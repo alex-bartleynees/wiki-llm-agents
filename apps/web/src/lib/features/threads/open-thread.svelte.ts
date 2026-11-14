@@ -4,7 +4,7 @@ import { ThreadStreamMessage } from "@wiki-agents/contracts/threads/event";
 import type { RequestAnswer, ThreadSummary } from "@wiki-agents/contracts/threads/model";
 import { errorMessage, isAbort } from "#lib/api/client.ts";
 import { listen } from "#lib/api/sse.ts";
-import { answerRequest, getThread, interruptTurn, sendMessage, threadEventsPath } from "./api.ts";
+import { answerRequest, getThread, interruptTurn, sendMessage, threadTopic } from "./api.ts";
 import { applyEvent, emptyTimeline, type Timeline } from "./timeline.ts";
 
 /**
@@ -52,7 +52,7 @@ class OpenThreadStore {
       this.status = "loaded";
       this.version++;
       // A reopened stream resumes from the last event applied.
-      this.#close = listen(() => threadEventsPath(threadId, this.timeline.lastSeq), ThreadStreamMessage, {
+      this.#close = listen(() => threadTopic(threadId, this.timeline.lastSeq), ThreadStreamMessage, {
         onEvent: (message) => {
           if (message.type !== "event" || message.event.threadId !== this.#threadId) return;
           if (applyEvent(this.timeline, message.event)) {

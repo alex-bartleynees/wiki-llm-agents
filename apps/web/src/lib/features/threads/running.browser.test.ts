@@ -3,12 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /** The running store with real Svelte state; the API and the event stream are stand-ins. */
 
-const api = vi.hoisted(() => ({ ALL_THREADS_EVENTS_PATH: "/events/threads", listActiveThreads: vi.fn() }));
+const api = vi.hoisted(() => ({ ALL_THREADS_TOPIC: { type: "all-threads" }, listActiveThreads: vi.fn() }));
 vi.mock("./api.ts", () => api);
 
 const stream = vi.hoisted(() => ({ handlers: undefined as { onEvent: (event: unknown) => void; onReconnect?: () => void } | undefined }));
 vi.mock("#lib/api/sse.ts", () => ({
-  listen: (_path: string, _schema: unknown, handlers: typeof stream.handlers) => {
+  listen: (_topic: unknown, _schema: unknown, handlers: typeof stream.handlers) => {
     stream.handlers = handlers;
     return () => (stream.handlers = undefined);
   },

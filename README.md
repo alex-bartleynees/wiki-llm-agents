@@ -54,7 +54,7 @@ nix develop -c npm run dev -w @wiki-agents/server -- --vault ../../.data/vault
 
 Each vault is indexed into SQLite (files, notes, links, full-text search) when it is
 registered and at every start, and a watcher keeps the index current; the open note,
-the tree, and backlinks update live over `/events/vaults/:id`. The index can always
+the tree, and backlinks update live over the tab's event stream (the `vault` topic, see Threads). The index can always
 be rebuilt from disk: `POST /api/vaults/:id/rebuild-index`.
 
 Fenced `mermaid` blocks render as diagrams in the note reading view. Expand
@@ -239,11 +239,9 @@ provider and the agent (below) for new threads next to **New thread**:
   its plan progress and current step), or stopped: its last turn failed, or ended
   without you pressing Stop (a restart, the provider giving up), with the reason.
   Stopped threads stay until you send them a message or **Mark done**, for at most a
-  week. `GET /api/active-threads` lists them; `GET /events/threads` streams every
-  thread's changes (the per-vault list uses `GET /events/vaults/:id/threads`). The page
-  opens that stream only while it is shown, and the tab has no count: a vault page
-  already holds up to five event streams, and browsers allow six connections per host
-  over HTTP/1.1.
+  week. `GET /api/active-threads` lists them; the `all-threads` topic on the event
+  stream keeps the page current (the per-vault list follows `vault-threads`). The page
+  follows that topic only while it is shown, and the tab has no count yet.
   There is no task queue: a background task is a thread, and threads for the same
   agent run side by side.
 - Each thread has a **ThreadActor** (`features/threads/thread-actor.ts`): one mailbox
@@ -251,9 +249,22 @@ provider and the agent (below) for new threads next to **New thread**:
   writes to SQLite before it publishes, and rebuilds its state from SQLite.
 - Event streams end when the server starts shutting down (browsers reconnect and
   resume), so a restart doesn't wait for them.
-- `GET /events/threads/:id?after=<seq>` streams the thread's stored events after
-  `seq`, then live ones; reconnecting browsers send `Last-Event-ID`, so a reload or a
-  dropped connection mid-turn misses nothing and repeats nothing.
+- **One event stream per tab.** `GET /events` starts with a connection id; each store
+  follows a topic on it with `POST /api/events/:connectionId/subscriptions
+  {"subscriptionId", "topic"}` and stops with `DELETE …/subscriptions/:subscriptionId`.
+  Topics: `inbox`, `all-threads`, `vault` and `vault-threads` (with `vaultId`), and
+  `thread` (with `threadId` and `after`). Each message is wrapped as
+  `{"type": "message", "subscriptionId", "message"}`, with the topic's own message
+  inside. Over HTTP/1.1 browsers allow six connections per host across all tabs, and a
+  stream per store (up to five per tab) left a second tab hanging
+  (`apps/web/e2e/connection-cap.spec.ts`). The client side is `apps/web/src/lib/api/sse.ts`;
+  a reconnect gets a new connection id and subscribes everything again.
+- The `thread` topic sends the thread's stored events after `after`, then live ones;
+  after a reconnect the client subscribes with the last seq it has, so a reload or a
+  dropped connection mid-turn misses nothing and repeats nothing. The older
+  single-topic streams (`/events/inbox`, `/events/threads`, `/events/threads/:id`,
+  `/events/vaults/:id`, `/events/vaults/:id/threads`) still answer, for curl and
+  debugging; the web app no longer uses them.
 - At startup the server wakes threads left mid-turn: a turn that never reached the
   provider is started, one waiting on an approval or question stays answerable
   (replay), and one that was streaming is closed as interrupted. OpenCode can't
@@ -577,7 +588,7 @@ symlinks included.
 ### Schedules and the inbox
 
 **Inbox** (header link, with the unread count) is one list across vaults, projects
-and agents, live over `GET /events/inbox`: reminders, scheduled prompts' answers
+and agents, live over the event stream's `inbox` topic: reminders, scheduled prompts' answers
 (markdown, linking to the run's thread), approvals and questions waiting for you
 (done once answered), and each thread's latest turn result (done when you send the
 thread another message). Items can be snoozed (they come back unread), dismissed or

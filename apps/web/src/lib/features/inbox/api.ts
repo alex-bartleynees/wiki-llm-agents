@@ -1,3 +1,4 @@
+import type { EventTopic } from "@wiki-agents/contracts/events/model";
 import { DismissItemResponse } from "@wiki-agents/contracts/inbox/dismiss-item/response";
 import { ListInboxResponse } from "@wiki-agents/contracts/inbox/list-inbox/response";
 import { MarkItemDoneResponse } from "@wiki-agents/contracts/inbox/mark-item-done/response";
@@ -11,7 +12,8 @@ import { getJson, postJson } from "#lib/api/client.ts";
 const itemPath = (itemId: string) => `/api/inbox/${encodeURIComponent(itemId)}`;
 const NoBody = Schema.Struct({});
 
-export const INBOX_EVENTS_PATH = "/events/inbox";
+/** The inbox on the event stream (`InboxStreamMessage`). */
+export const INBOX_TOPIC: EventTopic = { type: "inbox" };
 
 export const listInbox = (signal?: AbortSignal) => getJson("/api/inbox", ListInboxResponse, signal);
 export const markRead = (itemIds: ReadonlyArray<string>) => postJson("/api/inbox/read", MarkReadRequest, { itemIds }, MarkReadResponse);

@@ -7,7 +7,7 @@
   import { errorMessage } from "#lib/api/client.ts";
   import { listen } from "#lib/api/sse.ts";
   import { numberedDiffLines } from "#lib/features/changes/diff-lines.ts";
-  import { vaultThreadsEventsPath } from "#lib/features/threads/api.ts";
+  import { vaultThreadsTopic } from "#lib/features/threads/api.ts";
   import { paneWidths } from "#lib/ui/layout/pane-widths.svelte.ts";
   import PaneSplitter from "#lib/ui/layout/PaneSplitter.svelte";
   import { getDiff, getFileDiff, ignoreFile, unignoreFile } from "./api.ts";
@@ -169,7 +169,7 @@
       void load();
     });
     const statuses = new Map<string, ThreadStatus>();
-    return listen(vaultThreadsEventsPath(vaultId), ThreadsStreamMessage, {
+    return listen(vaultThreadsTopic(vaultId), ThreadsStreamMessage, {
       onEvent: (message) => {
         if (message.type !== "thread.updated" || message.thread.projectId !== id) return;
         const before = statuses.get(message.thread.id);

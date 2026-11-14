@@ -4,7 +4,7 @@ import { errorMessage, isAbort } from "#lib/api/client.ts";
 import { listen } from "#lib/api/sse.ts";
 import { agents } from "#lib/features/agents/agents.svelte.ts";
 import { projects } from "#lib/features/projects/projects.svelte.ts";
-import { createThread, getThread, listThreads, markDone, reopenThread, vaultThreadsEventsPath } from "./api.ts";
+import { createThread, getThread, listThreads, markDone, reopenThread, vaultThreadsTopic } from "./api.ts";
 import { openThread } from "./open-thread.svelte.ts";
 import { providers } from "./providers.svelte.ts";
 import { byRecent, doneThreads, openThreads } from "./thread-order.ts";
@@ -30,7 +30,7 @@ const remember = (scope: ThreadScope, threadId: string | null) => {
 
 /**
  * The threads of the open scope (all of a vault's, or one project's), kept current
- * by GET /events/vaults/:id/threads.
+ * by the vault's thread topic on the event stream.
  */
 class ThreadsStore {
   threads = $state<ReadonlyArray<ThreadSummary>>([]);
@@ -54,7 +54,7 @@ class ThreadsStore {
     if (sameScope(scope, this.#scope)) return Promise.resolve();
     this.disconnect();
     this.#scope = scope;
-    this.#close = listen(vaultThreadsEventsPath(scope.vaultId), ThreadsStreamMessage, {
+    this.#close = listen(vaultThreadsTopic(scope.vaultId), ThreadsStreamMessage, {
       onEvent: (message) => {
         if (message.type === "thread.updated" && inScope(this.#scope, message.thread)) this.#upsert(message.thread);
       },
