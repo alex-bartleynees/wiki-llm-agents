@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { lstat, readFile, readlink } from "node:fs/promises";
 import { join } from "node:path";
-import type { DiffFile } from "@wiki-agents/contracts/projects/model";
+import type { DiffFile, FileChange } from "@wiki-agents/contracts/projects/model";
 import { Effect } from "effect";
 import { IGNORED, ProjectFilesError } from "./files.js";
 import {
@@ -123,6 +123,27 @@ export const diffDirectory = (directory: string, limits: DiffLimits, budget = LI
         used += file.diff.length;
         return file;
       });
+    },
+    catch: failed,
+  });
+
+/**
+ * The paths in `directory` that differ from `HEAD`, as the diff lists them, without
+ * reading any diffs: new (added or untracked), modified, deleted. A rename is its old
+ * path deleted and its new path created. Sorted by path.
+ */
+export const changedPaths = (directory: string) =>
+  Effect.tryPromise({
+    try: async (): Promise<Array<FileChange>> => {
+      const from = await base(directory);
+      const [entries, untracked] = await Promise.all([changedEntries(directory, from), untrackedPaths(directory)]);
+      const changes: Array<FileChange> = untracked.map((path) => ({ directory, path, status: "created" }));
+      for (const entry of entries) {
+        if (entry.oldPath !== null) changes.push({ directory, path: entry.oldPath, status: "deleted" });
+        const status = entry.status === "modified" ? "modified" : entry.status === "deleted" ? "deleted" : "created";
+        changes.push({ directory, path: entry.path, status });
+      }
+      return changes.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
     },
     catch: failed,
   });

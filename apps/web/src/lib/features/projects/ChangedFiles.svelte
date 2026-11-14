@@ -1,7 +1,11 @@
 <script lang="ts">
   import type { FileChange, Project } from "@wiki-agents/contracts/projects/model";
+  import { ThreadsStreamMessage } from "@wiki-agents/contracts/threads/event";
+  import type { ThreadStatus } from "@wiki-agents/contracts/threads/model";
   import { untrack } from "svelte";
   import { errorMessage } from "#lib/api/client.ts";
+  import { listen } from "#lib/api/sse.ts";
+  import { vaultThreadsTopic } from "#lib/features/threads/api.ts";
   import { listChanges, reviewChanges } from "./api.ts";
 
   let { project }: { project: Project } = $props();
@@ -11,6 +15,8 @@
   const LETTER: Record<FileChange["status"], string> = { created: "A", modified: "M", deleted: "D" };
 
   let changes = $state<ReadonlyArray<FileChange> | null>(null);
+  /** Working directories compared with `HEAD`; the rest compare with the reviewed baseline. */
+  let gitDirectories = $state<ReadonlySet<string>>(new Set());
   let busy = $state(false);
   let error = $state<string | null>(null);
   /** Folders showing every row. */
@@ -26,6 +32,16 @@
     })),
   );
   const total = $derived(changes?.length ?? 0);
+  const outsideGit = $derived(project.workingDirectories.filter((directory) => !gitDirectories.has(directory)));
+  /** Changes that "mark all reviewed" clears: those outside git. */
+  const reviewable = $derived((changes ?? []).filter((change) => !gitDirectories.has(change.directory)).length);
+  const heading = $derived(
+    changes === null || outsideGit.length === project.workingDirectories.length
+      ? "changed since registered or reviewed"
+      : outsideGit.length === 0
+        ? "uncommitted changes"
+        : "uncommitted, or changed since reviewed outside git",
+  );
 
   async function run(action: (projectId: string) => Promise<unknown>, fallback: string) {
     const id = project.id;
@@ -34,7 +50,10 @@
     try {
       await action(id);
       const result = await listChanges(id);
-      if (project.id === id) changes = result.changes;
+      if (project.id === id) {
+        changes = result.changes;
+        gitDirectories = new Set(result.gitDirectories);
+      }
     } catch (cause) {
       if (project.id === id) error = errorMessage(cause, fallback);
     } finally {
@@ -45,24 +64,37 @@
   const scan = () => run(async () => {}, "Could not scan the project's folders");
   const markReviewed = () => run(reviewChanges, "Could not mark the changes reviewed");
 
-  // Scanned whenever another project is shown.
+  // Scanned whenever another project is shown, and again when one of its turns ends.
   $effect(() => {
-    void project.id;
+    const { id, vaultId } = project;
     untrack(() => {
       changes = null;
+      gitDirectories = new Set();
       expanded = new Set();
       void scan();
+    });
+    const statuses = new Map<string, ThreadStatus>();
+    return listen(vaultThreadsTopic(vaultId), ThreadsStreamMessage, {
+      onEvent: (message) => {
+        if (message.type !== "thread.updated" || message.thread.projectId !== id) return;
+        const before = statuses.get(message.thread.id);
+        statuses.set(message.thread.id, message.thread.status);
+        if (before !== undefined && before !== "idle" && message.thread.status === "idle" && !busy) void scan();
+      },
+      onReconnect: () => void scan(),
     });
   });
 </script>
 
 <section aria-label="Changed files">
   <div class="head">
-    <h2 class="mono">changed since registered or reviewed{changes === null ? "" : ` · ${total} ${total === 1 ? "file" : "files"}`}</h2>
-    <span class="hint"><a href="/projects/{project.id}/diff">Review the diff</a> and comment; undo in lazygit.</span>
+    <h2 class="mono">{heading}{changes === null ? "" : ` · ${total} ${total === 1 ? "file" : "files"}`}</h2>
+    <span class="hint"><a href="/projects/{project.id}/diff">Review the diff</a> and comment; commit or undo in lazygit.</span>
     <span class="actions">
       <button type="button" onclick={scan} disabled={busy}>{busy ? "Scanning…" : "Rescan"}</button>
-      <button type="button" onclick={markReviewed} disabled={busy || total === 0}>Mark all reviewed</button>
+      {#if changes === null || outsideGit.length > 0}
+        <button type="button" onclick={markReviewed} disabled={busy || reviewable === 0}>Mark all reviewed</button>
+      {/if}
     </span>
   </div>
   {#if error}

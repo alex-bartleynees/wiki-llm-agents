@@ -50,7 +50,8 @@ const folders = <const Names extends ReadonlyArray<string>>(dir: string, ...name
   }) as { readonly [K in keyof Names]: string };
 
 const register = (body: unknown) => post("/api/projects", body).pipe(Effect.flatMap(decode(RegisterProjectResponse)), Effect.map((result) => result.project));
-const changes = (id: string) => HttpClient.get(`/api/projects/${id}/changes`).pipe(Effect.flatMap(decode(ListChangesResponse)), Effect.map((result) => result.changes));
+const listed = (id: string) => HttpClient.get(`/api/projects/${id}/changes`).pipe(Effect.flatMap(decode(ListChangesResponse)));
+const changes = (id: string) => listed(id).pipe(Effect.map((result) => result.changes));
 const review = (id: string) => post(`/api/projects/${id}/changes/review`, {}).pipe(Effect.flatMap(decode(ReviewChangesResponse)));
 const createThread = (vaultId: string, body: unknown) =>
   post(`/api/vaults/${vaultId}/threads`, body).pipe(Effect.flatMap(decode(CreateThreadResponse)), Effect.map((result) => result.thread));
@@ -250,9 +251,10 @@ layer(makeTestApp({ providers, vaults: [sharedRoot] }))("projects", (test) => {
     expect((yield* post("/api/projects/missing/changes/review", {})).status).toBe(404);
   }));
 
-  test.effect("leaves out what Git ignores, so dependency caches don't count, including in nested repositories and submodules", () => Effect.gen(function* () {
+  test.effect("leaves out what Git ignores in repositories inside a folder outside git, including nested repositories and submodules", () => Effect.gen(function* () {
     const dir = yield* temp;
-    const [repo] = folders(dir, "repo");
+    const [outer] = folders(dir, "outer");
+    const [repo] = folders(outer, "repo");
     const git = (cwd: string, ...args: Array<string>) => execFileSync("git", args, { cwd, stdio: "ignore" });
     git(repo, "init", "-q");
     writeFileSync(join(repo, ".gitignore"), ".npm/\nbuild/\n");
@@ -272,22 +274,63 @@ layer(makeTestApp({ providers, vaults: [sharedRoot] }))("projects", (test) => {
     // An uninitialised submodule: an empty folder that Git lists as itself.
     mkdirSync(join(repo, "submodule"));
     git(repo, "update-index", "--add", "--cacheinfo", "160000,0123456789abcdef0123456789abcdef01234567,submodule");
-    // The whole project is ignored by the repository around it: Git lists nothing, so walk it.
+    // The folder is ignored by the repository around it: Git lists nothing, so walk it.
     const [ignored] = folders(repo, "build");
     writeFileSync(join(ignored, "keep.txt"), "kept");
 
-    const project = yield* register({ name: "Git", workingDirectories: [repo, ignored] });
+    const project = yield* register({ name: "Git", workingDirectories: [outer, ignored] });
     writeFileSync(join(repo, ".npm", "cached.tgz"), "changed");
     writeFileSync(join(nested, "out", "bundle.js"), "changed");
-    expect(yield* changes(project.id)).toEqual([]);
+    expect(yield* listed(project.id)).toEqual({ changes: [], gitDirectories: [] });
     expect(yield* review(project.id)).toEqual({ files: 6 }); // .gitignore, tracked, untracked, nested .gitignore and lib, keep
     // Same size, written straight after the scan: the size and time alone can't show it changed.
     writeFileSync(join(repo, "tracked.ts"), "TRACKED");
     writeFileSync(join(nested, "lib.ts"), "NESTED");
     expect(yield* changes(project.id)).toEqual([
-      { directory: repo, path: "nested/lib.ts", status: "modified" },
-      { directory: repo, path: "tracked.ts", status: "modified" },
+      { directory: outer, path: "repo/nested/lib.ts", status: "modified" },
+      { directory: outer, path: "repo/tracked.ts", status: "modified" },
     ]);
+  }));
+
+  test.effect("lists a git folder's changes from HEAD, as the diff does: committing clears them and marking reviewed doesn't", () => Effect.gen(function* () {
+    const dir = yield* temp;
+    const [repo, plain] = folders(dir, "repo", "plain");
+    const git = (...args: Array<string>) =>
+      execFileSync("git", ["-c", "user.name=Test", "-c", "user.email=test@example.com", "-c", "commit.gpgsign=false", ...args], { cwd: repo, stdio: "ignore" });
+    git("init", "-q");
+    for (const name of ["edited.ts", "removed.ts", "moved.ts", "local.json"]) writeFileSync(join(repo, name), `${name}\n`.repeat(20));
+    git("add", "-A");
+    git("commit", "-qm", "init");
+    const project = yield* register({ name: "Committed", workingDirectories: [repo, plain] });
+    expect(yield* listed(project.id)).toEqual({ changes: [], gitDirectories: [repo] });
+
+    writeFileSync(join(repo, "edited.ts"), "edited\n");
+    unlinkSync(join(repo, "removed.ts"));
+    git("mv", "moved.ts", "renamed.ts");
+    writeFileSync(join(repo, "added.ts"), "new\n");
+    writeFileSync(join(repo, "local.json"), "kept out of commits\n");
+    writeFileSync(join(plain, "note.txt"), "outside git\n");
+    expect((yield* post(`/api/projects/${project.id}/diff/ignored`, { directory: repo, path: "local.json" })).status).toBe(200);
+    const expected = [
+      { directory: plain, path: "note.txt", status: "created" },
+      { directory: repo, path: "added.ts", status: "created" },
+      { directory: repo, path: "edited.ts", status: "modified" },
+      { directory: repo, path: "moved.ts", status: "deleted" },
+      { directory: repo, path: "removed.ts", status: "deleted" },
+      { directory: repo, path: "renamed.ts", status: "created" },
+    ];
+    expect(yield* changes(project.id)).toEqual(expected);
+
+    // Marking reviewed clears only the folder outside git.
+    yield* review(project.id);
+    expect(yield* changes(project.id)).toEqual(expected.slice(1));
+
+    // Committing clears the git folder, and new changes show straight away.
+    git("add", "-A", "--", ".", ":!local.json");
+    git("commit", "-qm", "work");
+    expect(yield* changes(project.id)).toEqual([]);
+    writeFileSync(join(repo, "later.ts"), "after the commit\n");
+    expect(yield* changes(project.id)).toEqual([{ directory: repo, path: "later.ts", status: "created" }]);
   }));
 
   test.effect("reads only files whose size or modification time changed since the baseline", () => Effect.gen(function* () {

@@ -122,3 +122,39 @@ test("ignores a file in the review, keeps it ignored after a reload, and brings 
   await expect(files.getByRole("button", { name: /Ignored · / })).toHaveCount(0);
   await expect(files.getByRole("button", { name: /local\.config/ })).toBeVisible();
 });
+
+test("lists a git folder's uncommitted changes on the overview, refreshed when a turn ends and cleared by a commit", async ({ page, context }, info) => {
+  const folder = projectFolder(info, "uncommitted");
+  writeFileSync(join(folder, "app.ts"), "const a = 1;\n");
+  git(folder, "init", "-q");
+  git(folder, "add", "-A");
+  git(folder, "commit", "-qm", "init");
+  const response = await page.request.post("/api/projects", { data: { name: `Uncommitted ${info.project.name}`, workingDirectories: [folder] } });
+  expect(response.status()).toBe(201);
+  const { project } = (await response.json()) as { project: { id: string } };
+
+  // The overview in a second tab, while a thread runs in the first.
+  const overview = await context.newPage();
+  await overview.goto(`/projects/${project.id}`);
+  const changes = overview.getByRole("region", { name: "Changed files" });
+  await expect(changes.getByRole("heading")).toHaveText("uncommitted changes · 0 files");
+  await expect(changes.getByRole("button", { name: "Mark all reviewed" })).toHaveCount(0);
+
+  await page.goto(`/projects/${project.id}/threads`);
+  await useReplay(page);
+  await page.getByRole("button", { name: "New thread", exact: true }).click();
+  writeFileSync(join(folder, "app.ts"), "const a = 2;\n");
+  const message = page.getByRole("textbox", { name: "Message" });
+  await message.fill("Hello");
+  await message.press("Enter");
+  await expect(page.locator(".turn-end").last()).toHaveText(/^Done/);
+
+  // The turn's end rescans: no Rescan needed.
+  await expect(changes.getByRole("heading")).toHaveText("uncommitted changes · 1 file");
+  await expect(changes).toContainText("app.ts");
+
+  // Committed: the list clears on the next scan.
+  git(folder, "commit", "-qam", "work");
+  await changes.getByRole("button", { name: "Rescan" }).click();
+  await expect(changes.getByRole("heading")).toHaveText("uncommitted changes · 0 files");
+});
