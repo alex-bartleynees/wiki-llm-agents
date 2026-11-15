@@ -1,3 +1,6 @@
+import { GetDraftResponse } from "@wiki-agents/contracts/threads/get-draft/response";
+import { SaveDraftRequest } from "@wiki-agents/contracts/threads/save-draft/request";
+import { SaveDraftResponse } from "@wiki-agents/contracts/threads/save-draft/response";
 import type { EventTopic } from "@wiki-agents/contracts/events/model";
 import { GetProviderStatusResponse } from "@wiki-agents/contracts/providers/get-provider-status/response";
 import { ListProvidersResponse } from "@wiki-agents/contracts/providers/list-providers/response";
@@ -77,3 +80,11 @@ export const answerRequest = (threadId: string, requestId: string, answer: Reque
 export const threadTopic = (threadId: string, after: number): EventTopic => ({ type: "thread", threadId, after });
 /** A vault's thread list (`ThreadsStreamMessage`). */
 export const vaultThreadsTopic = (vaultId: string): EventTopic => ({ type: "vault-threads", vaultId });
+
+export const getDraft = (threadId: string) => getJson(`${threadPath(threadId)}/draft`, GetDraftResponse);
+
+export const saveDraft = (threadId: string, request: SaveDraftRequest) =>
+  putJson(`${threadPath(threadId)}/draft`, SaveDraftRequest, request, SaveDraftResponse, {
+    // Fetch limits keepalive bodies to 64 KiB. Large drafts still save while the page is open.
+    keepalive: new TextEncoder().encode(JSON.stringify(request)).byteLength < 60_000,
+  });

@@ -1,3 +1,5 @@
+import { GetDraftResponse } from "@wiki-agents/contracts/threads/get-draft/response";
+import { SaveDraftResponse } from "@wiki-agents/contracts/threads/save-draft/response";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -311,6 +313,19 @@ const finishedAfterRestart = (thread: ThreadSummary, act: Effect.Effect<unknown,
   });
 
 describe("threads across a restart", () => {
+  it.effect("keeps an unsent draft across a server restart", () => Effect.gen(function* () {
+    const file = yield* tempDatabase;
+    const thread = yield* run(file, Effect.gen(function* () {
+      const thread = yield* newThread((yield* newVault).id);
+      yield* HttpClient.execute(HttpClientRequest.put(`/api/threads/${thread.id}/draft`).pipe(
+        HttpClientRequest.bodyJsonUnsafe({ text: "An unfinished thought\n", baseVersion: 0, writerId: "before-restart", sequence: 1 }),
+      )).pipe(Effect.flatMap(decode(SaveDraftResponse)));
+      return thread;
+    }));
+    const after = yield* run(file, HttpClient.get(`/api/threads/${thread.id}/draft`).pipe(Effect.flatMap(decode(GetDraftResponse))));
+    expect(after.draft).toEqual({ text: "An unfinished thought\n", version: 1 });
+  }));
+
   it.effect("keeps a pending approval answerable and finishes the turn", () =>
     Effect.gen(function* () {
       const file = yield* tempDatabase;

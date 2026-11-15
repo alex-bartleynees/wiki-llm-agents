@@ -24,6 +24,8 @@ const WRITE_TIMEOUT_MS = 15_000;
 /** Options for a write: `timeoutMs` for one that does real work, such as scanning a large repository. */
 export interface WriteOptions {
   readonly timeoutMs?: number;
+  /** Let a small write finish while its page unloads. */
+  readonly keepalive?: boolean;
 }
 
 /** Turns a timeout or a refused connection into a message worth showing. */
@@ -86,10 +88,10 @@ const writeJson = async <R extends Schema.ConstraintCodec<unknown, unknown>, S e
   schema: S,
   options: WriteOptions,
 ): Promise<S["Type"]> => {
-  const encoded = await Schema.encodeUnknownPromise(request)(body);
+  const encoded = Schema.encodeUnknownSync(request)(body);
   const response = await send(
     path,
-    { method, headers: { accept: "application/json", "content-type": "application/json" }, body: JSON.stringify(encoded) },
+    { method, headers: { accept: "application/json", "content-type": "application/json" }, body: JSON.stringify(encoded), keepalive: options.keepalive ?? false },
     options.timeoutMs,
   );
   return decodeResponse(response, schema);

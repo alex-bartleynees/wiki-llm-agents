@@ -9,6 +9,10 @@ export const threads = sqliteTable(
     /** Null for a vault thread. */
     projectId: text("project_id"),
     title: text("title"),
+    draftText: text("draft_text").notNull().default(""),
+    draftVersion: integer("draft_version").notNull().default(0),
+    draftWriterId: text("draft_writer_id"),
+    draftSequence: integer("draft_sequence").notNull().default(0),
     providerInstanceId: text("provider_instance_id").notNull(),
     model: text("model"),
     /** The named agent (`agents/<id>.md`) the thread follows; null for the rules alone. */

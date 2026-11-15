@@ -99,6 +99,21 @@ export const ThreadRepositoryLive = Layer.effect(
     };
 
     return ThreadRepository.of({
+      draft: (threadId) => query(() => {
+        const row = db.select({ text: threads.draftText, version: threads.draftVersion }).from(threads).where(eq(threads.id, threadId)).get();
+        if (row === undefined) throw new Error("Thread not found");
+        return row;
+      }),
+      saveDraft: (threadId, request) => query(() => db.transaction((tx) => {
+        const row = tx.select().from(threads).where(eq(threads.id, threadId)).get();
+        if (row === undefined) throw new Error("Thread not found");
+        const sameWriter = row.draftWriterId === request.writerId;
+        if (row.draftVersion !== request.baseVersion && !sameWriter) return null;
+        if (sameWriter && request.sequence <= row.draftSequence) return { text: row.draftText, version: row.draftVersion };
+        const version = row.draftVersion + 1;
+        tx.update(threads).set({ draftText: request.text, draftVersion: version, draftWriterId: request.writerId, draftSequence: request.sequence }).where(eq(threads.id, threadId)).run();
+        return { text: request.text, version };
+      })),
       noteContext: (vaultId, path) => query(() => db.select({ threadId: threads.id, title: threads.title, turnId: threadNotes.turnId, path: threadNotes.path, reason: threadNotes.reason, hash: threadNotes.hash }).from(threadNotes).innerJoin(threads, eq(threads.id, threadNotes.threadId)).where(and(eq(threads.vaultId, vaultId), isNull(threads.deletedAt), path === undefined ? undefined : eq(threadNotes.path, path))).orderBy(desc(threads.updatedAt), asc(threadNotes.path)).all()),
       insert: (thread) =>
         query(() => {
@@ -201,6 +216,13 @@ export const ThreadRepositoryLive = Layer.effect(
                   tx.insert(threadNotes).values({ threadId, turnId: event.turnId, path: event.note.path, reason: event.note.reason, hash: event.note.hash }).onConflictDoNothing().run();
                   break;
                 case "user.message":
+                  // Clear only the matching human draft. Invalidate writes still in flight from its editor.
+                  if (event.unattended !== true) {
+                    const draft = tx.select({ text: threads.draftText }).from(threads).where(eq(threads.id, threadId)).get();
+                    if (draft?.text.trim() === event.text.trim()) {
+                      tx.update(threads).set({ draftText: "", draftVersion: sql`${threads.draftVersion} + 1`, draftWriterId: null, draftSequence: 0 }).where(eq(threads.id, threadId)).run();
+                    }
+                  }
                   tx.insert(turns).values({ id: event.turnId, threadId, input: event.text, status: "running", unattended: event.unattended === true, startedAt: when }).run();
                   tx.update(threads)
                     .set({ title: sql`COALESCE(${threads.title}, ${titleFrom(event)})`, doneAt: null })

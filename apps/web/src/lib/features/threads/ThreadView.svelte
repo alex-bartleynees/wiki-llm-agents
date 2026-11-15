@@ -148,7 +148,11 @@
   <p class="error action-error" role="alert">{openThread.error}</p>
 {/if}
 
-<Composer />
+{#if openThread.thread}
+  {#key openThread.thread.id}
+    <Composer threadId={openThread.thread.id} />
+  {/key}
+{/if}
 
 <style>
   header {

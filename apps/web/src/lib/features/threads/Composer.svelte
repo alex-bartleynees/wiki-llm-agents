@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick } from "svelte";
+  import { tick, untrack } from "svelte";
   import { page } from "$app/state";
   import { formatSize } from "@wiki-agents/contracts/attachments/model";
   import type { ProviderModel } from "@wiki-agents/contracts/providers/model";
@@ -7,6 +7,7 @@
   import { modelWithoutImages } from "#lib/features/attachments/draft.ts";
   import { recent } from "#lib/features/notes/recent.svelte.ts";
   import { quickSwitch } from "#lib/features/search/api.ts";
+  import { MessageDraft } from "./message-draft.svelte.ts";
   import { listModels } from "./api.ts";
   import { mentionAt, noteName, withoutMention } from "./mentions.ts";
   import { openThread } from "./open-thread.svelte.ts";
@@ -20,7 +21,9 @@
     readonly name: string;
   }
 
-  let text = $state("");
+  let { threadId }: { threadId: string } = $props();
+  const draft = untrack(() => new MessageDraft(threadId));
+  $effect(() => { void draft.load(); });
   /** Notes attached as context for the next message. */
   let attached = $state<ReadonlyArray<Attached>>([]);
   let includeOpen = $state(false);
@@ -88,7 +91,8 @@
     files.add(event.dataTransfer?.files ?? []);
   }
 
-  const canSend = $derived(!openThread.sending && !files.uploading && !files.failed && (text.trim() !== "" || files.ready.length > 0));
+  let submitting = $state(false);
+  const canSend = $derived(!submitting && draft.loaded && !openThread.sending && !files.uploading && !files.failed && (draft.text.trim() !== "" || files.ready.length > 0));
 
   // Notes matching the `@name` (recent notes for a bare `@`), without those attached.
   $effect(() => {
@@ -119,15 +123,15 @@
 
   const track = () => {
     if (textarea === undefined) return;
-    mention = textarea.selectionStart === textarea.selectionEnd ? mentionAt(text, textarea.selectionStart) : null;
+    mention = textarea.selectionStart === textarea.selectionEnd ? mentionAt(draft.text, textarea.selectionStart) : null;
   };
 
   /** Attaches a note and takes its `@name` out of the message. */
   async function pick(note: Attached) {
     if (!attached.some((other) => other.path === note.path)) attached = [...attached, note];
     if (mention !== null && textarea !== undefined) {
-      const next = withoutMention(text, mention.start, textarea.selectionStart);
-      text = next.text;
+      const next = withoutMention(draft.text, mention.start, textarea.selectionStart);
+      draft.update(next.text);
       mention = null;
       await tick();
       textarea.focus();
@@ -139,9 +143,9 @@
   async function startMention() {
     if (textarea === undefined) return;
     const caret = textarea.selectionStart;
-    const before = text.slice(0, caret);
+    const before = draft.text.slice(0, caret);
     const insert = before === "" || /\s$/.test(before) ? "@" : " @";
-    text = before + insert + text.slice(caret);
+    draft.update(before + insert + draft.text.slice(caret));
     await tick();
     textarea.focus();
     textarea.setSelectionRange(caret + insert.length, caret + insert.length);
@@ -188,25 +192,36 @@
   }
 
   const submit = async () => {
-    const message = text.trim();
+    const message = draft.text.trim();
     if (!canSend || running) return;
-    const notes: Array<{ path: string; selection?: string }> = attached.map((note) => ({ path: note.path }));
-    if (openPath !== null && (includeOpen || selection !== "") && !attached.some((note) => note.path === openPath)) {
-      notes.push({ path: openPath, ...(selection === "" ? {} : { selection }) });
-    }
-    const sent = files.ready.map((attachment) => attachment.id);
-    const asFiles = blindModel !== null && imagesAsFiles;
-    if (await openThread.send(message, notes, sent.length === 0 ? {} : { attachments: sent, ...(asFiles ? { imagesAsFiles: true } : {}) })) {
-      text = "";
-      attached = [];
-      selection = "";
-      includeOpen = false;
-      mention = null;
-      files.clear();
-      imagesAsFiles = true;
+    submitting = true;
+    try {
+      if (!await draft.flush() || openThread.thread?.id !== threadId) return;
+      const notes: Array<{ path: string; selection?: string }> = attached.map((note) => ({ path: note.path }));
+      if (openPath !== null && (includeOpen || selection !== "") && !attached.some((note) => note.path === openPath)) {
+        notes.push({ path: openPath, ...(selection === "" ? {} : { selection }) });
+      }
+      const sent = files.ready.map((attachment) => attachment.id);
+      const asFiles = blindModel !== null && imagesAsFiles;
+      if (await openThread.send(message, notes, sent.length === 0 ? {} : { attachments: sent, ...(asFiles ? { imagesAsFiles: true } : {}) })) {
+        // The server cleared the matching draft atomically with accepting the message.
+        await draft.load();
+        attached = [];
+        selection = "";
+        includeOpen = false;
+        mention = null;
+        files.clear();
+        imagesAsFiles = true;
+      }
+    } finally {
+      submitting = false;
     }
   };
 </script>
+
+<svelte:window onbeforeunload={(event) => {
+  if (draft.error !== null || (draft.pending > 0 && new TextEncoder().encode(JSON.stringify(draft.text)).byteLength >= 59_000)) event.preventDefault();
+}} />
 
 <!-- Dropping files anywhere on the composer attaches them; the Attach button does the same from the keyboard. -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -314,14 +329,15 @@
     {/if}
     <textarea
       bind:this={textarea}
-      bind:value={text}
+      value={draft.text}
+      disabled={!draft.loaded || submitting || openThread.sending}
       rows="2"
       placeholder={running ? "The agent is working…" : "Reply, or type @ to add a note"}
       aria-label="Message"
       aria-autocomplete="list"
       aria-controls={mention !== null && suggestions.length > 0 ? "note-suggestions" : undefined}
       aria-activedescendant={mention !== null && suggestions.length > 0 ? `note-suggestion-${active}` : undefined}
-      oninput={track}
+      oninput={(event) => { draft.update(event.currentTarget.value); track(); }}
       onclick={track}
       {onkeyup}
       onblur={() => (mention = null)}
@@ -334,6 +350,11 @@
       <button type="submit" class="send" disabled={!canSend}>Send</button>
     {/if}
   </form>
+  {#if draft.error}
+    <p class="note error" role="alert">{draft.error} <button type="button" onclick={() => draft.retry()}>Retry</button></p>
+  {:else if draft.pending > 0}
+    <p class="note" role="status">Saving draft…</p>
+  {/if}
   <p class="hint">Enter to send · Shift+Enter for a new line · @ adds a note · paste or drop files</p>
 </div>
 

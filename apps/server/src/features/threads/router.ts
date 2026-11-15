@@ -1,3 +1,5 @@
+import { getDraftEndpoint } from "./get-draft/endpoint.js";
+import { saveDraftEndpoint } from "./save-draft/endpoint.js";
 import { Layer } from "effect";
 import { HttpRouter } from "effect/http";
 import { answerRequestEndpoint } from "./answer-request/endpoint.js";
@@ -16,6 +18,8 @@ import { setModelEndpoint } from "./set-model/endpoint.js";
 import { listNoteContextEndpoint } from "./list-note-context/endpoint.js";
 
 export const threadsRouter = Layer.mergeAll(
+  HttpRouter.add("GET", "/api/threads/:threadId/draft", getDraftEndpoint),
+  HttpRouter.add("PUT", "/api/threads/:threadId/draft", saveDraftEndpoint),
   HttpRouter.add("GET", "/api/vaults/:vaultId/thread-notes", listNoteContextEndpoint),
   HttpRouter.add("GET", "/api/vaults/:vaultId/threads", listThreadsEndpoint),
   HttpRouter.add("GET", "/api/active-threads", listActiveThreadsEndpoint),

@@ -78,3 +78,61 @@ test("marks a thread done, finds it in the Done group, and reopens it", async ({
   await page.getByRole("button", { name: "All threads" }).click();
   await expect(page.getByRole("list", { name: "Open threads" })).toContainText(title);
 });
+
+
+test("keeps separate message drafts across navigation and reload, clearing only after sending", async ({ page }, info) => {
+  await openVault(page);
+  await tab(page, info, "Chat");
+  await useReplay(page);
+  await page.getByRole("button", { name: "New thread", exact: true }).click();
+  const message = page.getByRole("textbox", { name: "Message" });
+  const draft = "An unfinished thought\nwith another line  ";
+  await message.fill(draft);
+  await page.reload();
+  await tab(page, info, "Chat");
+  await expect(message).toHaveValue(draft);
+
+  await page.getByRole("button", { name: "All threads" }).click();
+  await page.getByRole("button", { name: "New thread", exact: true }).click();
+  await expect(message).toHaveValue("");
+  await message.fill("Another thread");
+  await message.press("Enter");
+  await expect(page.locator(".turn-end").last()).toHaveText(/^Done/);
+  await page.getByRole("button", { name: "All threads" }).click();
+  await page.getByRole("list", { name: "Open threads" }).getByRole("button", { name: /^New thread/ }).first().click();
+  await expect(message).toHaveValue(draft);
+
+  await page.goto("/settings");
+  await openVault(page);
+  await tab(page, info, "Chat");
+  await expect(message).toHaveValue(draft);
+  await message.press("Enter");
+  await expect(page.locator(".turn-end").last()).toHaveText(/^Done/);
+  await page.reload();
+  await tab(page, info, "Chat");
+  await expect(message).toHaveValue("");
+});
+
+
+test("resumes a draft in an independent browser session", async ({ page, browser }, info) => {
+  await openVault(page);
+  const vaultUrl = page.url();
+  await tab(page, info, "Chat");
+  await useReplay(page);
+  const created = page.waitForResponse((response) => response.request().method() === "POST" && /\/threads$/.test(response.url()));
+  await page.getByRole("button", { name: "New thread", exact: true }).click();
+  const { thread } = await (await created).json() as { thread: { id: string } };
+  const saved = page.waitForResponse((response) => response.request().method() === "PUT" && response.url().endsWith(`/threads/${thread.id}/draft`));
+  await page.getByRole("textbox", { name: "Message" }).fill("Continue this on my phone");
+  expect((await saved).ok()).toBe(true);
+
+  const device = await browser.newContext({ viewport: info.project.use.viewport ?? null });
+  try {
+    const other = await device.newPage();
+    await other.goto(`${vaultUrl}?thread=${thread.id}`);
+    await tab(other, info, "Chat");
+    await expect(other.getByRole("textbox", { name: "Message" })).toHaveValue("Continue this on my phone");
+  } finally {
+    await device.close();
+  }
+});

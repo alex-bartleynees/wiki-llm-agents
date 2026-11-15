@@ -129,8 +129,15 @@ first edit.
 
 ### Threads
 
-The right-hand pane (the Chat tab on phone) holds the vault's agent threads. Pick the
-provider and the agent (below) for new threads next to **New thread**:
+The right-hand pane (the Chat tab on phone) holds the vault's agent threads.
+Unsent message text autosaves per thread to SQLite, so it survives navigation,
+refreshes and server restarts, and is available when you open that thread on another
+device. An older tab cannot overwrite a newer draft from another device. Save errors
+appear below the composer with Retry; a successfully accepted message clears its
+matching draft. This saves message text only; note context and file selections
+remain specific to the current composer.
+
+Pick the provider and the agent (below) for new threads next to **New thread**:
 
 - **OpenCode** (the default): your installed `opencode` 2.2.x, with your own login and
   config. The app runs one `opencode serve` on a free localhost port with a generated

@@ -1,3 +1,5 @@
+import type { ThreadDraft } from "@wiki-agents/contracts/threads/draft";
+import type { SaveDraftRequest } from "@wiki-agents/contracts/threads/save-draft/request";
 import type { RequestPrompt, StoredThreadEvent, ThreadEvent, ThreadSummary, TurnOutcome } from "@wiki-agents/contracts/threads/model";
 import { Context, type Effect, type Option } from "effect";
 import type { DbError } from "../../shared/persistence/errors.js";
@@ -58,6 +60,9 @@ export interface RequestRecord {
  * One writer per thread (its ThreadActor), which keeps `seq` gapless.
  */
 export interface ThreadRepositoryService {
+  readonly draft: (threadId: string) => Effect.Effect<ThreadDraft, DbError>;
+  /** Null means another writer changed the version; an older sequence from this writer is ignored. */
+  readonly saveDraft: (threadId: string, request: SaveDraftRequest) => Effect.Effect<ThreadDraft | null, DbError>;
   readonly noteContext: (vaultId: string, path?: string) => Effect.Effect<ReadonlyArray<import("@wiki-agents/contracts/threads/list-note-context/response").NoteContextLink>, DbError>;
   readonly insert: (thread: NewThread) => Effect.Effect<ThreadSummary, DbError>;
   readonly find: (threadId: string) => Effect.Effect<Option.Option<ThreadSummary>, DbError>;
