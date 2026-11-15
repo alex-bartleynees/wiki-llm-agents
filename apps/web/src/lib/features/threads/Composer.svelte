@@ -352,8 +352,6 @@
   </form>
   {#if draft.error}
     <p class="note error" role="alert">{draft.error} <button type="button" onclick={() => draft.retry()}>Retry</button></p>
-  {:else if draft.pending > 0}
-    <p class="note" role="status">Saving draft…</p>
   {/if}
   <p class="hint">Enter to send · Shift+Enter for a new line · @ adds a note · paste or drop files</p>
 </div>
