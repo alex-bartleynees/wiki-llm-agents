@@ -5,6 +5,7 @@ import { Clock, Effect } from "effect";
 import { AgentCatalog } from "../../agents/catalog.js";
 import { InvalidProject } from "../../projects/errors.js";
 import { findProject } from "../../projects/find-project.js";
+import { createWorktree, discardWorktree } from "../../projects/worktrees.js";
 import { ProviderRegistry } from "../../providers/registry.js";
 import { findVault } from "../../vaults/find-vault.js";
 import { ThreadRepository } from "../repository.js";
@@ -14,6 +15,8 @@ import { ThreadBus } from "../thread-bus.js";
  * The provider is the request's, else the agent's, else the default. The agent's
  * model is used when the thread runs on the agent's own provider (or the agent
  * names none). A schedule names its thread; others are named by their first message.
+ * With `worktree`, git makes the thread's worktree first; if git refuses, there is no
+ * thread, and if the thread can't be saved, the worktree is removed again.
  */
 export const createThread = Effect.fn("createThread")(function* (
   request: CreateThreadRequest & { readonly vaultId: string },
@@ -23,21 +26,26 @@ export const createThread = Effect.fn("createThread")(function* (
   const project = request.projectId === undefined ? null : yield* findProject(request.projectId);
   if (project !== null && project.vaultId !== vault.id) return yield* new InvalidProject({ message: "Project uses a different shared vault" });
   if (project?.archivedAt != null) return yield* new InvalidProject({ message: "Project is archived; restore it to start new threads" });
+  if (request.worktree !== undefined && project === null) return yield* new InvalidProject({ message: "Only threads in a project can have a worktree" });
   const agent = request.agentId === undefined ? null : yield* (yield* AgentCatalog).get(request.agentId);
   const registry = yield* ProviderRegistry;
   const providerInstanceId = request.providerInstanceId ?? agent?.provider ?? undefined;
   const instance = providerInstanceId === undefined ? yield* registry.defaultInstance : (yield* registry.get(providerInstanceId)).instance;
   const agentsProvider = agent !== null && (agent.provider === null || agent.provider === instance.id);
-  const thread = yield* (yield* ThreadRepository).insert({
-    id: randomUUID(),
-    vaultId: vault.id,
-    projectId: project?.id ?? null,
-    providerInstanceId: instance.id,
-    agentId: agent?.id ?? null,
-    model: agentsProvider && instance.capabilities.models ? agent.model : null,
-    title: options.title,
-    createdAt: yield* Clock.currentTimeMillis,
-  });
+  const id = randomUUID();
+  const worktree = request.worktree === undefined || project === null ? null : yield* createWorktree(project, vault.rootPath, id, request.worktree.branch);
+  const thread = yield* (yield* ThreadRepository)
+    .insert({
+      id,
+      vaultId: vault.id,
+      projectId: project?.id ?? null,
+      providerInstanceId: instance.id,
+      agentId: agent?.id ?? null,
+      model: agentsProvider && instance.capabilities.models ? agent.model : null,
+      title: options.title,
+      createdAt: yield* Clock.currentTimeMillis,
+    })
+    .pipe(Effect.tapError(() => (worktree === null ? Effect.void : discardWorktree(worktree))));
   yield* (yield* ThreadBus).publishThread(thread);
   const response: CreateThreadResponse = { thread };
   return response;

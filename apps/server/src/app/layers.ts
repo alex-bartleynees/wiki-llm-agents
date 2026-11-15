@@ -5,6 +5,7 @@ import { HttpRouter } from "effect/http";
 import type { AgentCatalog } from "../features/agents/catalog.js";
 import type { AttachmentStore } from "../features/attachments/attachment-store.js";
 import { AttachmentStoreLive } from "../features/attachments/store-live.js";
+import { type WorktreeRoot, WorktreeRootLive } from "../features/projects/worktrees.js";
 import { AgentCatalogLive } from "../features/agents/catalog-live.js";
 import { ChangeTrackerLive } from "../features/changes/change-tracker.js";
 import { EventConnectionsLive } from "../features/events/connections.js";
@@ -71,6 +72,8 @@ export interface AppOptions {
   readonly agents: Layer.Layer<AgentCatalog, never, FileSystem.FileSystem>;
   /** Where message attachments are kept. Required, so a test can never write to your real data directory. */
   readonly attachments: Layer.Layer<AttachmentStore, never, Sqlite | FileSystem.FileSystem>;
+  /** Where thread worktrees are made. Required, so a test can never make one in your real data directory. */
+  readonly worktrees: Layer.Layer<WorktreeRoot>;
   /** How inbox items reach you: in-app and Web Push unless a test chooses (a channel that fails, say). */
   readonly channels?: Layer.Layer<DeliveryChannels, never, InboxBus | DigestSignal | NotificationsRepository | WallClock | PushSender>;
   /** Sends Web Push notifications; the real push services unless a test stands in for them. */
@@ -128,6 +131,7 @@ export const makeHttpApp = (options: AppOptions) =>
         options.providers ?? ProviderRegistryLive,
         options.agents,
         options.attachments,
+        options.worktrees,
         indexing(options.watch, options.watchPollMs),
         WallClockLive,
         EventConnectionsLive,
@@ -142,7 +146,7 @@ const ServerLive = Layer.unwrap(
   }),
 );
 
-export const makeAppLive = (options: Omit<AppOptions, "watch" | "watchPollMs" | "agents" | "attachments">) =>
+export const makeAppLive = (options: Omit<AppOptions, "watch" | "watchPollMs" | "agents" | "attachments" | "worktrees">) =>
   Layer.unwrap(
     Effect.map(AppConfig.watchPollMs, (pollMs) =>
       makeHttpApp({
@@ -151,6 +155,7 @@ export const makeAppLive = (options: Omit<AppOptions, "watch" | "watchPollMs" | 
         watchPollMs: Option.getOrUndefined(pollMs),
         agents: AgentCatalogLive,
         attachments: AttachmentStoreLive,
+        worktrees: WorktreeRootLive,
       }),
     ),
   ).pipe(Layer.provide(SqliteLive), Layer.provide(ServerLive));

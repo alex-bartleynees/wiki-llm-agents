@@ -6,6 +6,7 @@ import { getFileDiffEndpoint } from "./get-file-diff/endpoint.js";
 import { ignoreFileEndpoint } from "./ignore-file/endpoint.js";
 import { listChangesEndpoint } from "./list-changes/endpoint.js";
 import { listProjectsEndpoint } from "./list-projects/endpoint.js";
+import { listWorktreesEndpoint } from "./list-worktrees/endpoint.js";
 import { registerProjectEndpoint } from "./register-project/endpoint.js";
 import { restoreProjectEndpoint } from "./restore-project/endpoint.js";
 import { reviewChangesEndpoint } from "./review-changes/endpoint.js";
@@ -22,4 +23,5 @@ export const projectsRouter = Layer.mergeAll(
   HttpRouter.add("GET", "/api/projects/:projectId/diff/file", getFileDiffEndpoint),
   HttpRouter.add("POST", "/api/projects/:projectId/diff/ignored", ignoreFileEndpoint),
   HttpRouter.add("DELETE", "/api/projects/:projectId/diff/ignored", unignoreFileEndpoint),
+  HttpRouter.add("GET", "/api/projects/:projectId/worktrees", listWorktreesEndpoint),
 );

@@ -8,7 +8,7 @@ import { ProjectRepository } from "../repository.js";
 /** Sets a file aside in the project's diff review, whether or not it has changes now. */
 export const ignoreFile = Effect.fn("ignoreProjectFile")(function* (projectId: string, request: IgnoreFileRequest) {
   const project = yield* findProject(projectId);
-  const file = yield* checkIgnoredFile(project, request);
+  const file = yield* checkIgnoredFile(project, request, yield* (yield* ProjectRepository).worktrees(project.id));
   const repository = yield* ProjectRepository;
   yield* repository.ignoreFile(project.id, file, yield* Clock.currentTimeMillis);
   return { ignored: yield* repository.ignoredFiles(project.id) } satisfies IgnoreFileResponse;

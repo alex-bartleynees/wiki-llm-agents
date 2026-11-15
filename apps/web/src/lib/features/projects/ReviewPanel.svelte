@@ -3,47 +3,68 @@
   import type { ThreadSummary } from "@wiki-agents/contracts/threads/model";
   import { goto } from "$app/navigation";
   import { errorMessage } from "#lib/api/client.ts";
-  import { listThreads } from "#lib/features/threads/api.ts";
   import { threads } from "#lib/features/threads/threads.svelte.ts";
-  import { displayPath, location } from "./review-message.ts";
+  import { displayPath, location, type WorktreeDirectory } from "./review-message.ts";
   import { review } from "./review.svelte.ts";
 
-  /** The review's draft comments and where to send them: one of the project's open threads, or a new one. */
-  let { project, threadsVersion }: { project: Project; threadsVersion: number } = $props();
+  /**
+   * The review's draft comments and where to send them: one of the project's open
+   * threads, or a new one. Comments on a thread's worktree go to that thread unless
+   * you pick another.
+   */
+  let {
+    project,
+    projectThreads,
+    worktrees = [],
+  }: { project: Project; projectThreads: ReadonlyArray<ThreadSummary>; worktrees?: ReadonlyArray<WorktreeDirectory> } = $props();
 
   const NEW = "new";
-  let open = $state<ReadonlyArray<ThreadSummary>>([]);
   let target = $state<string>(NEW);
+  let picked = $state(false);
   let sending = $state(false);
   let error = $state<string | null>(null);
 
   const comments = $derived(review.comments(project.id));
   const scope = $derived({ vaultId: project.vaultId, projectId: project.id });
-
-  // The project's open threads, again whenever one changes (`threadsVersion`); the
-  // most recent is chosen until you pick one.
-  let picked = false;
+  const worktreeOf = (directory: string) => worktrees.find((worktree) => worktree.directory === directory);
+  /** The worktree threads the comments are in, so they can be chosen even when done. */
+  const commentedWorktrees = $derived([...new Set(comments.flatMap((comment) => worktreeOf(comment.directory)?.threadId ?? []))]);
+  /** Open threads, most recent first, plus any commented worktree's thread. */
+  const choices = $derived(
+    projectThreads
+      .filter((thread) => thread.doneAt === null || commentedWorktrees.includes(thread.id))
+      .sort((a, b) => b.updatedAt - a.updatedAt),
+  );
+  /** Until you pick: the commented worktree's thread when there is exactly one, else the most recent. */
+  const suggested = $derived(commentedWorktrees.length === 1 && choices.some((thread) => thread.id === commentedWorktrees[0]) ? commentedWorktrees[0]! : (choices[0]?.id ?? NEW));
   $effect(() => {
-    void threadsVersion;
-    const id = project.id;
-    void listThreads(project.vaultId, id)
-      .then(({ threads: list }) => {
-        if (project.id !== id) return;
-        open = list.filter((thread) => thread.doneAt === null).sort((a, b) => b.updatedAt - a.updatedAt);
-        if (!open.some((thread) => thread.id === target)) target = open[0]?.id ?? NEW;
-        else if (!picked) target = open[0]?.id ?? NEW;
-      })
-      .catch((cause: unknown) => (error = errorMessage(cause, "Could not load the project's threads")));
+    if (!picked || (target !== NEW && !choices.some((thread) => thread.id === target))) target = suggested;
   });
 
-  const statusOf = (thread: ThreadSummary) => (thread.status === "running" ? " · running" : thread.status === "waiting" ? " · needs you" : "");
+  const statusOf = (thread: ThreadSummary) =>
+    `${thread.status === "running" ? " · running" : thread.status === "waiting" ? " · needs you" : ""}${thread.doneAt === null ? "" : " · done"}`;
+  const branchOf = (thread: ThreadSummary) => {
+    const worktree = worktrees.find((candidate) => candidate.threadId === thread.id);
+    return worktree === undefined ? "" : ` · ⎇ ${worktree.branch}`;
+  };
+
+  /** The directories as the thread sees them: its worktree in place of the main directory. */
+  const directoriesFor = (threadId: string | null) => {
+    const worktree = worktrees.find((candidate) => candidate.threadId === threadId);
+    return worktree === undefined ? project.workingDirectories : [worktree.directory, ...project.workingDirectories.slice(1)];
+  };
+  /** Shown in the list: a worktree's files by branch, others as the main thread would see them. */
+  const shownPath = (directory: string, path: string) => {
+    const worktree = worktreeOf(directory);
+    return worktree === undefined ? displayPath(project.workingDirectories, directory, path) : `⎇ ${worktree.branch}: ${path}`;
+  };
 
   async function send() {
     sending = true;
     error = null;
     try {
       const threadId = target === NEW ? (await threads.startIn(scope)).id : target;
-      await review.send(project.id, project.workingDirectories, threadId);
+      await review.send(project.id, directoriesFor(threadId), threadId);
       await threads.show(scope, threadId);
       await goto(`/projects/${project.id}/threads`);
     } catch (cause) {
@@ -62,7 +83,7 @@
     <ul>
       {#each comments as comment (comment.id)}
         <li>
-          <span class="where mono">{location(displayPath(project.workingDirectories, comment.directory, comment.path), comment.lines)}</span>
+          <span class="where mono">{location(shownPath(comment.directory, comment.path), comment.lines)}</span>
           <span class="text">{comment.text}</span>
           <button type="button" class="link" aria-label="Delete comment on {comment.path}" onclick={() => review.remove(project.id, comment.id)}>Delete</button>
         </li>
@@ -75,8 +96,8 @@
         onchange={() => (picked = true)}
         aria-label="Thread to send the review to"
       >
-        {#each open as thread (thread.id)}
-          <option value={thread.id}>{thread.title ?? "New thread"}{statusOf(thread)}</option>
+        {#each choices as thread (thread.id)}
+          <option value={thread.id}>{thread.title ?? "New thread"}{branchOf(thread)}{statusOf(thread)}</option>
         {/each}
         <option value={NEW}>New thread</option>
       </select>

@@ -5,6 +5,7 @@ import { IgnoreFileRequest } from "@wiki-agents/contracts/projects/ignore-file/r
 import { IgnoreFileResponse } from "@wiki-agents/contracts/projects/ignore-file/response";
 import { ListChangesResponse } from "@wiki-agents/contracts/projects/list-changes/response";
 import { ListProjectsResponse } from "@wiki-agents/contracts/projects/list-projects/response";
+import { ListWorktreesResponse } from "@wiki-agents/contracts/projects/list-worktrees/response";
 import { RegisterProjectRequest } from "@wiki-agents/contracts/projects/register-project/request";
 import { RegisterProjectResponse } from "@wiki-agents/contracts/projects/register-project/response";
 import { RestoreProjectResponse } from "@wiki-agents/contracts/projects/restore-project/response";
@@ -43,3 +44,6 @@ export const ignoreFile = (projectId: string, directory: string, path: string) =
 /** Brings an ignored file back into the project's diff review. */
 export const unignoreFile = (projectId: string, directory: string, path: string) =>
   deleteJson(`${projectPath(projectId)}/diff/ignored?${new URLSearchParams({ directory, path }).toString()}`, UnignoreFileResponse);
+
+/** The project's thread worktrees and whether new threads can have one. */
+export const listWorktrees = (projectId: string, signal?: AbortSignal) => getJson(`${projectPath(projectId)}/worktrees`, ListWorktreesResponse, signal);

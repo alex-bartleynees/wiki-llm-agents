@@ -59,9 +59,36 @@ export const DiffFile = Schema.Struct({
 });
 export type DiffFile = typeof DiffFile.Type;
 
+/**
+ * A thread's own git worktree: a checkout of the project's main directory on a new
+ * branch, under the app's data directory, so the thread's changes never mix with
+ * another thread's. Made and removed only when the user asks.
+ */
+export const Worktree = Schema.Struct({
+  threadId: Schema.String,
+  projectId: Schema.String,
+  branch: Schema.String,
+  /** The worktree's root (canonical); `git worktree remove` takes this. */
+  path: Schema.String,
+  /**
+   * Where the thread works: the worktree's counterpart of the project's main
+   * directory. The same as `path` unless the main directory is a folder inside its
+   * repository.
+   */
+  directory: Schema.String,
+  /** Milliseconds since the epoch. */
+  createdAt: Schema.Number,
+  /** When the app removed it; null while it exists (or was deleted outside the app). */
+  removedAt: Schema.NullOr(Schema.Number),
+});
+export type Worktree = typeof Worktree.Type;
+
 /** One working directory's changes. */
 export const DirectoryDiff = Schema.Struct({
+  /** One of the project's working directories, or a thread's worktree directory. */
   directory: Schema.String,
+  /** Set when `directory` is a thread's worktree: whose, and on which branch. */
+  worktree: Schema.optionalKey(Schema.Struct({ threadId: Schema.String, branch: Schema.String })),
   /**
    * Whether the directory is in a git work tree. When it is, `files` compares it with
    * `HEAD`; when not, there is no diff and `changes` is the changed-file list
@@ -73,7 +100,8 @@ export const DirectoryDiff = Schema.Struct({
   /**
    * Paths in this directory the user ignores in the diff review (files they change
    * but never merge), in the order they were ignored, whether or not they have
-   * changes now. Their diffs are still in `files`; the screen sets them aside.
+   * changes now. Their diffs are still in `files`; the screen sets them aside. A
+   * worktree directory has the main directory's list.
    */
   ignored: Schema.Array(Schema.String),
 });

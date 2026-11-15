@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,6 +7,7 @@ import { Effect, Layer } from "effect";
 import { makeAgentCatalog } from "../../../src/features/agents/catalog-live.js";
 import { type AppOptions, makeHttpApp } from "../../../src/app/layers.js";
 import { makeAttachmentStore } from "../../../src/features/attachments/store-live.js";
+import { makeWorktreeRoot } from "../../../src/features/projects/worktrees.js";
 import { makeProviderRegistry } from "../../../src/features/providers/registry-live.js";
 import { ReplayAdapter } from "../../../src/features/providers/replay/adapter.js";
 import { makeSqlite, Sqlite } from "../../../src/shared/persistence/sqlite.js";
@@ -50,6 +51,17 @@ export const TestAttachments = Layer.unwrap(
   ),
 );
 
+/** Thread worktrees in a fresh temp folder (canonical), removed when the test layer closes. */
+export const TestWorktrees = Layer.unwrap(
+  Effect.map(
+    Effect.acquireRelease(
+      Effect.sync(() => realpathSync(mkdtempSync(join(tmpdir(), "wiki-agents-worktrees-")))),
+      (dir) => Effect.sync(() => rmSync(dir, { recursive: true, force: true })),
+    ),
+    (dir) => makeWorktreeRoot(dir),
+  ),
+);
+
 /** The replay provider alone, so tests never start OpenCode. */
 export const ReplayOnly = makeProviderRegistry(Effect.succeed([ReplayAdapter]));
 
@@ -58,6 +70,6 @@ export const ReplayOnly = makeProviderRegistry(Effect.succeed([ReplayAdapter]));
  * Sqlite is exposed so tests can seed data the API can't create yet.
  */
 export const makeTestApp = (options: Partial<AppOptions> = {}) =>
-  makeHttpApp({ vaults: [], watch: false, providers: ReplayOnly, agents: TestAgents, attachments: TestAttachments, ...options }).pipe(Layer.provideMerge(TestSqlite), Layer.provideMerge(NodeHttpServer.layerTest));
+  makeHttpApp({ vaults: [], watch: false, providers: ReplayOnly, agents: TestAgents, attachments: TestAttachments, worktrees: TestWorktrees, ...options }).pipe(Layer.provideMerge(TestSqlite), Layer.provideMerge(NodeHttpServer.layerTest));
 
 export const TestApp = makeTestApp();

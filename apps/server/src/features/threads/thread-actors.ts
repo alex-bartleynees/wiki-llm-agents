@@ -3,6 +3,7 @@ import type { ContextNote } from "@wiki-agents/contracts/threads/context";
 import type { RequestAnswer, ThreadSummary } from "@wiki-agents/contracts/threads/model";
 import { Context, Effect, Layer, RcMap } from "effect";
 import type { AgentNoteWrite } from "../notes/agent-write/use-case.js";
+import type { ThreadBusy } from "./errors.js";
 import { makeThreadActor, type OpenedNote, type ScheduleReceipt, type SendOptions, type ThreadActor } from "./thread-actor.js";
 
 /** How long a ThreadActor with nothing running stays in memory after its last use. */
@@ -28,6 +29,8 @@ export interface ThreadActorsService {
   readonly openNote: (threadId: string, note: OpenedNote) => Effect.Effect<void, StartError | Effect.Error<ReturnType<ThreadActor["openNote"]>>>;
   readonly scheduleSaved: (threadId: string, receipt: ScheduleReceipt) => Effect.Effect<void, StartError | Effect.Error<ReturnType<ThreadActor["scheduleSaved"]>>>;
   readonly changeUndone: (threadId: string, turnId: string, changeId: string) => Effect.Effect<void, StartError | Effect.Error<ReturnType<ThreadActor["changeUndone"]>>>;
+  /** Runs `effect` while the thread has no turn running or waiting (see `ThreadActor.whileIdle`). */
+  readonly whileIdle: <A, E>(threadId: string, effect: Effect.Effect<A, E>) => Effect.Effect<A, StartError | E | ThreadBusy>;
   /** Starts the actor, which resumes or closes a turn left running by the last run. */
   readonly wake: (threadId: string) => Effect.Effect<void, StartError>;
 }
@@ -55,6 +58,7 @@ export const ThreadActorsLive = Layer.effect(
       openNote: (threadId, note) => withActor(threadId, (actor) => actor.openNote(note)),
       scheduleSaved: (threadId, receipt) => withActor(threadId, (actor) => actor.scheduleSaved(receipt)),
       changeUndone: (threadId, turnId, changeId) => withActor(threadId, (actor) => actor.changeUndone(turnId, changeId)),
+      whileIdle: (threadId, effect) => withActor(threadId, (actor) => actor.whileIdle(effect)),
       wake: (threadId) => withActor(threadId, (actor) => actor.resumed),
     });
   }),

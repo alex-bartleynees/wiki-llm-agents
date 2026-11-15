@@ -11,6 +11,7 @@ import { listModelsEndpoint } from "./list-models/endpoint.js";
 import { listThreadsEndpoint } from "./list-threads/endpoint.js";
 import { markDoneEndpoint } from "./mark-done/endpoint.js";
 import { reopenThreadEndpoint } from "./reopen-thread/endpoint.js";
+import { removeWorktreeEndpoint } from "./remove-worktree/endpoint.js";
 import { sendMessageEndpoint } from "./send-message/endpoint.js";
 import { setAgentEndpoint } from "./set-agent/endpoint.js";
 import { setModelEndpoint } from "./set-model/endpoint.js";
@@ -33,4 +34,5 @@ export const threadsRouter = Layer.mergeAll(
   HttpRouter.add("PUT", "/api/threads/:threadId/agent", setAgentEndpoint),
   HttpRouter.add("POST", "/api/threads/:threadId/done", markDoneEndpoint),
   HttpRouter.add("POST", "/api/threads/:threadId/reopen", reopenThreadEndpoint),
+  HttpRouter.add("POST", "/api/threads/:threadId/worktree/remove", removeWorktreeEndpoint),
 );

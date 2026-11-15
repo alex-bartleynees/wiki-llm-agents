@@ -3,6 +3,7 @@
   import { agents } from "#lib/features/agents/agents.svelte.ts";
   import { timeAgo } from "#lib/features/notes/time.ts";
   import { projects } from "#lib/features/projects/projects.svelte.ts";
+  import { suggestedBranch, worktrees } from "#lib/features/projects/worktrees.svelte.ts";
   import { vaults } from "#lib/features/vaults/vaults.svelte.ts";
   import { providers } from "./providers.svelte.ts";
   import { progressLabel, STATUS_LABEL } from "./status.ts";
@@ -31,6 +32,26 @@
 
   const chosen = $derived(providers.chosen);
   const status = $derived(chosen === undefined ? undefined : providers.statuses[chosen.id]);
+
+  // Whether this project's new threads can have their own git worktree.
+  $effect(() => {
+    if (projectId !== null) void worktrees.load(projectId);
+  });
+  const canWorktree = $derived(worktrees.available(projectId));
+  /** Start the next thread in its own worktree, on `branch` (off by default, and again after each thread). */
+  let useWorktree = $state(false);
+  let branch = $state(suggestedBranch());
+  let starting = $state(false);
+
+  async function start() {
+    starting = true;
+    const thread = await threads.create(canWorktree && useWorktree ? { worktreeBranch: branch.trim() } : {});
+    starting = false;
+    if (thread !== undefined && useWorktree) {
+      useWorktree = false;
+      branch = suggestedBranch();
+    }
+  }
 
   /** An agent that names a provider switches new threads to it; you can still pick another. */
   const chooseAgent = (id: string) => {
@@ -70,8 +91,28 @@
         <option value={agent.id}>{agent.name}</option>
       {/each}
     </select>
-    <button type="button" class="new" onclick={() => threads.create()}>New thread</button>
+    <button type="button" class="new" disabled={starting} onclick={start}>New thread</button>
   </div>
+  {#if canWorktree}
+    <div class="worktree">
+      <label class="toggle">
+        <input type="checkbox" bind:checked={useWorktree} />
+        Worktree
+      </label>
+      {#if useWorktree}
+        <input
+          class="branch mono"
+          aria-label="Branch for the new thread's worktree"
+          bind:value={branch}
+          autocapitalize="off"
+          autocomplete="off"
+          spellcheck="false"
+        />
+      {:else}
+        <span class="hint">own branch and checkout</span>
+      {/if}
+    </div>
+  {/if}
 </header>
 
 {#if status !== undefined && status !== "checking" && status._tag === "unavailable"}
@@ -180,6 +221,46 @@
     color: var(--ink-2);
     font: inherit;
     font-size: 12px;
+  }
+  .worktree {
+    flex: 1 1 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    font-size: 12px;
+    color: var(--ink-2);
+  }
+  .toggle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 0 0 auto;
+    cursor: pointer;
+  }
+  .worktree .hint {
+    color: var(--ink-3);
+  }
+  .branch {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 28px;
+    padding: 0 6px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 12px;
+  }
+  @media (max-width: 899px) {
+    .branch {
+      height: 36px;
+      font-size: 16px;
+    }
+  }
+  .new:disabled {
+    opacity: 0.6;
+    cursor: default;
   }
   .warning {
     margin: 8px 16px 0;

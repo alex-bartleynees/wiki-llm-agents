@@ -19,6 +19,7 @@
   import ProjectViewSwitch from "./ProjectViewSwitch.svelte";
   import { projects } from "./projects.svelte.ts";
   import RegisterProjectForm from "./RegisterProjectForm.svelte";
+  import { worktrees } from "./worktrees.svelte.ts";
 
   /**
    * The project to show (null: the first active one), as an overview with the project in the
@@ -88,6 +89,23 @@
     }
     await goto(`/projects/${project.id}/threads`);
   }
+
+  // The selected project's thread worktrees (with changed-file counts), again when one of
+  // its threads starts, settles or is marked done: not on every update while a turn runs.
+  const selectedId = $derived(selected?.id);
+  const threadStates = $derived(selectedThreads.map((thread) => `${thread.id}:${thread.status}:${thread.doneAt ?? ""}`).join());
+  $effect(() => {
+    const id = selectedId;
+    void threadStates;
+    if (id !== undefined) untrack(() => void worktrees.load(id));
+  });
+  const selectedWorktrees = $derived(selected === null ? [] : worktrees.of(selected.id));
+  /** Where a thread works: its worktree's branch, or the main directory's folder. */
+  const cwdLabel = (project: Project, thread: ThreadSummary) => {
+    const worktree = worktrees.forThread(project.id, thread.id);
+    return worktree === undefined ? folderName(project.workingDirectories[0] ?? "") : `⎇ ${worktree.branch}`;
+  };
+  const titleOf = (threadId: string) => selectedThreads.find((thread) => thread.id === threadId)?.title ?? "New thread";
 
   const focusForm = () => document.getElementById("project-name")?.focus();
 
@@ -235,6 +253,25 @@
         {/if}
       </section>
 
+      {#if selectedWorktrees.length > 0}
+        <section aria-label="Worktrees">
+          <h2 class="mono">worktrees · {selectedWorktrees.filter((worktree) => worktree.exists).length} in use</h2>
+          {#each selectedWorktrees as worktree (worktree.threadId)}
+            <div class="entry">
+              <span class="worktree-head">
+                <span class="mono main">⎇ {worktree.branch}</span>
+                <span class="thread-title">{titleOf(worktree.threadId)}</span>
+                <button type="button" class="link" onclick={() => openThreadOf(selected, worktree.threadId)}>Open</button>
+              </span>
+              <span class="meta mono">
+                {#if worktree.removedAt !== null}removed {timeAgo(worktree.removedAt)} · branch kept{:else if !worktree.exists}missing: deleted outside the app{:else}{worktree.changedFiles} {worktree.changedFiles === 1 ? "file" : "files"} changed · {worktree.directory}{/if}
+              </span>
+            </div>
+          {/each}
+          <p class="note">Each worktree is its thread's own checkout on its own branch. Review it in <a href="/projects/{selected.id}/diff">Diff</a>; commit and merge with lazygit.</p>
+        </section>
+      {/if}
+
       <ChangedFiles project={selected} />
     {:else if loaded && projectId !== null}
       <h1>Project not found</h1>
@@ -268,7 +305,7 @@
   <div class="thread" role="listitem">
     <span class="thread-title">{thread.title ?? "New thread"}</span>
     <span class="mono agent">{thread.agentId === null ? "" : (agents.get(thread.agentId)?.name ?? thread.agentId)}</span>
-    <span class="mono muted cwd">cwd {folderName(project.workingDirectories[0] ?? "")}</span>
+    <span class="mono muted cwd">cwd {cwdLabel(project, thread)}</span>
     <span class="mono status" data-status={thread.status}>
       {thread.status === "running" ? "● running" : thread.status === "waiting" ? "▲ needs you" : thread.doneAt !== null ? `✓ done ${timeAgo(thread.doneAt)}` : timeAgo(thread.updatedAt)}
     </span>
@@ -448,6 +485,20 @@
   }
   .main {
     color: var(--accent-ink);
+  }
+  .worktree-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 10px;
+    row-gap: 2px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .worktree-head .link {
+    flex: 0 0 auto;
+    margin-left: auto;
+    white-space: nowrap;
   }
   .vault-name {
     font-weight: 500;

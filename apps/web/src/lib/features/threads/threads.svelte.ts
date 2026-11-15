@@ -4,6 +4,7 @@ import { errorMessage, isAbort } from "#lib/api/client.ts";
 import { listen } from "#lib/api/sse.ts";
 import { agents } from "#lib/features/agents/agents.svelte.ts";
 import { projects } from "#lib/features/projects/projects.svelte.ts";
+import { worktrees } from "#lib/features/projects/worktrees.svelte.ts";
 import { createThread, getThread, listThreads, markDone, reopenThread, vaultThreadsTopic } from "./api.ts";
 import { openThread } from "./open-thread.svelte.ts";
 import { providers } from "./providers.svelte.ts";
@@ -103,12 +104,12 @@ class ThreadsStore {
     await openThread.open(threadId);
   }
 
-  /** Starts a thread in the list being shown. */
-  async create() {
+  /** Starts a thread in the list being shown, in its own worktree on `worktreeBranch` if given. */
+  async create(options: { readonly worktreeBranch?: string } = {}) {
     const scope = this.#scope;
     if (scope === undefined) return;
     try {
-      const thread = await this.startIn(scope);
+      const thread = await this.startIn(scope, options);
       this.error = undefined;
       return thread;
     } catch (error) {
@@ -120,14 +121,16 @@ class ThreadsStore {
    * Starts a thread in `scope` with the chosen agent and provider, and makes it the
    * scope's open thread. Fails with why it couldn't.
    */
-  async startIn(scope: ThreadScope) {
+  async startIn(scope: ThreadScope, options: { readonly worktreeBranch?: string } = {}) {
     const agentId = agents.chosen?.id;
     const providerInstanceId = providers.chosen?.id;
     const { thread } = await createThread(scope.vaultId, {
+      ...(options.worktreeBranch === undefined ? {} : { worktreeBranch: options.worktreeBranch }),
       ...(scope.projectId === null ? {} : { projectId: scope.projectId }),
       ...(providerInstanceId === undefined ? {} : { providerInstanceId }),
       ...(agentId === undefined ? {} : { agentId }),
     });
+    if (options.worktreeBranch !== undefined && scope.projectId !== null) await worktrees.load(scope.projectId);
     if (sameScope(scope, this.#scope)) this.#upsert(thread);
     await this.show(scope, thread.id);
     return thread;

@@ -2,7 +2,7 @@ import { CreateThreadRequest } from "@wiki-agents/contracts/threads/create-threa
 import { CreateThreadResponse } from "@wiki-agents/contracts/threads/create-thread/response";
 import { Effect, Schema } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
-import { badRequest, internalError, notFound } from "../../../shared/http-errors.js";
+import { badRequest, conflict, internalError, notFound } from "../../../shared/http-errors.js";
 import { createThread } from "./use-case.js";
 
 const Params = Schema.Struct({ vaultId: Schema.String });
@@ -22,6 +22,8 @@ export const createThreadEndpoint = Effect.gen(function* () {
     VaultNotFound: () => Effect.succeed(notFound("Vault not found")),
     ProviderInstanceNotFound: () => Effect.succeed(badRequest("Unknown provider")),
     AgentNotFound: (error) => Effect.succeed(badRequest(error.reason)),
+    WorktreeRefused: (error) => Effect.succeed(conflict(error.message)),
+    ProjectFilesError: (error) => Effect.succeed(conflict(error.message)),
   }),
   Effect.catch(internalError("create thread")),
 );

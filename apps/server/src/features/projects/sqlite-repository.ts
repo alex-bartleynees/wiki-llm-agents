@@ -3,7 +3,7 @@ import { Effect, Layer, Option } from "effect";
 import { DbError } from "../../shared/persistence/errors.js";
 import { Sqlite } from "../../shared/persistence/sqlite.js";
 import { type FileVersion, ProjectRepository } from "./repository.js";
-import { projectFiles, projectIgnoredFiles, projects } from "./table.js";
+import { projectFiles, projectIgnoredFiles, projects, projectWorktrees } from "./table.js";
 
 const columns = {
   id: projects.id,
@@ -75,6 +75,16 @@ export const ProjectRepositoryLive = Layer.effect(
               .where(and(eq(projectIgnoredFiles.projectId, id), eq(projectIgnoredFiles.directory, file.directory), eq(projectIgnoredFiles.path, file.path)))
               .run(),
         ),
+      insertWorktree: (worktree) => query(() => void db.insert(projectWorktrees).values(worktree).run()),
+      worktrees: (projectId) =>
+        query(() =>
+          db.select().from(projectWorktrees).where(eq(projectWorktrees.projectId, projectId)).orderBy(asc(projectWorktrees.createdAt), asc(sql`rowid`)).all(),
+        ),
+      worktreeOfThread: (threadId) =>
+        query(() => Option.fromNullishOr(db.select().from(projectWorktrees).where(eq(projectWorktrees.threadId, threadId)).get())),
+      setWorktreeRemoved: (threadId, at) =>
+        query(() => void db.update(projectWorktrees).set({ removedAt: at }).where(eq(projectWorktrees.threadId, threadId)).run()),
+      deleteWorktree: (threadId) => query(() => void db.delete(projectWorktrees).where(eq(projectWorktrees.threadId, threadId)).run()),
     });
   }),
 );

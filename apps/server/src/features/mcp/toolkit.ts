@@ -6,6 +6,7 @@ import type { ChangeLog } from "../changes/change-log.js";
 import type { Inbox } from "../inbox/inbox.js";
 import type { VaultIndex } from "../indexing/vault-index.js";
 import type { ProjectRepository } from "../projects/repository.js";
+import type { WorktreeRoot } from "../projects/worktrees.js";
 import type { ProviderRegistry } from "../providers/registry.js";
 import type { ScheduleRepository } from "../schedules/repository.js";
 import type { SchedulerSignal } from "../schedules/signal.js";
@@ -74,7 +75,8 @@ type HandlerServices =
   | ScheduleRepository
   | SchedulerSignal
   | Inbox
-  | WallClock;
+  | WallClock
+  | WorktreeRoot;
 
 export const VaultToolkitLive = VaultToolkit.toLayer(
   Effect.gen(function* () {

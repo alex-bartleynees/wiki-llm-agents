@@ -8,7 +8,7 @@ import { ProjectRepository } from "../repository.js";
 /** Brings a file back into the project's diff review. */
 export const unignoreFile = Effect.fn("unignoreProjectFile")(function* (projectId: string, request: UnignoreFileRequest) {
   const project = yield* findProject(projectId);
-  const file = yield* checkIgnoredFile(project, request);
+  const file = yield* checkIgnoredFile(project, request, yield* (yield* ProjectRepository).worktrees(project.id));
   const repository = yield* ProjectRepository;
   yield* repository.unignoreFile(project.id, file);
   return { ignored: yield* repository.ignoredFiles(project.id) } satisfies UnignoreFileResponse;

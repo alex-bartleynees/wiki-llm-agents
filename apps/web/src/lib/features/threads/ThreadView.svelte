@@ -16,6 +16,7 @@
   import { STATUS_LABEL } from "./status.ts";
   import { threads } from "./threads.svelte.ts";
   import { pendingRequests, type TimelineItem, usageLabel } from "./timeline.ts";
+  import WorktreeBar from "./WorktreeBar.svelte";
 
   const timeline = $derived(openThread.timeline);
   const status = $derived(pendingRequests(timeline).length > 0 ? "waiting" : timeline.runningTurn !== null ? "running" : "idle");
@@ -82,6 +83,10 @@
     {/if}
   </div>
 </header>
+
+{#if openThread.thread}
+  <WorktreeBar thread={openThread.thread} idle={status === "idle"} />
+{/if}
 
 <div class="timeline" bind:this={scroller} {onscroll} aria-live="polite" aria-busy={status === "running"}>
   {#if openThread.status === "loading"}

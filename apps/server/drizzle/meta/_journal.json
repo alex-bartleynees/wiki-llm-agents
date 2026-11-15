@@ -141,6 +141,13 @@
       "when": 1794699292141,
       "tag": "0019_chubby_invisible_woman",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1794707416054,
+      "tag": "0020_public_landau",
+      "breakpoints": true
     }
   ]
 }

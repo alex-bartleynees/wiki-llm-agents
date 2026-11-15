@@ -2,12 +2,12 @@
   import type { GetDiffResponse } from "@wiki-agents/contracts/projects/get-diff/response";
   import type { DiffFile, Project } from "@wiki-agents/contracts/projects/model";
   import { ThreadsStreamMessage } from "@wiki-agents/contracts/threads/event";
-  import type { ThreadStatus } from "@wiki-agents/contracts/threads/model";
+  import type { ThreadStatus, ThreadSummary } from "@wiki-agents/contracts/threads/model";
   import { tick, untrack } from "svelte";
   import { errorMessage } from "#lib/api/client.ts";
   import { listen } from "#lib/api/sse.ts";
   import { numberedDiffLines } from "#lib/features/changes/diff-lines.ts";
-  import { vaultThreadsTopic } from "#lib/features/threads/api.ts";
+  import { listThreads, vaultThreadsTopic } from "#lib/features/threads/api.ts";
   import { paneWidths } from "#lib/ui/layout/pane-widths.svelte.ts";
   import PaneSplitter from "#lib/ui/layout/PaneSplitter.svelte";
   import { getDiff, getFileDiff, ignoreFile, unignoreFile } from "./api.ts";
@@ -49,6 +49,29 @@
 
   const keyOf = (directory: string, path: string) => `${directory}\0${path}`;
   const folderName = (directory: string) => directory.split("/").filter(Boolean).at(-1) ?? directory;
+
+  /** The project's threads, for worktree labels and the review's thread chooser; again whenever one changes. */
+  let projectThreads = $state<ReadonlyArray<ThreadSummary>>([]);
+  $effect(() => {
+    void threadsVersion;
+    const { id, vaultId } = project;
+    void listThreads(vaultId, id)
+      .then((result) => {
+        if (project.id === id) projectThreads = result.threads;
+      })
+      .catch((cause: unknown) => (error = errorMessage(cause, "Could not load the project's threads")));
+  });
+  /** Threads' worktrees in the diff: their directory, thread and branch. */
+  const worktreeDirectories = $derived(
+    (diff?.directories ?? []).flatMap((entry) => (entry.worktree === undefined ? [] : [{ directory: entry.directory, ...entry.worktree }])),
+  );
+  /** A directory's name in the lists: a worktree by its branch and thread, others by folder. */
+  const directoryLabel = (directory: string) => {
+    const worktree = worktreeDirectories.find((candidate) => candidate.directory === directory);
+    if (worktree === undefined) return folderName(directory);
+    const title = projectThreads.find((thread) => thread.id === worktree.threadId)?.title ?? "New thread";
+    return `⎇ ${worktree.branch} · ${title}`;
+  };
 
   /** Each git directory's changed files, split into those in review and those ignored. */
   const groups = $derived(
@@ -142,7 +165,10 @@
       diff = {
         directories: diff.directories.map((entry) => ({
           ...entry,
-          ignored: result.ignored.filter((file) => file.directory === entry.directory).map((file) => file.path),
+          // A worktree has the main directory's list.
+          ignored: result.ignored
+            .filter((file) => file.directory === (entry.worktree === undefined ? entry.directory : project.workingDirectories[0]))
+            .map((file) => file.path),
         })),
       };
       // A file just ignored leaves the phone's single-file view unless ignored files are shown.
@@ -231,13 +257,13 @@
 <div class="layout" class:file-open={openKey !== null} style:--side-width="{paneWidths.widths.diffFiles}px">
   <aside class="side" aria-label="Changed files in {project.name}">
     <ProjectViewSwitch projectId={project.id} view="diff" />
-    <ReviewPanel {project} {threadsVersion} />
+    <ReviewPanel {project} {projectThreads} worktrees={worktreeDirectories} />
     <nav class="files" aria-label="Files">
       {#if diff !== null}
         {#each groups as { directory, reviewed, ignored, showIgnored: ignoredShown } (directory.directory)}
           {@const count = directory.git ? reviewed.length : directory.changes.length}
           <div class="folder mono" title={directory.directory}>
-            {folderName(directory.directory)} · {count}
+            {directoryLabel(directory.directory)} · {count}
             {count === 1 ? "file" : "files"}
           </div>
           {#if directory.git}
@@ -261,7 +287,7 @@
                 {ignoredShown ? "▾" : "▸"} Ignored · {ignored.length}
               </button>
               {#if ignoredShown}
-                <div class="ignored-files" role="group" aria-label="Ignored files in {folderName(directory.directory)}">
+                <div class="ignored-files" role="group" aria-label="Ignored files in {directoryLabel(directory.directory)}">
                   {#each ignored as file (file.path)}
                     {@render entry(file)}
                   {/each}
@@ -337,7 +363,7 @@
       {#each entries as entry, index (entry.key)}
         <div id="file-{index}" class="slot" class:current={openKey === entry.key}>
           {#if index === 0 || entries[index - 1]!.directory !== entry.directory}
-            {#if diff.directories.length > 1}<div class="folder-head mono" title={entry.directory}>{folderName(entry.directory)}</div>{/if}
+            {#if diff.directories.length > 1}<div class="folder-head mono" title={entry.directory}>{directoryLabel(entry.directory)}</div>{/if}
           {/if}
           <FileDiff
             projectId={project.id}

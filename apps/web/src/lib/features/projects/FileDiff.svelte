@@ -59,9 +59,12 @@
   const last = $derived(anchor === null || end === null ? null : Math.max(anchor, end));
   const selectedLines = $derived(first === null || last === null ? [] : lines.slice(first, last + 1).filter((line) => line.kind !== "hunk"));
 
-  // A new diff for the file (a refresh) may have moved its lines: start the selection again.
+  // A refresh that changed the file's diff may have moved its lines: start the selection
+  // again. One that brings back the same lines (a turn ending elsewhere, a reconnect)
+  // keeps it, so a comment being written stays open.
+  const linesKey = $derived(lines.map((line) => `${line.oldLine ?? ""}:${line.newLine ?? ""}:${line.line}`).join("\n"));
   $effect(() => {
-    void lines;
+    void linesKey;
     anchor = null;
     end = null;
   });

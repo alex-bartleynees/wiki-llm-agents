@@ -24,6 +24,8 @@ import { ProviderError, type ProviderEvent, type ProviderSession, type SessionSe
 import { VaultTools } from "../mcp/vault-tools.js";
 import { ProviderRegistry } from "../providers/registry.js";
 import { projectInstruction, projectRoots } from "../projects/project-context.js";
+import { ProjectRepository } from "../projects/repository.js";
+import { worktreeProblem } from "../projects/worktrees.js";
 import { NoTurnRunning, RequestClosed, RequestNotFound, ThreadBusy, ThreadNotFound, WrongAnswerKind } from "./errors.js";
 import { type PendingRequest, ThreadRepository } from "./repository.js";
 import { ThreadBus } from "./thread-bus.js";
@@ -57,6 +59,8 @@ type Message =
   | { readonly _tag: "OpenNote"; readonly note: OpenedNote; readonly reply: Deferred.Deferred<void, NoTurnRunning | DbError> }
   | { readonly _tag: "ScheduleSaved"; readonly receipt: ScheduleReceipt; readonly reply: Deferred.Deferred<void, NoTurnRunning | DbError> }
   | { readonly _tag: "ChangeUndone"; readonly turnId: string; readonly changeId: string; readonly reply: Deferred.Deferred<void, DbError> }
+  /** `run` when no turn is running or waiting, else `busy`; each completes the caller's reply. */
+  | { readonly _tag: "WhileIdle"; readonly run: Effect.Effect<void>; readonly busy: Effect.Effect<void> }
   /** From the turn's provider fiber; ignored once that turn is over. */
   | { readonly _tag: "ProviderEvent"; readonly turnId: string; readonly event: ProviderEvent }
   | { readonly _tag: "ProviderEnded"; readonly turnId: string; readonly exit: Exit.Exit<void, ProviderError> };
@@ -113,6 +117,11 @@ export interface ThreadActor {
   readonly scheduleSaved: (receipt: ScheduleReceipt) => Effect.Effect<void, NoTurnRunning | DbError>;
   /** Records that a change the thread's turn made was undone. */
   readonly changeUndone: (turnId: string, changeId: string) => Effect.Effect<void, DbError>;
+  /**
+   * Runs `effect` between the actor's messages while no turn runs or waits, so no
+   * turn can start during it (removing the thread's worktree, say); refused otherwise.
+   */
+  readonly whileIdle: <A, E>(effect: Effect.Effect<A, E>) => Effect.Effect<A, E | ThreadBusy>;
 }
 
 interface RunningTurn {
@@ -147,7 +156,8 @@ export const makeThreadActor = Effect.fnUntraced(function* (
   const bus = yield* ThreadBus;
   const thread = Option.getOrUndefined(yield* repository.find(threadId));
   if (thread === undefined) return yield* new ThreadNotFound({ threadId });
-  const { vault, project, cwd } = yield* threadWorkspace(thread);
+  const { vault, project, worktree, directories, cwd } = yield* threadWorkspace(thread);
+  const projects = yield* ProjectRepository;
   // A thread whose provider is gone can still be read and marked done; its turns fail.
   const adapter = yield* (yield* ProviderRegistry).get(thread.providerInstanceId).pipe(
     Effect.map((found) => found.adapter),
@@ -193,9 +203,15 @@ export const makeThreadActor = Effect.fnUntraced(function* (
 
   /**
    * The rules, the thread's agent and the vault's `AGENTS.md`, read for every turn so
-   * edits apply from the next one. A missing or broken agent fails the turn with why.
+   * edits apply from the next one. A missing or broken agent fails the turn with why,
+   * and so does a worktree that was removed or deleted: the thread never falls back
+   * to the main directory.
    */
   const currentSetup = Effect.gen(function* () {
+    if (worktree !== null) {
+      const problem = yield* worktreeProblem(threadId).pipe(Effect.provideService(ProjectRepository, projects));
+      if (problem !== null) return yield* new ProviderError({ message: problem });
+    }
     const { agentId } = yield* repository.providerSession(threadId);
     const agent = yield* sessionSetup(agentId, vault.rootPath).pipe(
       Effect.provideService(AgentCatalog, catalog),
@@ -204,8 +220,8 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     );
     const setup: SessionSetup = {
       ...agent,
-      instructions: project === null ? agent.instructions : [...agent.instructions, projectInstruction(project, vault.rootPath)],
-      projectRoots: project === null ? null : projectRoots(project, vault.rootPath),
+      instructions: project === null ? agent.instructions : [...agent.instructions, projectInstruction(project, directories, vault.rootPath, worktree)],
+      projectRoots: project === null ? null : projectRoots(directories, vault.rootPath),
       attachmentFolders: yield* ownAttachmentFolders,
       vaultTools: yield* vaultTools.current,
     };
@@ -558,6 +574,8 @@ export const makeThreadActor = Effect.fnUntraced(function* (
             Deferred.done(message.reply, exit),
           ),
         );
+      case "WhileIdle":
+        return turn === undefined ? message.run : message.busy;
       case "ProviderEvent":
         return turn?.id === message.turnId ? onProviderEvent(message.event) : Effect.void;
       case "ProviderEnded":
@@ -594,6 +612,12 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     openNote: (note) => ask((reply) => ({ _tag: "OpenNote", note, reply })),
     scheduleSaved: (receipt) => ask((reply) => ({ _tag: "ScheduleSaved", receipt, reply })),
     changeUndone: (turnId, changeId) => ask((reply) => ({ _tag: "ChangeUndone", turnId, changeId, reply })),
+    whileIdle: <A, E>(effect: Effect.Effect<A, E>) =>
+      ask<A, E | ThreadBusy>((reply) => ({
+        _tag: "WhileIdle",
+        run: Effect.asVoid(Effect.flatMap(Effect.exit(effect), (exit) => Deferred.done(reply, exit))),
+        busy: Effect.asVoid(Deferred.fail(reply, new ThreadBusy({ threadId }))),
+      })),
   };
   return actor;
 });

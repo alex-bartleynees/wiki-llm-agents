@@ -25,7 +25,7 @@ import { PROVIDER_GONE, SERVER_STOPPED } from "../../src/features/threads/thread
 import { ThreadActors } from "../../src/features/threads/thread-actors.js";
 import { ThreadBus } from "../../src/features/threads/thread-bus.js";
 import { makeSqlite, Sqlite } from "../../src/shared/persistence/sqlite.js";
-import { ReplayOnly, TestAgents, TestApp, TestAttachments } from "./infrastructure/test-app.js";
+import { ReplayOnly, TestAgents, TestApp, TestAttachments, TestWorktrees } from "./infrastructure/test-app.js";
 import { makeTestVault } from "./infrastructure/test-vault.js";
 
 import {
@@ -278,7 +278,7 @@ const migrationsDir = fileURLToPath(new URL("../../drizzle", import.meta.url));
  * part of it. Closing the scope stops it, like stopping the server.
  */
 const appOn = (file: string, providers: typeof ReplayOnly = ReplayOnly) =>
-  makeHttpApp({ vaults: [], watch: false, providers, agents: TestAgents, attachments: TestAttachments }).pipe(
+  makeHttpApp({ vaults: [], watch: false, providers, agents: TestAgents, attachments: TestAttachments, worktrees: TestWorktrees }).pipe(
     Layer.provideMerge(Layer.effect(Sqlite, makeSqlite({ file, migrationsDir }))),
     Layer.provideMerge(NodeHttpServer.layerTest),
   );

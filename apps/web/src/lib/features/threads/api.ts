@@ -16,6 +16,7 @@ import { ListThreadsResponse } from "@wiki-agents/contracts/threads/list-threads
 import { MarkDoneResponse } from "@wiki-agents/contracts/threads/mark-done/response";
 import type { RequestAnswer } from "@wiki-agents/contracts/threads/model";
 import { ReopenThreadResponse } from "@wiki-agents/contracts/threads/reopen-thread/response";
+import { RemoveWorktreeResponse } from "@wiki-agents/contracts/threads/remove-worktree/response";
 import { SendMessageRequest } from "@wiki-agents/contracts/threads/send-message/request";
 import { SendMessageResponse } from "@wiki-agents/contracts/threads/send-message/response";
 import { SetModelRequest } from "@wiki-agents/contracts/threads/set-model/request";
@@ -42,7 +43,15 @@ export const listThreads = (vaultId: string, projectId: string | null, signal?: 
 export const getProviderStatus = (providerInstanceId: string, signal?: AbortSignal) =>
   getJson(`/api/providers/${encodeURIComponent(providerInstanceId)}/status`, GetProviderStatusResponse, signal);
 
-export const createThread = (vaultId: string, options: { readonly projectId?: string; readonly providerInstanceId?: string; readonly agentId?: string }) =>
+export interface NewThreadOptions {
+  readonly projectId?: string;
+  readonly providerInstanceId?: string;
+  readonly agentId?: string;
+  /** Run it in its own git worktree on this new branch. */
+  readonly worktreeBranch?: string;
+}
+
+export const createThread = (vaultId: string, options: NewThreadOptions) =>
   postJson(
     vaultThreadsPath(vaultId),
     CreateThreadRequest,
@@ -50,6 +59,7 @@ export const createThread = (vaultId: string, options: { readonly projectId?: st
       ...(options.projectId === undefined ? {} : { projectId: options.projectId }),
       ...(options.providerInstanceId === undefined ? {} : { providerInstanceId: options.providerInstanceId }),
       ...(options.agentId === undefined ? {} : { agentId: options.agentId }),
+      ...(options.worktreeBranch === undefined ? {} : { worktree: { branch: options.worktreeBranch } }),
     },
     CreateThreadResponse,
   );
@@ -88,3 +98,6 @@ export const saveDraft = (threadId: string, request: SaveDraftRequest) =>
     // Fetch limits keepalive bodies to 64 KiB. Large drafts still save while the page is open.
     keepalive: new TextEncoder().encode(JSON.stringify(request)).byteLength < 60_000,
   });
+
+/** `git worktree remove` for the thread's worktree; 409 with git's refusal, or while a turn runs or waits. */
+export const removeWorktree = (threadId: string) => postJson(`${threadPath(threadId)}/worktree/remove`, NoBody, {}, RemoveWorktreeResponse);

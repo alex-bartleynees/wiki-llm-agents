@@ -1,5 +1,6 @@
 import { Effect, Option, Schema } from "effect";
 import { Tool } from "effect/ai";
+import { mainDirectory } from "../../../projects/project-context.js";
 import { ProjectRepository } from "../../../projects/repository.js";
 import { ThreadRepository } from "../../../threads/repository.js";
 import { VaultCaller } from "../../auth.js";
@@ -16,7 +17,7 @@ export const ProjectIgnoredFiles = vaultTool(
       project: Schema.NullOr(Schema.String),
       files: Schema.Array(
         Schema.Struct({
-          directory: Schema.String.annotate({ description: "One of the project's working directories (an absolute path)." }),
+          directory: Schema.String.annotate({ description: "One of the project's working directories, or this thread's worktree (an absolute path)." }),
           path: Schema.String.annotate({ description: "Relative to `directory`, with `/` separators." }),
         }),
       ),
@@ -38,9 +39,13 @@ export const projectIgnoredFiles = Effect.fnUntraced(
     const project = yield* projects.find(projectId);
     if (Option.isNone(project)) return { project: null, files: [], notices: [NOT_IN_A_PROJECT] };
     const files = yield* projects.ignoredFiles(projectId);
+    // A thread in its own worktree works there in place of the main directory, which has the list.
+    const worktree = Option.getOrNull(yield* projects.worktreeOfThread(threadId));
+    const main = mainDirectory(project.value);
+    const directoryOf = (directory: string) => (worktree !== null && worktree.removedAt === null && directory === main ? worktree.directory : directory);
     return {
       project: project.value.name,
-      files: files.map((file) => ({ directory: file.directory, path: file.path })),
+      files: files.map((file) => ({ directory: directoryOf(file.directory), path: file.path })),
       notices: files.length === 0 ? ["The user ignores no files in this project."] : [],
     };
   },

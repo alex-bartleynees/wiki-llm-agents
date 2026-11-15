@@ -5,12 +5,16 @@ import { changedFiles } from "../changed-files.js";
 import { findProject } from "../find-project.js";
 import { diffDirectory, workTrees } from "../git.js";
 import { LIST_LIMITS } from "../git-diff.js";
+import { mainDirectory } from "../project-context.js";
 import { ProjectRepository } from "../repository.js";
+import { liveWorktrees } from "../worktrees.js";
 
 /**
  * Each working directory's changes: from git compared with `HEAD` where the directory
  * is in a work tree, else the changed-file list (compared with the baseline), without
- * diffs. Each directory lists the paths the user ignores in the review.
+ * diffs. Each directory lists the paths the user ignores in the review. Then each
+ * thread's worktree that still exists, compared with its own `HEAD`, with the main
+ * directory's ignored paths.
  */
 export const getDiff = Effect.fn("getProjectDiff")(function* (projectId: string) {
   const project = yield* findProject(projectId);
@@ -31,5 +35,21 @@ export const getDiff = Effect.fn("getProjectDiff")(function* (projectId: string)
     },
     { concurrency: 4 },
   );
-  return { directories: diffs } satisfies GetDiffResponse;
+  const ignoredInMain = ignoredIn(mainDirectory(project));
+  const worktreeDiffs = yield* Effect.forEach(
+    yield* liveWorktrees(projectId),
+    (worktree) =>
+      diffDirectory(worktree.directory, LIST_LIMITS).pipe(
+        Effect.map((files): DirectoryDiff => ({
+          directory: worktree.directory,
+          worktree: { threadId: worktree.threadId, branch: worktree.branch },
+          git: true,
+          files,
+          changes: [],
+          ignored: ignoredInMain,
+        })),
+      ),
+    { concurrency: 4 },
+  );
+  return { directories: [...diffs, ...worktreeDiffs] } satisfies GetDiffResponse;
 });

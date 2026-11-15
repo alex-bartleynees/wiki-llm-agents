@@ -47,3 +47,21 @@ export const projectIgnoredFiles = sqliteTable(
   },
   (table) => [primaryKey({ columns: [table.projectId, table.directory, table.path] })],
 );
+
+/**
+ * Threads' own git worktrees (see `worktrees.ts`). Kept after removal, so a thread
+ * whose worktree is gone can say so instead of running in the main directory.
+ */
+export const projectWorktrees = sqliteTable("project_worktrees", {
+  /** One worktree per thread at most. */
+  threadId: text("thread_id").primaryKey(),
+  projectId: text("project_id").notNull(),
+  branch: text("branch").notNull(),
+  /** The worktree's root, canonical, under the data directory. */
+  path: text("path").notNull(),
+  /** Where the thread works: `path`, or the folder in it matching the main directory. */
+  directory: text("directory").notNull(),
+  createdAt: integer("created_at").notNull(),
+  /** Milliseconds since the epoch; null until the app removes it. */
+  removedAt: integer("removed_at"),
+});

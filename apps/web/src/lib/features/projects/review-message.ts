@@ -28,6 +28,13 @@ export const location = (path: string, lines: ReadonlyArray<NumberedDiffLine>) =
   return removed.length > 0 ? `${path} (removed, HEAD line${removed.length === 1 ? "" : "s"} ${span(removed)})` : path;
 };
 
+/** A thread's worktree shown in the Diff view: its directory, thread and branch. */
+export interface WorktreeDirectory {
+  readonly directory: string;
+  readonly threadId: string;
+  readonly branch: string;
+}
+
 /** The path as the agent sees it: relative in the main directory (where threads run), absolute elsewhere. */
 export const displayPath = (workingDirectories: ReadonlyArray<string>, directory: string, path: string) =>
   directory === workingDirectories[0] ? path : `${directory.replace(/\/+$/, "")}/${path}`;

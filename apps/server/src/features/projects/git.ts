@@ -160,3 +160,6 @@ export const diffFile = (directory: string, path: string, limits: DiffLimits) =>
     },
     catch: failed,
   });
+
+/** For `worktree-git.ts`, the app's only git writes: the same runner (no shell, no pager). */
+export { isWorkTree, run as runGit };
