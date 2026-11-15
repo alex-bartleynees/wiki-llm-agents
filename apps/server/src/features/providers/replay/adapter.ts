@@ -275,4 +275,14 @@ export const ReplayAdapter: ProviderAdapter = {
   }),
   status: Effect.succeed({ _tag: "ready", version: null, account: null }),
   listModels: () => Effect.succeed({ models: [], defaultModel: null }),
+  complete: ({ prompt }) => Effect.succeed({ text: replayCompletion(prompt), usage: { inputTokens: Math.ceil(prompt.length / 4), outputTokens: 12, costUsd: 0 } }),
+};
+
+/**
+ * Replay's one-shot answer, for UI work and tests: a fixed reply naming the first file
+ * the prompt lists (a line starting `- `), so a test can see the prompt arrived.
+ */
+export const replayCompletion = (prompt: string) => {
+  const first = /^- (?:\S+ )?(.+)$/m.exec(prompt)?.[1];
+  return `Replay suggestion${first === undefined ? "" : ` for ${first}`}\n\nA recorded answer; no model was asked.`;
 };

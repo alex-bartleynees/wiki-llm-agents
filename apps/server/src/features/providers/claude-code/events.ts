@@ -164,7 +164,7 @@ const resultText = (content: unknown): string => {
 };
 
 /** Why a turn failed, from its result. */
-const failure = (result: SDKResultMessage): string => {
+export const resultFailure = (result: SDKResultMessage): string => {
   if (result.subtype === "success") return result.result.trim() || "Claude Code's turn failed.";
   switch (result.subtype) {
     case "error_max_turns":
@@ -260,7 +260,7 @@ export const makeTurnMapper = (turnId: string, cwd: string, cost: (result: SDKRe
             turnId,
             outcome: completed ? "completed" : "failed",
             usage: resultUsage(message, cost(message)),
-            reason: completed ? null : failure(message),
+            reason: completed ? null : resultFailure(message),
           },
         ];
       }

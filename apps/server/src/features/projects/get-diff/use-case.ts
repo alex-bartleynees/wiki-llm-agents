@@ -3,11 +3,22 @@ import type { DirectoryDiff } from "@wiki-agents/contracts/projects/model";
 import { Effect } from "effect";
 import { changedFiles } from "../changed-files.js";
 import { findProject } from "../find-project.js";
-import { diffDirectory, workTrees } from "../git.js";
+import { diffDirectory, headCommit, withHashes, workTrees } from "../git.js";
 import { LIST_LIMITS } from "../git-diff.js";
 import { mainDirectory } from "../project-context.js";
 import { ProjectRepository } from "../repository.js";
 import { liveWorktrees } from "../worktrees.js";
+
+/**
+ * A git directory's `HEAD`, read first, then its files with their content hashes, so a
+ * commit of what was reviewed can check nothing moved since.
+ */
+const reviewable = (directory: string) =>
+  Effect.gen(function* () {
+    const head = yield* headCommit(directory);
+    const files = yield* withHashes(directory, yield* diffDirectory(directory, LIST_LIMITS));
+    return { head, files };
+  });
 
 /**
  * Each working directory's changes: from git compared with `HEAD` where the directory
@@ -30,7 +41,7 @@ export const getDiff = Effect.fn("getProjectDiff")(function* (projectId: string)
     (directory, index): Effect.Effect<DirectoryDiff, Effect.Error<ReturnType<typeof diffDirectory>>> => {
       const ignored = ignoredIn(directory);
       return inGit[index]
-        ? diffDirectory(directory, LIST_LIMITS).pipe(Effect.map((files) => ({ directory, git: true, files, changes: [], ignored })))
+        ? reviewable(directory).pipe(Effect.map(({ head, files }) => ({ directory, git: true, head, files, changes: [], ignored })))
         : Effect.succeed({ directory, git: false, files: [], changes: changes.filter((change) => change.directory === directory), ignored });
     },
     { concurrency: 4 },
@@ -39,11 +50,12 @@ export const getDiff = Effect.fn("getProjectDiff")(function* (projectId: string)
   const worktreeDiffs = yield* Effect.forEach(
     yield* liveWorktrees(projectId),
     (worktree) =>
-      diffDirectory(worktree.directory, LIST_LIMITS).pipe(
-        Effect.map((files): DirectoryDiff => ({
+      reviewable(worktree.directory).pipe(
+        Effect.map(({ head, files }): DirectoryDiff => ({
           directory: worktree.directory,
           worktree: { threadId: worktree.threadId, branch: worktree.branch },
           git: true,
+          head,
           files,
           changes: [],
           ignored: ignoredInMain,

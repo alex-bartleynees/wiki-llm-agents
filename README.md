@@ -390,9 +390,9 @@ vault's threads show.
   **Show the whole diff** asks `GET /api/projects/:id/diff/file?directory=…&path=…`
   (20,000 lines / 2 MB, only inside a working directory; past that, use lazygit).
   A folder outside git lists its changed files (against the baseline) with no diff.
-  The app only reads git (`execFile`, `-C`, no pager, colour, external diff or
-  textconv, literal pathspecs, `GIT_OPTIONAL_LOCKS=0`); it never stages, commits or
-  restores. Search with `/`, `n`/`N` (desktop). Click (tap) a line to comment,
+  Reading git uses `execFile`, `-C`, no pager, colour, external diff or textconv,
+  literal pathspecs and `GIT_OPTIONAL_LOCKS=0`; the only git writes are the commit
+  and push below, and worktrees, each started by you. Search with `/`, `n`/`N` (desktop). Click (tap) a line to comment,
   shift-click or tap another line for a range; comments are drafts in this
   browser (`localStorage`) until **Send to thread** posts them as one message
   (`path:line`, the quoted lines, the comment, grouped by file) to one of the
@@ -410,7 +410,46 @@ vault's threads show.
   `project_ignored_files` MCP tool (current at each call), and a project's
   instructions tell them to check it before staging or committing and leave those
   files out unless you name them. It is guidance: command approvals are what stop
-  a commit.
+  an agent's commit. A commit from the Diff view (below) leaves them out unless you
+  tick them.
+- **Commit and push** from the Diff view, per git directory (each working directory
+  in git and each thread worktree). The directory's header shows the branch, its
+  upstream with ahead/behind as of the last fetch (`GET /api/projects/:id/git`;
+  the app never fetches) and **Push**. Each changed file has a tick box: ticked by
+  default, ignored files unticked. **Commit** (`POST /api/projects/:id/git/commit
+  {"directory", "head", "message", "files": [{"path", "hash"}]}`) first checks that
+  `HEAD` and every ticked file are still what the review showed (`get-diff` gives
+  `head` and each file's `hash`: sha256 of its executable bit and content, null when
+  deleted); if anything moved, it is a 409 and the view reloads. Then it runs
+  `git add` for new files and `git commit --only -F - -- <paths>`, so exactly the
+  ticked paths are committed and anything else staged stays staged. A rename sends
+  both paths. Hooks run; a failing hook's output is shown, nothing is committed, and
+  the new files it added are unstaged again. Never `-a`, `--amend` or
+  `--no-verify`. **Push** (`POST /api/projects/:id/git/push {"directory",
+  "branch"}`) pushes the checked-out branch to its upstream
+  (`git push <remote> refs/heads/<branch>:refs/heads/<upstream>`), never forced and
+  never another branch. A branch without an upstream asks first and is pushed with
+  `-u` to the same name on `remote.pushDefault`, `origin` or the only remote
+  (`"setUpstream": {"remote"}`). A rejected push shows git's message: pull or rebase
+  in lazygit. Writes run in their own session (no terminal for ssh to prompt on)
+  with `GIT_TERMINAL_PROMPT=0`, `SSH_ASKPASS_REQUIRE=never`, ssh in `BatchMode`
+  (your `GIT_SSH_COMMAND` or `core.sshCommand` kept), and time limits (commit 5
+  minutes for slow hooks, push 90 s). Push over SSH needs `SSH_AUTH_SOCK` in the
+  service's environment, or a key without a passphrase.
+- **Suggest message** in the commit box (`POST /api/projects/:id/git/suggest-message
+  {"directory", "paths"}`) sends the ticked files' diffs from `HEAD` (300 lines /
+  8 KB each, 40 KB in all; past that, file names and counts only) and the last ten
+  commit subjects to one model, and puts its answer in the message box to edit, with
+  who answered and the tokens and cost. **Put back yours** restores what you had
+  typed. It never commits, and unticked files are never sent. The provider and
+  model are set in Settings › Commit messages (`GET`/`PUT /api/commit-messages/settings`):
+  by default Claude Code on Haiku when it is ready, else the first provider with its
+  default model. Claude Code answers in a one-shot call: no tools, none of your
+  settings, `CLAUDE.md` files or MCP servers, one step, no saved session.
+  Providers without a one-shot call (OpenCode, Codex) answer in one turn of a
+  throwaway session with every action denied and no vault tools. OpenCode keeps that
+  session in its own history. The replay provider gives a fixed answer naming the
+  first file.
 - Undo code changes with lazygit/git; changes a project thread makes to the shared
   vault get change review (below).
 - Folders are chosen with **Browse…** (project directories, the vault folder) or

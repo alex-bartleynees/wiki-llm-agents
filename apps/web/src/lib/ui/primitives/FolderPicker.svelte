@@ -42,6 +42,12 @@
   let request = 0;
   /** A path typed while a folder loads stays; the folder doesn't replace it. */
   let edited = false;
+  /**
+   * The path box has focus: a folder arriving now doesn't replace its text either.
+   * Setting it then moves the cursor and drops the selection, so typing that has just
+   * started (or a paste over the selected text) would be appended to the folder's path.
+   */
+  let focused = false;
 
   async function show(path: string | null) {
     const id = ++request;
@@ -52,7 +58,7 @@
       const next = await load(path);
       if (id !== request) return;
       listing = next;
-      if (!edited) goTo = next.path;
+      if (!edited && !focused) goTo = next.path;
     } catch (cause) {
       if (id === request) error = errorMessage(cause, "Could not open this folder");
     } finally {
@@ -89,7 +95,13 @@
 
     {#if typed}
       <form class="go" onsubmit={(event) => (event.preventDefault(), void show(goTo))}>
-        <input class="mono" bind:value={goTo} oninput={() => (edited = true)} aria-label="Folder path" autocomplete="off" autocapitalize="off" spellcheck="false" />
+        <input
+          class="mono"
+          bind:value={goTo}
+          oninput={() => (edited = true)}
+          onfocus={() => (focused = true)}
+          onblur={() => (focused = false)}
+          aria-label="Folder path" autocomplete="off" autocapitalize="off" spellcheck="false" />
         <button type="submit">Go</button>
       </form>
     {:else if listing}

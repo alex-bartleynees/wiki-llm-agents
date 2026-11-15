@@ -3,7 +3,9 @@ import { Effect, Layer, Option } from "effect";
 import { DbError } from "../../shared/persistence/errors.js";
 import { Sqlite } from "../../shared/persistence/sqlite.js";
 import { type FileVersion, ProjectRepository } from "./repository.js";
-import { projectFiles, projectIgnoredFiles, projects, projectWorktrees } from "./table.js";
+import { commitMessageSettings, projectFiles, projectIgnoredFiles, projects, projectWorktrees } from "./table.js";
+
+const SETTINGS_ROW = "default";
 
 const columns = {
   id: projects.id,
@@ -85,6 +87,19 @@ export const ProjectRepositoryLive = Layer.effect(
       setWorktreeRemoved: (threadId, at) =>
         query(() => void db.update(projectWorktrees).set({ removedAt: at }).where(eq(projectWorktrees.threadId, threadId)).run()),
       deleteWorktree: (threadId) => query(() => void db.delete(projectWorktrees).where(eq(projectWorktrees.threadId, threadId)).run()),
+      commitMessageSettings: query(() => {
+        const row = db.select().from(commitMessageSettings).where(eq(commitMessageSettings.id, SETTINGS_ROW)).get();
+        return { providerInstanceId: row?.providerInstanceId ?? null, model: row?.model ?? null };
+      }),
+      saveCommitMessageSettings: (settings) =>
+        query(
+          () =>
+            void db
+              .insert(commitMessageSettings)
+              .values({ id: SETTINGS_ROW, ...settings })
+              .onConflictDoUpdate({ target: commitMessageSettings.id, set: settings })
+              .run(),
+        ),
     });
   }),
 );

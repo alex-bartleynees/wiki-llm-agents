@@ -3,7 +3,7 @@ import type { GetFileDiffResponse } from "@wiki-agents/contracts/projects/get-fi
 import { Effect } from "effect";
 import { FileDiffNotFound, InvalidProject } from "../errors.js";
 import { findProject } from "../find-project.js";
-import { diffFile, workTrees } from "../git.js";
+import { diffFile, withHashes, workTrees } from "../git.js";
 import { FILE_LIMITS, isInsidePath } from "../git-diff.js";
 import { liveWorktrees } from "../worktrees.js";
 
@@ -23,5 +23,6 @@ export const getFileDiff = Effect.fn("getProjectFileDiff")(function* (projectId:
   if (!inGit) return yield* new InvalidProject({ message: "The working directory is not a git repository, so there is no diff" });
   const file = yield* diffFile(request.directory, request.path, FILE_LIMITS);
   if (file === undefined) return yield* new FileDiffNotFound({ path: request.path });
-  return { file } satisfies GetFileDiffResponse;
+  const [hashed] = yield* withHashes(request.directory, [file]);
+  return { file: hashed! } satisfies GetFileDiffResponse;
 });

@@ -1,5 +1,5 @@
 import { ProjectRepositoryLive } from "../features/projects/sqlite-repository.js";
-import { NodeHttpServer } from "@effect/platform-node";
+import { NodeChildProcessSpawner, NodeFileSystem, NodeHttpServer, NodePath } from "@effect/platform-node";
 import { Effect, type FileSystem, Layer, Option } from "effect";
 import { HttpRouter } from "effect/http";
 import type { AgentCatalog } from "../features/agents/catalog.js";
@@ -108,6 +108,9 @@ const DeliveryChannelsLive = Layer.effect(
   }),
 );
 
+/** Running programs (git, for the Diff view's commit and push) through Effect's spawner on this machine. */
+const ProcessesLive = NodeChildProcessSpawner.layer.pipe(Layer.provide(Layer.merge(NodeFileSystem.layer, NodePath.layer)));
+
 /** The inbox, its live bus and delivery channels, and the scheduler's and digest's wake-up signals. */
 const inboxAndSchedules = (channels: AppOptions["channels"]) =>
   Layer.mergeAll(
@@ -135,6 +138,7 @@ export const makeHttpApp = (options: AppOptions) =>
         indexing(options.watch, options.watchPollMs),
         WallClockLive,
         EventConnectionsLive,
+        ProcessesLive,
       )),
   );
 

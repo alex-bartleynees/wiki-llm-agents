@@ -5,6 +5,8 @@ import type { ProviderModel, ProviderStatus } from "@wiki-agents/contracts/provi
 import type { RequestAnswer, RequestPrompt } from "@wiki-agents/contracts/threads/model";
 import { Clock, Deferred, Duration, Effect, FileSystem, Option, Queue, Stream } from "effect";
 import {
+  type Completion,
+  type CompletionInput,
   DENIED,
   type ModelList,
   type ProviderAdapter,
@@ -17,7 +19,7 @@ import {
   vaultToolsUnavailable,
 } from "../port.js";
 import { type AuthStatus, isSupportedVersion, notInstalled, resolveBinary, SUPPORTED_VERSION } from "./cli.js";
-import { answeredInput, approvalPrompt, askedQuestions, makeTurnMapper, questionPrompt } from "./events.js";
+import { answeredInput, approvalPrompt, askedQuestions, makeTurnMapper, questionPrompt, resultFailure, resultUsage } from "./events.js";
 import { appendedPrompt } from "./instructions.js";
 import { decide, enforcedAutonomy } from "./permissions.js";
 import { type ClaudeCodeSdk, type ClaudeQuery, type Input, makeInput, type MessageImage, userMessage } from "./sdk.js";
@@ -158,12 +160,55 @@ export const makeClaudeCodeAdapter = (options: ClaudeCodeAdapterOptions) =>
         return list;
       });
 
+    /**
+     * One prompt and its answer: no tools at all, none of your settings, `CLAUDE.md`
+     * files or MCP servers, the app's system prompt only, one step, and no session
+     * saved to resume.
+     */
+    const complete = ({ cwd, model, system, prompt }: CompletionInput) =>
+      Effect.gen(function* () {
+        const binary = yield* executable;
+        return yield* tryPromise(async (): Promise<Completion> => {
+          const input = makeInput();
+          const query = sdk.query({
+            prompt: input.iterable,
+            options: {
+              cwd,
+              pathToClaudeCodeExecutable: binary,
+              ...(model === null ? {} : { model }),
+              systemPrompt: system,
+              tools: [],
+              settingSources: [],
+              mcpServers: {},
+              strictMcpConfig: true,
+              maxTurns: 1,
+              persistSession: false,
+            },
+          });
+          input.push(userMessage(prompt));
+          let billed = false;
+          try {
+            for await (const message of query) {
+              if (message.type === "system" && message.subtype === "init") billed = BILLED.has(message.apiKeySource);
+              if (message.type !== "result") continue;
+              if (message.subtype !== "success" || message.is_error) throw new Error(resultFailure(message));
+              return { text: message.result, usage: resultUsage(message, billed ? message.total_cost_usd : null) };
+            }
+            throw new Error("it ended without an answer");
+          } finally {
+            input.close();
+            query.close();
+          }
+        }, "Claude Code didn't answer");
+      });
+
     const adapter: ProviderAdapter = {
       kind: "claude-code",
       capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: true, images: true },
       enforcement: enforcedAutonomy,
       status,
       listModels,
+      complete,
       openSession: ({ cwd, nativeSessionId, model: initialModel }) =>
         Effect.gen(function* () {
           const binary = yield* executable;

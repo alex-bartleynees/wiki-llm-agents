@@ -148,6 +148,13 @@
       "when": 1794707416054,
       "tag": "0020_public_landau",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1794734177270,
+      "tag": "0021_perpetual_monster_badoon",
+      "breakpoints": true
     }
   ]
 }

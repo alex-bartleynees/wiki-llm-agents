@@ -41,7 +41,7 @@ test("reviews a project's diff from git, comments on a line, and sends the revie
   await page.getByRole("navigation", { name: "Project view" }).getByRole("link", { name: "Diff" }).click();
   await expect(page).toHaveURL(/\/projects\/[^/]+\/diff$/);
   const files = page.getByRole("navigation", { name: "Files" });
-  await expect(files.getByRole("button")).toHaveCount(2);
+  await expect(files.getByRole("checkbox")).toHaveCount(2);
   await expect(files.getByRole("button", { name: /src\/app\.ts/ })).toContainText("+1 −1");
   await expect(files.getByRole("button", { name: /notes\.md/ })).toContainText("+1 −0");
 
@@ -104,7 +104,7 @@ test("ignores a file in the review, keeps it ignored after a reload, and brings 
 
   await page.goto(`/projects/${project.id}/diff`);
   const files = page.getByRole("navigation", { name: "Files" });
-  await expect(files.getByRole("button")).toHaveCount(2);
+  await expect(files.getByRole("checkbox")).toHaveCount(2);
 
   // Ignore from the file's header (on a phone, open the file first).
   if (isPhone(info)) await files.getByRole("button", { name: /local\.config/ }).click();

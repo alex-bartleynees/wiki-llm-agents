@@ -75,7 +75,7 @@ layer(makeTestApp({ vaults: [sharedRoot] }))("project diff", (test) => {
       ".gitignore": "*.log\n",
     });
     const project = yield* register([repo]);
-    expect((yield* getDiff(project.id)).directories).toEqual([{ directory: repo, git: true, files: [], changes: [], ignored: [] }]);
+    expect((yield* getDiff(project.id)).directories).toEqual([{ directory: repo, git: true, head: expect.stringMatching(/^[0-9a-f]{40}$/), files: [], changes: [], ignored: [] }]);
 
     write(repo, { "src/app.ts": "const a = 1;\nconst b = 3;\n", "staged.ts": "staged\n", "new.ts": "one\ntwo", "debug.log": "ignored\n" });
     write(repo, { "logo.png": new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0, 9, 9]) });
@@ -91,10 +91,12 @@ layer(makeTestApp({ vaults: [sharedRoot] }))("project diff", (test) => {
     expect(files["src/app.ts"]).toEqual({
       path: "src/app.ts", oldPath: null, status: "modified", binary: false, additions: 1, deletions: 1, truncated: false,
       diff: "@@ -1,2 +1,2 @@\n const a = 1;\n-const b = 2;\n+const b = 3;",
+      hash: expect.stringMatching(/^[0-9a-f]{64}$/),
     });
     expect(files["staged.ts"]).toMatchObject({ status: "added", additions: 1, deletions: 0, diff: "@@ -0,0 +1 @@\n+staged" });
     expect(files["new.ts"]).toMatchObject({ status: "untracked", additions: 2, diff: "@@ -0,0 +1,2 @@\n+one\n+two\n\\ No newline at end of file" });
     expect(files["gone.txt"]).toMatchObject({ status: "deleted", additions: 0, deletions: 1, diff: "@@ -1 +0,0 @@\n-bye" });
+    expect(files["gone.txt"]?.hash).toBeNull();
     expect(files["new-name.ts"]).toMatchObject({ status: "renamed", oldPath: "old-name.ts", additions: 1, deletions: 1 });
     expect(files["new-name.ts"]?.diff).toContain("-line 5\n+line five");
     expect(files["logo.png"]).toMatchObject({ status: "modified", binary: true, additions: 0, deletions: 0, diff: "" });
@@ -201,7 +203,7 @@ layer(makeTestApp({ vaults: [sharedRoot] }))("project diff", (test) => {
     chmodSync(join(repo, "run.sh"), 0o755);
     const project = yield* register([repo]);
     expect((yield* getDiff(project.id)).directories[0]!.files).toEqual([
-      { path: "run.sh", oldPath: null, status: "modified", binary: false, additions: 0, deletions: 0, diff: "", truncated: false },
+      { path: "run.sh", oldPath: null, status: "modified", binary: false, additions: 0, deletions: 0, diff: "", truncated: false, hash: expect.stringMatching(/^[0-9a-f]{64}$/) },
     ]);
   }));
 

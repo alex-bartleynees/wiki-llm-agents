@@ -1,6 +1,6 @@
 import type { Autonomy } from "@wiki-agents/contracts/agents/model";
 import type { ProviderCapabilities, ProviderModel, ProviderStatus } from "@wiki-agents/contracts/providers/model";
-import type { RequestAnswer, ThreadEvent } from "@wiki-agents/contracts/threads/model";
+import type { RequestAnswer, ThreadEvent, TurnUsage } from "@wiki-agents/contracts/threads/model";
 import { Data, type Effect, type Option, type Scope, type Stream } from "effect";
 import type { VaultToolsEntry } from "../mcp/vault-tools.js";
 
@@ -116,6 +116,23 @@ export interface OpenSessionInput {
   readonly setup: SessionSetup;
 }
 
+/** One prompt, one answer: no tools, no vault tools, no conversation kept (commit messages...). */
+export interface CompletionInput {
+  /** Where the provider runs; nothing there is read on purpose. */
+  readonly cwd: string;
+  /** Null for the provider's default. */
+  readonly model: string | null;
+  /** What the model is for and how to answer. */
+  readonly system: string;
+  readonly prompt: string;
+}
+
+export interface Completion {
+  readonly text: string;
+  /** Null when the provider reports none. */
+  readonly usage: TurnUsage | null;
+}
+
 export interface ModelList {
   readonly models: ReadonlyArray<ProviderModel>;
   /** The provider's default in that directory, if it has one. */
@@ -137,6 +154,12 @@ export interface ProviderAdapter {
   readonly status: Effect.Effect<ProviderStatus>;
   /** Models offered in `cwd`; none when `capabilities.models` is false. */
   readonly listModels: (cwd: string) => Effect.Effect<ModelList, ProviderError>;
+  /**
+   * A one-shot call without tools or a saved conversation, where the provider has a
+   * lean way to make one. Without it, `complete` (in `complete.ts`) runs one turn in a
+   * throwaway session that may do nothing.
+   */
+  readonly complete?: (input: CompletionInput) => Effect.Effect<Completion, ProviderError>;
 }
 
 /** Told to the user (not the agent) when the vault tools couldn't be given to a turn. */

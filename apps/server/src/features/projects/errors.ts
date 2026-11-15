@@ -7,3 +7,9 @@ export class ProjectNotFound extends Data.TaggedError("ProjectNotFound")<{ reado
 
 /** The file has no changes from `HEAD` (or no longer exists). */
 export class FileDiffNotFound extends Data.TaggedError("FileDiffNotFound")<{ readonly path: string }> {}
+
+/**
+ * What you reviewed isn't what is there now (a file or `HEAD` changed, another branch
+ * is checked out); nothing was done. `message` says what, for the user.
+ */
+export class StaleReview extends Data.TaggedError("StaleReview")<{ readonly message: string }> {}

@@ -65,3 +65,15 @@ export const projectWorktrees = sqliteTable("project_worktrees", {
   /** Milliseconds since the epoch; null until the app removes it. */
   removedAt: integer("removed_at"),
 });
+
+/**
+ * One row (`id` "default"): which provider and model write **Suggest message** in the
+ * Diff view. Null provider: Claude Code on Haiku when it is ready, else the first
+ * provider with its default model.
+ */
+export const commitMessageSettings = sqliteTable("commit_message_settings", {
+  id: text("id").primaryKey(),
+  providerInstanceId: text("provider_instance_id"),
+  /** Null for the provider's default (or Haiku, for the default Claude Code). */
+  model: text("model"),
+});

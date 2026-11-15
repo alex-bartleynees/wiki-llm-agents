@@ -15,6 +15,12 @@ export interface FileVersion {
   readonly modifiedAt: number | null;
 }
 
+/** Which provider and model suggest commit messages; nulls for the defaults. */
+export interface CommitMessageSettings {
+  readonly providerInstanceId: string | null;
+  readonly model: string | null;
+}
+
 /** A file left out of the diff review by default. */
 export interface IgnoredFile {
   readonly directory: string;
@@ -43,6 +49,9 @@ export interface ProjectRepositoryService {
   readonly setWorktreeRemoved: (threadId: string, at: number) => Effect.Effect<void, DbError>;
   /** Forgets a worktree undone because its thread couldn't be saved. */
   readonly deleteWorktree: (threadId: string) => Effect.Effect<void, DbError>;
+  /** Both null until saved. */
+  readonly commitMessageSettings: Effect.Effect<CommitMessageSettings, DbError>;
+  readonly saveCommitMessageSettings: (settings: CommitMessageSettings) => Effect.Effect<void, DbError>;
 }
 
 export class ProjectRepository extends Context.Service<ProjectRepository, ProjectRepositoryService>()("ProjectRepository") {}

@@ -56,6 +56,12 @@ export const DiffFile = Schema.Struct({
    */
   diff: Schema.String,
   truncated: Schema.Boolean,
+  /**
+   * What the file holds now (sha256 of its content, or of a symlink's target), null
+   * when deleted. `commit-changes` takes it back to check the file is still what you
+   * reviewed. Given for files in git directories.
+   */
+  hash: Schema.optionalKey(Schema.NullOr(Schema.String)),
 });
 export type DiffFile = typeof DiffFile.Type;
 
@@ -95,6 +101,11 @@ export const DirectoryDiff = Schema.Struct({
    * (compared with the baseline taken at registration or the last review).
    */
   git: Schema.Boolean,
+  /**
+   * The commit `files` are compared with, read before them; null before the first
+   * commit, absent outside git. `commit-changes` takes it back.
+   */
+  head: Schema.optionalKey(Schema.NullOr(Schema.String)),
   files: Schema.Array(DiffFile),
   changes: Schema.Array(FileChange),
   /**
@@ -115,3 +126,61 @@ export const IgnoredFile = Schema.Struct({
   path: Schema.String,
 });
 export type IgnoredFile = typeof IgnoredFile.Type;
+
+/** A git directory's branch and how it stands against its upstream (as of the last fetch). */
+export const GitStatus = Schema.Struct({
+  /** One of the project's working directories in git, or a thread's worktree directory. */
+  directory: Schema.String,
+  /** Set when `directory` is a thread's worktree: whose, and on which branch. */
+  worktree: Schema.optionalKey(Schema.Struct({ threadId: Schema.String, branch: Schema.String })),
+  /** The checked-out branch; null on a detached `HEAD`. */
+  branch: Schema.NullOr(Schema.String),
+  /** The current commit; null before the first commit. */
+  head: Schema.NullOr(Schema.String),
+  /** Where **Push** sends the branch; null without an upstream. */
+  upstream: Schema.NullOr(
+    Schema.Struct({
+      remote: Schema.String,
+      /** The branch on the remote, without `refs/heads/`. */
+      branch: Schema.String,
+    }),
+  ),
+  /**
+   * Commits on the branch and not on its upstream, and the other way round, as of the
+   * last fetch; null without an upstream, or when the remote branch isn't known here.
+   */
+  ahead: Schema.NullOr(Schema.Number),
+  behind: Schema.NullOr(Schema.Number),
+  /**
+   * The remote a branch without an upstream would be pushed to (`git push -u`):
+   * `remote.pushDefault`, else `origin`, else the only remote; null when there is none.
+   */
+  pushRemote: Schema.NullOr(Schema.String),
+});
+export type GitStatus = typeof GitStatus.Type;
+
+/** A commit the app made. */
+export const CommitSummary = Schema.Struct({
+  hash: Schema.String,
+  shortHash: Schema.String,
+  subject: Schema.String,
+});
+export type CommitSummary = typeof CommitSummary.Type;
+
+/** Which provider and model write **Suggest message**; nulls for the defaults. */
+export const CommitMessageSettings = Schema.Struct({
+  /** Null: Claude Code on Haiku when it is ready, else the first provider. */
+  providerInstanceId: Schema.NullOr(Schema.String),
+  /** Null: the provider's default. Always null without a chosen provider (the default uses Haiku). */
+  model: Schema.NullOr(Schema.String),
+});
+export type CommitMessageSettings = typeof CommitMessageSettings.Type;
+
+/** The provider and model a suggestion uses (or used), as the settings resolve now. */
+export const CommitMessageProvider = Schema.Struct({
+  providerInstanceId: Schema.String,
+  providerName: Schema.String,
+  /** Null for the provider's default. */
+  model: Schema.NullOr(Schema.String),
+});
+export type CommitMessageProvider = typeof CommitMessageProvider.Type;

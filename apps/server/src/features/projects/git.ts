@@ -1,6 +1,9 @@
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
+import { createReadStream } from "node:fs";
 import { lstat, readFile, readlink } from "node:fs/promises";
 import { join } from "node:path";
+import { pipeline } from "node:stream/promises";
 import type { DiffFile, FileChange } from "@wiki-agents/contracts/projects/model";
 import { Effect } from "effect";
 import { IGNORED, ProjectFilesError } from "./files.js";
@@ -17,7 +20,7 @@ import {
 
 /**
  * Reads a project's changes from git. Read-only: it never commits, stages, checks out
- * or restores. git runs with `execFile` (no shell) in one working directory at a time
+ * or restores (the user-started writes are in `worktree-git.ts` and `commit-git.ts`). git runs with `execFile` (no shell) in one working directory at a time
  * (`-C`), without a pager, colour, external diff tools or textconv, and with literal
  * pathspecs, so a file name is never a glob or an option.
  */
@@ -161,5 +164,118 @@ export const diffFile = (directory: string, path: string, limits: DiffLimits) =>
     catch: failed,
   });
 
-/** For `worktree-git.ts`, the app's only git writes: the same runner (no shell, no pager). */
+/** The current commit, or null before the first one. */
+const headOf = async (directory: string) => {
+  const result = await run(directory, ["rev-parse", "--verify", "--quiet", "HEAD^{commit}"]);
+  return result.code === 0 ? result.stdout.trim() : null;
+};
+
+/** Which of `paths` are untracked (and not ignored) in `directory`. */
+export const untrackedAmong = (directory: string, paths: ReadonlyArray<string>) =>
+  Effect.tryPromise({
+    try: async () => {
+      if (paths.length === 0) return [];
+      const untracked = new Set(await untrackedPaths(directory, paths));
+      return paths.filter((path) => untracked.has(path));
+    },
+    catch: failed,
+  });
+
+/** The subjects of the last `count` commits on `HEAD`, newest first; none before the first commit. */
+export const recentSubjects = (directory: string, count: number) =>
+  Effect.tryPromise({
+    try: async () => {
+      const result = await run(directory, ["log", `-${count}`, "--no-color", "--format=%s"]);
+      return result.code === 0 ? result.stdout.split("\n").filter((line) => line.trim() !== "") : [];
+    },
+    catch: failed,
+  });
+
+/** `directory`'s current commit, or null before the first one. */
+export const headCommit = (directory: string) => Effect.tryPromise({ try: () => headOf(directory), catch: failed });
+
+/**
+ * What a file in the working tree holds: sha256 of whether it is executable and its
+ * content (or of `symlink:` and its target), null when it is gone. Not git's object id, so reading it needs no git and
+ * no lock; it only has to change when the file does.
+ */
+const hashOf = async (directory: string, path: string): Promise<string | null> => {
+  const absolute = join(directory, path);
+  const info = await lstat(absolute).catch(() => undefined);
+  if (info === undefined) return null;
+  if (info.isSymbolicLink()) return createHash("sha256").update(`symlink:${await readlink(absolute)}`).digest("hex");
+  // A submodule or nested repository: its commit shows in the diff, not its files.
+  if (!info.isFile()) return `directory`;
+  // The executable bit is part of what git commits.
+  const hash = createHash("sha256").update((info.mode & 0o111) !== 0 ? "executable:" : "file:");
+  await pipeline(createReadStream(absolute), hash);
+  return hash.digest("hex");
+};
+
+/** `hashOf` for many paths, a few files at a time. */
+const hashesOf = async (directory: string, paths: ReadonlyArray<string>) => {
+  const hashes = new Map<string, string | null>();
+  for (let start = 0; start < paths.length; start += 16) {
+    const batch = paths.slice(start, start + 16);
+    const values = await Promise.all(batch.map((path) => hashOf(directory, path)));
+    batch.forEach((path, index) => hashes.set(path, values[index]!));
+  }
+  return hashes;
+};
+
+/** Each path's content hash now, by path (see `DiffFile.hash`). */
+export const contentHashes = (directory: string, paths: ReadonlyArray<string>) =>
+  Effect.tryPromise({
+    try: () => hashesOf(directory, paths),
+    catch: (cause) => new ProjectFilesError({ message: "Could not read the changed files", cause }),
+  });
+
+/** Adds each file's content hash (`DiffFile.hash`). */
+export const withHashes = (directory: string, files: ReadonlyArray<DiffFile>) =>
+  Effect.map(contentHashes(directory, files.map((file) => file.path)), (hashes) => files.map((file) => ({ ...file, hash: hashes.get(file.path) ?? null })));
+
+const configValue = async (directory: string, key: string) => {
+  const result = await run(directory, ["config", "--get", key]);
+  return result.code === 0 ? result.stdout.trim() : null;
+};
+
+/** The remotes git knows in `directory`'s repository. */
+const remotesOf = async (directory: string) => (await output(directory, ["remote"])).split("\n").filter((name) => name !== "");
+
+/**
+ * The branch, its upstream (`branch.<name>.remote` and `.merge`; a local upstream,
+ * remote `.`, counts as none) and ahead/behind from the remote-tracking branch, as of
+ * the last fetch. Never fetches.
+ */
+const statusOf = async (directory: string) => {
+  const symbolic = await run(directory, ["symbolic-ref", "--quiet", "--short", "HEAD"]);
+  const branch = symbolic.code === 0 ? symbolic.stdout.trim() : null;
+  const head = await headOf(directory);
+  const remotes = await remotesOf(directory);
+  const pushDefault = await configValue(directory, "remote.pushDefault");
+  const pushRemote =
+    pushDefault !== null && remotes.includes(pushDefault) ? pushDefault : remotes.includes("origin") ? "origin" : remotes.length === 1 ? remotes[0]! : null;
+  let upstream: { readonly remote: string; readonly branch: string } | null = null;
+  let ahead: number | null = null;
+  let behind: number | null = null;
+  if (branch !== null) {
+    const remote = await configValue(directory, `branch.${branch}.remote`);
+    const merge = await configValue(directory, `branch.${branch}.merge`);
+    if (remote !== null && remote !== "." && merge !== null && merge.startsWith("refs/heads/")) {
+      upstream = { remote, branch: merge.slice("refs/heads/".length) };
+      const counts = head === null ? null : await run(directory, ["rev-list", "--left-right", "--count", "HEAD...@{upstream}"]);
+      const match = counts?.code === 0 ? /^(\d+)\s+(\d+)/.exec(counts.stdout.trim()) : null;
+      if (match !== null) {
+        ahead = Number(match[1]);
+        behind = Number(match[2]);
+      }
+    }
+  }
+  return { branch, head, upstream, ahead, behind, pushRemote, remotes };
+};
+
+/** `directory`'s branch and how it stands against its upstream (see `GitStatus`), and its remotes. */
+export const branchStatus = (directory: string) => Effect.tryPromise({ try: () => statusOf(directory), catch: failed });
+
+/** For `worktree-git.ts` and `commit-git.ts`, the app's only git writes: the same runner (no shell, no pager). */
 export { isWorkTree, run as runGit };

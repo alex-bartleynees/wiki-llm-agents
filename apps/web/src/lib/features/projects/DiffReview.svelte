@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { GetDiffResponse } from "@wiki-agents/contracts/projects/get-diff/response";
-  import type { DiffFile, Project } from "@wiki-agents/contracts/projects/model";
+  import type { CommitChangesResponse } from "@wiki-agents/contracts/projects/commit-changes/response";
+  import type { DiffFile, GitStatus, Project } from "@wiki-agents/contracts/projects/model";
   import { ThreadsStreamMessage } from "@wiki-agents/contracts/threads/event";
   import type { ThreadStatus, ThreadSummary } from "@wiki-agents/contracts/threads/model";
   import { tick, untrack } from "svelte";
@@ -10,7 +11,10 @@
   import { listThreads, vaultThreadsTopic } from "#lib/features/threads/api.ts";
   import { paneWidths } from "#lib/ui/layout/pane-widths.svelte.ts";
   import PaneSplitter from "#lib/ui/layout/PaneSplitter.svelte";
-  import { getDiff, getFileDiff, ignoreFile, unignoreFile } from "./api.ts";
+  import { getDiff, getFileDiff, getGitStatus, ignoreFile, unignoreFile } from "./api.ts";
+  import BranchBar from "./BranchBar.svelte";
+  import CommitBox from "./CommitBox.svelte";
+  import { isTicked } from "./commit-request.ts";
   import FileDiff from "./FileDiff.svelte";
   import ProjectViewSwitch from "./ProjectViewSwitch.svelte";
   import ReviewPanel from "./ReviewPanel.svelte";
@@ -18,8 +22,9 @@
 
   /**
    * The project's changes from git, compared with HEAD, for review: every changed file
-   * with its diff, search, and line comments sent to a thread. Refreshes when one of
-   * the project's turns ends. Desktop: the file list beside every diff; phone: the
+   * with its diff, search, and line comments sent to a thread; per git directory, its
+   * branch with **Push**, and a commit of the ticked files. Refreshes when one of the
+   * project's turns ends. Desktop: the file list beside every diff; phone: the
    * list, then one file at a time.
    */
   let { project }: { project: Project } = $props();
@@ -47,6 +52,11 @@
   /** Working directories whose ignored files are shown. */
   let showIgnored = $state<ReadonlySet<string>>(new Set());
 
+  /** Each git directory's branch and upstream, by directory. */
+  let branches = $state<ReadonlyArray<GitStatus>>([]);
+  /** Files left out of the commit (in review), and ignored files put in, by key. */
+  let ticks = $state<{ unticked: ReadonlySet<string>; ticked: ReadonlySet<string> }>({ unticked: new Set(), ticked: new Set() });
+
   const keyOf = (directory: string, path: string) => `${directory}\0${path}`;
   const folderName = (directory: string) => directory.split("/").filter(Boolean).at(-1) ?? directory;
 
@@ -73,18 +83,56 @@
     return `⎇ ${worktree.branch} · ${title}`;
   };
 
-  /** Each git directory's changed files, split into those in review and those ignored. */
+  /**
+   * Each git directory's changed files, split into those in review and those ignored,
+   * and the ticked ones to commit (as listed, with the hashes you reviewed).
+   */
   const groups = $derived(
     (diff?.directories ?? []).map((directory) => {
       const ignored = new Set(directory.ignored);
+      const reviewed = directory.files.filter((file) => !ignored.has(file.path));
+      const ignoredFiles = directory.files.filter((file) => ignored.has(file.path));
+      const ignoredTicked = ignoredFiles.filter((file) => isTicked(ticks, keyOf(directory.directory, file.path), true));
       return {
         directory,
-        reviewed: directory.files.filter((file) => !ignored.has(file.path)),
-        ignored: directory.files.filter((file) => ignored.has(file.path)),
+        reviewed,
+        ignored: ignoredFiles,
         showIgnored: showIgnored.has(directory.directory),
+        toCommit: [...reviewed.filter((file) => isTicked(ticks, keyOf(directory.directory, file.path), false)), ...ignoredTicked],
+        ignoredTicked: ignoredTicked.length,
+        status: branches.find((status) => status.directory === directory.directory),
       };
     }),
   );
+
+  /**
+   * Whether a turn may be writing in the directory: a worktree's own thread, else any
+   * running thread without a worktree (the main directory) or any at all (others).
+   */
+  const runningIn = (directory: string) => {
+    const active = projectThreads.filter((thread) => thread.status !== "idle");
+    const worktree = worktreeDirectories.find((candidate) => candidate.directory === directory);
+    if (worktree !== undefined) return active.some((thread) => thread.id === worktree.threadId);
+    if (directory !== project.workingDirectories[0]) return active.length > 0;
+    return active.some((thread) => !worktreeDirectories.some((candidate) => candidate.threadId === thread.id));
+  };
+
+  const toggled = (set: ReadonlySet<string>, key: string) => (set.has(key) ? new Set([...set].filter((other) => other !== key)) : new Set([...set, key]));
+  function toggleTick(key: string, ignored: boolean) {
+    ticks = ignored ? { ...ticks, ticked: toggled(ticks.ticked, key) } : { ...ticks, unticked: toggled(ticks.unticked, key) };
+  }
+
+  const replaceStatus = (next: GitStatus) => {
+    branches = branches.map((status) => (status.directory === next.directory ? next : status));
+  };
+
+  /** After a commit: the directory's ticks start over, its branch shows the commit, and the diff reloads. */
+  function committedIn(directory: string, result: CommitChangesResponse) {
+    const inDirectory = (key: string) => key.startsWith(`${directory}\0`);
+    ticks = { unticked: new Set([...ticks.unticked].filter((key) => !inDirectory(key))), ticked: new Set([...ticks.ticked].filter((key) => !inDirectory(key))) };
+    replaceStatus(result.status);
+    void load();
+  }
 
   /** Every git file shown, numbered once, in display order: each directory's files, then its ignored files if shown. */
   const entries = $derived(
@@ -130,11 +178,20 @@
     const id = project.id;
     loading = true;
     try {
-      const result = await getDiff(id);
+      // The branches load beside the diff; without them there is no Push, but the review still works.
+      let gitError: string | null = null;
+      const [result, git] = await Promise.all([
+        getDiff(id),
+        getGitStatus(id).catch((cause: unknown) => {
+          gitError = errorMessage(cause, "Could not read the branches");
+          return null;
+        }),
+      ]);
       if (project.id !== id) return;
       diff = result;
+      if (git !== null) branches = git.directories;
       whole = {};
-      error = null;
+      error = gitError;
     } catch (cause) {
       if (project.id === id) error = errorMessage(cause, "Could not read the changes");
     } finally {
@@ -189,6 +246,8 @@
     const { id, vaultId } = project;
     untrack(() => {
       diff = null;
+      branches = [];
+      ticks = { unticked: new Set(), ticked: new Set() };
       openKey = null;
       collapsed = new Set();
       showIgnored = new Set();
@@ -260,25 +319,37 @@
     <ReviewPanel {project} {projectThreads} worktrees={worktreeDirectories} />
     <nav class="files" aria-label="Files">
       {#if diff !== null}
-        {#each groups as { directory, reviewed, ignored, showIgnored: ignoredShown } (directory.directory)}
+        {#each groups as { directory, reviewed, ignored, showIgnored: ignoredShown, toCommit, ignoredTicked, status } (directory.directory)}
           {@const count = directory.git ? reviewed.length : directory.changes.length}
           <div class="folder mono" title={directory.directory}>
             {directoryLabel(directory.directory)} · {count}
             {count === 1 ? "file" : "files"}
           </div>
           {#if directory.git}
-            {#snippet entry(file: DiffFile)}
+            {#if status !== undefined}
+              <BranchBar projectId={project.id} {status} onpushed={replaceStatus} />
+            {/if}
+            {#snippet entry(file: DiffFile, isIgnored: boolean)}
               {@const key = keyOf(directory.directory, file.path)}
-              <button type="button" class="entry mono" aria-current={openKey === key ? "true" : undefined} onclick={() => show(key, null)}>
-                <span class="status" data-status={file.status} title={file.status}>{LETTER[file.status]}</span>
-                <span class="path" title={file.oldPath === null ? file.path : `${file.oldPath} → ${file.path}`}>{file.path}</span>
-                <span class="counts">
-                  {#if file.binary}bin{:else}<span class="ins">+{file.additions}</span> <span class="del">−{file.deletions}</span>{/if}
-                </span>
-              </button>
+              <div class="row">
+                <input
+                  type="checkbox"
+                  class="tick"
+                  checked={isTicked(ticks, key, isIgnored)}
+                  onchange={() => toggleTick(key, isIgnored)}
+                  aria-label="Commit {file.path}"
+                />
+                <button type="button" class="entry mono" aria-current={openKey === key ? "true" : undefined} onclick={() => show(key, null)}>
+                  <span class="status" data-status={file.status} title={file.status}>{LETTER[file.status]}</span>
+                  <span class="path" title={file.oldPath === null ? file.path : `${file.oldPath} → ${file.path}`}>{file.path}</span>
+                  <span class="counts">
+                    {#if file.binary}bin{:else}<span class="ins">+{file.additions}</span> <span class="del">−{file.deletions}</span>{/if}
+                  </span>
+                </button>
+              </div>
             {/snippet}
             {#each reviewed as file (file.path)}
-              {@render entry(file)}
+              {@render entry(file, false)}
             {:else}
               <p class="none">{ignored.length === 0 ? "No changes from HEAD." : "Only ignored files changed."}</p>
             {/each}
@@ -289,10 +360,22 @@
               {#if ignoredShown}
                 <div class="ignored-files" role="group" aria-label="Ignored files in {directoryLabel(directory.directory)}">
                   {#each ignored as file (file.path)}
-                    {@render entry(file)}
+                    {@render entry(file, true)}
                   {/each}
                 </div>
               {/if}
+            {/if}
+            {#if directory.files.length > 0}
+              <CommitBox
+                projectId={project.id}
+                {directory}
+                label={directoryLabel(directory.directory)}
+                files={toCommit}
+                ignoredCount={ignoredTicked}
+                running={runningIn(directory.directory)}
+                oncommitted={(result) => committedIn(directory.directory, result)}
+                onfailed={load}
+              />
             {/if}
           {:else}
             <p class="none">Not a git repository: no diff. These files changed since the project was registered or last reviewed.</p>
@@ -321,7 +404,7 @@
             <span class="mono">{totals.files} {totals.files === 1 ? "file" : "files"} · <span class="ins">+{totals.additions}</span> <span class="del">−{totals.deletions}</span>{totals.ignored === 0 ? "" : ` · ${totals.ignored} ignored`}</span> ·
           {/if}
           Compared with HEAD: staged and unstaged changes together, untracked files as new. The overview's changed-file list compares with
-          your last review instead. Undo in lazygit.
+          your last review instead. Commit ticked files beside the list; undo in lazygit.
         </p>
       </div>
       <div class="tools">
@@ -417,6 +500,20 @@
     font-size: 12px;
     color: var(--ink-3);
     overflow-wrap: anywhere;
+  }
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+  .row .entry {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .tick {
+    flex: none;
+    margin: 0 4px 0 0;
+    accent-color: var(--accent);
   }
   .entry {
     display: grid;
@@ -604,6 +701,10 @@
     }
     .slot:not(.current) {
       display: none;
+    }
+    .tick {
+      width: 20px;
+      height: 20px;
     }
     .back {
       display: block;

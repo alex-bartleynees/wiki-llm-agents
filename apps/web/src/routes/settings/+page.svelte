@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import AppearanceSettings from "#lib/features/appearance/AppearanceSettings.svelte";
+  import CommitMessageSettings from "#lib/features/projects/CommitMessageSettings.svelte";
   import ProviderList from "#lib/features/threads/ProviderList.svelte";
   import AddVaultForm from "#lib/features/vaults/AddVaultForm.svelte";
   import VaultList from "#lib/features/vaults/VaultList.svelte";
@@ -23,6 +24,12 @@
     starts its server.
   </p>
   <ProviderList />
+  <h1 class="next">Commit messages</h1>
+  <p class="hint">
+    <strong>Suggest message</strong> in a project's Diff view sends the ticked files' diffs and the last ten commit subjects to this
+    provider, in one call without tools, and puts the answer in the message box to edit.
+  </p>
+  <CommitMessageSettings />
 </section>
 
 <style>
