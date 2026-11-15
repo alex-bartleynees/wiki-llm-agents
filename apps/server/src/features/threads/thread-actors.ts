@@ -1,6 +1,8 @@
+import type { SaveNoteResponse } from "@wiki-agents/contracts/notes/save-note/response";
 import type { ContextNote } from "@wiki-agents/contracts/threads/context";
 import type { RequestAnswer, ThreadSummary } from "@wiki-agents/contracts/threads/model";
 import { Context, Effect, Layer, RcMap } from "effect";
+import type { AgentNoteWrite } from "../notes/agent-write/use-case.js";
 import { makeThreadActor, type OpenedNote, type ScheduleReceipt, type SendOptions, type ThreadActor } from "./thread-actor.js";
 
 /** How long a ThreadActor with nothing running stays in memory after its last use. */
@@ -21,6 +23,7 @@ export interface ThreadActorsService {
   readonly setModel: (threadId: string, model: string) => Effect.Effect<ThreadSummary, StartError | Effect.Error<ReturnType<ThreadActor["setModel"]>>>;
   readonly setAgent: (threadId: string, agentId: string | null) => Effect.Effect<ThreadSummary, StartError | Effect.Error<ReturnType<ThreadActor["setAgent"]>>>;
   readonly setDone: (threadId: string, done: boolean) => Effect.Effect<ThreadSummary, StartError | Effect.Error<ReturnType<ThreadActor["setDone"]>>>;
+  readonly writeNote: (threadId: string, input: AgentNoteWrite) => Effect.Effect<SaveNoteResponse, StartError | Effect.Error<ReturnType<ThreadActor["writeNote"]>>>;
   readonly recordContext:(threadId: string, note: ContextNote) => Effect.Effect<void, StartError | Effect.Error<ReturnType<ThreadActor["recordContext"]>>>;
   readonly openNote: (threadId: string, note: OpenedNote) => Effect.Effect<void, StartError | Effect.Error<ReturnType<ThreadActor["openNote"]>>>;
   readonly scheduleSaved: (threadId: string, receipt: ScheduleReceipt) => Effect.Effect<void, StartError | Effect.Error<ReturnType<ThreadActor["scheduleSaved"]>>>;
@@ -47,6 +50,7 @@ export const ThreadActorsLive = Layer.effect(
       setModel: (threadId, model) => withActor(threadId, (actor) => actor.setModel(model)),
       setAgent: (threadId, agentId) => withActor(threadId, (actor) => actor.setAgent(agentId)),
       setDone: (threadId, done) => withActor(threadId, (actor) => actor.setDone(done)),
+      writeNote: (threadId, input) => withActor(threadId, (actor) => actor.writeNote(input)),
       recordContext: (threadId, note) => withActor(threadId, (actor) => actor.recordContext(note)),
       openNote: (threadId, note) => withActor(threadId, (actor) => actor.openNote(note)),
       scheduleSaved: (threadId, receipt) => withActor(threadId, (actor) => actor.scheduleSaved(receipt)),

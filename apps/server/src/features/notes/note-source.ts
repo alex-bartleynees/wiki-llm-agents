@@ -25,3 +25,10 @@ export const readNoteSource = Effect.fnUntraced(function* (root: string, input: 
     modifiedAt: Option.match(info.mtime, { onNone: () => 0, onSome: (date) => date.getTime() }),
   };
 });
+
+/** The note's source if it exists; `None` when there is no file at the path. */
+export const findNoteSource = (root: string, input: string) =>
+  readNoteSource(root, input).pipe(
+    Effect.map(Option.some),
+    Effect.catchTag("VaultFileNotFound", () => Effect.succeed(Option.none())),
+  );

@@ -15,6 +15,8 @@ import type { ThreadBus } from "../threads/thread-bus.js";
 import type { VaultRepository } from "../vaults/repository.js";
 import { ProjectIgnoredFiles, projectIgnoredFiles } from "./tools/project-ignored-files/tool.js";
 import { VaultBacklinks, vaultBacklinks } from "./tools/vault-backlinks/tool.js";
+import { VaultCreateNote, vaultCreateNote } from "./tools/vault-create-note/tool.js";
+import { VaultEditNote, vaultEditNote } from "./tools/vault-edit-note/tool.js";
 import { VaultNoteInfo, vaultNoteInfo } from "./tools/vault-note-info/tool.js";
 import { VaultOpenNote, vaultOpenNote } from "./tools/vault-open-note/tool.js";
 import { VaultRecentChanges, vaultRecentChanges } from "./tools/vault-recent-changes/tool.js";
@@ -43,6 +45,8 @@ export const VaultToolkit = Toolkit.make(
   VaultStatus,
   VaultReadNote,
   VaultRelated,
+  VaultCreateNote,
+  VaultEditNote,
   ProjectIgnoredFiles,
   ScheduleCreate,
   ScheduleList,
@@ -77,6 +81,8 @@ export const VaultToolkitLive = VaultToolkit.toLayer(
     const services = yield* Effect.context<HandlerServices>();
     const withServices = <A, E, R>(effect: Effect.Effect<A, E, R>) => Effect.provideContext(effect, services) as Effect.Effect<A, E, Exclude<R, HandlerServices>>;
     return VaultToolkit.of({
+      vault_create_note: (params) => withServices(vaultCreateNote(params)),
+      vault_edit_note: (params) => withServices(vaultEditNote(params)),
       vault_read_note: (params) => withServices(vaultReadNote(params)),
       vault_related: (params) => withServices(vaultRelated(params)),
       vault_search: (params) => withServices(vaultSearch(params)),

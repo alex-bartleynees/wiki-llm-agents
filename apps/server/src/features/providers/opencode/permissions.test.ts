@@ -1,5 +1,6 @@
 import { type Autonomy, DEFAULT_AUTONOMY } from "@wiki-agents/contracts/agents/model";
 import { describe, expect, it } from "vitest";
+import { VAULT_WRITE_TOOLS } from "../../mcp/vault-tools.js";
 import type { OpenCodePermissionRule } from "./api.js";
 import { enforcedAutonomy, permissionRules, ruleEffect } from "./permissions.js";
 
@@ -68,6 +69,17 @@ describe("autonomy → OpenCode permission rules", () => {
     for (const decided of [strict, open]) {
       expect(decided).toMatchObject({ question: "allow", todowrite: "allow", external_directory: "ask", subagent: "ask", some_mcp_tool: "ask" });
     }
+  });
+});
+
+describe("vault write transport", () => {
+  it("leaves exact write approvals to the server, while blocking other threads' tools", () => {
+    const rules = permissionRules({ ...DEFAULT_AUTONOMY, read: "deny", create: "deny", edit: "deny" }, "wiki-agents-thread-1");
+    for (const tool of VAULT_WRITE_TOOLS) {
+      expect(ruleEffect(rules, `wiki-agents-thread-1_${tool}`, "*")).toBe("allow");
+      expect(ruleEffect(rules, `wiki-agents-thread-2_${tool}`, "*")).toBe("deny");
+    }
+    expect(ruleEffect(rules, "wiki-agents-thread-1_vault_search", "*")).toBe("deny");
   });
 });
 

@@ -5,6 +5,7 @@ import { NodeFileSystem } from "@effect/platform-node";
 import { type Autonomy, DEFAULT_AUTONOMY } from "@wiki-agents/contracts/agents/model";
 import { Effect } from "effect";
 import { afterAll, describe, expect, it } from "vitest";
+import { VAULT_WRITE_TOOLS } from "../../mcp/vault-tools.js";
 import { decide, enforcedAutonomy } from "./permissions.js";
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), "wiki-agents-claude-permissions-")));
@@ -77,6 +78,13 @@ describe("autonomy → Claude Code tool decisions", () => {
     expect(await decision("Agent", { prompt: "go" }, TRUSTED)).toBe("ask");
     expect(await decision("AskUserQuestion", { questions: [] }, TRUSTED)).toBe("ask");
     expect(await decision("TodoWrite", { todos: [] })).toBe("allow");
+  });
+
+  it("leaves its own vault write approvals to the server, even when read is denied", async () => {
+    for (const tool of VAULT_WRITE_TOOLS) {
+      expect(await decision(`mcp__wiki-agents-thread-1__${tool}`, {}, { ...DEFAULT_AUTONOMY, read: "deny" })).toBe("allow");
+      expect(await decision(`mcp__wiki-agents-thread-2__${tool}`, {}, TRUSTED)).toBe("deny");
+    }
   });
 
   it("notes where Claude Code's enforcement differs from the file", () => {

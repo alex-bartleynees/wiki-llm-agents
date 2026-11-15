@@ -12,6 +12,7 @@ import { ChangeLogLive } from "../features/changes/sqlite-repository.js";
 import { DeliveryChannels, inAppChannel } from "../features/inbox/delivery.js";
 import { InboxLive } from "../features/inbox/inbox.js";
 import { InboxBus, InboxBusLive } from "../features/inbox/inbox-bus.js";
+import { NoteWriteLockLive } from "../features/notes/write-lock.js";
 import { type DigestSignal, DigestSignalLive } from "../features/notifications/digest.js";
 import { type PushSender, PushSenderLive } from "../features/notifications/push-sender.js";
 import type { NotificationsRepository } from "../features/notifications/repository.js";
@@ -123,6 +124,7 @@ export const makeHttpApp = (options: AppOptions) =>
     Layer.provideMerge(options.pushSender ?? PushSenderLive),
     Layer.provideMerge(Layer.mergeAll(
         RepositoriesLive,
+        NoteWriteLockLive,
         options.providers ?? ProviderRegistryLive,
         options.agents,
         options.attachments,

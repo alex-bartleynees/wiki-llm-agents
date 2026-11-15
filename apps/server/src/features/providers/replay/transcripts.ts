@@ -9,6 +9,16 @@ import type { Transcript } from "./transcript.js";
  */
 export const TRANSCRIPTS: ReadonlyArray<Transcript> = [
   {
+    name: "vault-tools",
+    keywords: ["vaulttools"],
+    steps: [
+      { type: "vault-create", path: "MCP capture.md", content: "---\ntags: [test]\n---\n# MCP capture\n\nCaptured through vault tools.\n" },
+      { type: "vault-edit", path: "MCP capture.md", content: "---\ntags: [test]\n---\n# MCP capture\n\nCaptured through vault tools.\n\nEdited after a complete source read.\n" },
+      { type: "text", text: "Created and edited [[MCP capture]] through the vault tools." },
+    ],
+    usage: { inputTokens: 0, outputTokens: 0, costUsd: null },
+  },
+  {
     name: "approval",
     keywords: ["approval", "edit", "change", "update"],
     steps: [

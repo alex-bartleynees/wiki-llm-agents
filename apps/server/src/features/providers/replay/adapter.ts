@@ -4,9 +4,10 @@ import { formatSize } from "@wiki-agents/contracts/attachments/model";
 import type { RequestAnswer, RequestPrompt } from "@wiki-agents/contracts/threads/model";
 import { createTwoFilesPatch } from "diff";
 import { Context, Deferred, Effect, Option, Stream } from "effect";
-import { type ProviderAdapter, ProviderError, type ProviderEvent, type ProviderSession, type TurnImage } from "../port.js";
+import { type ProviderAdapter, ProviderError, type ProviderEvent, type ProviderSession, type SessionSetup, type TurnImage } from "../port.js";
 import type { Step } from "./transcript.js";
 import { chooseTranscript } from "./transcripts.js";
+import { writeVaultNote } from "./vault-tools.js";
 
 /** Multiplies every replay delay; 0 plays instantly. */
 export const ReplaySpeed = Context.Reference<number>("ReplaySpeed", { defaultValue: () => 1 });
@@ -106,6 +107,7 @@ const transcriptFor = (text: string) => chooseTranscript(text.split(/^Attached f
  * same ids as before it.
  */
 const makeSession = (cwd: string) => Effect.gen(function* () {
+  let vaultTools: SessionSetup["vaultTools"] = null;
   const answers = new Map<string, Deferred.Deferred<RequestAnswer>>();
   const answerFor = Effect.fnUntraced(function* (requestId: string) {
     const existing = answers.get(requestId);
@@ -154,6 +156,12 @@ const makeSession = (cwd: string) => Effect.gen(function* () {
   const stepEvents = (turnId: string, step: Exclude<Step, { type: "fail" }>, path: string, vars: Vars): Events => {
     const id = `${turnId}:${path}`;
     switch (step.type) {
+      case "vault-create":
+      case "vault-edit":
+        return Stream.concat(
+          Stream.succeed<ProviderEvent>({ _tag: "tool.called", turnId, callId: id, name: step.type === "vault-create" ? "vault_create_note" : "vault_edit_note", input: step.path }),
+          Stream.fromEffect(Effect.map(writeVaultNote(vaultTools, step.type, step.path, step.content), (output): ProviderEvent => ({ _tag: "tool.finished", turnId, callId: id, status: "succeeded", output }))),
+        );
       case "text": {
         const text = step.text.replace(/\{(\w+)\}/g, (match, name: string) => vars[name] ?? match);
         return Stream.fromIterable(chunks(text)).pipe(
@@ -215,7 +223,8 @@ const makeSession = (cwd: string) => Effect.gen(function* () {
 
   const session: ProviderSession = {
     nativeSessionId: null,
-    startTurn: ({ turnId, text, images }) => {
+    startTurn: ({ turnId, text, images, setup }) => {
+      vaultTools = setup.vaultTools;
       const transcript = transcriptFor(text);
       const received = receivedText(text, images);
       return untilFinished(
@@ -228,8 +237,9 @@ const makeSession = (cwd: string) => Effect.gen(function* () {
         ),
       );
     },
-    resumeTurn: ({ turnId, text, pendingRequestIds }) =>
+    resumeTurn: ({ turnId, text, pendingRequestIds, setup }) =>
       Effect.sync(() => {
+        vaultTools = setup.vaultTools;
         const transcript = transcriptFor(text);
         const requestId = pendingRequestIds[0];
         if (requestId === undefined) return Option.none();

@@ -66,3 +66,28 @@ test("refuses to undo a change made over since, and shows the three versions", a
   await expect(versions.getByRole("region", { name: "As the turn left it" })).toBeVisible();
   await expect(versions.getByRole("region", { name: "Now" })).toBeVisible();
 });
+
+test("creates and edits through vault tools with exact approvals, review and undo", async ({ page }, info) => {
+  await openVault(page);
+  await tab(page, info, "Chat");
+  await useReplay(page);
+  await page.getByRole("button", { name: "New thread", exact: true }).click();
+  const message = page.getByRole("textbox", { name: "Message" });
+  await message.fill("vaulttools");
+  await message.press("Enter");
+  const approval = page.getByRole("region", { name: "Approval" });
+  await expect(approval).toContainText("Create MCP capture.md");
+  await expect(approval.getByLabel("Proposed change to MCP capture.md")).toContainText("+Captured through vault tools.");
+  await approval.getByRole("button", { name: "Apply" }).click();
+  const edit = page.getByRole("region", { name: "Approval" }).last();
+  await expect(edit).toContainText("Edit MCP capture.md");
+  await expect(edit.getByLabel("Proposed change to MCP capture.md")).toContainText("+Edited after a complete source read.");
+  await edit.getByRole("button", { name: "Apply" }).click();
+  await expect(page.locator(".turn-end").last()).toHaveText(/^Done/);
+  const change = page.getByRole("region", { name: "Changes in this turn" }).last().getByRole("listitem", { name: "Created MCP capture.md" });
+  await expect(change).toBeVisible();
+  await change.getByText("Diff", { exact: true }).click();
+  await expect(change.getByLabel("Diff of MCP capture.md")).toContainText("Edited after a complete source read.");
+  await change.getByRole("button", { name: "Undo" }).click();
+  await expect(change).toContainText("Undone");
+});

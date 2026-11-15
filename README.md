@@ -127,6 +127,24 @@ first edit.
   them; **recent notes** are kept per device in `localStorage`. The note's
   **Outline** lists its headings.
 
+### Vault write tools
+
+Agents can use `vault_create_note { path, content }` for an absent Markdown note,
+and `vault_edit_note { path, content, baseHash }` to replace a note after a complete
+`vault_read_note` in the current turn. A heading-only or truncated read cannot
+prepare a replacement. Reads keep 16,000 characters by default; `full: true`
+reads up to 1,000,000 characters for editing larger notes.
+
+Both tools check the current agent's create/edit autonomy and vault/folder scope.
+When approval is needed, the conversation shows the exact proposed diff. Denial,
+turn interruption, create collisions and stale hashes leave the note intact.
+Instruction files (`AGENTS.md`, `CLAUDE.md`), hidden paths and symlinks outside the
+vault are protected. Successful writes return the path and SHA-256, refresh the
+index, and appear in the calling turn's changes with review and version-checked
+undo. Agents maintain reciprocal links, `index.md` and `log.md` with separate
+writes; there is no multi-note transaction. The free replay prompt `vaulttools`
+exercises create → read → edit through the real MCP endpoint.
+
 ### Threads
 
 The right-hand pane (the Chat tab on phone) holds the vault's agent threads.

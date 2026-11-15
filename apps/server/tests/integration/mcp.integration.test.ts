@@ -6,7 +6,7 @@ import { Effect, Exit, Option, Scope } from "effect";
 import { TestClock } from "effect/testing";
 import { McpTokens } from "../../src/features/mcp/tokens.js";
 import { VAULT_TOOL_NAMES } from "../../src/features/mcp/toolkit.js";
-import { VaultTools } from "../../src/features/mcp/vault-tools.js";
+import { VAULT_WRITE_TOOLS, VaultTools } from "../../src/features/mcp/vault-tools.js";
 import { KEYWORD_ONLY } from "../../src/features/mcp/tools/vault-search/tool.js";
 import { NO_ATTRIBUTION } from "../../src/features/mcp/tools/vault-recent-changes/tool.js";
 import { mcpSession, postMcp, tokenFor } from "./infrastructure/mcp.js";
@@ -110,6 +110,8 @@ layer(TestApp)("vault MCP server", (it) => {
         "vault_status",
         "vault_read_note",
         "vault_related",
+        "vault_create_note",
+        "vault_edit_note",
         "project_ignored_files",
         "schedule_create",
         "schedule_list",
@@ -121,7 +123,7 @@ layer(TestApp)("vault MCP server", (it) => {
       ]);
       for (const tool of tools) {
         expect(tool.inputSchema.additionalProperties, tool.name).toBe(false);
-        expect(tool.annotations.readOnlyHint, tool.name).toBe(!tool.name.startsWith("schedule_") || tool.name === "schedule_list");
+        expect(tool.annotations.readOnlyHint, tool.name).toBe((!tool.name.startsWith("schedule_") || tool.name === "schedule_list") && !VAULT_WRITE_TOOLS.includes(tool.name));
       }
     }),
   );

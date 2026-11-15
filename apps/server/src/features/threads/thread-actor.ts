@@ -1,4 +1,5 @@
 import type { Attachment } from "@wiki-agents/contracts/attachments/model";
+import type { SaveNoteResponse } from "@wiki-agents/contracts/notes/save-note/response";
 import { AttachmentStore } from "../attachments/attachment-store.js";
 import { ChangeTracker } from "../changes/change-tracker.js";
 import { withEditWarnings } from "../changes/proposed-edit.js";
@@ -6,7 +7,9 @@ import { closeTurnChanges } from "../changes/turn-changes.js";
 import { Indexer } from "../indexing/indexer.js";
 import { VaultIndex } from "../indexing/vault-index.js";
 import { VaultRepository } from "../vaults/repository.js";
+import { AgentNoteWriteRefused, type AgentNoteWrite, completeRead, prepareAgentNoteWrite } from "../notes/agent-write/use-case.js";
 import { resolveLinks } from "../notes/resolve-links/use-case.js";
+import { saveNote, type SaveNoteInput } from "../notes/save-note/use-case.js";
 import { loadContext } from "./note-context.js";
 import { attachedFilesText } from "./attached-files.js";
 import { randomUUID } from "node:crypto";
@@ -26,9 +29,13 @@ import { type PendingRequest, ThreadRepository } from "./repository.js";
 import { ThreadBus } from "./thread-bus.js";
 import { threadWorkspace } from "./workspace.js";
 
+export type NoteWriteError = AgentNoteWriteRefused | Effect.Error<ReturnType<typeof saveNote>> | Effect.Error<ReturnType<typeof prepareAgentNoteWrite>> | DbError | NoTurnRunning;
+type NoteWriteReply = Deferred.Deferred<SaveNoteResponse, NoteWriteError>;
+
 /** Messages a ThreadActor handles, one at a time, in the order they arrive. */
 type Message =
   | { readonly _tag: "Resume" }
+  | { readonly _tag: "WriteNote"; readonly input: AgentNoteWrite; readonly reply: NoteWriteReply }
   | { readonly _tag: "Context"; readonly note: ContextNote; readonly reply: Deferred.Deferred<void, NoTurnRunning | DbError> }
   | {
       readonly _tag: "SendMessage";
@@ -88,6 +95,7 @@ export interface ThreadActor {
    * dispatched or resumed holds the actor by then, so whoever started it can let go.
    */
   readonly resumed: Effect.Effect<void>;
+  readonly writeNote: (input: AgentNoteWrite) => Effect.Effect<SaveNoteResponse, NoteWriteError>;
   readonly recordContext: (note: ContextNote) => Effect.Effect<void, NoTurnRunning | DbError>;
   readonly sendMessage: (text: string, notes?: ReadonlyArray<ContextNote>, options?: SendOptions) => Effect.Effect<string, ThreadBusy | DbError>;
   /** Stops the running turn; returns its id. */
@@ -150,6 +158,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
   const contextServices = yield* Effect.context<FileSystem.FileSystem | VaultIndex | VaultRepository>();
   const changeServices = yield* Effect.context<Indexer | VaultIndex | ChangeTracker | FileSystem.FileSystem>();
   const tracker = yield* ChangeTracker;
+  const noteWriteServices = yield* Effect.context<Effect.Services<ReturnType<typeof prepareAgentNoteWrite>> | Effect.Services<ReturnType<typeof saveNote>>>();
   const attachmentStore = yield* AttachmentStore;
   const actorScope = yield* Effect.scope;
   const mailbox = yield* Queue.unbounded<Message>();
@@ -160,6 +169,9 @@ export const makeThreadActor = Effect.fnUntraced(function* (
   let turn: RunningTurn | undefined;
   const pending = new Map<string, PendingRequest>();
   let replyText = "";
+  const noteWrites = new Map<string, { input: AgentNoteWrite; reply: NoteWriteReply }>();
+  /** `completeRead` keys of the running turn's whole-note reads; they authorize edits. */
+  const completeReads = new Set<string>();
 
   /** Canonical folders of the attachments sent in this thread; read from its history on first use. */
   let attachmentFolders: Set<string> | undefined;
@@ -276,6 +288,9 @@ export const makeThreadActor = Effect.fnUntraced(function* (
       ...(changes.length === 0 ? [] : [{ _tag: "turn.changes", turnId: current.id, changes } satisfies ThreadEvent]),
       { _tag: "turn.finished", turnId: current.id, outcome, usage, reason },
     ]);
+    for (const write of noteWrites.values()) yield* Deferred.fail(write.reply, new AgentNoteWriteRefused({ message: "The turn ended before the write was approved. No note was written." }));
+    noteWrites.clear();
+    completeReads.clear();
     pending.clear();
     turn = undefined;
     if (current.fiber !== undefined) yield* Fiber.interrupt(current.fiber);
@@ -309,7 +324,11 @@ export const makeThreadActor = Effect.fnUntraced(function* (
 
   const resume = Effect.gen(function* () {
     const recovery = yield* repository.recovery(threadId);
-    for (const request of recovery.pendingRequests) pending.set(request.requestId, request);
+    for (const request of recovery.pendingRequests) {
+      if (request.requestId.startsWith("vault-write:")) {
+        yield* record([{ _tag: "request.resolved", turnId: request.turnId, requestId: request.requestId, answer: null }]);
+      } else pending.set(request.requestId, request);
+    }
     if (Option.isNone(recovery.openTurn)) return;
     const open = recovery.openTurn.value;
     const current: RunningTurn = { id: open.id, unattended: open.unattended, fiber: undefined, hold: undefined };
@@ -324,7 +343,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
               text: open.input,
               images: [],
               setup,
-              pendingRequestIds: recovery.pendingRequests.filter((request) => request.turnId === open.id).map((request) => request.requestId),
+              pendingRequestIds: [...pending.values()].filter((request) => request.turnId === open.id).map((request) => request.requestId),
             }),
           ),
         ).pipe(Effect.catch(() => Effect.succeed(Option.none())))
@@ -372,6 +391,33 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     return current.id;
   });
 
+  /** Checks the write against the thread's current agent, the note on disk and this turn's reads. */
+  const prepareNote = Effect.fnUntraced(function* (input: AgentNoteWrite, turnId: string) {
+    const { agentId } = yield* repository.providerSession(threadId);
+    return yield* prepareAgentNoteWrite(agentId, vault.id, turnId, input, completeReads).pipe(Effect.provideContext(noteWriteServices));
+  });
+  const saveNoteOfTurn = Effect.fnUntraced(function* (input: SaveNoteInput & { readonly turnId: string }) {
+    const saved = yield* saveNote(input).pipe(Effect.provideContext(noteWriteServices));
+    yield* record([{ _tag: "notice", turnId: input.turnId, text: `${input.baseHash === null ? "Created" : "Edited"} ${saved.path} (sha256 ${saved.hash}).` }]);
+    return saved;
+  });
+  /** After approval: permissions and the note may have changed while the request was open. */
+  const commitApproved = Effect.fnUntraced(function* (input: AgentNoteWrite, turnId: string) {
+    if (turn?.id !== turnId) return yield* new NoTurnRunning({ threadId });
+    return yield* saveNoteOfTurn((yield* prepareNote(input, turnId)).input);
+  });
+  const writeNote = Effect.fnUntraced(function* (input: AgentNoteWrite, reply: NoteWriteReply) {
+    const current = turn;
+    if (current === undefined) return yield* new NoTurnRunning({ threadId });
+    const prepared = yield* prepareNote(input, current.id);
+    if (prepared.permission === "allow") return yield* Effect.asVoid(Deferred.done(reply, yield* Effect.exit(saveNoteOfTurn(prepared.input))));
+    if (current.unattended) return yield* new AgentNoteWriteRefused({ message: "Nobody is watching this scheduled run, so the note write was denied." });
+    const requestId = `vault-write:${randomUUID()}`;
+    yield* record([{ _tag: "request.opened", turnId: current.id, requestId, prompt: prepared.prompt }]);
+    pending.set(requestId, { requestId, turnId: current.id, prompt: prepared.prompt });
+    noteWrites.set(requestId, { input, reply });
+  });
+
   const answerRequest = Effect.fnUntraced(function* (requestId: string, answer: RequestAnswer) {
     const request = pending.get(requestId);
     if (request === undefined) {
@@ -382,6 +428,18 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     if (request.prompt._tag !== answer._tag) return yield* new WrongAnswerKind({ requestId });
     yield* record([{ _tag: "request.resolved", turnId: request.turnId, requestId, answer }]);
     pending.delete(requestId);
+    const write = noteWrites.get(requestId);
+    if (write !== undefined) {
+      noteWrites.delete(requestId);
+      if (answer._tag !== "approval" || answer.decision !== "approve") {
+        yield* Deferred.fail(write.reply, new AgentNoteWriteRefused({ message: "The note write was denied. No note was written." }));
+      } else {
+        yield* Deferred.done(write.reply, yield* Effect.exit(commitApproved(write.input, request.turnId)));
+      }
+      return;
+    }
+    // An MCP approval cannot be replayed after a restart: its in-memory request is gone.
+    if (requestId.startsWith("vault-write:")) return;
     const answered = yield* Effect.result(
       currentSetup.pipe(
         Effect.flatMap(openSession),
@@ -460,6 +518,8 @@ export const makeThreadActor = Effect.fnUntraced(function* (
 
   const handle = (message: Message): Effect.Effect<void, DbError> => {
     switch (message._tag) {
+      case "WriteNote":
+        return writeNote(message.input, message.reply).pipe(Effect.catch((error) => Effect.asVoid(Deferred.fail(message.reply, error))), Effect.asVoid);
       case "Resume":
         return Effect.ensuring(resume, Deferred.succeed(resumeDone, undefined));
       case "SendMessage":
@@ -482,6 +542,8 @@ export const makeThreadActor = Effect.fnUntraced(function* (
         return Effect.asVoid(Effect.flatMap(Effect.exit(Effect.gen(function* () {
           if (turn === undefined) return yield* new NoTurnRunning({ threadId });
           yield* record([{ _tag: "note.context", turnId: turn.id, note: message.note }]);
+          const read = completeRead(message.note);
+          if (read !== undefined) completeReads.add(read);
         })), (exit) => Deferred.done(message.reply, exit)));
       case "OpenNote":
         return Effect.asVoid(Effect.flatMap(Effect.exit(openNote(message.note)), (exit) => Deferred.done(message.reply, exit)));
@@ -521,6 +583,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
 
   const actor: ThreadActor = {
     resumed: Deferred.await(resumeDone),
+    writeNote: (input) => ask((reply) => ({ _tag: "WriteNote", input, reply })),
     recordContext: (note) => ask((reply) => ({ _tag: "Context", note, reply })),
     sendMessage: (text, notes = [], options = {}) => ask((reply) => ({ _tag: "SendMessage", text, notes, options, reply })),
     interrupt: ask((reply) => ({ _tag: "Interrupt", reply })),

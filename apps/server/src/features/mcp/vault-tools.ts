@@ -29,3 +29,9 @@ export class VaultTools extends Context.Service<VaultTools, VaultToolsService>()
 /** The provider's name for a thread's entry. Other threads' entries share the prefix. */
 export const ENTRY_PREFIX = "wiki-agents-";
 export const entryName = (threadId: string) => `${ENTRY_PREFIX}${threadId}`;
+
+/**
+ * The tools that write notes. The server checks the agent's live create/edit autonomy
+ * and asks with the exact diff itself, so providers let them through.
+ */
+export const VAULT_WRITE_TOOLS: ReadonlyArray<string> = ["vault_create_note", "vault_edit_note"];

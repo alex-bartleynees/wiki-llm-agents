@@ -6,7 +6,7 @@ import { resolveInVault } from "../../shared/vault/path-guard.js";
 import { InvalidVaultPath } from "../../shared/vault/errors.js";
 
 /** Exact content hash; a selection is verified against the current file before inclusion. */
-export const loadContext = Effect.fnUntraced(function* (vaultId: string, reference: typeof NoteReference.Type, reason: ContextNote["reason"] = "supplied", heading?: string) {
+export const loadContext = Effect.fnUntraced(function* (vaultId: string, reference: typeof NoteReference.Type, reason: ContextNote["reason"] = "supplied", heading?: string, maxCharacters = 16000) {
   const vault = yield* findVault(vaultId);
   if (!reference.path.toLowerCase().endsWith(".md")) return yield* new InvalidVaultPath({ path: reference.path });
   const { path, absolute } = yield* resolveInVault(vault.rootPath, reference.path);
@@ -28,7 +28,7 @@ export const loadContext = Effect.fnUntraced(function* (vaultId: string, referen
     if (start < 0) return yield* new InvalidVaultPath({ path: `${path}#${heading}` });
     selected = lines.slice(start, end).join("\n");
   }
-  const content = selected.slice(0, 16000);
+  const content = selected.slice(0, maxCharacters);
   return { path, heading: heading ?? null, reason, hash: createHash("sha256").update(markdown).digest("hex"), content,
-    notices: selected.length > content.length ? ["Note context truncated to 16000 characters; read the file for the remainder."] : [] } satisfies ContextNote;
+    notices: selected.length > content.length ? [`Note context truncated to ${maxCharacters} characters; ${maxCharacters === 16000 ? "use vault_read_note with full: true for a complete source read" : "this note exceeds the full-source limit"}.`] : [] } satisfies ContextNote;
 });

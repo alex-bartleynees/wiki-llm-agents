@@ -1,5 +1,5 @@
 import type { Autonomy, AutonomyLevel } from "@wiki-agents/contracts/agents/model";
-import { ENTRY_PREFIX } from "../../mcp/vault-tools.js";
+import { ENTRY_PREFIX, VAULT_WRITE_TOOLS } from "../../mcp/vault-tools.js";
 import type { OpenCodePermissionRule } from "./api.js";
 
 /**
@@ -28,7 +28,8 @@ const fileWrites = (autonomy: Autonomy) => strictest(autonomy.create, autonomy.e
  * OpenCode's permission action for an MCP server's tools: `<server>_<tool>`, with
  * anything outside `[A-Za-z0-9_-]` replaced by `_` in both parts.
  */
-export const mcpToolsAction = (server: string) => `${server.replace(/[^a-zA-Z0-9_-]/g, "_")}_*`;
+export const mcpToolAction = (server: string, tool: string) => `${server.replace(/[^a-zA-Z0-9_-]/g, "_")}_${tool}`;
+export const mcpToolsAction = (server: string) => mcpToolAction(server, "*");
 
 /**
  * Autonomy as OpenCode session rules. OpenCode applies the last rule that matches,
@@ -59,7 +60,11 @@ export const permissionRules = (
     // Every thread in a folder sees every thread's vault tools entry; use only your own.
     { action: `${ENTRY_PREFIX}*`, resource: "*", effect: "deny" },
     // The vault tools read the vault (and open notes in the app), so they follow `read`.
-    ...(vaultTools === null ? [] : [{ action: mcpToolsAction(vaultTools), resource: "*", effect: autonomy.read } as const]),
+    ...(vaultTools === null ? [] : [
+      { action: mcpToolsAction(vaultTools), resource: "*", effect: autonomy.read } as const,
+      // The MCP server owns write approvals (see VAULT_WRITE_TOOLS).
+      ...VAULT_WRITE_TOOLS.map((tool) => ({ action: mcpToolAction(vaultTools, tool), resource: "*", effect: "allow" } as const)),
+    ]),
     ...attachmentFolders.flatMap((folder) => [
       { action: "external_directory", resource: `${folder}/*`, effect: "allow" } as const,
       ...ACTIONS.edit.map((action) => ({ action, resource: `${folder}/*`, effect: strictest(fileWrites(autonomy), "ask") }) as const),
