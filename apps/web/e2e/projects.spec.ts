@@ -9,6 +9,7 @@ test("registers a project through the folder picker, tracks its changed files, a
   const name = `App ${info.project.name}`;
 
   await page.goto("/projects");
+  await page.getByRole("button", { name: "Register project", exact: true }).click();
   const form = page.getByRole("complementary", { name: "Register project" });
   await form.getByLabel("Name").fill(name);
 
@@ -82,6 +83,7 @@ test("registers a vault-only project that works in its notes folder", async ({ p
   const name = `Move ${info.project.name}`;
 
   await page.goto("/projects");
+  await page.getByRole("button", { name: "Register project", exact: true }).click();
   const form = page.getByRole("complementary", { name: "Register project" });
   await form.getByLabel("Name").fill(name);
   await form.getByLabel("Vault notes only (no repo)").check();
@@ -171,6 +173,7 @@ test("resizes the project sidebars on desktop and remembers their widths", async
 
   // And the overview's projects list and register form.
   await page.getByRole("navigation", { name: "Project view" }).getByRole("link", { name: "Overview" }).click();
+  await page.getByRole("button", { name: "Register project", exact: true }).click();
   const projectsSplitter = page.getByRole("separator", { name: "Resize projects sidebar" });
   const registerSplitter = page.getByRole("separator", { name: "Resize register project sidebar" });
   await expect(projectsSplitter).toHaveAttribute("aria-valuenow", "240");
@@ -181,4 +184,52 @@ test("resizes the project sidebars on desktop and remembers their widths", async
   await expect(registerSplitter).toHaveAttribute("aria-valuenow", "404");
   expect(await width(page.getByRole("complementary", { name: "Projects", exact: true }))).toBe(304);
   expect(await width(page.getByRole("complementary", { name: "Register project" }))).toBe(404);
+});
+
+test("collapses registration by default and reopens without losing a draft", async ({ page }, info) => {
+  const response = await page.request.post("/api/projects", {
+    data: { name: `Sidebar ${info.project.name}`, workingDirectories: [projectFolder(info, "sidebar")] },
+  });
+  expect(response.status()).toBe(201);
+  const { project } = await response.json();
+  await page.goto(`/projects/${project.id}`);
+  const opener = page.getByRole("button", { name: "Register project", exact: true });
+  const form = page.getByRole("complementary", { name: "Register project" });
+  const splitter = page.getByRole("separator", { name: "Resize register project sidebar" });
+  await expect(opener).toHaveAttribute("aria-expanded", "false");
+  await expect(form).toBeHidden();
+  await expect(splitter).toBeHidden();
+  await opener.click();
+  await expect(opener).toHaveAttribute("aria-expanded", "true");
+  await expect(form.getByLabel("Name")).toBeFocused();
+  await form.getByLabel("Name").fill("Unfinished project");
+  await form.getByRole("button", { name: "Collapse registration" }).click();
+  await expect(form).toBeHidden();
+  await expect(opener).toBeFocused();
+  await expect(splitter).toBeHidden();
+  await opener.click();
+  await expect(form.getByLabel("Name")).toHaveValue("Unfinished project");
+  if (!isPhone(info)) await expect(splitter).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.reload();
+  await expect(opener).toHaveAttribute("aria-expanded", "false");
+  await expect(form).toBeHidden();
+});
+
+test("opens registration by default when there are no projects", async ({ page }) => {
+  // The suite shares a server; isolate only this read to exercise an empty catalogue.
+  await page.route("**/api/projects", async (route) => {
+    if (route.request().method() === "GET") await route.fulfill({ json: { projects: [] } });
+    else await route.continue();
+  });
+  await page.goto("/projects");
+  await expect(page.getByRole("heading", { name: "No projects yet" })).toBeVisible();
+  const opener = page.getByRole("button", { name: "Register project", exact: true });
+  const form = page.getByRole("complementary", { name: "Register project" });
+  await expect(opener).toHaveAttribute("aria-expanded", "true");
+  await expect(form).toBeVisible();
+  await form.getByRole("button", { name: "Collapse registration" }).click();
+  await expect(form).toBeHidden();
+  await opener.click();
+  await expect(form.getByLabel("Name")).toBeFocused();
 });

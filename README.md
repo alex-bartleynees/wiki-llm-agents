@@ -348,6 +348,11 @@ vault's threads and one project's. The shared vault is the
 vault registered first; several vaults per project, and a vault picker, are deferred.
 `/`, `/home` and the home folder itself are refused as working directories.
 
+The overview’s registration sidebar starts collapsed when any projects exist.
+**Register project** in the left sidebar opens it and focuses Name; **Collapse
+registration** hides it without clearing an unfinished form. With no projects, it
+starts open. Registering a project closes it again.
+
 A project's threads run in its main directory and keep their project across
 restarts. They reach the shared vault through their vault tools (MCP), supplied
 notes and the rules. The threads pane remembers the open thread separately for each

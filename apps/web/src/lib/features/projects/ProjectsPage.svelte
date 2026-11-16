@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Project } from "@wiki-agents/contracts/projects/model";
   import type { ThreadSummary } from "@wiki-agents/contracts/threads/model";
-  import { untrack } from "svelte";
+  import { tick, untrack } from "svelte";
   import { goto } from "$app/navigation";
   import { errorMessage } from "#lib/api/client.ts";
   import { agents } from "#lib/features/agents/agents.svelte.ts";
@@ -28,6 +28,8 @@
   let { projectId, view = "overview" }: { projectId: string | null; view?: "overview" | "threads" | "diff" } = $props();
 
   let loaded = $state(false);
+  let registerExpanded = $state<boolean | null>(null);
+  const registerOpen = $derived(registerExpanded ?? (loaded && projects.error === null && projects.list.length === 0));
   let error = $state<string | null>(null);
   /** Every thread of the projects' vaults, by project. */
   let projectThreads = $state<ReadonlyMap<string, ReadonlyArray<ThreadSummary>>>(new Map());
@@ -107,7 +109,16 @@
   };
   const titleOf = (threadId: string) => selectedThreads.find((thread) => thread.id === threadId)?.title ?? "New thread";
 
-  const focusForm = () => document.getElementById("project-name")?.focus();
+  async function focusForm() {
+    registerExpanded = true;
+    await tick();
+    document.getElementById("project-name")?.focus();
+  }
+
+  function collapseForm() {
+    registerExpanded = false;
+    document.getElementById("register-project-button")?.focus();
+  }
 
   let archiving = $state(false);
   /** Archives the project and stays on it, so Restore is one click away. */
@@ -165,7 +176,7 @@
         {/each}
       </details>
     {/if}
-    <button type="button" class="secondary" onclick={focusForm}>Register project</button>
+    <button type="button" class="secondary" id="register-project-button" aria-expanded={registerOpen} aria-controls="register-project" onclick={focusForm}>Register project</button>
   </aside>
   <PaneSplitter pane="projectList" label="Resize projects sidebar" edge="start" />
 
@@ -287,13 +298,22 @@
     {/if}
   </main>
 
-  <PaneSplitter pane="registerProject" label="Resize register project sidebar" edge="end" />
-  <aside class="register" aria-label="Register project">
+  {#if registerOpen}
+    <PaneSplitter pane="registerProject" label="Resize register project sidebar" edge="end" />
+  {/if}
+  <aside class="register" id="register-project" aria-label="Register project" hidden={!registerOpen}>
+    <button type="button" class="secondary collapse" aria-label="Collapse registration" title="Collapse registration" onclick={collapseForm}>
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="16" rx="2" />
+        <path d="M16 4v16M8 9l3 3-3 3" />
+      </svg>
+    </button>
     <RegisterProjectForm
       vault={sharedVault ?? null}
       vaultLabel={vaults.list.length > 1 ? "The vault registered first" : null}
       onregistered={async (project) => {
         await projects.load();
+        registerExpanded = null;
         await goto(`/projects/${project.id}`);
       }}
     />
@@ -590,8 +610,21 @@
     border-left: 1px solid var(--line);
   }
 
+  .collapse {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    padding: 0;
+    margin: 0 0 16px auto;
+  }
+
   /* Phone: one column, list first, form last. */
   @media (max-width: 899px) {
+    .list > .secondary,
+    .collapse {
+      min-height: 44px;
+    }
     .layout {
       flex-wrap: wrap;
     }
