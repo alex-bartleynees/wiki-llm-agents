@@ -5,6 +5,8 @@ import { Schema } from "effect";
  * folder, or in the project's main working directory with the vault as shared notes.
  */
 export const CreateThreadRequest = Schema.Struct({
+  /** Explicit model; omitted keeps the agent/provider default. */
+  model: Schema.optionalKey(Schema.String.check(Schema.isNonEmpty())),
   /** A project (`GET /api/projects`) whose shared vault is this vault. */
   projectId: Schema.optionalKey(Schema.String),
   /** Defaults to the agent's provider, else the first provider instance. */

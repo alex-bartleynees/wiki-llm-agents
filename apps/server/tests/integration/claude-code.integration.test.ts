@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { afterAll } from "vitest";
 import { describe, expect, layer } from "@effect/vitest";
 import type { Options } from "@anthropic-ai/claude-agent-sdk";
+import { CreateThreadResponse } from "@wiki-agents/contracts/threads/create-thread/response";
+import { ListThreadsResponse } from "@wiki-agents/contracts/threads/list-threads/response";
 import { GetProviderStatusResponse } from "@wiki-agents/contracts/providers/get-provider-status/response";
 import { ListProvidersResponse } from "@wiki-agents/contracts/providers/list-providers/response";
 import { ListModelsResponse } from "@wiki-agents/contracts/threads/list-models/response";
@@ -447,6 +449,21 @@ layer(App)("Claude Code provider", (it) => {
       completes(yield* second.until(isTag("turn.finished")));
       const [crashed, restarted] = fake.queries();
       expect(restarted?.sessionId ?? restarted?.resume).toBe(crashed?.sessionId);
+    }),
+  );
+
+  it.effect("creates with an explicit model and refuses invalid models without creating a thread", () =>
+    Effect.gen(function* () {
+      const { vault } = yield* setUp("multi-turn");
+      const create = (providerInstanceId: string, model: string) => HttpClient.execute(
+        HttpClientRequest.post(`/api/vaults/${vault.id}/threads`).pipe(HttpClientRequest.bodyJsonUnsafe({ providerInstanceId, model })),
+      );
+      const { thread } = yield* create("claude-code", "haiku").pipe(Effect.flatMap(decode(CreateThreadResponse)));
+      expect(thread).toMatchObject({ providerInstanceId: "claude-code", model: "haiku" });
+      expect((yield* create("claude-code", "no-such-model")).status).toBe(400);
+      expect((yield* create("replay", "haiku")).status).toBe(400);
+      const listed = yield* HttpClient.get(`/api/vaults/${vault.id}/threads`).pipe(Effect.flatMap(decode(ListThreadsResponse)));
+      expect(listed.threads).toHaveLength(2);
     }),
   );
 

@@ -15,8 +15,9 @@ const git = (cwd: string, ...args: Array<string>) =>
 
 const NOTE = "# Replay note\n";
 
-test("runs a thread in its own worktree, reviews its diff, and removes the worktree when done", async ({ page }, info) => {
-  const folder = projectFolder(info, "worktree");
+for (const entry of ["overview", "threads"] as const) {
+test(`from ${entry}: runs a thread in its own worktree, reviews its diff, and removes the worktree when done`, async ({ page }, info) => {
+  const folder = projectFolder(info, `worktree-${entry}`);
   writeFileSync(join(folder, "Replay note.md"), NOTE);
   git(folder, "init", "-q");
   git(folder, "add", "-A");
@@ -24,16 +25,16 @@ test("runs a thread in its own worktree, reviews its diff, and removes the workt
   const response = await page.request.post("/api/projects", { data: { name: `Worktree ${info.project.name}`, workingDirectories: [folder] } });
   expect(response.status()).toBe(201);
   const { project } = (await response.json()) as { project: { id: string; vaultId: string } };
-  const branch = `wiki-agents/e2e-${info.project.name}`;
+  const branch = `wiki-agents/e2e-${entry}-${info.project.name}`;
 
   // New thread, in a worktree on a branch of our choosing (a fresh name is suggested).
-  await page.goto(`/projects/${project.id}/threads`);
+  await page.goto(`/projects/${project.id}${entry === "threads" ? "/threads" : ""}`);
   await useReplay(page);
   await page.getByRole("checkbox", { name: "Worktree" }).check();
   const branchField = page.getByRole("textbox", { name: "Branch for the new thread's worktree" });
   await expect(branchField).toHaveValue(/^wiki-agents\/[0-9a-f]{8}$/);
   await branchField.fill(branch);
-  await page.getByRole("button", { name: "New thread", exact: true }).click();
+  await page.getByRole("button", { name: entry === "threads" ? "New thread" : "New thread here", exact: true }).click();
   const bar = page.getByRole("region", { name: "Worktree" });
   await expect(bar).toContainText(`⎇ ${branch}`);
   // The option resets for the next thread (the list is beside the thread on desktop).
@@ -107,3 +108,5 @@ test("runs a thread in its own worktree, reviews its diff, and removes the workt
   expect(git(folder, "branch", "--list", branch).trim()).toBe(branch);
   expect(readFileSync(join(folder, "Replay note.md"), "utf8")).toBe(NOTE);
 });
+
+}

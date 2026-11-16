@@ -125,6 +125,7 @@ class ThreadsStore {
     const agentId = agents.chosen?.id;
     const providerInstanceId = providers.chosen?.id;
     const { thread } = await createThread(scope.vaultId, {
+      ...(providers.chosen?.capabilities.models && providers.model ? { model: providers.model } : {}),
       ...(options.worktreeBranch === undefined ? {} : { worktreeBranch: options.worktreeBranch }),
       ...(scope.projectId === null ? {} : { projectId: scope.projectId }),
       ...(providerInstanceId === undefined ? {} : { providerInstanceId }),

@@ -44,6 +44,7 @@ export const getProviderStatus = (providerInstanceId: string, signal?: AbortSign
   getJson(`/api/providers/${encodeURIComponent(providerInstanceId)}/status`, GetProviderStatusResponse, signal);
 
 export interface NewThreadOptions {
+  readonly model?: string;
   readonly projectId?: string;
   readonly providerInstanceId?: string;
   readonly agentId?: string;
@@ -56,6 +57,7 @@ export const createThread = (vaultId: string, options: NewThreadOptions) =>
     vaultThreadsPath(vaultId),
     CreateThreadRequest,
     {
+      ...(options.model === undefined ? {} : { model: options.model }),
       ...(options.projectId === undefined ? {} : { projectId: options.projectId }),
       ...(options.providerInstanceId === undefined ? {} : { providerInstanceId: options.providerInstanceId }),
       ...(options.agentId === undefined ? {} : { agentId: options.agentId }),

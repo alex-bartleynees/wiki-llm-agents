@@ -8,6 +8,7 @@
   import { timeAgo } from "#lib/features/notes/time.ts";
   import { listThreads } from "#lib/features/threads/api.ts";
   import { byRecent, doneThreads, openThreads } from "#lib/features/threads/thread-order.ts";
+  import NewThreadForm from "#lib/features/threads/NewThreadForm.svelte";
   import { threads } from "#lib/features/threads/threads.svelte.ts";
   import { vaults } from "#lib/features/vaults/vaults.svelte.ts";
   import { paneWidths } from "#lib/ui/layout/pane-widths.svelte.ts";
@@ -78,15 +79,14 @@
   };
   const folderName = (directory: string) => directory.split("/").filter(Boolean).at(-1) ?? directory;
 
-  /** Opens a thread of the project (a new one for null) in the Threads view. */
-  async function openThreadOf(project: Project, threadId: string | null) {
+  /** Opens an existing thread in the Threads view. */
+  async function openThreadOf(project: Project, threadId: string) {
     error = null;
     const scope = { vaultId: project.vaultId, projectId: project.id };
     try {
-      if (threadId === null) await threads.startIn(scope);
-      else await threads.show(scope, threadId);
+      await threads.show(scope, threadId);
     } catch (cause) {
-      error = errorMessage(cause, "Could not start a thread");
+      error = errorMessage(cause, "Could not open the thread");
       return;
     }
     await goto(`/projects/${project.id}/threads`);
@@ -200,7 +200,6 @@
         {#if selected.archivedAt === null}
           <div class="actions">
             <button type="button" class="secondary" disabled={archiving} onclick={() => archive(selected)}>Archive</button>
-            <button type="button" class="primary" onclick={() => openThreadOf(selected, null)}>New thread here</button>
           </div>
         {/if}
       </div>
@@ -208,6 +207,11 @@
         <ArchivedNotice project={selected} />
       {/if}
 
+      {#if selected.archivedAt === null}
+        {#key selected.id}
+          <NewThreadForm compact vaultId={selected.vaultId} projectId={selected.id} label="New thread here" onstarted={() => goto(`/projects/${selected.id}/threads`)} />
+        {/key}
+      {/if}
       <div class="columns">
         <section aria-label="Working directories">
           <h2 class="mono">working directories</h2>
@@ -462,18 +466,6 @@
     margin-left: auto;
     display: flex;
     gap: 8px;
-  }
-  .primary {
-    height: 36px;
-    padding: 0 16px;
-    border: 0;
-    border-radius: var(--radius);
-    background: var(--accent);
-    color: var(--on-accent);
-    font: inherit;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
   }
   .columns {
     display: grid;

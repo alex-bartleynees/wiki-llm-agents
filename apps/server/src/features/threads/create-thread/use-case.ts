@@ -8,12 +8,13 @@ import { findProject } from "../../projects/find-project.js";
 import { createWorktree, discardWorktree } from "../../projects/worktrees.js";
 import { ProviderRegistry } from "../../providers/registry.js";
 import { findVault } from "../../vaults/find-vault.js";
+import { validateModel } from "../model-selection.js";
 import { ThreadRepository } from "../repository.js";
 import { ThreadBus } from "../thread-bus.js";
 
 /**
  * The provider is the request's, else the agent's, else the default. The agent's
- * model is used when the thread runs on the agent's own provider (or the agent
+ * model is used unless explicitly overridden, when the thread runs on the agent's own provider (or the agent
  * names none). A schedule names its thread; others are named by their first message.
  * With `worktree`, git makes the thread's worktree first; if git refuses, there is no
  * thread, and if the thread can't be saved, the worktree is removed again.
@@ -32,6 +33,10 @@ export const createThread = Effect.fn("createThread")(function* (
   const providerInstanceId = request.providerInstanceId ?? agent?.provider ?? undefined;
   const instance = providerInstanceId === undefined ? yield* registry.defaultInstance : (yield* registry.get(providerInstanceId)).instance;
   const agentsProvider = agent !== null && (agent.provider === null || agent.provider === instance.id);
+  if (request.model !== undefined) {
+    const { adapter } = yield* registry.get(instance.id);
+    yield* validateModel(adapter, vault.rootPath, request.model);
+  }
   const id = randomUUID();
   const worktree = request.worktree === undefined || project === null ? null : yield* createWorktree(project, vault.rootPath, id, request.worktree.branch);
   const thread = yield* (yield* ThreadRepository)
@@ -41,7 +46,7 @@ export const createThread = Effect.fn("createThread")(function* (
       projectId: project?.id ?? null,
       providerInstanceId: instance.id,
       agentId: agent?.id ?? null,
-      model: agentsProvider && instance.capabilities.models ? agent.model : null,
+      model: request.model ?? (agentsProvider && instance.capabilities.models ? agent.model : null),
       title: options.title,
       createdAt: yield* Clock.currentTimeMillis,
     })

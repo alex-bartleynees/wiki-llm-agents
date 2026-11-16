@@ -3,8 +3,8 @@
   import { agents } from "#lib/features/agents/agents.svelte.ts";
   import { timeAgo } from "#lib/features/notes/time.ts";
   import { projects } from "#lib/features/projects/projects.svelte.ts";
-  import { suggestedBranch, worktrees } from "#lib/features/projects/worktrees.svelte.ts";
   import { vaults } from "#lib/features/vaults/vaults.svelte.ts";
+  import NewThreadForm from "./NewThreadForm.svelte";
   import { providers } from "./providers.svelte.ts";
   import { progressLabel, STATUS_LABEL } from "./status.ts";
   import { threads } from "./threads.svelte.ts";
@@ -23,42 +23,7 @@
   const vaultProjects = $derived(projects.active.filter((project) => project.vaultId === vaultId));
   const vaultName = $derived(vaults.byId(vaultId)?.name ?? "vault");
 
-  $effect(() => {
-    void providers.load().then(() => {
-      const chosen = providers.chosen;
-      if (chosen !== undefined) void providers.check(chosen.id);
-    });
-  });
-
   const chosen = $derived(providers.chosen);
-  const status = $derived(chosen === undefined ? undefined : providers.statuses[chosen.id]);
-
-  // Whether this project's new threads can have their own git worktree.
-  $effect(() => {
-    if (projectId !== null) void worktrees.load(projectId);
-  });
-  const canWorktree = $derived(worktrees.available(projectId));
-  /** Start the next thread in its own worktree, on `branch` (off by default, and again after each thread). */
-  let useWorktree = $state(false);
-  let branch = $state(suggestedBranch());
-  let starting = $state(false);
-
-  async function start() {
-    starting = true;
-    const thread = await threads.create(canWorktree && useWorktree ? { worktreeBranch: branch.trim() } : {});
-    starting = false;
-    if (thread !== undefined && useWorktree) {
-      useWorktree = false;
-      branch = suggestedBranch();
-    }
-  }
-
-  /** An agent that names a provider switches new threads to it; you can still pick another. */
-  const chooseAgent = (id: string) => {
-    agents.choose(id === "" ? null : id);
-    const provider = agents.chosen?.provider;
-    if (provider != null && providers.get(provider) !== undefined) providers.choose(provider);
-  };
 </script>
 
 <header>
@@ -73,51 +38,8 @@
     </select>
   </label>
   {/if}
-  <div class="start">
-    {#if providers.list.length > 1}
-      <select
-        aria-label="Provider for new threads"
-        value={chosen?.id}
-        onchange={(event) => providers.choose(event.currentTarget.value)}
-      >
-        {#each providers.list as provider (provider.id)}
-          <option value={provider.id}>{provider.name}</option>
-        {/each}
-      </select>
-    {/if}
-    <select aria-label="Agent for new threads" value={agents.chosen?.id ?? ""} onchange={(event) => chooseAgent(event.currentTarget.value)}>
-      <option value="">No agent</option>
-      {#each agents.list as agent (agent.id)}
-        <option value={agent.id}>{agent.name}</option>
-      {/each}
-    </select>
-    <button type="button" class="new" disabled={starting} onclick={start}>New thread</button>
-  </div>
-  {#if canWorktree}
-    <div class="worktree">
-      <label class="toggle">
-        <input type="checkbox" bind:checked={useWorktree} />
-        Worktree
-      </label>
-      {#if useWorktree}
-        <input
-          class="branch mono"
-          aria-label="Branch for the new thread's worktree"
-          bind:value={branch}
-          autocapitalize="off"
-          autocomplete="off"
-          spellcheck="false"
-        />
-      {:else}
-        <span class="hint">own branch and checkout</span>
-      {/if}
-    </div>
-  {/if}
+  <NewThreadForm {vaultId} {projectId} />
 </header>
-
-{#if status !== undefined && status !== "checking" && status._tag === "unavailable"}
-  <p class="warning" role="status">{chosen?.name} can't run turns: {status.reason}</p>
-{/if}
 
 {#if threads.error}
   <p class="error" role="alert">{threads.error}</p>
@@ -199,85 +121,15 @@
   }
   .scope select {
     flex: 1;
+    min-width: 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    font: inherit;
     height: 36px;
     padding: 0 8px;
     background: var(--surface);
     color: var(--ink);
     font-size: 14px;
-  }
-  .start {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    min-width: 0;
-  }
-  select {
-    min-width: 0;
-    height: 30px;
-    padding: 0 4px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: var(--bg);
-    color: var(--ink-2);
-    font: inherit;
-    font-size: 12px;
-  }
-  .worktree {
-    flex: 1 1 100%;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-width: 0;
-    font-size: 12px;
-    color: var(--ink-2);
-  }
-  .toggle {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    flex: 0 0 auto;
-    cursor: pointer;
-  }
-  .worktree .hint {
-    color: var(--ink-3);
-  }
-  .branch {
-    flex: 1 1 auto;
-    min-width: 0;
-    height: 28px;
-    padding: 0 6px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: var(--bg);
-    color: var(--ink);
-    font-size: 12px;
-  }
-  @media (max-width: 899px) {
-    .branch {
-      height: 36px;
-      font-size: 16px;
-    }
-  }
-  .new:disabled {
-    opacity: 0.6;
-    cursor: default;
-  }
-  .warning {
-    margin: 8px 16px 0;
-    font-size: 12px;
-    color: var(--agent);
-  }
-  .new {
-    flex: 0 0 auto;
-    height: 30px;
-    padding: 0 12px;
-    border: 1px solid var(--accent);
-    border-radius: var(--radius);
-    background: var(--accent);
-    color: var(--on-accent);
-    font: inherit;
-    font-weight: 500;
-    cursor: pointer;
   }
   .lists {
     flex: 1 1 auto;

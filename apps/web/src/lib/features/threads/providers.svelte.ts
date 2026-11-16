@@ -22,6 +22,9 @@ class ProvidersStore {
   statuses = $state<Record<string, ProviderStatus | "checking">>({});
   #chosen = $state<string | null>(stored());
   #loading: Promise<void> | undefined;
+  #models = $state<Record<string, string>>({});
+  get model(): string { return this.#models[this.chosen?.id ?? ""] ?? ""; }
+  chooseModel(model: string) { if (this.chosen) this.#models[this.chosen.id] = model; }
 
   load() {
     this.#loading ??= listProviders()

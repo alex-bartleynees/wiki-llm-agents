@@ -2,7 +2,7 @@ import { CreateThreadRequest } from "@wiki-agents/contracts/threads/create-threa
 import { CreateThreadResponse } from "@wiki-agents/contracts/threads/create-thread/response";
 import { Effect, Schema } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
-import { badRequest, conflict, internalError, notFound } from "../../../shared/http-errors.js";
+import { badGateway, badRequest, conflict, internalError, notFound } from "../../../shared/http-errors.js";
 import { createThread } from "./use-case.js";
 
 const Params = Schema.Struct({ vaultId: Schema.String });
@@ -15,6 +15,8 @@ export const createThreadEndpoint = Effect.gen(function* () {
   return yield* HttpServerResponse.schemaJson(CreateThreadResponse)(response, { status: 201 });
 }).pipe(
   Effect.catchTags({
+    UnknownModel: (error) => Effect.succeed(badRequest(`This provider doesn't offer ${error.model}`)),
+    ProviderError: (error) => Effect.succeed(badGateway(error.message)),
     SchemaError: () => Effect.succeed(badRequest()),
     HttpServerError: () => Effect.succeed(badRequest()),
     ProjectNotFound: () => Effect.succeed(notFound("Project not found")),

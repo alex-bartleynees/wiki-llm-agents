@@ -155,7 +155,16 @@ appear below the composer with Retry; a successfully accepted message clears its
 matching draft. This saves message text only; note context and file selections
 remain specific to the current composer.
 
-Pick the provider and the agent (below) for new threads next to **New thread**:
+The project overview's **New thread here** and the threads tab's **New thread**
+use the same form: provider, agent, model (when supported), and an optional worktree
+with an editable branch name for eligible projects. Provider choice is remembered
+on this device; explicit model choices are kept per provider while the app is open.
+**Default model (agent or provider)** keeps the existing defaults. Choosing an agent
+resets the explicit model and selects its provider when configured. Worktree starts
+off and resets after a successful creation or project change. Errors stay beside
+the form so you can correct a choice and retry.
+
+Available providers:
 
 - **OpenCode** (the default): your installed `opencode` 2.2.x, with your own login and
   config. The app runs one `opencode serve` on a free localhost port with a generated
