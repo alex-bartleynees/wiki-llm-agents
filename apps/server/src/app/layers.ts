@@ -26,6 +26,7 @@ import { IndexerLive } from "../features/indexing/indexer-live.js";
 import { IndexStoreLive } from "../features/indexing/sqlite-store.js";
 import { IndexingStartup } from "../features/indexing/startup.js";
 import { makeVaultWatcher, VaultWatcherNoop } from "../features/indexing/watcher.js";
+import { McpServerCatalogLive } from "../features/mcp-servers/catalog-live.js";
 import { McpTokensLive } from "../features/mcp/tokens.js";
 import { VaultToolsLive } from "../features/mcp/vault-tools-live.js";
 import { PinRepositoryLive } from "../features/pins/sqlite-repository.js";
@@ -128,6 +129,7 @@ export const makeHttpApp = (options: AppOptions) =>
     Layer.provideMerge(inboxAndSchedules(options.channels)),
     Layer.provideMerge(threads),
     Layer.provideMerge(options.pushSender ?? PushSenderLive),
+    Layer.provideMerge(McpServerCatalogLive),
     Layer.provideMerge(Layer.mergeAll(
         RepositoriesLive,
         NoteWriteLockLive,

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import AppearanceSettings from "#lib/features/appearance/AppearanceSettings.svelte";
+  import McpServersSettings from "#lib/features/mcp-servers/McpServersSettings.svelte";
   import CommitMessageSettings from "#lib/features/projects/CommitMessageSettings.svelte";
   import ProviderList from "#lib/features/threads/ProviderList.svelte";
   import AddVaultForm from "#lib/features/vaults/AddVaultForm.svelte";
@@ -30,6 +31,12 @@
     provider, in one call without tools, and puts the answer in the message box to edit.
   </p>
   <CommitMessageSettings />
+  <h1 class="next">MCP servers</h1>
+  <p class="hint">
+    Servers whose tools the app will offer to agents on every provider, set up once here. They are saved now; connecting to them and
+    giving their tools to agents comes with the MCP gateway, which isn't built yet.
+  </p>
+  <McpServersSettings />
 </section>
 
 <style>

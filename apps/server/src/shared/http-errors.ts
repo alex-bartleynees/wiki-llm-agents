@@ -17,3 +17,9 @@ export const conflict = (message: string) => HttpServerResponse.text(message, { 
 
 /** The agent provider failed or isn't available; the message says why. */
 export const badGateway = (message: string) => HttpServerResponse.text(message, { status: 502 });
+
+/**
+ * 422 for a config file the app would refuse to load: one problem per line, each
+ * starting with its field (`name: …`) when it has one.
+ */
+export const unprocessable = (problems: ReadonlyArray<string>) => HttpServerResponse.text(problems.join("\n"), { status: 422 });

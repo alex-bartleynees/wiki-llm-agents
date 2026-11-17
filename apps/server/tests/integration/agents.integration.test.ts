@@ -11,7 +11,7 @@ import { Effect, Layer, PubSub } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/http";
 import { AgentCatalog } from "../../src/features/agents/catalog.js";
 import { makeAgentCatalog } from "../../src/features/agents/catalog-live.js";
-import { writeConfigFile } from "../../src/features/agents/config-files.js";
+import { writeConfigFile } from "../../src/shared/config-files.js";
 import { TestApp } from "./infrastructure/test-app.js";
 import { decode, isTag, newVault, post, sendOk, watch } from "./infrastructure/threads.js";
 

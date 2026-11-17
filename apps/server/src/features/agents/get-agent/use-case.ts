@@ -3,7 +3,7 @@ import type { GetAgentRequest } from "@wiki-agents/contracts/agents/get-agent/re
 import type { GetAgentResponse } from "@wiki-agents/contracts/agents/get-agent/response";
 import { Effect, Option, Result } from "effect";
 import { AgentCatalog, AgentNotFound } from "../catalog.js";
-import { readConfigFile } from "../config-files.js";
+import { readConfigFile } from "../../../shared/config-files.js";
 import { ID_PATTERN, parseAgent } from "../definition.js";
 import { summarise } from "../summary.js";
 

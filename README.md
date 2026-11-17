@@ -626,6 +626,35 @@ The client library is `@opencode/client` (and `@opencode/protocol`), pinned to e
 the installed OpenCode's version (2.2.1); they ask for an older `effect`, which the
 root `overrides` replaces with the app's, so there is one copy.
 
+### MCP servers
+
+**Settings › MCP servers** lists the MCP servers the app will connect to on behalf of
+every provider (GitHub, a browser), so a server is set up once instead of once per
+provider. Each is a YAML file in the config directory, `mcp/<id>.yaml`, written by
+the form or by hand:
+
+```yaml
+title: GitHub
+transport:
+  type: http                      # or stdio, with command, args, env and cwd
+  url: https://api.githubcopilot.com/mcp/
+  headers:
+    Authorization: Bearer ${secret:github}
+scope: app                        # app, project or thread: how many connections
+default: false                    # true: every thread gets its tools
+access: ask                       # optional: allow, ask or deny, instead of the agent's autonomy
+```
+
+- Unknown settings are errors; a file that doesn't load is listed with the reason.
+- Header and environment values may hold references that only the app resolves:
+  `${secret:name}`, `${env:NAME}` or `${file:/path}`. Don't write a token in the file.
+- Saving checks the file is still the version you opened (409 otherwise) and writes
+  it atomically; **Delete** moves it to the config directory's `.trash/mcp/`.
+- **Not connected yet:** servers are only saved. Connecting to them, resolving the
+  references and giving their tools to agents come with the rest of the MCP gateway.
+
+API: `GET /api/mcp-servers`, and `GET`, `PUT` and `DELETE /api/mcp-servers/:id`.
+
 ### Change review
 
 Every note a turn changes in its thread's vault is recorded, with the version before

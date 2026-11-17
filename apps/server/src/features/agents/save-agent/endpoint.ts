@@ -2,8 +2,7 @@ import { SaveAgentRequest } from "@wiki-agents/contracts/agents/save-agent/reque
 import { SaveAgentResponse } from "@wiki-agents/contracts/agents/save-agent/response";
 import { Effect, Schema } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
-import { badRequest, conflict, internalError } from "../../../shared/http-errors.js";
-import { unprocessable } from "../config-errors.js";
+import { badRequest, conflict, internalError, unprocessable } from "../../../shared/http-errors.js";
 import { saveAgent } from "./use-case.js";
 
 const Params = Schema.Struct({ agentId: Schema.String });

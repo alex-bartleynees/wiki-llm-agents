@@ -5,7 +5,7 @@ import { Effect, Option, Result } from "effect";
 import { ProviderRegistry } from "../../providers/registry.js";
 import { agentFileText } from "../agent-file.js";
 import { AgentCatalog } from "../catalog.js";
-import { ConfigFileInvalid, readConfigFile, requireId, writeConfigFile } from "../config-files.js";
+import { ConfigFileInvalid, readConfigFile, requireId, writeConfigFile } from "../../../shared/config-files.js";
 import { parseAgent } from "../definition.js";
 import { summarise } from "../summary.js";
 

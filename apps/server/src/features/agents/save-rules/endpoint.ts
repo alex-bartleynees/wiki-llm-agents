@@ -2,8 +2,7 @@ import { SaveRulesRequest } from "@wiki-agents/contracts/agents/save-rules/reque
 import { SaveRulesResponse } from "@wiki-agents/contracts/agents/save-rules/response";
 import { Effect, Schema } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
-import { badRequest, conflict, internalError } from "../../../shared/http-errors.js";
-import { unprocessable } from "../config-errors.js";
+import { badRequest, conflict, internalError, unprocessable } from "../../../shared/http-errors.js";
 import { saveRules } from "./use-case.js";
 
 const Params = Schema.Struct({ rulesId: Schema.String });

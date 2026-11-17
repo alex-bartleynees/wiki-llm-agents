@@ -1,6 +1,7 @@
 import { type Autonomy, DEFAULT_AUTONOMY, type KnowledgeSource } from "@wiki-agents/contracts/agents/model";
 import { Result, Schema, SchemaIssue } from "effect";
 import { parse as parseYaml } from "yaml";
+import { ID_PATTERN } from "../../shared/config-files.js";
 
 /** An agent as its file defines it; see `contracts/agents/model.ts`. */
 export interface AgentDefinition {
@@ -78,8 +79,8 @@ const formatIssue = SchemaIssue.makeFormatterStandardSchemaV1();
 /** Bigger files are refused: instructions that long crowd out the conversation. */
 export const MAX_FILE_BYTES = 64 * 1024;
 
-/** Agent and rules ids are file names: lowercase words joined by hyphens. */
-export const ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
+export { ID_PATTERN };
+
 
 /**
  * Why a Syncthing conflict copy (`researcher.sync-conflict-20261110-120000-ABCDEFG.md`)

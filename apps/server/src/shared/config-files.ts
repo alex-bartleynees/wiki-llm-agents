@@ -1,13 +1,15 @@
 import { createHash, randomBytes } from "node:crypto";
 import { basename, dirname, join } from "node:path";
 import { Data, Effect, FileSystem, Option } from "effect";
-import { ID_PATTERN } from "./definition.js";
+
+/** Ids are file names: lowercase words joined by hyphens. */
+export const ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 
 /*
  * Writing the config directory's files from the app, as the note editor writes
  * notes: hash-checked, atomic, and never replacing a file it didn't mean to. The
- * directory is synced between machines (Syncthing), so a file can change under an
- * open editor at any time.
+ * directory is local by default but may be a synced folder, and files are edited by
+ * hand, so a file can change under an open editor at any time.
  */
 
 /** The file isn't the version the edit started from (changed, deleted, or created meanwhile). */
@@ -20,12 +22,12 @@ export class ConfigFileInvalid extends Data.TaggedError("ConfigFileInvalid")<{
   readonly problems: ReadonlyArray<string>;
 }> {}
 
-/** No agent or rules file with this id. */
+/** No config file with this id. */
 export class ConfigFileNotFound extends Data.TaggedError("ConfigFileNotFound")<{
   readonly path: string;
 }> {}
 
-/** Where deleted agents and rules go, by folder: `<config dir>/.trash/agents/`. Hidden, so never loaded. */
+/** Where deleted config files go, by folder: `<config dir>/.trash/agents/`. Hidden, so never loaded. */
 export const CONFIG_TRASH = ".trash";
 
 export const sha256 = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
@@ -80,16 +82,16 @@ export const writeConfigFile = Effect.fnUntraced(function* (path: string, text: 
 });
 
 /** `researcher.md`, then `researcher 1.md`, `researcher 2.md`… */
-const candidate = (id: string, attempt: number) => (attempt === 0 ? `${id}.md` : `${id} ${attempt}.md`);
+const candidate = (id: string, extension: string, attempt: number) => (attempt === 0 ? `${id}${extension}` : `${id} ${attempt}${extension}`);
 
 /**
- * Moves `<configDir>/<folder>/<id>.md` to `<configDir>/.trash/<folder>/`, only if it
+ * Moves `<configDir>/<folder>/<id><extension>` to `<configDir>/.trash/<folder>/`, only if it
  * still has `hash`, else `ConfigFileChanged`. Hard-linked to the first free name
  * and then removed, so nothing in the trash is replaced. Returns where it went.
  */
-export const trashConfigFile = Effect.fnUntraced(function* (configDir: string, folder: "agents" | "rules", id: string, hash: string) {
+export const trashConfigFile = Effect.fnUntraced(function* (configDir: string, folder: string, id: string, extension: ".md" | ".yaml", hash: string) {
   const fs = yield* FileSystem.FileSystem;
-  const path = join(configDir, folder, `${id}.md`);
+  const path = join(configDir, folder, `${id}${extension}`);
   const existing = yield* readConfigFile(path);
   if (Option.isNone(existing)) return yield* new ConfigFileNotFound({ path });
   if (existing.value.hash !== hash) return yield* new ConfigFileChanged({ path });
@@ -97,7 +99,7 @@ export const trashConfigFile = Effect.fnUntraced(function* (configDir: string, f
   yield* fs.makeDirectory(trash, { recursive: true });
   let trashPath: string | undefined;
   for (let attempt = 0; trashPath === undefined; attempt += 1) {
-    const target = join(trash, candidate(id, attempt));
+    const target = join(trash, candidate(id, extension, attempt));
     const linked = yield* fs.link(path, target).pipe(
       Effect.as(true),
       Effect.catchReason("PlatformError", "AlreadyExists", () => Effect.succeed(false)),

@@ -3,7 +3,7 @@ import type { SaveRulesRequest } from "@wiki-agents/contracts/agents/save-rules/
 import type { SaveRulesResponse } from "@wiki-agents/contracts/agents/save-rules/response";
 import { Effect, Result } from "effect";
 import { AgentCatalog } from "../catalog.js";
-import { ConfigFileInvalid, requireId, writeConfigFile } from "../config-files.js";
+import { ConfigFileInvalid, requireId, writeConfigFile } from "../../../shared/config-files.js";
 import { MAX_FILE_BYTES, parseRules } from "../definition.js";
 
 export interface SaveRulesInput extends SaveRulesRequest {

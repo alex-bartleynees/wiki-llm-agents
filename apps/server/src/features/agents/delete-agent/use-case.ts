@@ -2,7 +2,7 @@ import type { DeleteAgentRequest } from "@wiki-agents/contracts/agents/delete-ag
 import type { DeleteAgentResponse } from "@wiki-agents/contracts/agents/delete-agent/response";
 import { Effect } from "effect";
 import { AgentCatalog } from "../catalog.js";
-import { requireId, trashConfigFile } from "../config-files.js";
+import { requireId, trashConfigFile } from "../../../shared/config-files.js";
 
 /**
  * Moves the agent's file to the config directory's `.trash/`, if it is still the
@@ -12,7 +12,7 @@ import { requireId, trashConfigFile } from "../config-files.js";
 export const deleteAgent = Effect.fn("deleteAgent")(function* (request: DeleteAgentRequest) {
   yield* requireId(request.agentId);
   const catalog = yield* AgentCatalog;
-  const trashPath = yield* trashConfigFile((yield* catalog.current).configDir, "agents", request.agentId, request.hash);
+  const trashPath = yield* trashConfigFile((yield* catalog.current).configDir, "agents", request.agentId, ".md", request.hash);
   yield* catalog.reload;
   return { trashPath } satisfies DeleteAgentResponse;
 });

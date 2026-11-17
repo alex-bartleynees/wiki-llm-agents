@@ -3,7 +3,7 @@ import type { GetRulesRequest } from "@wiki-agents/contracts/agents/get-rules/re
 import type { GetRulesResponse } from "@wiki-agents/contracts/agents/get-rules/response";
 import { Effect, Option } from "effect";
 import { AgentCatalog } from "../catalog.js";
-import { ConfigFileNotFound, readConfigFile, requireId } from "../config-files.js";
+import { ConfigFileNotFound, readConfigFile, requireId } from "../../../shared/config-files.js";
 
 /** A rules file as it is on disk, with its hash for saving or deleting it. */
 export const getRules = Effect.fn("getRules")(function* (request: GetRulesRequest) {
