@@ -2,7 +2,9 @@ import { DeleteMcpServerResponse } from "@wiki-agents/contracts/mcp-servers/dele
 import { GetMcpServerResponse } from "@wiki-agents/contracts/mcp-servers/get-mcp-server/response";
 import { ListMcpServersResponse } from "@wiki-agents/contracts/mcp-servers/list-mcp-servers/response";
 import { SaveMcpServerRequest } from "@wiki-agents/contracts/mcp-servers/save-mcp-server/request";
+import { RestartMcpServerResponse } from "@wiki-agents/contracts/mcp-servers/restart-mcp-server/response";
 import { SaveMcpServerResponse } from "@wiki-agents/contracts/mcp-servers/save-mcp-server/response";
+import { TestMcpServerResponse } from "@wiki-agents/contracts/mcp-servers/test-mcp-server/response";
 import { DisconnectResponse } from "@wiki-agents/contracts/mcp-oauth/disconnect/response";
 import { FinishConnectRequest } from "@wiki-agents/contracts/mcp-oauth/finish-connect/request";
 import { FinishConnectResponse } from "@wiki-agents/contracts/mcp-oauth/finish-connect/response";
@@ -36,3 +38,9 @@ export const startConnect = (serverId: string) => postJson(`${serverPath(serverI
 export const finishConnect = (url: string) => postJson("/api/mcp-servers/oauth/finish", FinishConnectRequest, { url }, FinishConnectResponse, { timeoutMs: 30_000 });
 
 export const disconnect = (serverId: string) => deleteJson(`${serverPath(serverId)}/connection`, DisconnectResponse);
+
+/** Connects once on its own and lists the tools; a server that can't be reached comes back as `state: failed`. Connecting can take a while. */
+export const testMcpServer = (serverId: string) => postJson(`${serverPath(serverId)}/test`, NoBody, {}, TestMcpServerResponse, { timeoutMs: 90_000 });
+
+/** Closes the server's connections and forgets its failures; a shared one connects again at once. */
+export const restartMcpServer = (serverId: string) => postJson(`${serverPath(serverId)}/restart`, NoBody, {}, RestartMcpServerResponse, { timeoutMs: 90_000 });

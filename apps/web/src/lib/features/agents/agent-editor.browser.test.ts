@@ -25,6 +25,7 @@ const summary = (overrides: Partial<AgentSummary> = {}): AgentSummary => ({
   provider: null,
   model: null,
   sources: [],
+  mcp: [],
   autonomy: { read: "allow", create: "ask", edit: "ask", commands: "deny", web: "ask" },
   path: "/config/agents/scout.md",
   enforcement: [],

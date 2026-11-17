@@ -9,11 +9,39 @@ export interface VaultToolsEntry {
   readonly name: string;
   readonly url: string;
   readonly token: string;
+  /**
+   * Goes up when the thread's tools from other MCP servers change (see `gateway.ts`).
+   * Providers list an entry's tools only when it is registered, so a new revision comes
+   * with a new token, which makes every adapter register it again. OpenCode also needs a
+   * new name: `revisedEntryName`.
+   */
+  readonly revision: number;
+}
+
+/** What the next turn gets: the entry, and what the user should know about its tools. */
+export interface VaultToolsTurn {
+  readonly entry: VaultToolsEntry;
+  /** Other MCP servers down or missing, tools held back; empty when nothing changed since the last turn. */
+  readonly notices: ReadonlyArray<string>;
 }
 
 export interface VaultToolsAccess {
-  /** The entry for the next turn: the same token until it nears expiry, then a new one. */
-  readonly current: Effect.Effect<VaultToolsEntry>;
+  /**
+   * The entry for the next turn, with the tools of the servers every thread gets and
+   * of `agentServers`: the same token until it nears expiry or the tools change, then
+   * a new one.
+   */
+  readonly current: (agentServers: ReadonlyArray<string>) => Effect.Effect<VaultToolsTurn>;
+}
+
+/** The thread whose tools these are, and where its upstream connections run (see `McpScopeContext`). */
+export interface VaultToolsCaller {
+  readonly threadId: string;
+  readonly vaultId: string;
+  /** Null (or left out) for a thread outside any project. */
+  readonly projectId?: string | null;
+  /** The project's main working directory, or the vault's folder. */
+  readonly cwd?: string | null;
 }
 
 /**
@@ -21,7 +49,7 @@ export interface VaultToolsAccess {
  * as long as the scope it is opened in (the actor's); its tokens are revoked then.
  */
 export interface VaultToolsService {
-  readonly open: (caller: { readonly threadId: string; readonly vaultId: string }) => Effect.Effect<VaultToolsAccess, never, Scope.Scope>;
+  readonly open: (caller: VaultToolsCaller) => Effect.Effect<VaultToolsAccess, never, Scope.Scope>;
 }
 
 export class VaultTools extends Context.Service<VaultTools, VaultToolsService>()("VaultTools") {}
@@ -29,6 +57,13 @@ export class VaultTools extends Context.Service<VaultTools, VaultToolsService>()
 /** The provider's name for a thread's entry. Other threads' entries share the prefix. */
 export const ENTRY_PREFIX = "wiki-agents-";
 export const entryName = (threadId: string) => `${ENTRY_PREFIX}${threadId}`;
+
+/**
+ * The entry's name with its revision, for a provider that keeps an entry's first tool
+ * list for as long as the name is registered (OpenCode): `wiki-agents-<thread id>-2`.
+ * Revision 0 keeps the plain name.
+ */
+export const revisedEntryName = (entry: VaultToolsEntry) => (entry.revision === 0 ? entry.name : `${entry.name}-${entry.revision}`);
 
 /**
  * The tools that write notes. The server checks the agent's live create/edit autonomy

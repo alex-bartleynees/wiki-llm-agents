@@ -33,6 +33,7 @@ const SCOUT: AgentInput = {
   provider: null,
   model: null,
   sources: ["vault"],
+  mcp: [],
   autonomy: { read: "allow", create: "ask", edit: "ask", commands: "deny", web: "allow" },
   instructions: "# Scout\n\nLook around.",
 };

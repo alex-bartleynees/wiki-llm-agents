@@ -1,12 +1,24 @@
 <script lang="ts">
   import type { ConfigProblem } from "@wiki-agents/contracts/agents/model";
   import { CONNECT_FAILED_PARAM, CONNECTED_PARAM, type McpConnection } from "@wiki-agents/contracts/mcp-oauth/model";
-  import type { McpServerSummary } from "@wiki-agents/contracts/mcp-servers/model";
+  import type { McpServerStatus, McpServerSummary } from "@wiki-agents/contracts/mcp-servers/model";
   import { onMount, untrack } from "svelte";
   import { errorMessage } from "#lib/api/client.ts";
-  import { deleteMcpServer, disconnect, finishConnect, getMcpServer, listConnections, listMcpServers, saveMcpServer, startConnect } from "./api.ts";
+  import {
+    deleteMcpServer,
+    disconnect,
+    finishConnect,
+    getMcpServer,
+    listConnections,
+    listMcpServers,
+    restartMcpServer,
+    saveMcpServer,
+    startConnect,
+    testMcpServer,
+  } from "./api.ts";
   import { canSignIn, connectionText, connectLabel, SIGN_IN_CHANNEL } from "./connection.ts";
   import { BLANK_FORM, describeTransport, formFromServer, idFromTitle, inputFromForm, isValidId, SCOPE_LABELS, type ServerForm } from "./server-form.ts";
+  import { statusText } from "./status.ts";
 
   /**
    * The MCP servers in the app's config directory (`mcp/<id>.yaml`): listed, added,
@@ -44,6 +56,38 @@
   let signInError = $state<string | null>(null);
   let copied = $state(false);
 
+  /** How the app's connections to each server are doing, by server id. */
+  let statuses = $state<ReadonlyMap<string, McpServerStatus>>(new Map());
+  /** The server being tested or restarted, and which. */
+  let checking = $state<{ readonly serverId: string; readonly action: "test" | "restart" } | null>(null);
+  /** Servers whose tool list is shown: after a test, or opened by hand. */
+  let showingTools = $state<ReadonlySet<string>>(new Set());
+
+  function setStatus(status: McpServerStatus) {
+    statuses = new Map([...statuses, [status.serverId, status]]);
+  }
+
+  async function check(server: McpServerSummary, action: "test" | "restart") {
+    checking = { serverId: server.id, action };
+    notice = null;
+    try {
+      const { status } = await (action === "test" ? testMcpServer(server.id) : restartMcpServer(server.id));
+      setStatus(status);
+      if (action === "test" && status.problem === null) showingTools = new Set([...showingTools, server.id]);
+      if (status.problem === null) notice = action === "test" ? `${server.title} answered.` : `Restarted ${server.title}.`;
+    } catch (cause) {
+      loadError = `${server.title}: ${errorMessage(cause, action === "test" ? "Could not test it" : "Could not restart it")}`;
+    } finally {
+      checking = null;
+    }
+  }
+
+  function toggleTools(serverId: string) {
+    const next = new Set(showingTools);
+    if (!next.delete(serverId)) next.add(serverId);
+    showingTools = next;
+  }
+
   const until = (at: number) => new Date(at).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
 
   const idShown = $derived(editing?.id ?? (idTyped ? newId : idFromTitle(form.title)));
@@ -54,6 +98,7 @@
       folder = listed.folder;
       servers = listed.servers;
       problems = listed.problems;
+      statuses = new Map(listed.statuses.map((status) => [status.serverId, status]));
       loadError = null;
     } catch (cause) {
       loadError = errorMessage(cause, "Could not load the MCP servers");
@@ -234,12 +279,14 @@
   {#if servers.length > 0}
     <ul class="list" aria-label="MCP servers">
       {#each servers as server (server.id)}
+        {@const status = statuses.get(server.id)}
         <li aria-label={server.title}>
           <div class="about">
             <span class="title">{server.title}</span>
             <span class="meta">
-              <code>{server.id}</code> · {server.transport.type} · {server.scope}{server.default ? " · every thread" : ""}{server.access === null ? "" : ` · ${server.access}`}
+              <code>{server.id}</code> · {server.transport.type} · {server.scope}
             </span>
+            <span class="availability">{server.default ? "Available to every thread" : "Available only to agents that list this server"}</span>
             <span class="where">{describeTransport(server)}</span>
             {#if canSignIn(server)}
               {@const connection = connections.get(server.id)}
@@ -252,8 +299,35 @@
                 {#if connection.problem}<span class="problem">{connection.problem}</span>{/if}
               {/if}
             {/if}
+            {#if status}
+              <span class={["status", status.state]}>{statusText(status)}</span>
+              {#if status.problem}<span class="problem">{status.problem}</span>{/if}
+              {#if status.tools !== null && status.tools.length > 0}
+                <button type="button" class="link" onclick={() => toggleTools(server.id)} aria-expanded={showingTools.has(server.id)}>
+                  {showingTools.has(server.id) ? "Hide tools" : "Show tools"}
+                </button>
+                {#if showingTools.has(server.id)}
+                  <ul class="tools" aria-label={`Tools of ${server.title}`}>
+                    {#each status.tools as tool (tool.name)}
+                      <li>
+                        <code>{server.id}__{tool.name}</code>{tool.readOnly ? " · read-only" : ""}
+                        {#if tool.description}<span class="description">{tool.description}</span>{/if}
+                      </li>
+                    {/each}
+                  </ul>
+                {/if}
+              {/if}
+            {/if}
           </div>
           <div class="buttons">
+            <button type="button" onclick={() => void check(server, "test")} disabled={checking !== null} aria-label={`Test ${server.title}`}>
+              {checking?.serverId === server.id && checking.action === "test" ? "Testing…" : "Test"}
+            </button>
+            {#if status && (status.connections > 0 || status.state === "failed")}
+              <button type="button" onclick={() => void check(server, "restart")} disabled={checking !== null} aria-label={`Restart ${server.title}`}>
+                {checking?.serverId === server.id && checking.action === "restart" ? "Restarting…" : "Restart"}
+              </button>
+            {/if}
             {#if canSignIn(server)}
               {@const connection = connections.get(server.id)}
               <button type="button" onclick={() => void connect(server)} disabled={connecting !== null} aria-label={`${connectLabel(connection)} ${server.title}`}>
@@ -397,27 +471,40 @@
         <code>{"${env:NAME}"}</code> or <code>{"${file:/path}"}</code>.
       </p>
 
+      <fieldset class="availability-settings">
+        <legend>Tool availability</legend>
+        <label class="check">
+          <input type="checkbox" bind:checked={form.everyThread} />
+          <span>Give its tools to every thread, whatever the agent</span>
+        </label>
+        <p class="hint">
+          {#if form.everyThread}
+            Every thread can use this server's read-only tools from its next message, including threads without a named agent.
+          {:else}
+            Only named agents that list this server's ID in their MCP servers field receive its tools. Threads without a named agent do not receive them.
+          {/if}
+        </p>
+      </fieldset>
+
       <label>
-        <span class="label">Connections</span>
-        <select bind:value={form.scope} aria-label="Scope">
+        <span class="label">Connection sharing</span>
+        <select bind:value={form.scope} aria-label="Scope" aria-describedby="mcp-sharing-help">
           {#each Object.entries(SCOPE_LABELS) as [scope, label] (scope)}
             <option value={scope}>{label}</option>
           {/each}
         </select>
       </label>
+      <p class="hint" id="mcp-sharing-help">Controls how connections are reused. Tool availability above determines which threads can use them.</p>
       <label>
-        <span class="label">Its tools need</span>
-        <select bind:value={form.access} aria-label="Access">
+        <span class="label">Server policy override (not active yet)</span>
+        <select bind:value={form.access} aria-label="Access" aria-describedby="mcp-policy-help">
           <option value="">What the agent's autonomy says</option>
           <option value="allow">Nothing: always allowed</option>
           <option value="ask">Your approval each time</option>
           <option value="deny">Never allowed</option>
         </select>
       </label>
-      <label class="check">
-        <input type="checkbox" bind:checked={form.everyThread} />
-        <span>Give its tools to every thread, whatever the agent</span>
-      </label>
+      <p class="hint" id="mcp-policy-help">Only tools the server marks read-only are available for now. This server-specific override is saved but is not yet enforced by the gateway. Existing provider permissions still apply.</p>
 
       {#if errors.length > 0}
         <ul class="error" role="alert">
@@ -456,7 +543,7 @@
     padding: 0;
     list-style: none;
   }
-  .list li {
+  .list > li {
     display: flex;
     align-items: center;
     gap: 12px;
@@ -475,6 +562,23 @@
   .title {
     font-weight: 600;
   }
+  .availability {
+    font-size: 12px;
+    color: var(--ink-2);
+  }
+  .availability-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+  }
+  .availability-settings legend {
+    color: var(--ink);
+    font-weight: 600;
+  }
   .meta,
   .where,
   .sign-in,
@@ -482,8 +586,42 @@
     color: var(--ink-3);
     font-size: 12px;
   }
-  .sign-in.connected {
+  .sign-in.connected,
+  .status.connected {
     color: var(--accent);
+  }
+  .status {
+    color: var(--ink-3);
+    font-size: 12px;
+  }
+  .status.failed {
+    color: var(--del);
+  }
+  .link {
+    align-self: flex-start;
+    height: auto;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent);
+    font-size: 12px;
+  }
+  .tools {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 4px 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: 12px;
+  }
+  .tools li {
+    display: flex;
+    flex-direction: column;
+    overflow-wrap: anywhere;
+  }
+  .description {
+    color: var(--ink-3);
   }
   .sign-in.expired,
   .sign-in.changed,
@@ -645,7 +783,7 @@
   }
   /* Phone: 16px so focusing doesn't zoom. */
   @media (max-width: 899px) {
-    .list li {
+    .list > li {
       flex-wrap: wrap;
     }
     .buttons {

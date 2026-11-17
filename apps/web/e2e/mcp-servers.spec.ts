@@ -16,6 +16,9 @@ test("adds an MCP server in Settings, edits it, and deletes it to the trash", as
   const form = page.getByRole("form", { name: "New MCP server" });
   await form.getByLabel("Server name").fill(`GitHub ${width}`);
   await expect(form.getByLabel("Server id")).toHaveValue(id);
+  await expect(form).toContainText("Only tools the server marks read-only are available for now.");
+  await expect(form).toContainText("Threads without a named agent do not receive them.");
+  await expect(form).toContainText("Controls how connections are reused.");
   await form.getByLabel("URL").fill("https://api.githubcopilot.com/mcp/");
   // A line that isn't `Name: value` is refused before anything is sent.
   await form.getByLabel("Headers").fill("Authorization Bearer");
@@ -39,7 +42,9 @@ test("adds an MCP server in Settings, edits it, and deletes it to the trash", as
     `title: GitHub ${width}\ntransport:\n  type: http\n  url: https://api.githubcopilot.com/mcp/\n  headers:\n    Authorization: Bearer \${secret:github}\nscope: app\ndefault: false\n`,
   );
 
-  // Edit: a command instead of a URL, for every thread, asking each time.
+  await expect(item).toContainText("Available only to agents that list this server");
+
+  // Edit: a command instead of a URL, available to every thread.
   await item.getByRole("button", { name: `Edit GitHub ${width}` }).click();
   const editor = page.getByRole("form", { name: `Edit ${id}` });
   await expect(editor.getByLabel("Server id")).toBeDisabled();
@@ -48,13 +53,16 @@ test("adds an MCP server in Settings, edits it, and deletes it to the trash", as
   await editor.getByLabel("Command").fill("github-mcp-server");
   await editor.getByLabel("Arguments").fill("stdio\n--read-only");
   await editor.getByLabel("Environment").fill("GITHUB_PERSONAL_ACCESS_TOKEN=${secret:github}");
-  await editor.getByLabel("Access").selectOption("ask");
+  await editor.getByLabel("Access", { exact: true }).selectOption("ask");
   await editor.getByLabel("Give its tools to every thread, whatever the agent").check();
+  await expect(editor).toContainText("including threads without a named agent");
   await noOverflow(page);
   await editor.getByRole("button", { name: "Save" }).click();
-  await expect(item).toContainText(`${id} · stdio · app · every thread · ask`);
+  await expect(item).toContainText(`${id} · stdio · app`);
+  await expect(item).toContainText("Available to every thread");
   await expect(item).toContainText("github-mcp-server stdio --read-only");
   expect(readFileSync(file, "utf8")).toContain("    GITHUB_PERSONAL_ACCESS_TOKEN: ${secret:github}\n");
+  expect(readFileSync(file, "utf8")).toContain("access: ask\n");
 
   // Changed on disk while the editor is open: saving is refused, nothing is overwritten.
   await item.getByRole("button", { name: `Edit GitHub ${width}` }).click();

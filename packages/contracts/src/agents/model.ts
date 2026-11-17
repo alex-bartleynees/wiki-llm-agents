@@ -77,6 +77,11 @@ export const AgentSummary = Schema.Struct({
   model: Schema.NullOr(Schema.String),
   /** Where it may look things up; empty for no limits. */
   sources: Schema.Array(KnowledgeSource),
+  /**
+   * MCP servers (ids, as in `mcp/<id>.yaml`) whose tools this agent's threads get,
+   * besides the servers given to every thread.
+   */
+  mcp: Schema.Array(Schema.String),
   autonomy: Autonomy,
   /** Absolute path of the agent's file. */
   path: Schema.String,
@@ -108,6 +113,8 @@ export const AgentInput = Schema.Struct({
   /** null for the provider's default. */
   model: Schema.NullOr(Schema.String),
   sources: Schema.Array(KnowledgeSource),
+  /** MCP server ids; empty for only the servers every thread gets. */
+  mcp: Schema.Array(Schema.String),
   autonomy: Autonomy,
   /** The file's body, as markdown. */
   instructions: Schema.String,

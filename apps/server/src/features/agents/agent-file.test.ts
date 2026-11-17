@@ -11,6 +11,7 @@ const INPUT: AgentInput = {
   provider: null,
   model: null,
   sources: [],
+  mcp: [],
   autonomy: { read: "allow", create: "ask", edit: "ask", commands: "deny", web: "deny" },
   instructions: "# Scout\n\nLook around.",
 };

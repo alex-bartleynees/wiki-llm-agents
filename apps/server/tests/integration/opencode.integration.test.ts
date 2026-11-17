@@ -35,6 +35,7 @@ import { type FakeOpenCode, loadFixture, makeFakeOpenCode, type PlayOptions } fr
 import { VAULT_FILES } from "../fixtures/opencode/fixture.js";
 import { CSV_PROMPT, csvMessage, csvPath, SALES_CSV, SALES_TOTAL } from "../fixtures/csv.js";
 import { RED_SQUARE, sha256 } from "../fixtures/image.js";
+import { startStandInMcp } from "./infrastructure/stand-in-mcp.js";
 import { mcpSession } from "./infrastructure/mcp.js";
 import { makeTestApp, TestAgents, TestAttachments, TestSecrets, TestWorktrees } from "./infrastructure/test-app.js";
 import {
@@ -308,6 +309,43 @@ layer(App)("OpenCode provider", (it) => {
         expect(JSON.stringify((yield* getThread(thread.id)).events)).not.toContain(added.token);
       }),
     );
+
+    for (const failure of ["failed", "refused"] as const) {
+      it.effect(`removes the old name after a ${failure} revision registration and retries next turn`, () =>
+        Effect.gen(function* () {
+          const upstream = yield* Effect.acquireRelease(Effect.promise(() => startStandInMcp()), (server) => Effect.promise(() => server.close()));
+          const suffix = `\n\nApp notices for this turn:\n${vaultToolsUnavailable(failure === "failed" ? "Connection refused" : "OpenCode didn't take the vault tools (InvalidRequestError).")}`;
+          const { thread, fake, prompts, fixture, vault } = yield* setUp("multi-turn", { promptSuffixes: ["", suffix] });
+          const first = yield* watch(thread.id);
+          yield* sendOk(thread.id, prompts[0]!);
+          yield* first.until(isTag("turn.finished"));
+          const saved = yield* HttpClient.execute(HttpClientRequest.put("/api/mcp-servers/refresh").pipe(HttpClientRequest.bodyJsonUnsafe({ baseHash: null, server: {
+            title: "Refresh", transport: { type: "http", url: upstream.url, headers: {} }, scope: "app", default: true, access: null, oauth: null,
+          } })));
+          expect(saved.status).toBe(200);
+          yield* fake.setMcp(failure === "failed" ? { _tag: "failed", reason: "Connection refused" } : "refused");
+          const second = yield* watch(thread.id);
+          yield* sendOk(thread.id, prompts[1]!);
+          expect(finishedOf(yield* second.until(isTag("turn.finished"))).outcome).toBe("completed");
+          expect(fake.calls.filter((call) => call.call === "removeMcpServer")).toContainEqual({ call: "removeMcpServer", directory: vault.rootPath, name: entryName(thread.id) });
+          // Reset only the recording, keeping the adapter session and its failed registration.
+          yield* fake.add(fixture, vault.rootPath);
+          yield* fake.setMcp({ _tag: "connected" });
+          const third = yield* watch(thread.id);
+          yield* sendOk(thread.id, prompts[0]!);
+          expect(finishedOf(yield* third.until(isTag("turn.finished"))).outcome).toBe("completed");
+          const added = fake.calls.filter((call) => call.call === "addMcpServer");
+          expect(added).toHaveLength(3);
+          expect(added[1]).toMatchObject({ name: `${entryName(thread.id)}-1` });
+          expect(added[2]).toEqual(added[1]);
+          // Do not make the default server part of subsequent tests.
+          const current = yield* HttpClient.get("/api/mcp-servers/refresh");
+          const { hash } = (yield* current.json) as { hash: string };
+          const removed = yield* HttpClient.execute(HttpClientRequest.delete(`/api/mcp-servers/refresh?hash=${hash}`));
+          expect(removed.status).toBe(200);
+        }),
+      );
+    }
 
     it.effect("runs the turn without them when OpenCode won't take them, says so, and tries again next turn", () =>
       Effect.gen(function* () {

@@ -77,14 +77,14 @@ layer(TestApp)("vault MCP server", (it) => {
       const tokens = yield* McpTokens;
       const scope = yield* Scope.make();
       const access = yield* (yield* VaultTools).open({ threadId: thread.id, vaultId: vault.id }).pipe(Scope.provide(scope));
-      const first = yield* access.current;
+      const { entry: first } = yield* access.current([]);
       expect(first.name).toBe(`wiki-agents-${thread.id}`);
       expect(first.url).toMatch(/^http:\/\/(127\.0\.0\.1|\[::1\]):\d+\/mcp$/);
-      expect((yield* access.current).token).toBe(first.token);
+      expect((yield* access.current([])).entry.token).toBe(first.token);
 
       // Halfway to expiry, the next turn gets a new token and the old one stops working.
       yield* TestClock.adjust("2 hours");
-      const second = yield* access.current;
+      const { entry: second } = yield* access.current([]);
       expect(second.token).not.toBe(first.token);
       expect(Option.isNone(yield* tokens.verify(first.token))).toBe(true);
       expect(yield* tokens.verify(second.token)).toEqual(Option.some({ threadId: thread.id, vaultId: vault.id }));

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseNames, providerEnvironment } from "./environment.js";
+import { parseNames, providerEnvironment } from "./provider-environment.js";
 
 const source = {
   PATH: "/usr/bin",

@@ -12,7 +12,7 @@ describe.skipIf(process.env.WIKI_AGENTS_LIVE_OPENCODE !== "1")("real OpenCode MC
       const vault = yield* newVaultWith({ "Plan.md": "# Plan\n\nA protocol fixture." });
       const thread = yield* newThread(vault.id);
       const access = yield* (yield* VaultTools).open({ threadId: thread.id, vaultId: vault.id });
-      const entry = yield* access.current;
+      const { entry } = yield* access.current([]);
       const api = yield* startServer({ binary: process.env.WIKI_AGENTS_OPENCODE ?? "opencode" });
       expect(yield* api.addMcpServer(vault.rootPath, entry)).toEqual({ _tag: "connected" });
       yield* api.removeMcpServer(vault.rootPath, entry.name);

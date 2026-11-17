@@ -3,7 +3,7 @@ import { Document, isMap, isScalar, type Pair, parseDocument, YAMLMap } from "ya
 import { splitFrontmatter } from "./definition.js";
 
 /** The order settings are written in; a setting the file doesn't have yet goes after the ones before it. */
-const ORDER = ["name", "description", "provider", "model", "sources", "autonomy"] as const;
+const ORDER = ["name", "description", "provider", "model", "sources", "mcp", "autonomy"] as const;
 type Key = (typeof ORDER)[number];
 
 const keyOf = (pair: Pair) => (isScalar(pair.key) ? String(pair.key.value) : String(pair.key));
@@ -13,7 +13,7 @@ const keyOf = (pair: Pair) => (isScalar(pair.key) ? String(pair.key.value) : Str
  * as it is on disk) has frontmatter, it is edited in place, so comments, key order
  * and settings the editor doesn't show (`tags`) stay. Settings left at their
  * defaults are removed rather than written out: no provider or model, no
- * description, no sources.
+ * description, no sources, no MCP servers.
  *
  * The result isn't checked here; the caller parses it as the loader would.
  */
@@ -33,7 +33,7 @@ export const agentFileText = (input: AgentInput, existing: string | null): strin
       current.value = value;
       return;
     }
-    const node = doc.createNode(value, { flow: key === "sources" && Array.isArray(value) && value.every((item) => typeof item === "string") });
+    const node = doc.createNode(value, { flow: (key === "sources" || key === "mcp") && Array.isArray(value) && value.every((item) => typeof item === "string") });
     if (at >= 0) {
       map.items[at]!.value = node;
       return;
@@ -73,6 +73,8 @@ export const agentFileText = (input: AgentInput, existing: string | null): strin
       ),
     );
   }
+  if (input.mcp.length === 0) remove("mcp");
+  else set("mcp", [...new Set(input.mcp)]);
   const autonomy = map.get("autonomy");
   if (isMap(autonomy)) {
     for (const action of AUTONOMY_ACTIONS) autonomy.set(action, input.autonomy[action]);

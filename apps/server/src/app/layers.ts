@@ -29,6 +29,8 @@ import { IndexingStartup } from "../features/indexing/startup.js";
 import { makeVaultWatcher, VaultWatcherNoop } from "../features/indexing/watcher.js";
 import { McpConnectionsLive } from "../features/mcp-oauth/connections-live.js";
 import { McpServerCatalogLive } from "../features/mcp-servers/catalog-live.js";
+import { McpPoolLive } from "../features/mcp-servers/pool-live.js";
+import { McpGatewayLive } from "../features/mcp/gateway-live.js";
 import { McpTokensLive } from "../features/mcp/tokens.js";
 import { VaultToolsLive } from "../features/mcp/vault-tools-live.js";
 import { PinRepositoryLive } from "../features/pins/sqlite-repository.js";
@@ -100,11 +102,12 @@ const indexing = (watch: boolean, pollMs: number | undefined) =>
 
 /**
  * ThreadActors, the bus their events go out on, and the vault tools they give their
- * providers (tokens for `/mcp` at this server's address).
+ * providers (tokens for `/mcp` at this server's address, and the gateway's tools from
+ * other MCP servers).
  */
 const threads = ThreadActorsLive.pipe(
   Layer.provideMerge(Layer.merge(ThreadBusLive, VaultToolsLive)),
-  Layer.provideMerge(McpTokensLive),
+  Layer.provideMerge(Layer.merge(McpTokensLive, McpGatewayLive)),
 );
 
 /** Inbox items go to the open browsers and, as notifications, to your devices. */
@@ -135,6 +138,7 @@ export const makeHttpApp = (options: AppOptions) =>
     Layer.provideMerge(inboxAndSchedules(options.channels)),
     Layer.provideMerge(threads),
     Layer.provideMerge(options.pushSender ?? PushSenderLive),
+    Layer.provideMerge(McpPoolLive),
     Layer.provideMerge(McpConnectionsLive),
     Layer.provideMerge(McpServerCatalogLive),
     Layer.provideMerge(Layer.mergeAll(

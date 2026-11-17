@@ -173,7 +173,10 @@ export const makeThreadActor = Effect.fnUntraced(function* (
   const actorScope = yield* Effect.scope;
   const mailbox = yield* Queue.unbounded<Message>();
   // The thread's vault tools token lives as long as the actor; closing it revokes the token.
-  const vaultTools = yield* (yield* VaultTools).open({ threadId, vaultId: vault.id }).pipe(Scope.provide(actorScope));
+  // Other MCP servers' `project` connections run in the project's main working directory.
+  const vaultTools = yield* (yield* VaultTools)
+    .open({ threadId, vaultId: vault.id, projectId: project?.id ?? null, cwd: project?.workingDirectories[0] ?? vault.rootPath })
+    .pipe(Scope.provide(actorScope));
 
   let session: ProviderSession | undefined;
   let turn: RunningTurn | undefined;
@@ -205,9 +208,10 @@ export const makeThreadActor = Effect.fnUntraced(function* (
    * The rules, the thread's agent and the vault's `AGENTS.md`, read for every turn so
    * edits apply from the next one. A missing or broken agent fails the turn with why,
    * and so does a worktree that was removed or deleted: the thread never falls back
-   * to the main directory.
+   * to the main directory. What the user should know about the thread's tools from
+   * other MCP servers (a server down, tools held back) is recorded on `turnId`.
    */
-  const currentSetup = Effect.gen(function* () {
+  const currentSetup = (turnId: string) => Effect.gen(function* () {
     if (worktree !== null) {
       const problem = yield* worktreeProblem(threadId).pipe(Effect.provideService(ProjectRepository, projects));
       if (problem !== null) return yield* new ProviderError({ message: problem });
@@ -218,12 +222,16 @@ export const makeThreadActor = Effect.fnUntraced(function* (
       Effect.provideService(FileSystem.FileSystem, fs),
       Effect.mapError((error) => (error._tag === "AgentNotFound" ? new ProviderError({ message: error.reason }) : error)),
     );
+    // sessionSetup has just read the agent, so it is there.
+    const agentServers = agentId === null ? [] : yield* catalog.get(agentId).pipe(Effect.map((found) => found.mcp), Effect.orElseSucceed(() => []));
+    const tools = yield* vaultTools.current(agentServers);
+    if (tools.notices.length > 0) yield* record(tools.notices.map((text): ThreadEvent => ({ _tag: "notice", turnId, text })));
     const setup: SessionSetup = {
       ...agent,
       instructions: project === null ? agent.instructions : [...agent.instructions, projectInstruction(project, directories, vault.rootPath, worktree)],
       projectRoots: project === null ? null : projectRoots(directories, vault.rootPath),
       attachmentFolders: yield* ownAttachmentFolders,
-      vaultTools: yield* vaultTools.current,
+      vaultTools: tools.entry,
     };
     return setup;
   });
@@ -315,7 +323,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
 
   /** Starts a provider turn for a turn already recorded, then drops its outbox row. */
   const dispatch = Effect.fnUntraced(function* (current: RunningTurn, text: string) {
-    const opened = yield* Effect.result(Effect.flatMap(currentSetup, (setup) => Effect.map(openSession(setup), (session) => ({ session, setup }))));
+    const opened = yield* Effect.result(Effect.flatMap(currentSetup(current.id), (setup) => Effect.map(openSession(setup), (session) => ({ session, setup }))));
     if (opened._tag === "Failure") return yield* finish("failed", null, opened.failure.message);
     const { session, setup } = opened.success;
     const events = (yield* repository.events(threadId, 0)).map(({ event }) => event).filter((event) => event.turnId === current.id);
@@ -352,7 +360,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     yield* trackChanges(current.id);
     if (!open.dispatched) return yield* dispatch(current, open.input);
     const resumed = adapter?.capabilities.resume === true
-      ? yield* Effect.flatMap(currentSetup, (setup) =>
+      ? yield* Effect.flatMap(currentSetup(open.id), (setup) =>
           Effect.flatMap(openSession(setup), (session) =>
             session.resumeTurn({
               turnId: open.id,
@@ -457,7 +465,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     // An MCP approval cannot be replayed after a restart: its in-memory request is gone.
     if (requestId.startsWith("vault-write:")) return;
     const answered = yield* Effect.result(
-      currentSetup.pipe(
+      currentSetup(request.turnId).pipe(
         Effect.flatMap(openSession),
         Effect.flatMap((session) => session.answerRequest(requestId, answer)),
       ),

@@ -35,8 +35,9 @@
   <h1 class="next">MCP servers</h1>
   <p class="hint">
     Servers whose tools the app will offer to agents on every provider, set up once here. A server that asks you to sign in (OAuth)
-    can be connected now, and the app keeps its tokens encrypted with the secrets; giving the servers' tools to agents comes with
-    the MCP gateway, which isn't built yet.
+    can be connected now, and the app keeps its tokens encrypted with the secrets. <strong>Test</strong> connects once, with the
+    secrets filled in, and lists the server's tools; <strong>Restart</strong> closes its connections and tries again at once.
+    Enable a server for every thread here, or list its ID in an agent's MCP servers field. Read-only tools are available from the next message.
   </p>
   <McpServersSettings />
   <h1 class="next">Secrets</h1>

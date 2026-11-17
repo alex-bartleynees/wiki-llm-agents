@@ -82,6 +82,7 @@
     provider: "Provider",
     model: "Model",
     sources: "Knowledge sources",
+    mcp: "MCP servers",
     autonomy: "Autonomy",
     instructions: "Instructions",
   };
@@ -272,6 +273,20 @@
             </details>
           {/if}
         </fieldset>
+
+        <label>
+          MCP servers
+          <input
+            aria-label="MCP servers"
+            value={editor.form.mcp.join(", ")}
+            onchange={(event) => (editor.form.mcp = event.currentTarget.value.split(/[,\s]+/).filter(Boolean))}
+            placeholder="coffee-journal, github"
+            spellcheck="false"
+            autocapitalize="off"
+          />
+          <span class="hint">Server IDs from Settings › MCP servers, separated by commas. Servers enabled for every thread are included automatically. Only tools marked read-only are available.</span>
+          {#each problems("mcp") as problem (problem)}<span class="field-error">{problem}</span>{/each}
+        </label>
 
         <SourcesPicker bind:sources={editor.form.sources} vaults={vaults.list} />
         {#each problems("sources") as problem (problem)}<span class="field-error">{problem}</span>{/each}

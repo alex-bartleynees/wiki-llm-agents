@@ -180,7 +180,7 @@ describe("MCP tool names and a changing tool list, live", () => {
               autonomy: AUTONOMY,
               projectRoots: null,
               attachmentFolders: [],
-              vaultTools: { ...entry, name, token },
+              vaultTools: { ...entry, name, token, revision: 0 },
             });
             const log = (label: string, value: unknown) => console.log(`[${testCase.name}] ${label}:`, JSON.stringify(value));
 

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
+import { makeMcpHandler } from "./stand-in-mcp.js";
 
 /**
  * An MCP server behind an identity server, on 127.0.0.1, standing in for the coffee
@@ -12,6 +13,8 @@ import type { AddressInfo } from "node:net";
 export interface StandInOptions {
   /** Offer dynamic client registration (Jira); off for Keycloak as configured. */
   readonly registration?: boolean;
+  /** Answer signed-in requests to the MCP endpoint as an MCP server (`stand-in-mcp.ts`) instead of with an empty result. */
+  readonly mcp?: boolean;
   /** Seconds an access token lasts. */
   readonly expiresIn?: number;
 }
@@ -36,6 +39,8 @@ export interface StandInIdentity {
   readonly registrations: Array<Record<string, unknown>>;
   /** Access tokens the MCP server would accept now. */
   readonly validTokens: Set<string>;
+  /** What the MCP endpoint was sent once signed in (with `mcp: true`). */
+  readonly mcpRequests: ReadonlyArray<{ readonly method: string; readonly authorization: string | null }>;
   /** Makes every refresh token stop working (a revoked sign-in). */
   readonly revokeRefreshTokens: () => void;
   /** Makes the token endpoint fail with 503 until called with false. */
@@ -67,6 +72,7 @@ export const startStandInIdentity = async (options: StandInOptions = {}): Promis
   let broken = false;
   let base = "";
   const realm = "/realms/test";
+  const mcp = options.mcp === true ? makeMcpHandler() : null;
 
   const issue = (clientId: string, scope: string) => {
     issued += 1;
@@ -84,7 +90,7 @@ export const startStandInIdentity = async (options: StandInOptions = {}): Promis
       const path = url.pathname;
       if (path === "/mcp") {
         const token = request.headers.authorization?.replace(/^Bearer /, "");
-        if (token !== undefined && validTokens.has(token)) return json(response, 200, { jsonrpc: "2.0", id: 1, result: {} });
+        if (token !== undefined && validTokens.has(token)) return mcp === null ? json(response, 200, { jsonrpc: "2.0", id: 1, result: {} }) : mcp.handle(request, response);
         return json(response, 401, { error: "unauthorized" }, {
           "www-authenticate": `Bearer resource_metadata="${base}/.well-known/oauth-protected-resource/mcp", scope="journal:read"`,
         });
@@ -163,6 +169,7 @@ export const startStandInIdentity = async (options: StandInOptions = {}): Promis
     tokenRequests,
     registrations,
     validTokens,
+    mcpRequests: mcp?.requests ?? [],
     revokeRefreshTokens: () => refreshTokens.clear(),
     breakTokenEndpoint: (value) => (broken = value),
     close: () => new Promise((resolve) => server.close(() => resolve())),

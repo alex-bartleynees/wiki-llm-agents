@@ -1,16 +1,25 @@
-import { Layer } from "effect";
+import { Effect, Layer } from "effect";
 import { McpProtocol, McpServer } from "effect/ai";
 import { McpAuth } from "./auth.js";
+import { McpGateway } from "./gateway.js";
 import { SERVER_INSTRUCTIONS } from "./instructions.js";
 import { VaultToolkit, VaultToolkitLive } from "./toolkit.js";
 
 /** The path OpenCode (and later Claude Code) is given for the vault tools. */
 export const MCP_PATH = "/mcp";
 
+/** Lets the gateway register other servers' tools on this server as threads need them. */
+const GatewayRegistrations = Layer.effectDiscard(
+  Effect.gen(function* () {
+    const server = yield* McpServer.McpServer;
+    yield* (yield* McpGateway).attach(server);
+  }),
+);
+
 /**
  * The vault MCP server: Streamable HTTP at `/mcp`, every request authenticated by a
  * thread's bearer token (`McpAuth`). The tools are a second transport over the same
- * use cases as the HTTP API.
+ * use cases as the HTTP API, plus the gateway's tools from other MCP servers.
  */
 export const mcpRouter = McpServer.layerHttp({
   name: "wiki-agents",
@@ -18,5 +27,5 @@ export const mcpRouter = McpServer.layerHttp({
   instructions: SERVER_INSTRUCTIONS,
   path: MCP_PATH,
   protocols: [McpProtocol.v2025_11_25, McpProtocol.v2025_06_18, McpProtocol.v2025_03_26, McpProtocol.v2026_07_28],
-  registrations: McpServer.toolkit(VaultToolkit).pipe(Layer.provide(VaultToolkitLive)),
+  registrations: Layer.merge(McpServer.toolkit(VaultToolkit).pipe(Layer.provide(VaultToolkitLive)), GatewayRegistrations),
 }).pipe(Layer.provide(McpAuth.layer));

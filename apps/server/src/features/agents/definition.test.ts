@@ -26,6 +26,7 @@ description: Digs.
 provider: opencode
 model: opencode/big-pickle
 sources: [vault, web]
+mcp: [coffee-journal, github, coffee-journal]
 autonomy:
   read: allow
   create: allow
@@ -47,6 +48,7 @@ Dig deep.
       provider: "opencode",
       model: "opencode/big-pickle",
       sources: ["vault", "web"],
+      mcp: ["coffee-journal", "github"],
       autonomy: { read: "allow", create: "allow", edit: "ask", commands: "deny", web: "allow" },
       path: PATH,
       instructions: "# Role\n\nDig deep.",
@@ -55,7 +57,7 @@ Dig deep.
 
   it("fills in what the file leaves out: a name from the file name, read freely, ask for the rest", () => {
     const parsed = agent("Just instructions.", "code-reviewer");
-    expect(parsed).toMatchObject({ name: "Code reviewer", description: "", provider: null, model: null, sources: [] });
+    expect(parsed).toMatchObject({ name: "Code reviewer", description: "", provider: null, model: null, sources: [], mcp: [] });
     expect(parsed).not.toHaveProperty("concurrency");
     expect(parsed.autonomy).toEqual(DEFAULT_AUTONOMY);
     expect(agent("---\nautonomy:\n  commands: deny\n---\nGo.").autonomy).toEqual({ ...DEFAULT_AUTONOMY, commands: "deny" });

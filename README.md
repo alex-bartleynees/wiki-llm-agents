@@ -650,11 +650,48 @@ access: ask                       # optional: allow, ask or deny, instead of the
   `${secret:name}`, `${env:NAME}` or `${file:/path}`. Don't write a token in the file.
 - Saving checks the file is still the version you opened (409 otherwise) and writes
   it atomically; **Delete** moves it to the config directory's `.trash/mcp/`.
-- **Not connected yet:** servers are only saved, or signed in to (below). Connecting to
-  them, resolving the references and giving their tools to agents come with the rest
-  of the MCP gateway.
+- **Test** connects once, apart from the connections threads use, with the references
+  filled in, and lists the server's tools (`<id>__<tool>`, read-only ones marked).
+  A server that can't be reached shows why, never with a secret in it.
+- **Agent tools:** enable **Give to every thread**, or list server IDs in an agent's
+  **MCP servers** field (`mcp: [coffee-journal, github]` in its frontmatter). Each
+  thread gets those servers' tools through its existing `/mcp` entry, named
+  `<server-id>__<tool>`. Only tools explicitly marked read-only are exposed for now;
+  missing servers and tools held back are explained in conversation notices.
+- Tools refresh at the next turn. A changed list renews the token and registers the
+  provider entry again; OpenCode also gets a new entry name and removes the old one.
+  A failed registration is retried on the next turn. Gateway calls time out after
+  two minutes; an unavailable server leaves the vault tools working.
 
-API: `GET /api/mcp-servers`, and `GET`, `PUT` and `DELETE /api/mcp-servers/:id`.
+#### Connections
+
+The app keeps its connections to the servers in a pool (`features/mcp-servers/pool-live.ts`):
+
+- One connection per server for `scope: app`, one per project for `project` (a stdio
+  server runs in the project's main working directory unless its file gives `cwd`; a
+  thread outside a project gets its own), one per thread for `thread`. A connection
+  unused for ten minutes is closed, which stops a stdio server's process.
+- References are filled in only when connecting: `${secret:…}` from the secrets,
+  `${env:…}` from the app's own environment, `${file:…}` from the file (one trailing line
+  break dropped). A stdio server starts with what providers get (the app's environment
+  without `WIKI_AGENTS_*` and the withheld names) plus its own `env`.
+- A server that signs in (OAuth) gets the sign-in's token on every request, renewed as
+  it runs out. Without a sign-in, requests go without one and a 401 says to **Connect**.
+- Every value filled in, and every token sent, is replaced with `[redacted]` in errors,
+  statuses and tool results, should the server echo it.
+- MCP versions are tried newest first (2025-11-25, 2025-06-18, 2025-03-26, 2026-07-28),
+  and the one that worked is tried first next time.
+- After a failed connect the app waits 1 s before trying again, doubling to a minute.
+  **Restart** closes the server's connections, forgets the failures and connects a
+  shared (`app`) server again at once. An edited file opens a new connection on next use.
+- Each server's line says whether it is connected, how many tools it has and the last
+  problem. Tool lists are fetched on connecting and on **Test**; a server's
+  `tools/list_changed` notice isn't seen (Effect's client doesn't pass it on).
+
+API: `GET /api/mcp-servers` (with each server's `statuses`), `GET`, `PUT` and `DELETE
+/api/mcp-servers/:id`, `POST /api/mcp-servers/:id/test` and `POST
+/api/mcp-servers/:id/restart` (both `{ status }`; like `/api/secrets`, only for requests
+addressed to an IP, `localhost` or a `*.ts.net` name).
 
 #### Signing in (OAuth)
 
@@ -691,7 +728,7 @@ oauth:                            # optional
   Secrets), and renewed with the refresh token a minute before they run out. No API
   response contains one. **Sign out** forgets them.
 - Identity server addresses must be HTTPS (plain HTTP only to this machine).
-- **Not used yet:** the gateway will add the token to its requests to the server.
+- The connection pool adds the token to its requests to the server (**Test** uses it).
 
 API: `GET /api/mcp-servers/oauth/connections`, `POST /api/mcp-servers/:id/connect`,
 `GET /api/mcp-servers/oauth/callback`, `POST /api/mcp-servers/oauth/finish`
@@ -728,7 +765,7 @@ each, never a value. **Replace** starts from an empty field.
   name (403 otherwise), against DNS rebinding.
 - `WIKI_AGENTS_SECRET*` variables are never passed to providers, even when
   `WIKI_AGENTS_PROVIDER_ENV_PASS` names them.
-- **Not used yet:** the MCP gateway will resolve secrets when it connects upstream,
+- **Resolved by the connection pool:** secrets go only to upstream connections,
   into headers or a stdio server's environment, never into an agent's.
 
 API: `GET /api/secrets`, `PUT /api/secrets/:name` (`{ value, expiresAt }`) and

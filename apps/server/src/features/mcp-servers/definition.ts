@@ -100,6 +100,10 @@ export const referenceProblems = (field: string, value: string): ReadonlyArray<s
   return problems;
 };
 
+/** Whether a server is one the app signs in to (OAuth): reached by URL, without an `Authorization` header of its own. */
+export const signsIn = (server: McpServerDefinition) =>
+  server.transport.type === "http" && !Object.keys(server.transport.headers).some((name) => name.toLowerCase() === "authorization");
+
 /** `github` → `Github`, `my-browser` → `My browser`. */
 const titleFromId = (id: string) => {
   const words = id.replaceAll("-", " ");

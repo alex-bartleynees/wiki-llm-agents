@@ -1,0 +1,124 @@
+import { Context, type Duration, Effect, Layer, Option, Schema } from "effect";
+import { McpSchema, McpServer } from "effect/ai";
+import { McpServerCatalog } from "../mcp-servers/catalog.js";
+import { McpPool, type McpScopeContext } from "../mcp-servers/pool.js";
+import { VaultCaller } from "./auth.js";
+import { descriptorOf, fingerprintOf, type GatewayTool, heldBackNotices, McpGateway, serversFor, toolsOf } from "./gateway.js";
+
+/** How long a turn waits for a server's tool list before starting without its tools. */
+export const PREPARE_TIMEOUT = "15 seconds" satisfies Duration.Input;
+/** How long a tool call may take before the agent is told it timed out. */
+export const CALL_TIMEOUT: Duration.Input = "2 minutes";
+
+/** A thread's tools as of its last turn start, and the connections they use. */
+interface ThreadSnapshot {
+  readonly context: McpScopeContext;
+  readonly tools: ReadonlyMap<string, GatewayTool>;
+}
+
+const decodeResult = Schema.decodeUnknownEffect(McpSchema.CallToolResult);
+
+/** A failed call as the agent sees it: an error result it can read, never a protocol error. */
+const failed = (text: string) => decodeResult({ content: [{ type: "text", text }], isError: true }).pipe(Effect.orDie);
+
+export const McpGatewayLive = Layer.effect(
+  McpGateway,
+  Effect.gen(function* () {
+    const catalog = yield* McpServerCatalog;
+    const pool = yield* McpPool;
+
+    let server: McpServer.McpServer["Service"] | undefined;
+    /** The visibility check, built once `/mcp` attaches; every gateway tool is registered with it. */
+    let gate: Context.Context<never> | undefined;
+    /** Registered on `/mcp`: name → what it was registered as. */
+    const registered = new Map<string, string>();
+    /** Prepared before `/mcp` was built; registered when it attaches. */
+    const waiting = new Map<string, GatewayTool>();
+    const snapshots = new Map<string, ThreadSnapshot>();
+    /** Kept after a thread is released, so its next entry never reuses a revision with other tools. */
+    const revisions = new Map<string, { readonly fingerprint: string; readonly revision: number }>();
+
+    const callerSnapshot = Effect.map(Effect.serviceOption(VaultCaller), (caller) =>
+      Option.isNone(caller) ? undefined : snapshots.get(caller.value.threadId),
+    );
+
+    const call = (name: string, args: unknown) =>
+      Effect.gen(function* () {
+        const snapshot = yield* callerSnapshot;
+        const tool = snapshot?.tools.get(name);
+        // Hidden from the thread's list too; only a stale client gets here.
+        if (snapshot === undefined || tool === undefined) return yield* failed(`${name} isn't one of this thread's tools now.`);
+        const result = yield* pool.callTool(tool.serverId, snapshot.context, tool.tool.name, (args ?? {}) as Record<string, unknown>, { timeout: CALL_TIMEOUT }).pipe(Effect.result);
+        if (result._tag === "Success") return yield* decodeResult(result.success).pipe(Effect.catch(() => failed(`${tool.serverTitle} sent a result the app can't read.`)));
+        const error = result.failure;
+        switch (error._tag) {
+          case "McpServerNotFound":
+            return yield* failed(error.reason);
+          case "McpToolNotFound":
+            return yield* failed(`${tool.serverTitle} no longer has ${tool.tool.name}.`);
+          default:
+            return yield* failed(error.reason);
+        }
+      });
+
+    const register = (tool: GatewayTool) =>
+      Effect.gen(function* () {
+        const descriptor = JSON.stringify(descriptorOf(tool));
+        if (registered.get(tool.name) === descriptor) return;
+        if (server === undefined || gate === undefined) return void waiting.set(tool.name, tool);
+        // A name's description is shared: two projects whose servers list it differently get the latest.
+        yield* server.addTool({
+          tool: new McpSchema.Tool({ ...descriptorOf(tool) }),
+          annotations: Context.empty(),
+          services: gate,
+          handle: (args) => call(tool.name, args),
+        });
+        registered.set(tool.name, descriptor);
+      });
+
+    return McpGateway.of({
+      prepare: (context, agentServers) =>
+        Effect.gen(function* () {
+          const { servers } = yield* catalog.current;
+          const { chosen, missing } = serversFor(servers, agentServers);
+          const notices = missing.map((id) => `The agent lists the MCP server "${id}", which isn't in Settings › MCP servers or whose file doesn't load, so it has none of its tools.`);
+          const lists = yield* Effect.forEach(
+            chosen,
+            (chosenServer) => pool.tools(chosenServer.id, context).pipe(Effect.timeoutOption(PREPARE_TIMEOUT), Effect.result, Effect.map((tools) => ({ server: chosenServer, tools }))),
+            { concurrency: "unbounded" },
+          );
+          const tools: Array<GatewayTool> = [];
+          for (const { server: listed, tools: result } of lists) {
+            if (result._tag === "Failure") {
+              notices.push(`${listed.title}'s tools aren't available this turn: ${result.failure.reason}`);
+            } else if (Option.isNone(result.success)) {
+              notices.push(`${listed.title}'s tools aren't available this turn: it didn't answer within ${PREPARE_TIMEOUT}.`);
+            } else {
+              const { given, heldBack } = toolsOf(listed, result.success.value);
+              tools.push(...given);
+              notices.push(...heldBackNotices(listed.title, heldBack));
+            }
+          }
+          for (const tool of tools) yield* register(tool);
+          snapshots.set(context.threadId, { context, tools: new Map(tools.map((tool) => [tool.name, tool])) });
+          const fingerprint = fingerprintOf(tools);
+          const previous = revisions.get(context.threadId);
+          const revision = previous === undefined ? 0 : previous.fingerprint === fingerprint ? previous.revision : previous.revision + 1;
+          revisions.set(context.threadId, { fingerprint, revision });
+          return { names: tools.map((tool) => tool.name).sort(), revision, notices };
+        }),
+
+      release: (threadId) => Effect.sync(() => void snapshots.delete(threadId)),
+
+      attach: (mcp) =>
+        Effect.gen(function* () {
+          const visibility = McpServer.visibility(({ target }) => Effect.map(callerSnapshot, (snapshot) => snapshot?.tools.has(target) === true));
+          gate = yield* Layer.build(visibility.layer as Layer.Layer<never>);
+          server = mcp;
+          const pending = [...waiting.values()];
+          waiting.clear();
+          for (const tool of pending) yield* register(tool);
+        }),
+    });
+  }),
+);

@@ -261,7 +261,7 @@ export const makeCodexAdapter = (options: CodexAdapterOptions) =>
                 ...autonomyConfig(setup.autonomy),
                 ...(tools === null ? {} : { [`mcp_servers.${VAULT_SERVER}`]: { url: tools.url, bearer_token_env_var: TOKEN_ENV } }),
               };
-              const key = JSON.stringify([instructions, config, tools?.token ?? null]);
+              const key = JSON.stringify([instructions, config, tools?.token ?? null, tools?.revision ?? null]);
               if (conversation?.alive === true && conversation.key === key) return conversation;
               if (conversation !== undefined) close(conversation);
               const signals = yield* Queue.unbounded<Signal>();

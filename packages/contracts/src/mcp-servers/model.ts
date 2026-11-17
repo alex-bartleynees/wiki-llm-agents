@@ -60,7 +60,7 @@ export const McpServerInput = Schema.Struct({
   title: Schema.String,
   transport: McpTransport,
   scope: McpScope,
-  /** Give its tools to every thread, whatever the agent. */
+  /** Give its tools to every thread, whatever the agent; otherwise only to agents listing it (`mcp:`). */
   default: Schema.Boolean,
   /** What its tools need instead of the agent's own autonomy; null to follow the agent. */
   access: Schema.NullOr(AutonomyLevel),
@@ -77,3 +77,64 @@ export const McpServerSummary = Schema.Struct({
   ...McpServerInput.fields,
 });
 export type McpServerSummary = typeof McpServerSummary.Type;
+
+/** A tool a server offers, as its last tool list said. */
+export const McpToolInfo = Schema.Struct({
+  /** The server's own name for it; agents will see `<server id>__<name>`. */
+  name: Schema.String,
+  title: Schema.NullOr(Schema.String),
+  description: Schema.NullOr(Schema.String),
+  /** The server marks it read-only (`readOnlyHint`), so it needs only the agent's `read` autonomy. */
+  readOnly: Schema.Boolean,
+});
+export type McpToolInfo = typeof McpToolInfo.Type;
+
+/** What agents call a server's tool: `<server id>__<tool>`, e.g. `coffee-app__coffee_journal_list_brews`. */
+export const gatewayToolName = (serverId: string, tool: string) => `${serverId}__${tool}`;
+
+/**
+ * The longest `<server>__<tool>` the app gives agents. Claude Code names a tool
+ * `mcp__wiki-agents-<thread id>__<name>` (55 characters before the name) and silently
+ * drops tools whose whole name is too long: 115 characters worked, 155 didn't (checked
+ * 2026-11-17). 60 keeps the whole name at 115, the longest seen working.
+ */
+export const MAX_GATEWAY_TOOL_NAME = 60;
+
+/**
+ * Why agents don't get a tool, or null when they do. Until approvals for other
+ * servers' tools are built, only tools the server marks read-only are given.
+ */
+export const gatewayToolProblem = (serverId: string, tool: Pick<McpToolInfo, "name" | "readOnly">): string | null => {
+  if (!tool.readOnly) return "The server doesn't mark it read-only, and approvals for other servers' tools aren't built yet.";
+  if (!/^[A-Za-z0-9_-]+$/.test(tool.name)) return "Its name has characters other than letters, digits, _ and -, which some providers refuse.";
+  const name = gatewayToolName(serverId, tool.name);
+  if (name.length > MAX_GATEWAY_TOOL_NAME) return `${name} is ${name.length} characters, over the ${MAX_GATEWAY_TOOL_NAME} the app allows so Claude Code doesn't drop it.`;
+  return null;
+};
+
+/**
+ * - `idle`: no connection open (never used, or closed after a while unused)
+ * - `connected`: at least one connection open
+ * - `failed`: the last attempt to connect or call failed; `problem` says why
+ */
+export const McpServerState = Schema.Literals(["idle", "connected", "failed"]);
+export type McpServerState = typeof McpServerState.Type;
+
+/** How the app's connections to a server are doing; never holds a secret. */
+export const McpServerStatus = Schema.Struct({
+  serverId: Schema.String,
+  state: McpServerState,
+  /** Connections open now: one for `app`, one per project or thread in use otherwise. */
+  connections: Schema.Number,
+  /** The tools from the last list fetched (on connecting or testing); null until one has been. */
+  tools: Schema.NullOr(Schema.Array(McpToolInfo)),
+  /** When that list was fetched (ms since the epoch). */
+  listedAt: Schema.NullOr(Schema.Number),
+  /** The MCP version the server spoke last time, e.g. `2025-06-18`. */
+  protocolVersion: Schema.NullOr(Schema.String),
+  /** Why the last attempt failed; null after a success. */
+  problem: Schema.NullOr(Schema.String),
+  /** After failures the app waits before trying again; when it next will. Restart tries at once. */
+  retryAt: Schema.NullOr(Schema.Number),
+});
+export type McpServerStatus = typeof McpServerStatus.Type;

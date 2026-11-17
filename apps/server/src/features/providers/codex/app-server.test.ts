@@ -2,7 +2,7 @@ import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { providerEnvironment } from "../environment.js";
+import { providerEnvironment } from "../../../shared/provider-environment.js";
 import { makeCodexLauncher } from "./app-server.js";
 import type { JsonRpcMessage } from "./protocol.js";
 

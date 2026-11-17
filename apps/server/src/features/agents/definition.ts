@@ -12,6 +12,8 @@ export interface AgentDefinition {
   readonly model: string | null;
   /** Where it may look things up; empty for no limits (see `sources.ts`). */
   readonly sources: ReadonlyArray<KnowledgeSource>;
+  /** MCP servers whose tools its threads get besides those every thread gets; ids as in `mcp/<id>.yaml`. */
+  readonly mcp: ReadonlyArray<string>;
   readonly autonomy: Autonomy;
   readonly path: string;
   /** The file's body, as markdown. */
@@ -44,6 +46,14 @@ const Source = Schema.Union([
   Schema.Struct({ vault: NonEmpty, folders: Schema.optionalKey(Schema.Array(Folder)) }),
 ]);
 
+/**
+ * An MCP server's id: its file name in `mcp/`, without `.yaml`. A server that doesn't
+ * exist isn't an error here: it may be added later, and the turn says it's missing.
+ */
+const ServerId = Schema.String.check(
+  Schema.makeFilter((id: string) => (ID_PATTERN.test(id) ? undefined : "An MCP server's id: lowercase letters, digits and hyphens, as in its file name.")),
+);
+
 /** `Projects//Active/` → `Projects/Active`; undefined for anything outside the vault or hidden. */
 export const normaliseFolder = (folder: string): string | undefined => {
   if (folder.startsWith("/") || folder.includes("\0")) return undefined;
@@ -59,6 +69,7 @@ const Frontmatter = Schema.Struct({
   provider: Schema.optionalKey(Schema.NullOr(NonEmpty)),
   model: Schema.optionalKey(Schema.NullOr(NonEmpty)),
   sources: Schema.optionalKey(Schema.Array(Source)),
+  mcp: Schema.optionalKey(Schema.Array(ServerId)),
   autonomy: Schema.optionalKey(
     Schema.Struct({
       read: Schema.optionalKey(Level),
@@ -149,6 +160,7 @@ export const parseAgent = (id: string, path: string, text: string): Result.Resul
     sources: (front.sources ?? []).map((source) =>
       typeof source === "string" ? source : { vault: source.vault, folders: (source.folders ?? []).map((folder) => normaliseFolder(folder) ?? folder) },
     ),
+    mcp: [...new Set(front.mcp ?? [])],
     autonomy: { read: level("read"), create: level("create"), edit: level("edit"), commands: level("commands"), web: level("web") },
     path,
     instructions: body,

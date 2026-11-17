@@ -5,6 +5,7 @@ import type { ProviderStatus } from "@wiki-agents/contracts/providers/model";
 import type { RequestAnswer } from "@wiki-agents/contracts/threads/model";
 import { Duration, Effect, Exit, FileSystem, Option, PubSub, Queue, RcRef, Scope, Stream } from "effect";
 import { pathsWithinRoots } from "../../../shared/vault/path-scope.js";
+import { revisedEntryName } from "../../mcp/vault-tools.js";
 import { type ProviderAdapter, ProviderError, type ProviderEvent, type ProviderSession, type SessionSetup, type TurnImage, type TurnInput, DENIED, vaultToolsUnavailable } from "../port.js";
 import type { OpenCodeApi, OpenCodeError, OpenCodeEvent, OpenCodeFile, OpenCodePermissionRule, OpenCodeSignal } from "./api.js";
 import { formAnswer, makeTurnMapper, sessionOf } from "./events.js";
@@ -86,7 +87,8 @@ interface Applied {
   tools: { readonly api: OpenCodeApi; readonly name: string; readonly key: string } | undefined;
 }
 
-const sessionRules = (setup: SessionSetup) => permissionRules(setup.autonomy, setup.vaultTools?.name ?? null, setup.attachmentFolders);
+const sessionRules = (setup: SessionSetup) =>
+  permissionRules(setup.autonomy, setup.vaultTools === null ? null : revisedEntryName(setup.vaultTools), setup.attachmentFolders);
 const rulesKey = (setup: SessionSetup) => JSON.stringify(sessionRules(setup));
 
 export { vaultToolsUnavailable } from "../port.js";
@@ -97,24 +99,33 @@ const makeSession = (connect: Connect, sessionId: string, cwd: string, silence: 
 
   /**
    * Registers the thread's vault tools with OpenCode when they are new, changed (a
-   * new token), or on a new server (after a crash). A failure leaves the turn to run
-   * without them; it returns why, for the user. The token never goes in a log.
+   * new token), or on a new server (after a crash). OpenCode keeps an entry's first
+   * tool list while its name stays registered, so a new set of tools from other MCP
+   * servers comes under a new name (`revisedEntryName`) and the old entry is removed.
+   * A failure leaves the turn to run without them; it returns why, for the user. The
+   * token never goes in a log.
    */
   const applyTools = (api: OpenCodeApi, setup: SessionSetup) =>
     Effect.gen(function* () {
       const tools = setup.vaultTools;
       if (tools === null) return [];
-      const key = `${tools.name}\0${tools.url}\0${tools.token}`;
+      const name = revisedEntryName(tools);
+      const key = `${name}\0${tools.url}\0${tools.token}`;
       if (applied.tools?.api === api && applied.tools.key === key) return [];
-      const added = yield* Effect.result(api.addMcpServer(cwd, tools));
+      const added = yield* Effect.result(api.addMcpServer(cwd, { name, url: tools.url, token: tools.token }));
       const rawReason = added._tag === "Failure" ? added.failure.message : added.success._tag === "failed" ? added.success.reason : undefined;
       const reason = rawReason?.replaceAll(tools.token, "[redacted]");
+      const previous = applied.tools;
+      // A failed entry is removed with the session and tried again next turn (its key never matches).
+      applied.tools = { api, name, key: reason === undefined ? key : "" };
+      // The old entry's token is revoked by now; it only lists stale tools.
+      if (previous !== undefined && previous.api === api && previous.name !== name) {
+        yield* api.removeMcpServer(cwd, previous.name).pipe(Effect.catch((error) => Effect.logWarning(`couldn't remove ${previous.name} from OpenCode: ${error.message}`)));
+      }
       if (reason !== undefined) {
-        applied.tools = undefined;
-        yield* Effect.logWarning(`thread vault tools (${tools.name}) not registered with OpenCode: ${reason}`);
+        yield* Effect.logWarning(`thread vault tools (${name}) not registered with OpenCode: ${reason}`);
         return [vaultToolsUnavailable(reason)];
       }
-      applied.tools = { api, name: tools.name, key };
       return [];
     });
 

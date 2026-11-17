@@ -336,7 +336,7 @@ export const makeClaudeCodeAdapter = (options: ClaudeCodeAdapterOptions) =>
             Effect.gen(function* () {
               const tools = setup.vaultTools;
               if (tools === null) return [];
-              const key = JSON.stringify([tools.name, tools.url, tools.token]);
+              const key = JSON.stringify([tools.name, tools.url, tools.token, tools.revision]);
               if (current.tools === key) return [];
               const result = yield* tryPromise(
                 () => current.query.setMcpServers({ [tools.name]: { type: "http", url: tools.url, headers: { Authorization: `Bearer ${tools.token}` } } }),

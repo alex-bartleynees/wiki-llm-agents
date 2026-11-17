@@ -2,7 +2,7 @@ import { type McpConnection, OAUTH_CALLBACK_PATH } from "@wiki-agents/contracts/
 import { Effect, Layer, Option, Ref, Result, Semaphore } from "effect";
 import { WallClock } from "../../shared/wall-clock.js";
 import { McpServerCatalog } from "../mcp-servers/catalog.js";
-import type { McpServerDefinition } from "../mcp-servers/definition.js";
+import { type McpServerDefinition, signsIn } from "../mcp-servers/definition.js";
 import { SecretStore } from "../secrets/secret-store.js";
 import { McpConnections, type SignInAnswer, SignInFailed, SignInNeeded, SignInUnknown } from "./connections.js";
 import { discover, registerClient, tokenRequest, type Tokens } from "./oauth-client.js";
@@ -29,10 +29,6 @@ interface Waiting {
   readonly verifier: string;
   readonly expiresAt: number;
 }
-
-/** Whether a server is one the app signs in to: reached by URL, without an `Authorization` header of its own. */
-export const signsIn = (server: McpServerDefinition) =>
-  server.transport.type === "http" && !Object.keys(server.transport.headers).some((name) => name.toLowerCase() === "authorization");
 
 const configuredClientId = (server: McpServerDefinition) => server.oauth?.clientId ?? null;
 const urlOf = (server: McpServerDefinition) => (server.transport.type === "http" ? server.transport.url : "");

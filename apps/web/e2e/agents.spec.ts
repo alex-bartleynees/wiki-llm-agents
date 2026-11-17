@@ -31,6 +31,7 @@ test("creates an agent in the app, then edits it over a change made on disk", as
   await form.getByLabel("The web (as its autonomy allows)").uncheck();
   await form.getByLabel("vault", { exact: true }).check();
   await form.getByLabel("Folders in vault").fill("Projects");
+  await form.getByLabel("MCP servers", { exact: true }).fill("coffee-journal, github");
   await form.getByLabel("Instructions").fill("# Scout\n\nLook around before answering.");
   await noOverflow(page);
   await form.getByRole("button", { name: "Create agent" }).click();
@@ -41,6 +42,7 @@ test("creates an agent in the app, then edits it over a change made on disk", as
   const written = readFileSync(file, "utf8");
   expect(written).toContain(`name: Scout ${width}\n`);
   expect(written).toContain("  edit: deny\n");
+  expect(written).toContain("mcp: [ coffee-journal, github ]\n");
   expect(written).toContain("sources:\n  - vault\n  - vault: vault\n    folders:\n      - Projects\n");
   expect(written).toMatch(/---\n\n# Scout\n\nLook around before answering\.\n$/);
 
@@ -67,6 +69,8 @@ test("creates an agent in the app, then edits it over a change made on disk", as
   await expect(list).toContainText("vault: Projects");
   await expect(list).toContainText("The thread's vault");
   await list.getByRole("link", { name: "Edit" }).click();
+
+  await expect(page.getByLabel("MCP servers", { exact: true })).toHaveValue("coffee-journal, github");
 
   // Deleting moves the file to the config folder's trash.
   page.once("dialog", (dialog) => void dialog.accept());

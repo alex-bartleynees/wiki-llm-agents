@@ -10,7 +10,7 @@ import { makeClaudeCodeSdk } from "./claude-code/sdk.js";
 import { makeCodexLauncher } from "./codex/app-server.js";
 import { makeCodexAdapter } from "./codex/adapter.js";
 import { authStatus as codexAuthStatus, binaryVersion as codexVersion } from "./codex/cli.js";
-import { parseNames, providerEnvironment } from "./environment.js";
+import { ProviderEnvironment } from "../../shared/provider-environment.js";
 import { makeOpenCodeAdapter } from "./opencode/adapter.js";
 import { binaryVersion, startServer } from "./opencode/server.js";
 import type { ProviderAdapter } from "./port.js";
@@ -92,16 +92,6 @@ export const makeProviderRegistry = <E, R>(makeAdapters: Effect.Effect<ReadonlyA
       return ProviderRegistry.of({ list, defaultInstance, get });
     }),
   );
-
-/**
- * What provider processes start with: this process's environment without the app's own
- * settings, as `WIKI_AGENTS_PROVIDER_ENV_WITHHOLD` and `_PASS` adjust it.
- */
-const ProviderEnvironment = Effect.gen(function* () {
-  const withhold = yield* AppConfig.providerEnvWithhold.pipe(Effect.orDie);
-  const pass = yield* AppConfig.providerEnvPass.pipe(Effect.orDie);
-  return providerEnvironment(process.env, { withhold: parseNames(withhold), pass: parseNames(pass) });
-});
 
 /** OpenCode, run from the `opencode` on PATH (or `WIKI_AGENTS_OPENCODE`), with its todo tool if `WIKI_AGENTS_OPENCODE_TODO`. */
 export const OpenCodeAdapterLive: Effect.Effect<ProviderAdapter, never, Scope.Scope> = Effect.gen(function* () {

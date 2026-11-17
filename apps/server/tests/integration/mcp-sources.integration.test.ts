@@ -23,6 +23,7 @@ const agentWith = (id: string, sources: ReadonlyArray<KnowledgeSource>) =>
       provider: null,
       model: null,
       sources,
+      mcp: [],
       autonomy: { read: "allow", create: "ask", edit: "ask", commands: "deny", web: "deny" },
       instructions: "Look things up.",
     };
