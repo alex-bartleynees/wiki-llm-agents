@@ -796,6 +796,8 @@ design/             Claude Design mockup
 | `WIKI_AGENTS_OPENCODE` | `opencode` (looked up on `PATH`) |
 | `WIKI_AGENTS_OPENCODE_TODO` | `false`; `true` turns on OpenCode's experimental `todowrite` tool (`experimental.todo`, added to any `OPENCODE_CONFIG_CONTENT`) for the app's OpenCode server, so OpenCode threads show plans. It adds tool calls to multi-step turns; restart the app after changing it |
 | `WIKI_AGENTS_CLAUDE` | `claude` (looked up on `PATH`) |
+| `WIKI_AGENTS_PROVIDER_ENV_WITHHOLD` | unset; environment variables kept from OpenCode, Claude Code and Codex, and so from every command an agent runs: names separated by commas, a trailing `*` matching a prefix (`AWS_*, NPM_TOKEN`). The app's own `WIKI_AGENTS_*` variables are always kept from them; everything else (`PATH`, `HOME`, `SSH_AUTH_SOCK`, Nix, provider keys) goes through. Restart the app after changing it |
+| `WIKI_AGENTS_PROVIDER_ENV_PASS` | unset; variables passed to the providers anyway, over the list above and the `WIKI_AGENTS_*` rule (same form) |
 | `WIKI_AGENTS_CONFIG_DIR` | `$XDG_CONFIG_HOME/wiki-agents` (rules and agents) |
 | `WIKI_AGENTS_TIMEZONE` | `Pacific/Auckland`: the timezone new schedules use unless they say otherwise |
 | `WIKI_AGENTS_TEST_HOOKS` | `false`; `true` serves `POST /api/test/clock` and adds the replay provider, for end-to-end tests only |
@@ -836,7 +838,9 @@ package; default: `opencode` from your user profile, which must be 2.2.x), `open
 (default off; sets `WIKI_AGENTS_OPENCODE_TODO`), `claudeCode`
 (a package; default: `claude` from your user profile, which must be 2.1.x), `codex`
 (a package; default: `codex` from your user profile, 0.166 or later),
-`environment`, `enableLinger` and `desktopEntry` (default off). `nix flake check`
+`environment`, `providerEnv.withhold` and `providerEnv.pass` (lists; set
+`WIKI_AGENTS_PROVIDER_ENV_WITHHOLD` and `_PASS`), `enableLinger` and `desktopEntry`
+(default off). `nix flake check`
 builds a home-manager configuration with the module (`checks.hm-module`).
 
 - Agents run only while the machine is up and the service runs: threads pause with

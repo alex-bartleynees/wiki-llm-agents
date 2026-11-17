@@ -18,7 +18,7 @@ export interface AppServerProcess {
 export interface LaunchOptions {
   readonly binary: string;
   readonly cwd: string;
-  /** Added to this process's environment. */
+  /** Added to the environment the launcher starts Codex with. */
   readonly env: Readonly<Record<string, string>>;
 }
 
@@ -32,9 +32,10 @@ const STDERR_LINES = 20;
 /** Codex's log lines are coloured; the reason reads better without. */
 const ANSI = /\u001b\[[0-9;]*m/g;
 
-export const CodexLauncherLive: CodexLauncher = {
+/** Starts the real `codex app-server` with `base` as its environment (see `providerEnvironment`). */
+export const makeCodexLauncher = (base: Readonly<Record<string, string | undefined>>): CodexLauncher => ({
   launch: ({ binary, cwd, env }) => {
-    const child = spawn(binary, ["app-server"], { cwd, env: { ...process.env, ...env }, stdio: ["pipe", "pipe", "pipe"] });
+    const child = spawn(binary, ["app-server"], { cwd, env: { ...base, ...env }, stdio: ["pipe", "pipe", "pipe"] });
     const stderr: Array<string> = [];
     let closing = false;
     let handlers: Parameters<AppServerProcess["listen"]>[0] | undefined;
@@ -90,7 +91,10 @@ export const CodexLauncherLive: CodexLauncher = {
       },
     };
   },
-};
+});
+
+/** Codex with this process's whole environment: for the recorder and live tests, not the app. */
+export const CodexLauncherLive: CodexLauncher = makeCodexLauncher(process.env);
 
 export class RpcError extends Error {
   constructor(

@@ -35,6 +35,14 @@ export const AppConfig = {
   claudeBinary: Config.String("WIKI_AGENTS_CLAUDE").pipe(Config.withDefault("claude")),
   /** The Codex executable: a path, or a name looked up on `PATH`. */
   codexBinary: Config.String("WIKI_AGENTS_CODEX").pipe(Config.withDefault("codex")),
+  /**
+   * Environment variables kept from provider processes (and so from every command an
+   * agent runs), on top of the app's own `WIKI_AGENTS_*`: names separated by commas, a
+   * trailing `*` matching a prefix (`AWS_*, NPM_TOKEN`).
+   */
+  providerEnvWithhold: Config.String("WIKI_AGENTS_PROVIDER_ENV_WITHHOLD").pipe(Config.withDefault("")),
+  /** Environment variables passed to provider processes anyway, over the list above and `WIKI_AGENTS_*`. */
+  providerEnvPass: Config.String("WIKI_AGENTS_PROVIDER_ENV_PASS").pipe(Config.withDefault("")),
   /** The timezone a new schedule's times are in unless it says otherwise (IANA name). */
   timezone: Config.String("WIKI_AGENTS_TIMEZONE").pipe(Config.withDefault("Pacific/Auckland")),
   /**

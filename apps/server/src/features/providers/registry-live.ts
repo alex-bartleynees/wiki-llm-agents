@@ -6,10 +6,11 @@ import { DbError } from "../../shared/persistence/errors.js";
 import { Sqlite } from "../../shared/persistence/sqlite.js";
 import { makeClaudeCodeAdapter } from "./claude-code/adapter.js";
 import { authStatus, binaryVersion as claudeVersion } from "./claude-code/cli.js";
-import { ClaudeCodeSdkLive } from "./claude-code/sdk.js";
-import { CodexLauncherLive } from "./codex/app-server.js";
+import { makeClaudeCodeSdk } from "./claude-code/sdk.js";
+import { makeCodexLauncher } from "./codex/app-server.js";
 import { makeCodexAdapter } from "./codex/adapter.js";
 import { authStatus as codexAuthStatus, binaryVersion as codexVersion } from "./codex/cli.js";
+import { parseNames, providerEnvironment } from "./environment.js";
 import { makeOpenCodeAdapter } from "./opencode/adapter.js";
 import { binaryVersion, startServer } from "./opencode/server.js";
 import type { ProviderAdapter } from "./port.js";
@@ -92,27 +93,38 @@ export const makeProviderRegistry = <E, R>(makeAdapters: Effect.Effect<ReadonlyA
     }),
   );
 
+/**
+ * What provider processes start with: this process's environment without the app's own
+ * settings, as `WIKI_AGENTS_PROVIDER_ENV_WITHHOLD` and `_PASS` adjust it.
+ */
+const ProviderEnvironment = Effect.gen(function* () {
+  const withhold = yield* AppConfig.providerEnvWithhold.pipe(Effect.orDie);
+  const pass = yield* AppConfig.providerEnvPass.pipe(Effect.orDie);
+  return providerEnvironment(process.env, { withhold: parseNames(withhold), pass: parseNames(pass) });
+});
+
 /** OpenCode, run from the `opencode` on PATH (or `WIKI_AGENTS_OPENCODE`), with its todo tool if `WIKI_AGENTS_OPENCODE_TODO`. */
 export const OpenCodeAdapterLive: Effect.Effect<ProviderAdapter, never, Scope.Scope> = Effect.gen(function* () {
   const binary = yield* AppConfig.opencodeBinary.pipe(Effect.orDie);
   const todo = yield* AppConfig.opencodeTodo.pipe(Effect.orDie);
-  return yield* makeOpenCodeAdapter({ start: startServer({ binary, todo }), installedVersion: binaryVersion(binary) });
+  return yield* makeOpenCodeAdapter({ start: startServer({ binary, todo, env: yield* ProviderEnvironment }), installedVersion: binaryVersion(binary) });
 });
 
 /** Claude Code, run from the `claude` on PATH (or `WIKI_AGENTS_CLAUDE`), with your login. */
 export const ClaudeCodeAdapterLive: Effect.Effect<ProviderAdapter> = Effect.gen(function* () {
   const binary = yield* AppConfig.claudeBinary.pipe(Effect.orDie);
-  return yield* makeClaudeCodeAdapter({ sdk: ClaudeCodeSdkLive, binary, installedVersion: claudeVersion, authStatus });
+  return yield* makeClaudeCodeAdapter({ sdk: makeClaudeCodeSdk(yield* ProviderEnvironment), binary, installedVersion: claudeVersion, authStatus });
 });
 
 /** Codex, run from the `codex` on PATH (or `WIKI_AGENTS_CODEX`), with your login. */
 export const CodexAdapterLive: Effect.Effect<ProviderAdapter> = Effect.gen(function* () {
   const binary = yield* AppConfig.codexBinary.pipe(Effect.orDie);
+  const launcher = makeCodexLauncher(yield* ProviderEnvironment);
   return yield* makeCodexAdapter({
-    launcher: CodexLauncherLive,
+    launcher,
     binary,
     installedVersion: codexVersion,
-    authStatus: (path) => codexAuthStatus(CodexLauncherLive, path),
+    authStatus: (path) => codexAuthStatus(launcher, path),
   });
 });
 

@@ -129,6 +129,28 @@ in
       description = "Extra environment variables for the service.";
     };
 
+    providerEnv = {
+      withhold = mkOption {
+        type = types.listOf types.str;
+        default = [ ];
+        example = [ "AWS_*" "NPM_TOKEN" ];
+        description = ''
+          Environment variables of the service kept from OpenCode, Claude Code and Codex,
+          and so from every command an agent runs. A trailing `*` matches a prefix. The
+          app's own `WIKI_AGENTS_*` variables are always kept from them.
+        '';
+      };
+      pass = mkOption {
+        type = types.listOf types.str;
+        default = [ ];
+        example = [ "AWS_REGION" ];
+        description = ''
+          Environment variables passed to the providers anyway, over `withhold` and the
+          `WIKI_AGENTS_*` rule. A trailing `*` matches a prefix.
+        '';
+      };
+    };
+
     enableLinger = mkOption {
       type = types.bool;
       default = false;
@@ -183,6 +205,12 @@ in
           // lib.optionalAttrs cfg.opencodeTodo { WIKI_AGENTS_OPENCODE_TODO = "true"; }
           // lib.optionalAttrs (cfg.claudeCode != null) { WIKI_AGENTS_CLAUDE = lib.getExe cfg.claudeCode; }
           // lib.optionalAttrs (cfg.codex != null) { WIKI_AGENTS_CODEX = lib.getExe cfg.codex; }
+          // lib.optionalAttrs (cfg.providerEnv.withhold != [ ]) {
+            WIKI_AGENTS_PROVIDER_ENV_WITHHOLD = lib.concatStringsSep "," cfg.providerEnv.withhold;
+          }
+          // lib.optionalAttrs (cfg.providerEnv.pass != [ ]) {
+            WIKI_AGENTS_PROVIDER_ENV_PASS = lib.concatStringsSep "," cfg.providerEnv.pass;
+          }
           // cfg.environment
         );
         Restart = "on-failure";

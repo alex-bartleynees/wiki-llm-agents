@@ -29,6 +29,8 @@ export interface ServerOptions {
   readonly binary: string;
   /** Turn on the experimental `todowrite` tool (see `withTodo`). */
   readonly todo?: boolean;
+  /** The environment OpenCode starts with (see `providerEnvironment`); this process's own when left out. */
+  readonly env?: Readonly<Record<string, string | undefined>>;
 }
 
 /**
@@ -108,7 +110,7 @@ interface Launched {
  */
 const launch = (options: ServerOptions, password: string) =>
   Effect.gen(function* () {
-    const env: NodeJS.ProcessEnv = { ...process.env, OPENCODE_PASSWORD: password };
+    const env: NodeJS.ProcessEnv = { ...(options.env ?? process.env), OPENCODE_PASSWORD: password };
     delete env.OPENCODE_SERVER_PASSWORD;
     if (options.todo === true) env.OPENCODE_CONFIG_CONTENT = withTodo(env.OPENCODE_CONFIG_CONTENT);
     const child = yield* Effect.acquireRelease(
