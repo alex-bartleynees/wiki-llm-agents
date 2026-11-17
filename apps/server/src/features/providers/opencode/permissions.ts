@@ -1,5 +1,5 @@
 import type { Autonomy, AutonomyLevel } from "@wiki-agents/contracts/agents/model";
-import { ENTRY_PREFIX, VAULT_WRITE_TOOLS } from "../../mcp/vault-tools.js";
+import { ENTRY_PREFIX, GATEWAY_TOOL_PATTERN, VAULT_WRITE_TOOLS } from "../../mcp/vault-tools.js";
 import type { OpenCodePermissionRule } from "./api.js";
 
 /**
@@ -62,8 +62,8 @@ export const permissionRules = (
     // The vault tools read the vault (and open notes in the app), so they follow `read`.
     ...(vaultTools === null ? [] : [
       { action: mcpToolsAction(vaultTools), resource: "*", effect: autonomy.read } as const,
-      // The MCP server owns write approvals (see VAULT_WRITE_TOOLS).
-      ...VAULT_WRITE_TOOLS.map((tool) => ({ action: mcpToolAction(vaultTools, tool), resource: "*", effect: "allow" } as const)),
+      // The MCP server owns write approvals (see VAULT_WRITE_TOOLS) and other servers' tools (isGatewayTool).
+      ...[...VAULT_WRITE_TOOLS, GATEWAY_TOOL_PATTERN].map((tool) => ({ action: mcpToolAction(vaultTools, tool), resource: "*", effect: "allow" } as const)),
     ]),
     ...attachmentFolders.flatMap((folder) => [
       { action: "external_directory", resource: `${folder}/*`, effect: "allow" } as const,

@@ -2,7 +2,7 @@ import { dirname, isAbsolute, resolve } from "node:path";
 import type { Autonomy, AutonomyLevel } from "@wiki-agents/contracts/agents/model";
 import { Effect, FileSystem } from "effect";
 import { pathsWithinRoots } from "../../../shared/vault/path-scope.js";
-import { ENTRY_PREFIX, VAULT_WRITE_TOOLS } from "../../mcp/vault-tools.js";
+import { ENTRY_PREFIX, serverDecides } from "../../mcp/vault-tools.js";
 
 /**
  * Claude Code's tools per autonomy action. Its own permission rules (and any allow
@@ -93,7 +93,7 @@ export const decide = Effect.fnUntraced(function* (input: DecisionInput): Effect
   const { autonomy, toolName, toolInput, cwd } = input;
   if (has(HARMLESS_TOOLS, toolName)) return "allow" as const;
   if (input.vaultTools !== null && toolName.startsWith(mcpPrefix(input.vaultTools))) {
-    return VAULT_WRITE_TOOLS.includes(toolName.slice(mcpPrefix(input.vaultTools).length)) ? "allow" : autonomy.read;
+    return serverDecides(toolName.slice(mcpPrefix(input.vaultTools).length)) ? "allow" : autonomy.read;
   }
   if (toolName.startsWith(`mcp__${ENTRY_PREFIX}`)) return "deny" as const;
   if (has(TOOLS.commands, toolName)) return autonomy.commands === "ask" && autonomy.read === "allow" ? "defer" : autonomy.commands;

@@ -3,7 +3,19 @@ import { McpSchema, McpServer } from "effect/ai";
 import { McpServerCatalog } from "../mcp-servers/catalog.js";
 import { McpPool, type McpScopeContext } from "../mcp-servers/pool.js";
 import { VaultCaller } from "./auth.js";
-import { descriptorOf, fingerprintOf, type GatewayTool, heldBackNotices, McpGateway, serversFor, toolsOf } from "./gateway.js";
+import {
+  approvalPrompt,
+  descriptorOf,
+  fingerprintOf,
+  type GatewayTool,
+  heldBackNotices,
+  McpGateway,
+  serversFor,
+  type ToolCallApprovals,
+  toolCallLevel,
+  toolsOf,
+  truncateResult,
+} from "./gateway.js";
 
 /** How long a turn waits for a server's tool list before starting without its tools. */
 export const PREPARE_TIMEOUT = "15 seconds" satisfies Duration.Input;
@@ -28,6 +40,8 @@ export const McpGatewayLive = Layer.effect(
     const pool = yield* McpPool;
 
     let server: McpServer.McpServer["Service"] | undefined;
+    /** The thread actors' checks, given when `/mcp` attaches. */
+    let approvals: ToolCallApprovals | undefined;
     /** The visibility check, built once `/mcp` attaches; every gateway tool is registered with it. */
     let gate: Context.Context<never> | undefined;
     /** Registered on `/mcp`: name → what it was registered as. */
@@ -48,8 +62,25 @@ export const McpGatewayLive = Layer.effect(
         const tool = snapshot?.tools.get(name);
         // Hidden from the thread's list too; only a stale client gets here.
         if (snapshot === undefined || tool === undefined) return yield* failed(`${name} isn't one of this thread's tools now.`);
-        const result = yield* pool.callTool(tool.serverId, snapshot.context, tool.tool.name, (args ?? {}) as Record<string, unknown>, { timeout: CALL_TIMEOUT }).pipe(Effect.result);
-        if (result._tag === "Success") return yield* decodeResult(result.success).pipe(Effect.catch(() => failed(`${tool.serverTitle} sent a result the app can't read.`)));
+        if (approvals === undefined) return yield* failed("The app isn't ready to run other servers' tools yet.");
+        const approved = yield* approvals
+          .approve(snapshot.context.threadId, { level: (autonomy) => toolCallLevel(autonomy, tool), prompt: approvalPrompt(tool, args) })
+          .pipe(Effect.result);
+        if (approved._tag === "Failure") return yield* failed(approved.failure.message);
+        const forwarded = pool.callTool(tool.serverId, snapshot.context, tool.tool.name, (args ?? {}) as Record<string, unknown>, { timeout: CALL_TIMEOUT });
+        // Stop ends the turn: the call is cancelled with it rather than left running upstream.
+        const raced = yield* Effect.raceFirst(Effect.map(Effect.result(forwarded), Option.some), Effect.as(approved.success, Option.none()));
+        if (Option.isNone(raced)) return yield* failed(`The turn ended, so the call to ${tool.serverTitle} was cancelled.`);
+        const result = raced.value;
+        if (result._tag === "Success") {
+          return yield* decodeResult(result.success).pipe(
+            Effect.flatMap((decoded) => {
+              const cut = truncateResult(decoded);
+              return cut === decoded ? Effect.succeed(decoded) : decodeResult(cut);
+            }),
+            Effect.catch(() => failed(`${tool.serverTitle} sent a result the app can't read.`)),
+          );
+        }
         const error = result.failure;
         switch (error._tag) {
           case "McpServerNotFound":
@@ -110,8 +141,9 @@ export const McpGatewayLive = Layer.effect(
 
       release: (threadId) => Effect.sync(() => void snapshots.delete(threadId)),
 
-      attach: (mcp) =>
+      attach: (mcp, checks) =>
         Effect.gen(function* () {
+          approvals = checks;
           const visibility = McpServer.visibility(({ target }) => Effect.map(callerSnapshot, (snapshot) => snapshot?.tools.has(target) === true));
           gate = yield* Layer.build(visibility.layer as Layer.Layer<never>);
           server = mcp;

@@ -479,7 +479,7 @@
         </label>
         <p class="hint">
           {#if form.everyThread}
-            Every thread can use this server's read-only tools from its next message, including threads without a named agent.
+            Every thread can use this server's tools from its next message, including threads without a named agent.
           {:else}
             Only named agents that list this server's ID in their MCP servers field receive its tools. Threads without a named agent do not receive them.
           {/if}
@@ -496,7 +496,7 @@
       </label>
       <p class="hint" id="mcp-sharing-help">Controls how connections are reused. Tool availability above determines which threads can use them.</p>
       <label>
-        <span class="label">Server policy override (not active yet)</span>
+        <span class="label">Access override</span>
         <select bind:value={form.access} aria-label="Access" aria-describedby="mcp-policy-help">
           <option value="">What the agent's autonomy says</option>
           <option value="allow">Nothing: always allowed</option>
@@ -504,7 +504,7 @@
           <option value="deny">Never allowed</option>
         </select>
       </label>
-      <p class="hint" id="mcp-policy-help">Only tools the server marks read-only are available for now. This server-specific override is saved but is not yet enforced by the gateway. Existing provider permissions still apply.</p>
+      <p class="hint" id="mcp-policy-help">Without an override, tools the server marks read-only follow the agent's <em>Read files</em> autonomy and its other tools follow <em>Use other MCP servers' tools</em>. An override replaces the agent's autonomy for all of this server's tools, for every agent, from the next message.</p>
 
       {#if errors.length > 0}
         <ul class="error" role="alert">

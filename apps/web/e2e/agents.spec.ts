@@ -26,6 +26,7 @@ test("creates an agent in the app, then edits it over a change made on disk", as
   await expect(form.getByLabel("File name", { exact: true })).toHaveValue(`scout-${width}`);
   await form.getByLabel("Description", { exact: true }).fill("Looks around the projects.");
   await form.getByRole("radiogroup", { name: "Edit existing files" }).getByLabel("Never").check();
+  await form.getByRole("radiogroup", { name: "Use other MCP servers' tools" }).getByLabel("Allowed").check();
   await form.getByLabel("Only these:").check();
   // Only these starts from the thread's vault and the web; leave the web out.
   await form.getByLabel("The web (as its autonomy allows)").uncheck();
@@ -42,6 +43,7 @@ test("creates an agent in the app, then edits it over a change made on disk", as
   const written = readFileSync(file, "utf8");
   expect(written).toContain(`name: Scout ${width}\n`);
   expect(written).toContain("  edit: deny\n");
+  expect(written).toContain("  tools: allow\n");
   expect(written).toContain("mcp: [ coffee-journal, github ]\n");
   expect(written).toContain("sources:\n  - vault\n  - vault: vault\n    folders:\n      - Projects\n");
   expect(written).toMatch(/---\n\n# Scout\n\nLook around before answering\.\n$/);

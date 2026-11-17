@@ -15,5 +15,8 @@ export class RequestClosed extends Data.TaggedError("RequestClosed")<{
   readonly status: "answered" | "cancelled";
 }> {}
 
+/** A call to another MCP server's tool may not run; `message` is what the agent is told. */
+export class ToolCallRefused extends Data.TaggedError("ToolCallRefused")<{ readonly message: string }> {}
+
 /** An approval answered with text, or a question with a decision. */
 export class WrongAnswerKind extends Data.TaggedError("WrongAnswerKind")<{ readonly requestId: string }> {}

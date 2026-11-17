@@ -1,5 +1,6 @@
 import { Effect, Layer } from "effect";
 import { McpProtocol, McpServer } from "effect/ai";
+import { ThreadActors } from "../threads/thread-actors.js";
 import { McpAuth } from "./auth.js";
 import { McpGateway } from "./gateway.js";
 import { SERVER_INSTRUCTIONS } from "./instructions.js";
@@ -8,11 +9,24 @@ import { VaultToolkit, VaultToolkitLive } from "./toolkit.js";
 /** The path OpenCode (and later Claude Code) is given for the vault tools. */
 export const MCP_PATH = "/mcp";
 
-/** Lets the gateway register other servers' tools on this server as threads need them. */
+/**
+ * Lets the gateway register other servers' tools on this server as threads need them,
+ * each call checked by the calling thread's actor.
+ */
 const GatewayRegistrations = Layer.effectDiscard(
   Effect.gen(function* () {
     const server = yield* McpServer.McpServer;
-    yield* (yield* McpGateway).attach(server);
+    const actors = yield* ThreadActors;
+    yield* (yield* McpGateway).attach(server, {
+      approve: (threadId, call) =>
+        actors.approveToolCall(threadId, call).pipe(
+          Effect.mapError((error) =>
+            error._tag === "ToolCallRefused" ? { message: error.message }
+            : error._tag === "NoTurnRunning" ? { message: "Other servers' tools can only be used during a running turn." }
+            : { message: `The app couldn't check this call (${error._tag}), so it didn't run.` },
+          ),
+        ),
+    });
   }),
 );
 

@@ -284,7 +284,7 @@
             spellcheck="false"
             autocapitalize="off"
           />
-          <span class="hint">Server IDs from Settings › MCP servers, separated by commas. Servers enabled for every thread are included automatically. Only tools marked read-only are available.</span>
+          <span class="hint">Server IDs from Settings › MCP servers, separated by commas. Servers enabled for every thread are included automatically.</span>
           {#each problems("mcp") as problem (problem)}<span class="field-error">{problem}</span>{/each}
         </label>
 

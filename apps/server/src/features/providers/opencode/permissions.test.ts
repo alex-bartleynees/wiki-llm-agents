@@ -28,22 +28,22 @@ describe("autonomy → OpenCode permission rules", () => {
     ],
     [
       "researcher: create allowed but edit asks, so both ask",
-      { read: "allow", create: "allow", edit: "ask", commands: "deny", web: "allow" },
+      { read: "allow", create: "allow", edit: "ask", commands: "deny", web: "allow", tools: "allow" },
       { read: "allow", edit: "ask", write: "ask", shell: "deny", webfetch: "allow", websearch: "allow" },
     ],
     [
       "reviewer: no writes or commands, web asks",
-      { read: "allow", create: "deny", edit: "deny", commands: "deny", web: "ask" },
+      { read: "allow", create: "deny", edit: "deny", commands: "deny", web: "ask", tools: "ask" },
       { read: "allow", edit: "deny", write: "deny", shell: "deny", webfetch: "ask" },
     ],
     [
       "trusted: everything allowed",
-      { read: "allow", create: "allow", edit: "allow", commands: "allow", web: "allow" },
+      { read: "allow", create: "allow", edit: "allow", commands: "allow", web: "allow", tools: "allow" },
       { read: "allow", edit: "allow", shell: "allow", webfetch: "allow" },
     ],
     [
       "edit denied but create allowed: both denied",
-      { read: "ask", create: "allow", edit: "deny", commands: "ask", web: "deny" },
+      { read: "ask", create: "allow", edit: "deny", commands: "ask", web: "deny", tools: "deny" },
       { read: "ask", grep: "ask", edit: "deny", write: "deny", shell: "ask", webfetch: "deny", websearch: "deny" },
     ],
   ])("%s", (_name, autonomy, expected) => {
@@ -52,20 +52,20 @@ describe("autonomy → OpenCode permission rules", () => {
 
   it("reaches the thread's own attachment folders, where reading follows read and writing still asks", () => {
     const own = "/data/attachments/a1";
-    const trusted = permissionRules({ read: "allow", create: "allow", edit: "allow", commands: "allow", web: "allow" }, null, [own]);
+    const trusted = permissionRules({ read: "allow", create: "allow", edit: "allow", commands: "allow", web: "allow", tools: "allow" }, null, [own]);
     expect(ruleEffect(trusted, "external_directory", `${own}/*`)).toBe("allow");
     expect(ruleEffect(trusted, "read", `${own}/sales.csv`)).toBe("allow");
     expect(ruleEffect(trusted, "edit", `${own}/sales.csv`)).toBe("ask");
     expect(ruleEffect(trusted, "write", `${own}/result.csv`)).toBe("ask");
     expect(ruleEffect(trusted, "edit", "Notes/Tea.md")).toBe("allow");
     expect(ruleEffect(trusted, "external_directory", "/data/attachments/b2/*")).toBe("ask");
-    const reviewer = permissionRules({ read: "allow", create: "deny", edit: "deny", commands: "deny", web: "ask" }, null, [own]);
+    const reviewer = permissionRules({ read: "allow", create: "deny", edit: "deny", commands: "deny", web: "ask", tools: "ask" }, null, [own]);
     expect(ruleEffect(reviewer, "edit", `${own}/sales.csv`)).toBe("deny");
   });
 
   it("always allows talking to you and planning, and always asks outside the folder, for subagents and unknown tools", () => {
-    const strict = decisions({ read: "deny", create: "deny", edit: "deny", commands: "deny", web: "deny" });
-    const open = decisions({ read: "allow", create: "allow", edit: "allow", commands: "allow", web: "allow" });
+    const strict = decisions({ read: "deny", create: "deny", edit: "deny", commands: "deny", web: "deny", tools: "deny" });
+    const open = decisions({ read: "allow", create: "allow", edit: "allow", commands: "allow", web: "allow", tools: "allow" });
     for (const decided of [strict, open]) {
       expect(decided).toMatchObject({ question: "allow", todowrite: "allow", external_directory: "ask", subagent: "ask", some_mcp_tool: "ask" });
     }
@@ -80,13 +80,16 @@ describe("vault write transport", () => {
       expect(ruleEffect(rules, `wiki-agents-thread-2_${tool}`, "*")).toBe("deny");
     }
     expect(ruleEffect(rules, "wiki-agents-thread-1_vault_search", "*")).toBe("deny");
+    // Other MCP servers' tools on the entry: the server checks autonomy and asks itself.
+    expect(ruleEffect(rules, "wiki-agents-thread-1_github__create_issue", "*")).toBe("allow");
+    expect(ruleEffect(rules, "wiki-agents-thread-2_github__create_issue", "*")).toBe("deny");
   });
 });
 
 describe("enforcedAutonomy", () => {
   it("says when create and edit differ, and gives both the stricter level", () => {
-    const enforced = enforcedAutonomy({ read: "allow", create: "allow", edit: "ask", commands: "deny", web: "allow" });
-    expect(enforced.autonomy).toEqual({ read: "allow", create: "ask", edit: "ask", commands: "deny", web: "allow" });
+    const enforced = enforcedAutonomy({ read: "allow", create: "allow", edit: "ask", commands: "deny", web: "allow", tools: "allow" });
+    expect(enforced.autonomy).toEqual({ read: "allow", create: "ask", edit: "ask", commands: "deny", web: "allow", tools: "allow" });
     expect(enforced.notes[0]).toMatch(/can't tell creating a file from editing one, so both ask first/);
   });
 

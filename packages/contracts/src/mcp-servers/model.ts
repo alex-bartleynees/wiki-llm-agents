@@ -84,7 +84,7 @@ export const McpToolInfo = Schema.Struct({
   name: Schema.String,
   title: Schema.NullOr(Schema.String),
   description: Schema.NullOr(Schema.String),
-  /** The server marks it read-only (`readOnlyHint`), so it needs only the agent's `read` autonomy. */
+  /** The server marks it read-only (`readOnlyHint`), so it follows the agent's `read` autonomy; any other tool follows `tools`. */
   readOnly: Schema.Boolean,
 });
 export type McpToolInfo = typeof McpToolInfo.Type;
@@ -101,11 +101,10 @@ export const gatewayToolName = (serverId: string, tool: string) => `${serverId}_
 export const MAX_GATEWAY_TOOL_NAME = 60;
 
 /**
- * Why agents don't get a tool, or null when they do. Until approvals for other
- * servers' tools are built, only tools the server marks read-only are given.
+ * Why agents don't get a tool, or null when they do. Whether a call runs, asks or is
+ * refused is decided per call, from the agent's autonomy and the server's `access`.
  */
-export const gatewayToolProblem = (serverId: string, tool: Pick<McpToolInfo, "name" | "readOnly">): string | null => {
-  if (!tool.readOnly) return "The server doesn't mark it read-only, and approvals for other servers' tools aren't built yet.";
+export const gatewayToolProblem = (serverId: string, tool: Pick<McpToolInfo, "name">): string | null => {
   if (!/^[A-Za-z0-9_-]+$/.test(tool.name)) return "Its name has characters other than letters, digits, _ and -, which some providers refuse.";
   const name = gatewayToolName(serverId, tool.name);
   if (name.length > MAX_GATEWAY_TOOL_NAME) return `${name} is ${name.length} characters, over the ${MAX_GATEWAY_TOOL_NAME} the app allows so Claude Code doesn't drop it.`;

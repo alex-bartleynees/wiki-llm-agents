@@ -489,8 +489,9 @@ that machine's fresh defaults would win over your edits. A Syncthing conflict co
 
 - An agent file's body is its instructions; its frontmatter holds `name`,
   `description`, `provider` and `model` (defaults for new threads), `sources`,
-  and `autonomy` per action (`read`, `create`, `edit`, `commands`,
-  `web`: `allow`, `ask`, or `deny`; `always` and `never` work too). Anything left out
+  and `autonomy` per action (`read`, `create`, `edit`, `commands`, `web`, and
+  `tools` for other MCP servers' tools: `allow`, `ask`, or `deny`; `always` and
+  `never` work too). Anything left out
   reads freely and asks for the rest. Unknown keys are errors, so typos can't pass.
   `concurrency`, from before the task queue was dropped, is still accepted and ignored.
 - A file that doesn't load is listed on the Agents screen with the reason; the other
@@ -642,7 +643,7 @@ transport:
     Authorization: Bearer ${secret:github}
 scope: app                        # app, project or thread: how many connections
 default: false                    # true: every thread gets its tools
-access: ask                       # optional: allow, ask or deny, instead of the agent's autonomy
+access: ask                       # optional: allow, ask or deny for all its tools, instead of the agent's autonomy
 ```
 
 - Unknown settings are errors; a file that doesn't load is listed with the reason.
@@ -656,8 +657,18 @@ access: ask                       # optional: allow, ask or deny, instead of the
 - **Agent tools:** enable **Give to every thread**, or list server IDs in an agent's
   **MCP servers** field (`mcp: [coffee-journal, github]` in its frontmatter). Each
   thread gets those servers' tools through its existing `/mcp` entry, named
-  `<server-id>__<tool>`. Only tools explicitly marked read-only are exposed for now;
-  missing servers and tools held back are explained in conversation notices.
+  `<server-id>__<tool>`. Missing servers and tools held back (names providers refuse,
+  or longer than 60 characters with the prefix) are explained in conversation notices.
+- **Autonomy and approvals:** the app decides each call, not the provider (providers
+  let `<server>__<tool>` names on the thread's own entry through). A tool the server
+  marks read-only (`readOnlyHint`) follows the agent's `read`; any other follows its
+  `tools` (default `ask`). A server's `access` replaces the agent's level for all its
+  tools, for every agent, so `access: allow` runs tools an agent's `tools: deny` would
+  refuse. The level is read from the agent file at each call. `ask` opens an approval
+  in the thread with the server, tool and arguments; an unattended (scheduled) run
+  denies it with a notice. Calls run only during a turn; Stop refuses one waiting for
+  approval and cancels one in progress. Text results over 100,000 characters per
+  block are cut, saying so.
 - Tools refresh at the next turn. A changed list renews the token and registers the
   provider entry again; OpenCode also gets a new entry name and removes the old one.
   A failed registration is retried on the next turn. Gateway calls time out after

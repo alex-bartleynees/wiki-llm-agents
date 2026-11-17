@@ -16,7 +16,7 @@ test("adds an MCP server in Settings, edits it, and deletes it to the trash", as
   const form = page.getByRole("form", { name: "New MCP server" });
   await form.getByLabel("Server name").fill(`GitHub ${width}`);
   await expect(form.getByLabel("Server id")).toHaveValue(id);
-  await expect(form).toContainText("Only tools the server marks read-only are available for now.");
+  await expect(form).toContainText("An override replaces the agent's autonomy for all of this server's tools");
   await expect(form).toContainText("Threads without a named agent do not receive them.");
   await expect(form).toContainText("Controls how connections are reused.");
   await form.getByLabel("URL").fill("https://api.githubcopilot.com/mcp/");

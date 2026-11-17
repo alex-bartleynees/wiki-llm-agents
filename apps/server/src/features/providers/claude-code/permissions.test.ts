@@ -24,8 +24,8 @@ writeFileSync(join(outside, "secret.md"), "secret");
 symlinkSync(outside, join(vault, "escape"));
 afterAll(() => rmSync(root, { recursive: true, force: true }));
 
-const RESEARCHER: Autonomy = { read: "allow", create: "allow", edit: "ask", commands: "deny", web: "allow" };
-const TRUSTED: Autonomy = { read: "allow", create: "allow", edit: "allow", commands: "allow", web: "allow" };
+const RESEARCHER: Autonomy = { read: "allow", create: "allow", edit: "ask", commands: "deny", web: "allow", tools: "allow" };
+const TRUSTED: Autonomy = { read: "allow", create: "allow", edit: "allow", commands: "allow", web: "allow", tools: "allow" };
 
 const decision = (toolName: string, toolInput: unknown, autonomy: Autonomy = DEFAULT_AUTONOMY, roots = [vault], readable = [own]) =>
   Effect.runPromise(
@@ -85,6 +85,13 @@ describe("autonomy → Claude Code tool decisions", () => {
       expect(await decision(`mcp__wiki-agents-thread-1__${tool}`, {}, { ...DEFAULT_AUTONOMY, read: "deny" })).toBe("allow");
       expect(await decision(`mcp__wiki-agents-thread-2__${tool}`, {}, TRUSTED)).toBe("deny");
     }
+  });
+
+  it("leaves other MCP servers' tools on its entry to the server, which checks autonomy itself", async () => {
+    const strict = { ...DEFAULT_AUTONOMY, read: "deny" as const, tools: "deny" as const };
+    expect(await decision("mcp__wiki-agents-thread-1__github__create_issue", { title: "x" }, strict)).toBe("allow");
+    expect(await decision("mcp__wiki-agents-thread-2__github__create_issue", {}, TRUSTED)).toBe("deny");
+    expect(await decision("mcp__wiki-agents-thread-1__vault_search", {}, strict)).toBe("deny");
   });
 
   it("notes where Claude Code's enforcement differs from the file", () => {

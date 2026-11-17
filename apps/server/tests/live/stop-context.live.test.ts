@@ -24,7 +24,7 @@ import type { ProviderAdapter, ProviderEvent, SessionSetup } from "../../src/fea
  */
 const wanted = new Set((process.env.WIKI_AGENTS_LIVE_STOP ?? "").split(",").filter(Boolean));
 
-const AUTONOMY: Autonomy = { read: "allow", create: "allow", edit: "allow", commands: "allow", web: "deny" };
+const AUTONOMY: Autonomy = { read: "allow", create: "allow", edit: "allow", commands: "allow", web: "deny", tools: "deny" };
 const SETUP: SessionSetup = { instructions: [], autonomy: AUTONOMY, projectRoots: null, attachmentFolders: [], vaultTools: null };
 
 const TASK = [

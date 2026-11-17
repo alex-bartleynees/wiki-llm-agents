@@ -26,18 +26,29 @@ import { ProviderRegistry } from "../providers/registry.js";
 import { projectInstruction, projectRoots } from "../projects/project-context.js";
 import { ProjectRepository } from "../projects/repository.js";
 import { worktreeProblem } from "../projects/worktrees.js";
-import { NoTurnRunning, RequestClosed, RequestNotFound, ThreadBusy, ThreadNotFound, WrongAnswerKind } from "./errors.js";
+import { DEFAULT_AUTONOMY } from "@wiki-agents/contracts/agents/model";
+import { effectiveAutonomy } from "../agents/sources.js";
+import type { ToolCallCheck } from "../mcp/gateway.js";
+import { NoTurnRunning, RequestClosed, RequestNotFound, ThreadBusy, ThreadNotFound, ToolCallRefused, WrongAnswerKind } from "./errors.js";
 import { type PendingRequest, ThreadRepository } from "./repository.js";
 import { ThreadBus } from "./thread-bus.js";
 import { threadWorkspace } from "./workspace.js";
 
 export type NoteWriteError = AgentNoteWriteRefused | Effect.Error<ReturnType<typeof saveNote>> | Effect.Error<ReturnType<typeof prepareAgentNoteWrite>> | DbError | NoTurnRunning;
 type NoteWriteReply = Deferred.Deferred<SaveNoteResponse, NoteWriteError>;
+export type ToolCallError = ToolCallRefused | NoTurnRunning | DbError;
+/** Succeeds once the call may run, with an effect that completes when its turn ends. */
+type ToolCallReply = Deferred.Deferred<Effect.Effect<void>, ToolCallError>;
+
+/** Requests the app opens itself, not the provider; they can't outlive the server's run (their caller is gone). */
+const APP_REQUEST_PREFIXES = ["vault-write:", "mcp-tool:"];
+const isAppRequest = (requestId: string) => APP_REQUEST_PREFIXES.some((prefix) => requestId.startsWith(prefix));
 
 /** Messages a ThreadActor handles, one at a time, in the order they arrive. */
 type Message =
   | { readonly _tag: "Resume" }
   | { readonly _tag: "WriteNote"; readonly input: AgentNoteWrite; readonly reply: NoteWriteReply }
+  | { readonly _tag: "ApproveToolCall"; readonly call: ToolCallCheck; readonly reply: ToolCallReply }
   | { readonly _tag: "Context"; readonly note: ContextNote; readonly reply: Deferred.Deferred<void, NoTurnRunning | DbError> }
   | {
       readonly _tag: "SendMessage";
@@ -100,6 +111,12 @@ export interface ThreadActor {
    */
   readonly resumed: Effect.Effect<void>;
   readonly writeNote: (input: AgentNoteWrite) => Effect.Effect<SaveNoteResponse, NoteWriteError>;
+  /**
+   * Checks a call to another MCP server's tool against the thread's agent as it is now
+   * (see `ToolCallCheck`), asking you when it says `ask`. Succeeds once it may run,
+   * with an effect that completes when the running turn ends.
+   */
+  readonly approveToolCall: (call: ToolCallCheck) => Effect.Effect<Effect.Effect<void>, ToolCallError>;
   readonly recordContext: (note: ContextNote) => Effect.Effect<void, NoTurnRunning | DbError>;
   readonly sendMessage: (text: string, notes?: ReadonlyArray<ContextNote>, options?: SendOptions) => Effect.Effect<string, ThreadBusy | DbError>;
   /** Stops the running turn; returns its id. */
@@ -130,6 +147,8 @@ interface RunningTurn {
   fiber: Fiber.Fiber<void> | undefined;
   /** Keeps the actor alive while the turn runs (see `retain`). */
   hold: Scope.Closeable | undefined;
+  /** Completed when the turn ends, however it ends; work started for it stops then. */
+  readonly ended: Deferred.Deferred<void>;
 }
 
 /** Events that can change a thread's status, title or progress, so the thread list hears about them. */
@@ -183,6 +202,8 @@ export const makeThreadActor = Effect.fnUntraced(function* (
   const pending = new Map<string, PendingRequest>();
   let replyText = "";
   const noteWrites = new Map<string, { input: AgentNoteWrite; reply: NoteWriteReply }>();
+  /** Calls to other MCP servers' tools waiting for your answer, by request id. */
+  const toolCalls = new Map<string, ToolCallReply>();
   /** `completeRead` keys of the running turn's whole-note reads; they authorize edits. */
   const completeReads = new Set<string>();
 
@@ -314,6 +335,9 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     ]);
     for (const write of noteWrites.values()) yield* Deferred.fail(write.reply, new AgentNoteWriteRefused({ message: "The turn ended before the write was approved. No note was written." }));
     noteWrites.clear();
+    for (const reply of toolCalls.values()) yield* Deferred.fail(reply, new ToolCallRefused({ message: "The turn ended before the call was approved, so it didn't run." }));
+    toolCalls.clear();
+    yield* Deferred.succeed(current.ended, undefined);
     completeReads.clear();
     pending.clear();
     turn = undefined;
@@ -349,13 +373,13 @@ export const makeThreadActor = Effect.fnUntraced(function* (
   const resume = Effect.gen(function* () {
     const recovery = yield* repository.recovery(threadId);
     for (const request of recovery.pendingRequests) {
-      if (request.requestId.startsWith("vault-write:")) {
+      if (isAppRequest(request.requestId)) {
         yield* record([{ _tag: "request.resolved", turnId: request.turnId, requestId: request.requestId, answer: null }]);
       } else pending.set(request.requestId, request);
     }
     if (Option.isNone(recovery.openTurn)) return;
     const open = recovery.openTurn.value;
-    const current: RunningTurn = { id: open.id, unattended: open.unattended, fiber: undefined, hold: undefined };
+    const current: RunningTurn = { id: open.id, unattended: open.unattended, fiber: undefined, hold: undefined, ended: yield* Deferred.make<void>() };
     turn = current;
     yield* trackChanges(current.id);
     if (!open.dispatched) return yield* dispatch(current, open.input);
@@ -383,7 +407,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
   const sendMessage = Effect.fnUntraced(function* (text: string, notes: ReadonlyArray<ContextNote>, options: SendOptions) {
     if (turn !== undefined) return yield* new ThreadBusy({ threadId });
     const unattended = options.unattended === true;
-    const current: RunningTurn = { id: options.turnId ?? randomUUID(), unattended, fiber: undefined, hold: undefined };
+    const current: RunningTurn = { id: options.turnId ?? randomUUID(), unattended, fiber: undefined, hold: undefined, ended: yield* Deferred.make<void>() };
     yield* record(
       [
         {
@@ -442,6 +466,30 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     noteWrites.set(requestId, { input, reply });
   });
 
+  /** The thread's agent's autonomy now, as providers are given it; the default without an agent. */
+  const currentAutonomy = Effect.gen(function* () {
+    const { agentId } = yield* repository.providerSession(threadId);
+    if (agentId === null) return DEFAULT_AUTONOMY;
+    const agent = yield* catalog.get(agentId).pipe(Effect.mapError((error) => new ToolCallRefused({ message: `${error.reason} Other servers' tools don't run without it.` })));
+    return effectiveAutonomy(agent);
+  });
+
+  const approveToolCall = Effect.fnUntraced(function* (call: ToolCallCheck, reply: ToolCallReply) {
+    const current = turn;
+    if (current === undefined) return yield* new NoTurnRunning({ threadId });
+    const level = call.level(yield* currentAutonomy);
+    if (level === "allow") return yield* Effect.asVoid(Deferred.succeed(reply, Deferred.await(current.ended)));
+    if (level === "deny") return yield* new ToolCallRefused({ message: `“${call.prompt.title}” is denied by the agent's autonomy (or the server's access setting), so it didn't run.` });
+    if (current.unattended) {
+      yield* record([{ _tag: "notice", turnId: current.id, text: `Nobody was watching this scheduled run, so “${call.prompt.title}” was denied.` }]);
+      return yield* new ToolCallRefused({ message: "Nobody is watching this scheduled run, so the call was denied and didn't run." });
+    }
+    const requestId = `mcp-tool:${randomUUID()}`;
+    yield* record([{ _tag: "request.opened", turnId: current.id, requestId, prompt: call.prompt }]);
+    pending.set(requestId, { requestId, turnId: current.id, prompt: call.prompt });
+    toolCalls.set(requestId, reply);
+  });
+
   const answerRequest = Effect.fnUntraced(function* (requestId: string, answer: RequestAnswer) {
     const request = pending.get(requestId);
     if (request === undefined) {
@@ -462,8 +510,20 @@ export const makeThreadActor = Effect.fnUntraced(function* (
       }
       return;
     }
+    const toolCall = toolCalls.get(requestId);
+    if (toolCall !== undefined) {
+      toolCalls.delete(requestId);
+      if (answer._tag !== "approval" || answer.decision !== "approve") {
+        yield* Deferred.fail(toolCall, new ToolCallRefused({ message: "You denied the call, so it didn't run." }));
+      } else if (turn?.id !== request.turnId) {
+        yield* Deferred.fail(toolCall, new NoTurnRunning({ threadId }));
+      } else {
+        yield* Deferred.succeed(toolCall, Deferred.await(turn.ended));
+      }
+      return;
+    }
     // An MCP approval cannot be replayed after a restart: its in-memory request is gone.
-    if (requestId.startsWith("vault-write:")) return;
+    if (isAppRequest(requestId)) return;
     const answered = yield* Effect.result(
       currentSetup(request.turnId).pipe(
         Effect.flatMap(openSession),
@@ -544,6 +604,8 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     switch (message._tag) {
       case "WriteNote":
         return writeNote(message.input, message.reply).pipe(Effect.catch((error) => Effect.asVoid(Deferred.fail(message.reply, error))), Effect.asVoid);
+      case "ApproveToolCall":
+        return approveToolCall(message.call, message.reply).pipe(Effect.catch((error) => Effect.asVoid(Deferred.fail(message.reply, error))), Effect.asVoid);
       case "Resume":
         return Effect.ensuring(resume, Deferred.succeed(resumeDone, undefined));
       case "SendMessage":
@@ -610,6 +672,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
   const actor: ThreadActor = {
     resumed: Deferred.await(resumeDone),
     writeNote: (input) => ask((reply) => ({ _tag: "WriteNote", input, reply })),
+    approveToolCall: (call) => ask((reply) => ({ _tag: "ApproveToolCall", call, reply })),
     recordContext: (note) => ask((reply) => ({ _tag: "Context", note, reply })),
     sendMessage: (text, notes = [], options = {}) => ask((reply) => ({ _tag: "SendMessage", text, notes, options, reply })),
     interrupt: ask((reply) => ({ _tag: "Interrupt", reply })),

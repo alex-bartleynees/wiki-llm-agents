@@ -11,7 +11,7 @@ export const AutonomyLevel = Schema.Literals(["allow", "ask", "deny"]);
 export type AutonomyLevel = typeof AutonomyLevel.Type;
 
 /** The actions autonomy is set for. */
-export const AUTONOMY_ACTIONS = ["read", "create", "edit", "commands", "web"] as const;
+export const AUTONOMY_ACTIONS = ["read", "create", "edit", "commands", "web", "tools"] as const;
 export type AutonomyAction = (typeof AUTONOMY_ACTIONS)[number];
 
 /**
@@ -21,6 +21,8 @@ export type AutonomyAction = (typeof AUTONOMY_ACTIONS)[number];
  * - `edit`: change or delete existing files
  * - `commands`: run shell commands
  * - `web`: fetch pages and search the web
+ * - `tools`: call other MCP servers' tools (Settings › MCP servers) that the server
+ *   doesn't mark read-only; read-only ones follow `read`
  */
 export const Autonomy = Schema.Struct({
   read: AutonomyLevel,
@@ -28,11 +30,12 @@ export const Autonomy = Schema.Struct({
   edit: AutonomyLevel,
   commands: AutonomyLevel,
   web: AutonomyLevel,
+  tools: AutonomyLevel,
 });
 export type Autonomy = typeof Autonomy.Type;
 
 /** Without an agent, or for actions an agent's file leaves out: read freely, ask for the rest. */
-export const DEFAULT_AUTONOMY: Autonomy = { read: "allow", create: "ask", edit: "ask", commands: "ask", web: "ask" };
+export const DEFAULT_AUTONOMY: Autonomy = { read: "allow", create: "ask", edit: "ask", commands: "ask", web: "ask", tools: "ask" };
 
 /** How a provider enforces an agent's autonomy; it may be stricter than the file asks. */
 export const AutonomyEnforcement = Schema.Struct({

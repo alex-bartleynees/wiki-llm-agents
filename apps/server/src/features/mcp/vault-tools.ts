@@ -70,3 +70,14 @@ export const revisedEntryName = (entry: VaultToolsEntry) => (entry.revision === 
  * and asks with the exact diff itself, so providers let them through.
  */
 export const VAULT_WRITE_TOOLS: ReadonlyArray<string> = ["vault_create_note", "vault_edit_note"];
+
+/**
+ * Other MCP servers' tools on the entry, `<server>__<tool>` (see `gateway.ts`). The
+ * server checks each call against the agent's autonomy and asks itself, so providers
+ * let them through too. The app's own tools never have `__` in their names.
+ */
+export const isGatewayTool = (tool: string) => tool.includes("__");
+export const GATEWAY_TOOL_PATTERN = "*__*";
+
+/** Tools on the entry that the app's server decides on, not the provider. */
+export const serverDecides = (tool: string) => VAULT_WRITE_TOOLS.includes(tool) || isGatewayTool(tool);

@@ -17,8 +17,8 @@ writeFileSync(join(vault, "Notes/Tea.md"), "# Tea\n");
 symlinkSync(outside, join(vault, "escape"));
 afterAll(() => rmSync(root, { recursive: true, force: true }));
 
-const RESEARCHER: Autonomy = { read: "allow", create: "allow", edit: "ask", commands: "deny", web: "allow" };
-const TRUSTED: Autonomy = { read: "allow", create: "allow", edit: "allow", commands: "allow", web: "allow" };
+const RESEARCHER: Autonomy = { read: "allow", create: "allow", edit: "ask", commands: "deny", web: "allow", tools: "allow" };
+const TRUSTED: Autonomy = { read: "allow", create: "allow", edit: "allow", commands: "allow", web: "allow", tools: "allow" };
 
 const add = (path: string): FileUpdateChange => ({ path, kind: { type: "add" }, diff: "x\n" });
 const update = (path: string, movePath: string | null = null): FileUpdateChange => ({ path, kind: { type: "update", move_path: movePath }, diff: "@@ -1 +1 @@\n-a\n+b\n" });

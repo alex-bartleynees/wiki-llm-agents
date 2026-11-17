@@ -15,6 +15,8 @@ export interface StandInMcpOptions {
   readonly versions?: ReadonlyArray<string>;
   /** Only requests with this `Authorization` header are let in; others get 401. */
   readonly authorization?: string;
+  /** Also offer `wait`, a tool that changes things and answers only once `releaseWaits` is called. */
+  readonly waitTool?: boolean;
 }
 
 export interface McpRequestSeen {
@@ -31,6 +33,10 @@ export interface StandInMcp {
   readonly connections: () => number;
   /** Answers 503 to everything until called with false. */
   readonly setDown: (down: boolean) => void;
+  /** Answers every `wait` call made so far. */
+  readonly releaseWaits: () => void;
+  /** Resolves when the next `wait` call arrives. */
+  readonly nextWait: () => Promise<void>;
   readonly close: () => Promise<void>;
 }
 
@@ -45,6 +51,8 @@ export const TOOLS = [
   { name: "whoami", description: "Says back the Authorization header it got.", inputSchema: { type: "object", properties: {} } },
   { name: "fail", description: "Always fails.", inputSchema: { type: "object", properties: {} } },
 ];
+
+export const WAIT_TOOL = { name: "wait", description: "Answers when the test says so.", inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: false, destructiveHint: false } };
 
 const readBody = (request: IncomingMessage) =>
   new Promise<string>((resolve, reject) => {
@@ -67,6 +75,8 @@ export const makeMcpHandler = (options: StandInMcpOptions = {}) => {
   let initialized = 0;
   let sessions = 0;
   let down = false;
+  const waiting: Array<() => void> = [];
+  const arrivals: Array<() => void> = [];
 
   const handle = async (request: IncomingMessage, response: ServerResponse) => {
     if (request.method === "DELETE") return void response.writeHead(200).end();
@@ -100,12 +110,17 @@ export const makeMcpHandler = (options: StandInMcpOptions = {}) => {
         );
       }
       case "tools/list":
-        return reply({ result: { tools: TOOLS } });
+        return reply({ result: { tools: options.waitTool === true ? [...TOOLS, WAIT_TOOL] : TOOLS } });
       case "tools/call": {
         const args = body.params?.arguments ?? {};
         if (body.params?.name === "echo") return text(String(args["text"] ?? ""));
         if (body.params?.name === "whoami") return text(`You sent ${authorization ?? "nothing"}`);
         if (body.params?.name === "fail") return text("It went wrong.", true);
+        if (body.params?.name === "wait" && options.waitTool === true) {
+          waiting.push(() => text("Waited."));
+          for (const arrived of arrivals.splice(0)) arrived();
+          return;
+        }
         return reply({ error: { code: -32602, message: `Unknown tool ${body.params?.name}` } });
       }
       default:
@@ -120,6 +135,10 @@ export const makeMcpHandler = (options: StandInMcpOptions = {}) => {
     setDown: (value: boolean) => {
       down = value;
     },
+    releaseWaits: () => {
+      for (const release of waiting.splice(0)) release();
+    },
+    nextWait: () => new Promise<void>((resolve) => void arrivals.push(resolve)),
   };
 };
 
@@ -132,6 +151,8 @@ export const startStandInMcp = async (options: StandInMcpOptions = {}): Promise<
     requests: mcp.requests,
     connections: mcp.connections,
     setDown: mcp.setDown,
+    releaseWaits: mcp.releaseWaits,
+    nextWait: mcp.nextWait,
     close: () =>
       new Promise((resolve) => {
         server.closeAllConnections();
