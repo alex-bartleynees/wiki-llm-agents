@@ -10,6 +10,7 @@ const GITHUB: McpServerInput = {
   scope: "app",
   default: false,
   access: null,
+  oauth: null,
 };
 
 describe("mcpServerFileText", () => {
@@ -31,6 +32,7 @@ describe("mcpServerFileText", () => {
       scope: "thread",
       default: true,
       access: "deny",
+      oauth: null,
     };
     const parsed = parseMcpServer("browser", "/config/mcp/browser.yaml", mcpServerFileText(input, null));
     expect(Result.getOrThrow(parsed)).toEqual({ id: "browser", path: "/config/mcp/browser.yaml", ...input });
@@ -41,6 +43,22 @@ describe("mcpServerFileText", () => {
     expect(mcpServerFileText(GITHUB, existing)).toBe(
       "# GitHub's hosted server\nscope: app\n# who gets it\ndefault: false\ntransport:\n  type: http\n  url: https://api.githubcopilot.com/mcp/\n  headers:\n    Authorization: Bearer ${secret:github}\ntitle: GitHub\n",
     );
+  });
+
+  it("writes sign-in settings, the coffee journal's as Netclaw had them, and drops them for a command", () => {
+    const coffee: McpServerInput = {
+      ...GITHUB,
+      title: "Coffee journal",
+      transport: { type: "http", url: "https://app.coffeesjournal.com/mcp", headers: {} },
+      oauth: { clientId: " coffee-journal-ai-agent ", scopes: ["coffee-journal:read", " "] },
+    };
+    const text = mcpServerFileText(coffee, null);
+    expect(text).toBe(
+      "title: Coffee journal\ntransport:\n  type: http\n  url: https://app.coffeesjournal.com/mcp\nscope: app\ndefault: false\noauth:\n  clientId: coffee-journal-ai-agent\n  scopes:\n    - coffee-journal:read\n",
+    );
+    expect(Result.getOrThrow(parseMcpServer("coffee-journal", "/c.yaml", text)).oauth).toEqual({ clientId: "coffee-journal-ai-agent", scopes: ["coffee-journal:read"] });
+    expect(mcpServerFileText({ ...coffee, oauth: { clientId: null, scopes: [] } }, text)).toContain("oauth: {}\n");
+    expect(mcpServerFileText({ ...coffee, transport: { type: "stdio", command: "x", args: [], env: {}, cwd: null } }, text)).not.toContain("oauth");
   });
 
   it("starts again from a file that isn't a set of settings", () => {

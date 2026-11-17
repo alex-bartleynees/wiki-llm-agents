@@ -47,6 +47,14 @@ export interface SecretStoreService {
   readonly delete: (name: string) => Effect.Effect<void, SecretNotFound | SecretDeclared | SecretStoreUnavailable>;
   /** The value, read or decrypted now and not kept. */
   readonly resolve: (name: string) => Effect.Effect<string, SecretUnavailable>;
+  /**
+   * Credentials the app keeps for itself (OAuth tokens for MCP servers), encrypted
+   * beside the secrets but never listed or resolvable as one. Every one whose key starts
+   * with `prefix`, decrypted with one unlock; an empty map when nothing is stored.
+   */
+  readonly readCredentials: (prefix: string) => Effect.Effect<ReadonlyMap<string, string>, SecretStoreUnavailable>;
+  /** Stores a credential, or forgets it with null (which needs no key). */
+  readonly writeCredential: (key: string, value: string | null) => Effect.Effect<void, SecretStoreUnavailable>;
 }
 
 export class SecretStore extends Context.Service<SecretStore, SecretStoreService>()("SecretStore") {}

@@ -24,6 +24,7 @@ const GITHUB: McpServerInput = {
   scope: "app",
   default: false,
   access: null,
+  oauth: null,
 };
 
 const BROWSER: McpServerInput = {
@@ -32,6 +33,7 @@ const BROWSER: McpServerInput = {
   scope: "thread",
   default: true,
   access: "ask",
+  oauth: null,
 };
 
 layer(TestApp)("MCP servers", (it) => {

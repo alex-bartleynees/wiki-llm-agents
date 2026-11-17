@@ -3,7 +3,7 @@ import { DeleteSecretResponse } from "@wiki-agents/contracts/secrets/delete-secr
 import { Effect } from "effect";
 import { HttpRouter, HttpServerResponse } from "effect/http";
 import { badRequest, conflict, internalError, notFound } from "../../../shared/http-errors.js";
-import { guarded } from "../host-guard.js";
+import { guarded } from "../../../shared/host-guard.js";
 import { SecretStore } from "../secret-store.js";
 import { secretUsers } from "../summaries.js";
 

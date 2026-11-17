@@ -14,6 +14,10 @@ export interface ServerForm {
   url: string;
   /** `Name: value`, one per line. */
   headers: string;
+  /** Sign-in: the client registered at the identity server; empty to register one when connecting. */
+  clientId: string;
+  /** Sign-in scopes, separated by spaces or new lines; empty for those the server advertises. */
+  scopes: string;
   scope: McpScope;
   /** Give its tools to every thread. */
   everyThread: boolean;
@@ -30,6 +34,8 @@ export const BLANK_FORM: ServerForm = {
   cwd: "",
   url: "",
   headers: "",
+  clientId: "",
+  scopes: "",
   scope: "app",
   everyThread: false,
   access: "",
@@ -53,6 +59,8 @@ export const formFromServer = (server: McpServerInput): ServerForm => ({
         type: "http" as const,
         url: server.transport.url,
         headers: Object.entries(server.transport.headers).map(([name, value]) => `${name}: ${value}`).join("\n"),
+        clientId: server.oauth?.clientId ?? "",
+        scopes: (server.oauth?.scopes ?? []).join(" "),
       }),
 });
 
@@ -72,7 +80,7 @@ const pairs = (text: string, separator: string, what: string) => {
 
 /** What the form saves, or what to fix in it first. */
 export const inputFromForm = (form: ServerForm): { readonly input: McpServerInput } | { readonly problems: ReadonlyArray<string> } => {
-  const shared = { title: form.title.trim(), scope: form.scope, default: form.everyThread, access: form.access === "" ? null : form.access };
+  const shared = { title: form.title.trim(), scope: form.scope, default: form.everyThread, access: form.access === "" ? null : form.access, oauth: null };
   if (form.type === "stdio") {
     const env = pairs(form.env, "=", "the environment");
     if (env.problems.length > 0) return { problems: env.problems };
@@ -81,7 +89,10 @@ export const inputFromForm = (form: ServerForm): { readonly input: McpServerInpu
   }
   const headers = pairs(form.headers, ":", "the headers");
   if (headers.problems.length > 0) return { problems: headers.problems };
-  return { input: { ...shared, transport: { type: "http", url: form.url.trim(), headers: headers.values } } };
+  const clientId = form.clientId.trim();
+  const scopes = form.scopes.split(/\s+/).filter((scope) => scope !== "");
+  const oauth = clientId === "" && scopes.length === 0 ? null : { clientId: clientId === "" ? null : clientId, scopes };
+  return { input: { ...shared, oauth, transport: { type: "http", url: form.url.trim(), headers: headers.values } } };
 };
 
 /** The file name for a new server: `My Browser` → `my-browser`. */

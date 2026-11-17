@@ -34,6 +34,8 @@ export const SecretsFile = Schema.Struct({
       expiresAt: Schema.NullOr(Schema.Number),
     }),
   ),
+  /** Values the app keeps for itself (OAuth tokens), by key; not listed as secrets. Absent in files written before them. */
+  credentials: Schema.optionalKey(Schema.Record(Schema.String, Encrypted)),
 });
 export type SecretsFile = typeof SecretsFile.Type;
 type Encrypted = typeof Encrypted.Type;
@@ -67,3 +69,5 @@ export const open = (key: Uint8Array, context: string, sealed: Encrypted): Buffe
 export const DEK_CONTEXT = "wiki-agents-secrets:v1:dek";
 /** What a secret's ciphertext is bound to: its name, so two secrets' ciphertexts can't be swapped. */
 export const secretContext = (name: string) => `wiki-agents-secrets:v1:secret:${name}`;
+/** What a credential's ciphertext is bound to: its key, kept apart from secrets' names. */
+export const credentialContext = (key: string) => `wiki-agents-secrets:v1:credential:${key}`;

@@ -650,10 +650,53 @@ access: ask                       # optional: allow, ask or deny, instead of the
   `${secret:name}`, `${env:NAME}` or `${file:/path}`. Don't write a token in the file.
 - Saving checks the file is still the version you opened (409 otherwise) and writes
   it atomically; **Delete** moves it to the config directory's `.trash/mcp/`.
-- **Not connected yet:** servers are only saved. Connecting to them, resolving the
-  references and giving their tools to agents come with the rest of the MCP gateway.
+- **Not connected yet:** servers are only saved, or signed in to (below). Connecting to
+  them, resolving the references and giving their tools to agents come with the rest
+  of the MCP gateway.
 
 API: `GET /api/mcp-servers`, and `GET`, `PUT` and `DELETE /api/mcp-servers/:id`.
+
+#### Signing in (OAuth)
+
+A server reached by URL that asks you to sign in (the coffee journal behind Keycloak,
+Jira) gets **Connect** instead of a token. Leave out the `Authorization` header; give a
+client id when the identity server has one registered for the app:
+
+```yaml
+title: Coffee journal
+transport:
+  type: http
+  url: https://app.coffeesjournal.com/mcp
+oauth:                            # optional
+  clientId: coffee-journal-ai-agent   # leave out to register a client when connecting
+  scopes: [coffee-journal:read]       # leave out for the scopes the server asks for
+```
+
+- **Connect** asks the server (its 401 and protected-resource metadata) which identity
+  server to use, reads that server's metadata (Keycloak's
+  `/realms/<realm>/.well-known/openid-configuration` included), and shows **Open the
+  sign-in page** and **Copy link**. The page uses PKCE (S256), a one-time `state`, the
+  server's URL as `resource`, and adds `offline_access` when offered, for a refresh token.
+- The identity server sends you back to `<the address you browse the app at>/api/mcp-servers/oauth/callback`
+  (e.g. `http://127.0.0.1:4320/…`, or the `ts.net` address). **That exact address must
+  be a valid redirect URI of the client** at the identity server. Settings then says
+  **Signed in**, also in the tab you pressed Connect in.
+- When the callback can't reach the app (signed in on another device), paste the
+  address you ended up at into the box and press **Finish signing in**. A sign-in
+  must finish within ten minutes and doesn't survive a restart.
+- Without a client id, the app registers itself (dynamic client registration) and keeps
+  that client for the next sign-in from the same address. An identity server that
+  allows neither is reported, asking for a client id.
+- Tokens are kept with the stored secrets, encrypted in `secrets.enc` (not listed under
+  Secrets), and renewed with the refresh token a minute before they run out. No API
+  response contains one. **Sign out** forgets them.
+- Identity server addresses must be HTTPS (plain HTTP only to this machine).
+- **Not used yet:** the gateway will add the token to its requests to the server.
+
+API: `GET /api/mcp-servers/oauth/connections`, `POST /api/mcp-servers/:id/connect`,
+`GET /api/mcp-servers/oauth/callback`, `POST /api/mcp-servers/oauth/finish`
+(`{ url }`), `DELETE /api/mcp-servers/:id/connection`. Like `/api/secrets`, only for
+requests addressed to an IP, `localhost` or a `*.ts.net` name.
 
 ### Secrets
 

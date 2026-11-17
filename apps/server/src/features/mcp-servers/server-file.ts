@@ -33,5 +33,10 @@ export const mcpServerFileText = (input: McpServerInput, existing: string | null
   doc.set("default", input.default);
   if (input.access === null) doc.delete("access");
   else doc.set("access", input.access);
+  const oauth = input.transport.type === "http" ? input.oauth : null;
+  const clientId = oauth?.clientId?.trim() ?? "";
+  const scopes = (oauth?.scopes ?? []).map((scope) => scope.trim()).filter((scope) => scope !== "");
+  if (oauth === null) doc.delete("oauth");
+  else doc.set("oauth", doc.createNode({ ...(clientId === "" ? {} : { clientId }), ...(scopes.length === 0 ? {} : { scopes }) }));
   return `${doc.toString({ lineWidth: 0 }).trimEnd()}\n`;
 };

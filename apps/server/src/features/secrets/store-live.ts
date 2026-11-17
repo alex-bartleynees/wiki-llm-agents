@@ -6,7 +6,7 @@ import { ChildProcessSpawner } from "effect/process";
 import { ID_PATTERN } from "../../shared/config-files.js";
 import { AppConfig } from "../../shared/config.js";
 import { type DeclaredSecrets, parseDeclaredSecrets } from "./declared.js";
-import { DEK_CONTEXT, newKey, open, seal, secretContext, SecretsFile } from "./envelope.js";
+import { credentialContext, DEK_CONTEXT, newKey, open, seal, secretContext, SecretsFile } from "./envelope.js";
 import { fileKeyStore, type KeyStore, systemdCredsKeyStore } from "./key-source.js";
 import { SecretDeclared, type SecretInfo, SecretInvalid, SecretNotFound, SecretStore, SecretStoreUnavailable, SecretUnavailable } from "./secret-store.js";
 
@@ -25,6 +25,9 @@ const START_AGAIN = "Delete the stored secrets and enter them again.";
 
 const describe = (cause: unknown) => (cause instanceof Error ? cause.message : String(cause));
 const decodeFile = Schema.decodeUnknownResult(SecretsFile);
+
+/** Secrets and credentials: what a new key would make unreadable. */
+const entryCount = (file: SecretsFile) => Object.keys(file.secrets).length + Object.keys(file.credentials ?? {}).length;
 
 /**
  * Stored secrets in `<dir>/secrets.enc` (0600, the folder 0700), read from the file on
@@ -111,7 +114,7 @@ export const makeSecretStore = (options: SecretStoreOptions) =>
         Effect.gen(function* () {
           if (Option.isNone(file)) return { state: "empty", keySource: null, problem: null } satisfies SecretStoreStatus;
           const { source, wrappedDek } = file.value.kek;
-          if (Object.keys(file.value.secrets).length === 0) return { state: "empty", keySource: source, problem: null } satisfies SecretStoreStatus;
+          if (entryCount(file.value) === 0) return { state: "empty", keySource: source, problem: null } satisfies SecretStoreStatus;
           const last = yield* Ref.get(checked);
           const key = yield* keyStores[source].fingerprint;
           let problem: string | null;
@@ -158,18 +161,7 @@ export const makeSecretStore = (options: SecretStoreOptions) =>
         if (declared !== undefined) return yield* new SecretDeclared({ name: input.name, path: declared });
 
         return yield* Effect.gen(function* () {
-          const existing = yield* readFile;
-          let file: SecretsFile;
-          let dek: Uint8Array;
-          if (Option.isSome(existing) && Object.keys(existing.value.secrets).length > 0) {
-            file = existing.value;
-            dek = yield* unlock(file).pipe(Effect.mapError((reason) => new SecretStoreUnavailable({ reason: `${reason} ${START_AGAIN}` })));
-          } else {
-            // Nothing to lose: use the file's key when it opens, else start with a new one.
-            const reused = Option.isSome(existing) ? yield* unlock(existing.value).pipe(Effect.result) : undefined;
-            if (reused !== undefined && Result.isSuccess(reused) && Option.isSome(existing)) ({ file, dek } = { file: existing.value, dek: reused.success });
-            else ({ file, dek } = yield* start);
-          }
+          const { file, dek } = yield* forWriting;
           const createdAt = yield* Clock.currentTimeMillis;
           const entry = { ...seal(dek, secretContext(input.name), bytes), createdAt, expiresAt: input.expiresAt };
           dek.fill(0);
@@ -179,6 +171,56 @@ export const makeSecretStore = (options: SecretStoreOptions) =>
           return { name: input.name, source: "stored", createdAt, expiresAt: input.expiresAt, available: true, problem: null } satisfies SecretInfo;
         }).pipe(writing.withPermits(1));
       });
+
+      /**
+       * The file to add a value to, and its data key: the existing one when it holds
+       * anything, else (nothing to lose) the file's key when it opens, or a new one.
+       * Call holding the `writing` permit.
+       */
+      const forWriting = Effect.gen(function* () {
+        const existing = yield* readFile;
+        if (Option.isSome(existing) && entryCount(existing.value) > 0) {
+          const dek = yield* unlock(existing.value).pipe(Effect.mapError((reason) => new SecretStoreUnavailable({ reason: `${reason} ${START_AGAIN}` })));
+          return { file: existing.value, dek };
+        }
+        const reused = Option.isSome(existing) ? yield* unlock(existing.value).pipe(Effect.result) : undefined;
+        if (reused !== undefined && Result.isSuccess(reused) && Option.isSome(existing)) return { file: existing.value, dek: reused.success };
+        return yield* start;
+      });
+
+      const readCredentials = (prefix: string) =>
+        Effect.gen(function* () {
+          const values = new Map<string, string>();
+          const file = yield* readFile;
+          if (Option.isNone(file)) return values;
+          const entries = Object.entries(file.value.credentials ?? {}).filter(([key]) => key.startsWith(prefix));
+          if (entries.length === 0) return values;
+          const dek = yield* unlock(file.value).pipe(Effect.mapError((reason) => new SecretStoreUnavailable({ reason })));
+          for (const [key, entry] of entries) {
+            const plain = open(dek, credentialContext(key), entry);
+            if (plain === undefined) continue;
+            values.set(key, plain.toString("utf8"));
+            plain.fill(0);
+          }
+          dek.fill(0);
+          return values;
+        });
+
+      const writeCredential = (key: string, value: string | null) =>
+        Effect.gen(function* () {
+          if (value === null) {
+            const existing = yield* readFile;
+            if (Option.isNone(existing) || !(key in (existing.value.credentials ?? {}))) return;
+            const { [key]: _removed, ...credentials } = existing.value.credentials ?? {};
+            return yield* writeFile({ ...existing.value, credentials });
+          }
+          const { file, dek } = yield* forWriting;
+          const bytes = Buffer.from(value, "utf8");
+          const entry = seal(dek, credentialContext(key), bytes);
+          dek.fill(0);
+          bytes.fill(0);
+          yield* writeFile({ ...file, credentials: { ...file.credentials, [key]: entry } });
+        }).pipe(writing.withPermits(1));
 
       const remove = (name: string) =>
         Effect.gen(function* () {
@@ -212,7 +254,7 @@ export const makeSecretStore = (options: SecretStoreOptions) =>
         return value;
       });
 
-      return SecretStore.of({ list, set, delete: remove, resolve });
+      return SecretStore.of({ list, set, delete: remove, resolve, readCredentials, writeCredential });
     }),
   );
 

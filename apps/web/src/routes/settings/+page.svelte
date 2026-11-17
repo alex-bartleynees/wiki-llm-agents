@@ -34,8 +34,9 @@
   <CommitMessageSettings />
   <h1 class="next">MCP servers</h1>
   <p class="hint">
-    Servers whose tools the app will offer to agents on every provider, set up once here. They are saved now; connecting to them and
-    giving their tools to agents comes with the MCP gateway, which isn't built yet.
+    Servers whose tools the app will offer to agents on every provider, set up once here. A server that asks you to sign in (OAuth)
+    can be connected now, and the app keeps its tokens encrypted with the secrets; giving the servers' tools to agents comes with
+    the MCP gateway, which isn't built yet.
   </p>
   <McpServersSettings />
   <h1 class="next">Secrets</h1>

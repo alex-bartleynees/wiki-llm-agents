@@ -3,7 +3,7 @@ import { SetSecretResponse } from "@wiki-agents/contracts/secrets/set-secret/res
 import { Effect, Schema } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
 import { badRequest, conflict, internalError, unprocessable } from "../../../shared/http-errors.js";
-import { guarded } from "../host-guard.js";
+import { guarded } from "../../../shared/host-guard.js";
 import { SecretStore } from "../secret-store.js";
 import { secretUsers, summarise } from "../summaries.js";
 

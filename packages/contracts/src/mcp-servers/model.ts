@@ -42,6 +42,19 @@ export type McpTransport = typeof McpTransport.Type;
 export const McpScope = Schema.Literals(["app", "project", "thread"]);
 export type McpScope = typeof McpScope.Type;
 
+/**
+ * How the app signs in to an HTTP server that asks for OAuth (the coffee journal's
+ * Keycloak). Without it, a server that asks is still signed in to, registering a client
+ * itself where the identity server allows that (Jira).
+ */
+export const McpOAuth = Schema.Struct({
+  /** The client registered for this app at the identity server; null to register one when connecting. */
+  clientId: Schema.NullOr(Schema.String),
+  /** Scopes to ask for; empty for those the server advertises. `offline_access` is added when offered. */
+  scopes: Schema.Array(Schema.String),
+});
+export type McpOAuth = typeof McpOAuth.Type;
+
 /** A server's settings, as the editor saves them. */
 export const McpServerInput = Schema.Struct({
   title: Schema.String,
@@ -51,6 +64,8 @@ export const McpServerInput = Schema.Struct({
   default: Schema.Boolean,
   /** What its tools need instead of the agent's own autonomy; null to follow the agent. */
   access: Schema.NullOr(AutonomyLevel),
+  /** Sign-in settings; HTTP servers only, null for none. */
+  oauth: Schema.NullOr(McpOAuth),
 });
 export type McpServerInput = typeof McpServerInput.Type;
 

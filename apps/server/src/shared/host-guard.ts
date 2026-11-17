@@ -20,7 +20,10 @@ export const isTrustedHost = (host: string | undefined): boolean => {
   return isIP(name) !== 0 || name === "localhost" || name.endsWith(".localhost") || name.endsWith(".ts.net");
 };
 
-/** Runs a secrets endpoint only for a request addressed to this app by a name it trusts. */
+/**
+ * Runs an endpoint that handles secrets or sign-ins only for a request addressed to
+ * this app by a name it trusts.
+ */
 export const guarded = <E, R>(endpoint: Effect.Effect<HttpServerResponse.HttpServerResponse, E, R>) =>
   Effect.flatMap(HttpServerRequest.HttpServerRequest, (request) =>
     isTrustedHost(request.headers["host"]) ? endpoint : Effect.succeed(HttpServerResponse.text("Secrets are served on localhost and the tailnet only", { status: 403 })),

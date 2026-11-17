@@ -10,6 +10,7 @@ import { inboxRouter } from "../features/inbox/router.js";
 import { notificationsRouter } from "../features/notifications/router.js";
 import { indexingRouter } from "../features/indexing/router.js";
 import { mcpRouter } from "../features/mcp/router.js";
+import { mcpOAuthRouter } from "../features/mcp-oauth/router.js";
 import { mcpServersRouter } from "../features/mcp-servers/router.js";
 import { notesRouter } from "../features/notes/router.js";
 import { pinsRouter } from "../features/pins/router.js";
@@ -38,6 +39,7 @@ export const router = Layer.mergeAll(
   threadsRouter,
   changesRouter,
   agentsRouter,
+  mcpOAuthRouter,
   mcpServersRouter,
   secretsRouter,
   schedulesRouter,

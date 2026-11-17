@@ -1,9 +1,11 @@
 <script lang="ts">
   import type { ConfigProblem } from "@wiki-agents/contracts/agents/model";
+  import { CONNECT_FAILED_PARAM, CONNECTED_PARAM, type McpConnection } from "@wiki-agents/contracts/mcp-oauth/model";
   import type { McpServerSummary } from "@wiki-agents/contracts/mcp-servers/model";
-  import { untrack } from "svelte";
+  import { onMount, untrack } from "svelte";
   import { errorMessage } from "#lib/api/client.ts";
-  import { deleteMcpServer, getMcpServer, listMcpServers, saveMcpServer } from "./api.ts";
+  import { deleteMcpServer, disconnect, finishConnect, getMcpServer, listConnections, listMcpServers, saveMcpServer, startConnect } from "./api.ts";
+  import { canSignIn, connectionText, connectLabel, SIGN_IN_CHANNEL } from "./connection.ts";
   import { BLANK_FORM, describeTransport, formFromServer, idFromTitle, inputFromForm, isValidId, SCOPE_LABELS, type ServerForm } from "./server-form.ts";
 
   /**
@@ -32,6 +34,18 @@
   let errors = $state<ReadonlyArray<string>>([]);
   let notice = $state<string | null>(null);
 
+  /** Sign-ins by server id. */
+  let connections = $state<ReadonlyMap<string, McpConnection>>(new Map());
+  /** A sign-in started here and waiting for the identity server. */
+  let signingIn = $state<{ readonly serverId: string; readonly title: string; readonly authorizationUrl: string; readonly redirectUri: string } | null>(null);
+  /** The server whose Connect or Disconnect is being sent. */
+  let connecting = $state<string | null>(null);
+  let pasted = $state("");
+  let signInError = $state<string | null>(null);
+  let copied = $state(false);
+
+  const until = (at: number) => new Date(at).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+
   const idShown = $derived(editing?.id ?? (idTyped ? newId : idFromTitle(form.title)));
 
   async function load() {
@@ -44,7 +58,100 @@
     } catch (cause) {
       loadError = errorMessage(cause, "Could not load the MCP servers");
     }
+    await loadConnections();
   }
+
+  async function loadConnections() {
+    try {
+      connections = new Map((await listConnections()).connections.map((connection) => [connection.serverId, connection]));
+    } catch (cause) {
+      loadError = errorMessage(cause, "Could not load the sign-ins");
+    }
+  }
+
+  async function connect(server: McpServerSummary) {
+    connecting = server.id;
+    signInError = null;
+    notice = null;
+    copied = false;
+    try {
+      const started = await startConnect(server.id);
+      signingIn = { serverId: server.id, title: server.title, authorizationUrl: started.authorizationUrl, redirectUri: started.redirectUri };
+      pasted = "";
+    } catch (cause) {
+      signingIn = null;
+      signInError = `${server.title}: ${errorMessage(cause, "Could not start signing in")}`;
+    } finally {
+      connecting = null;
+    }
+  }
+
+  async function finishPasted() {
+    if (signingIn === null || pasted.trim() === "") return;
+    const title = signingIn.title;
+    signInError = null;
+    try {
+      await finishConnect(pasted);
+      signingIn = null;
+      notice = `Signed in to ${title}.`;
+      await loadConnections();
+    } catch (cause) {
+      signInError = errorMessage(cause, "Could not finish signing in");
+    }
+  }
+
+  async function signOut(server: McpServerSummary) {
+    connecting = server.id;
+    signInError = null;
+    try {
+      await disconnect(server.id);
+      notice = `Signed out of ${server.title}.`;
+      await loadConnections();
+    } catch (cause) {
+      signInError = `${server.title}: ${errorMessage(cause, "Could not sign out")}`;
+    } finally {
+      connecting = null;
+    }
+  }
+
+  async function copyLink() {
+    if (signingIn === null) return;
+    try {
+      await navigator.clipboard.writeText(signingIn.authorizationUrl);
+      copied = true;
+    } catch {
+      signInError = "Couldn't copy; select the link and copy it instead.";
+    }
+  }
+
+  // The identity server sends you back to this page with the outcome in the query; say
+  // it, tell this app's other tabs (the one you pressed Connect in), and tidy the address.
+  onMount(() => {
+    const channel = typeof BroadcastChannel === "undefined" ? null : new BroadcastChannel(SIGN_IN_CHANNEL);
+    const url = new URL(window.location.href);
+    const connected = url.searchParams.get(CONNECTED_PARAM);
+    const failed = url.searchParams.get(CONNECT_FAILED_PARAM);
+    if (connected !== null || failed !== null) {
+      if (connected !== null) notice = `Signed in to ${connected}.`;
+      if (failed !== null) signInError = `Signing in didn't work: ${failed}`;
+      channel?.postMessage({ connected, failed });
+      url.searchParams.delete(CONNECTED_PARAM);
+      url.searchParams.delete(CONNECT_FAILED_PARAM);
+      history.replaceState(history.state, "", url);
+    }
+    if (channel !== null) {
+      channel.onmessage = (event: MessageEvent<{ connected: string | null; failed: string | null }>) => {
+        const waiting = signingIn;
+        if (event.data.connected !== null) {
+          notice = `Signed in to ${waiting?.serverId === event.data.connected ? waiting.title : event.data.connected}.`;
+          if (waiting?.serverId === event.data.connected) signingIn = null;
+        }
+        if (event.data.failed !== null) signInError = `Signing in didn't work: ${event.data.failed}`;
+        void loadConnections();
+      };
+    }
+    return () => channel?.close();
+  });
 
   $effect(() => {
     untrack(() => void load());
@@ -134,8 +241,30 @@
               <code>{server.id}</code> · {server.transport.type} · {server.scope}{server.default ? " · every thread" : ""}{server.access === null ? "" : ` · ${server.access}`}
             </span>
             <span class="where">{describeTransport(server)}</span>
+            {#if canSignIn(server)}
+              {@const connection = connections.get(server.id)}
+              {#if connection}
+                <span class={["sign-in", connection.state]}>
+                  {connectionText(connection)}{connection.state === "connected" && !connection.renews && connection.expiresAt !== null
+                    ? ` until ${until(connection.expiresAt)}`
+                    : ""}
+                </span>
+                {#if connection.problem}<span class="problem">{connection.problem}</span>{/if}
+              {/if}
+            {/if}
           </div>
-          <button type="button" onclick={() => void edit(server)} aria-label={`Edit ${server.title}`}>Edit</button>
+          <div class="buttons">
+            {#if canSignIn(server)}
+              {@const connection = connections.get(server.id)}
+              <button type="button" onclick={() => void connect(server)} disabled={connecting !== null} aria-label={`${connectLabel(connection)} ${server.title}`}>
+                {connecting === server.id ? "…" : connectLabel(connection)}
+              </button>
+              {#if connection && connection.state !== "disconnected"}
+                <button type="button" onclick={() => void signOut(server)} disabled={connecting !== null} aria-label={`Sign out of ${server.title}`}>Sign out</button>
+              {/if}
+            {/if}
+            <button type="button" onclick={() => void edit(server)} aria-label={`Edit ${server.title}`}>Edit</button>
+          </div>
         </li>
       {/each}
     </ul>
@@ -150,6 +279,34 @@
       {/each}
     </ul>
   {/if}
+
+  {#if signingIn}
+    <section class="signing-in" aria-label={`Sign in to ${signingIn.title}`}>
+      <p>
+        <a href={signingIn.authorizationUrl} target="_blank" rel="noopener noreferrer" class="open">Open the sign-in page</a>
+        <button type="button" onclick={() => void copyLink()}>{copied ? "Copied" : "Copy link"}</button>
+        <button type="button" onclick={() => (signingIn = null)}>Cancel</button>
+      </p>
+      <p class="hint">
+        Sign in there, on this device or another, within ten minutes. It sends you back to <code>{signingIn.redirectUri}</code>, which
+        the identity server must accept.
+      </p>
+      <form
+        aria-label="Paste the address you were sent to"
+        onsubmit={(event) => {
+          event.preventDefault();
+          void finishPasted();
+        }}
+      >
+        <label>
+          <span class="label">If that address didn't load, paste it here</span>
+          <input bind:value={pasted} aria-label="Address after signing in" inputmode="url" autocapitalize="off" autocomplete="off" spellcheck="false" />
+        </label>
+        <button type="submit" disabled={pasted.trim() === ""}>Finish signing in</button>
+      </form>
+    </section>
+  {/if}
+  {#if signInError}<p class="error" role="alert">{signInError}</p>{/if}
 
   {#if notice}<p class="hint" role="status">{notice}</p>{/if}
 
@@ -207,6 +364,15 @@
         <label>
           <span class="label">Headers, one per line</span>
           <textarea bind:value={form.headers} aria-label="Headers" rows="3" placeholder={"Authorization: Bearer ${secret:github}"} autocapitalize="off" spellcheck="false"></textarea>
+        </label>
+        <label>
+          <span class="label">Sign-in client id</span>
+          <input bind:value={form.clientId} aria-label="Sign-in client id" placeholder="Registered by the app when left empty" autocapitalize="off" autocomplete="off" spellcheck="false" />
+        </label>
+        <label>
+          <span class="label">Sign-in scopes, separated by spaces</span>
+          <input bind:value={form.scopes} aria-label="Sign-in scopes" placeholder="Those the server asks for" autocapitalize="off" autocomplete="off" spellcheck="false" />
+          <span class="hint">For a server that asks you to sign in (OAuth): leave out the Authorization header, save, then press Connect.</span>
         </label>
       {:else}
         <label>
@@ -310,9 +476,67 @@
     font-weight: 600;
   }
   .meta,
-  .where {
+  .where,
+  .sign-in,
+  .problem {
     color: var(--ink-3);
     font-size: 12px;
+  }
+  .sign-in.connected {
+    color: var(--accent);
+  }
+  .sign-in.expired,
+  .sign-in.changed,
+  .sign-in.unreadable,
+  .problem {
+    color: var(--del);
+  }
+  .problem {
+    overflow-wrap: anywhere;
+  }
+  .buttons {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  .signing-in {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 16px;
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+  }
+  .signing-in p {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    margin: 0;
+  }
+  .signing-in p.hint {
+    display: block;
+  }
+  .signing-in form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 8px;
+  }
+  .signing-in form label {
+    flex: 1 1 240px;
+  }
+  .open {
+    display: inline-flex;
+    align-items: center;
+    height: 36px;
+    padding: 0 14px;
+    border-radius: var(--radius);
+    background: var(--accent);
+    color: var(--on-accent);
+    font-weight: 600;
+    text-decoration: none;
   }
   .where {
     overflow: hidden;
@@ -421,6 +645,15 @@
   }
   /* Phone: 16px so focusing doesn't zoom. */
   @media (max-width: 899px) {
+    .list li {
+      flex-wrap: wrap;
+    }
+    .buttons {
+      justify-content: flex-start;
+    }
+    .open {
+      height: 40px;
+    }
     select,
     input:not([type="checkbox"]) {
       height: 40px;

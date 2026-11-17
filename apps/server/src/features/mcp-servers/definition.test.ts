@@ -19,6 +19,7 @@ describe("parseMcpServer", () => {
       scope: "app",
       default: false,
       access: null,
+      oauth: null,
     });
   });
 
@@ -34,7 +35,25 @@ describe("parseMcpServer", () => {
       scope: "thread",
       default: true,
       access: "ask",
+      oauth: null,
     });
+  });
+
+  it("reads sign-in settings: a client id and scopes (the coffee journal), or an empty block (register a client)", () => {
+    const coffee = parse(
+      "title: Coffee journal\ntransport:\n  type: http\n  url: https://app.coffeesjournal.com/mcp\noauth:\n  clientId: coffee-journal-ai-agent\n  scopes: [coffee-journal:read]\n",
+      "coffee-journal",
+    );
+    expect(Result.getOrThrow(coffee).oauth).toEqual({ clientId: "coffee-journal-ai-agent", scopes: ["coffee-journal:read"] });
+    expect(Result.getOrThrow(parse("transport:\n  type: http\n  url: https://mcp.atlassian.com/v1/mcp\noauth: {}\n", "jira")).oauth).toEqual({ clientId: null, scopes: [] });
+  });
+
+  it.each([
+    ["sign-in on a command", "transport:\n  type: stdio\n  command: serve\noauth:\n  clientId: x\n", ["oauth: Only a server reached by URL (`type: http`) signs in."]],
+    ["two scopes in one entry", "transport:\n  type: http\n  url: https://example.com/mcp\noauth:\n  scopes: [read write]\n", ["oauth.scopes.0: One scope per entry, without spaces."]],
+    ["a misspelt sign-in setting", "transport:\n  type: http\n  url: https://example.com/mcp\noauth:\n  client: x\n", ["oauth.client: Unknown setting; check the spelling."]],
+  ])("refuses %s", (_what, text, expected) => {
+    expect(problems(text)).toEqual(expected);
   });
 
   it.each([

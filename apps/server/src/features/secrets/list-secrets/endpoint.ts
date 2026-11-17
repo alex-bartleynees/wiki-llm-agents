@@ -2,7 +2,7 @@ import { ListSecretsResponse } from "@wiki-agents/contracts/secrets/list-secrets
 import { Effect } from "effect";
 import { HttpServerResponse } from "effect/http";
 import { internalError } from "../../../shared/http-errors.js";
-import { guarded } from "../host-guard.js";
+import { guarded } from "../../../shared/host-guard.js";
 import { SecretStore } from "../secret-store.js";
 import { secretUsers, summarise } from "../summaries.js";
 

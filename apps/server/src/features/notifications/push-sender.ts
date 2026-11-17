@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { Context, Data, Effect, Layer, Option, Schema } from "effect";
 import webpush from "web-push";
 import { AppConfig } from "../../shared/config.js";
+import { networkReason } from "../../shared/network-reason.js";
 import { NotificationsRepository, type PushTarget, type VapidKeyPair } from "./repository.js";
 
 /**
@@ -29,26 +30,7 @@ export class PushSender extends Context.Service<PushSender, PushSenderService>()
 /** How long a push service has to answer. */
 const SEND_TIMEOUT_MS = 10_000;
 
-/**
- * Why a request didn't get an answer. `fetch` says only "fetch failed"; the reason
- * (DNS, refused, blocked, timed out) is in its `cause` chain.
- */
-export const networkReason = (error: unknown): string => {
-  const parts: Array<string> = [];
-  let current: unknown = error;
-  for (let depth = 0; current !== undefined && current !== null && depth < 4; depth++) {
-    if (current instanceof Error) {
-      const code = (current as { code?: unknown }).code;
-      const text = current.name === "TimeoutError" ? "timed out" : current.message;
-      parts.push(typeof code === "string" && !text.includes(code) ? `${text} (${code})` : text);
-      current = current.cause;
-    } else {
-      parts.push(String(current));
-      break;
-    }
-  }
-  return parts.join(": ");
-};
+export { networkReason };
 
 /**
  * `web-push`'s headers as `fetch` takes them: values as strings, and no

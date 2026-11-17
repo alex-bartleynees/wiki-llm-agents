@@ -53,6 +53,12 @@ const HttpFile = Schema.Struct({
     url: Url,
     headers: Schema.optionalKey(Strings),
   }),
+  oauth: Schema.optionalKey(
+    Schema.Struct({
+      clientId: Schema.optionalKey(NonEmpty),
+      scopes: Schema.optionalKey(Schema.Array(NonEmpty.check(Schema.makeFilter((scope: string) => (/\s/.test(scope) ? "One scope per entry, without spaces." : undefined))))),
+    }),
+  ),
 });
 
 const options = { onExcessProperty: "error", errors: "all" } as const;
@@ -118,6 +124,7 @@ export const parseMcpServer = (id: string, path: string, text: string): Result.R
   if (!isRecord(raw.transport)) return Result.fail(["transport: Say how to reach the server: `type: stdio` with a `command`, or `type: http` with a `url`."]);
   const type = raw.transport.type;
   if (type !== "stdio" && type !== "http") return Result.fail(["transport.type: Set it to `stdio` (a command the app runs) or `http` (a URL)."]);
+  if (type === "stdio" && "oauth" in raw) return Result.fail(["oauth: Only a server reached by URL (`type: http`) signs in."]);
 
   const decoded: Result.Result<typeof StdioFile.Type | typeof HttpFile.Type, Schema.SchemaError> = type === "stdio" ? decodeStdio(raw) : decodeHttp(raw);
   if (Result.isFailure(decoded)) return Result.fail(problemsOf(decoded.failure.issue));
@@ -139,5 +146,6 @@ export const parseMcpServer = (id: string, path: string, text: string): Result.R
     scope: file.scope ?? "app",
     default: file.default ?? false,
     access: file.access ?? null,
+    oauth: "oauth" in file && file.oauth !== undefined ? { clientId: file.oauth.clientId ?? null, scopes: file.oauth.scopes ?? [] } : null,
   });
 };
