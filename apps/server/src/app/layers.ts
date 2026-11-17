@@ -2,6 +2,7 @@ import { ProjectRepositoryLive } from "../features/projects/sqlite-repository.js
 import { NodeChildProcessSpawner, NodeFileSystem, NodeHttpServer, NodePath } from "@effect/platform-node";
 import { Effect, type FileSystem, Layer, Option } from "effect";
 import { HttpRouter } from "effect/http";
+import type { ChildProcessSpawner } from "effect/process";
 import type { AgentCatalog } from "../features/agents/catalog.js";
 import type { AttachmentStore } from "../features/attachments/attachment-store.js";
 import { AttachmentStoreLive } from "../features/attachments/store-live.js";
@@ -33,6 +34,8 @@ import { PinRepositoryLive } from "../features/pins/sqlite-repository.js";
 import type { ProviderRegistry } from "../features/providers/registry.js";
 import { ProviderRegistryLive } from "../features/providers/registry-live.js";
 import { SchedulerSignalLive } from "../features/schedules/signal.js";
+import type { SecretStore } from "../features/secrets/secret-store.js";
+import { SecretStoreLive } from "../features/secrets/store-live.js";
 import { ScheduleRepositoryLive } from "../features/schedules/sqlite-repository.js";
 import { SchedulesStartup } from "../features/schedules/startup.js";
 import { ThreadRepositoryLive } from "../features/threads/sqlite-repository.js";
@@ -73,6 +76,8 @@ export interface AppOptions {
   readonly agents: Layer.Layer<AgentCatalog, never, FileSystem.FileSystem>;
   /** Where message attachments are kept. Required, so a test can never write to your real data directory. */
   readonly attachments: Layer.Layer<AttachmentStore, never, Sqlite | FileSystem.FileSystem>;
+  /** Secrets for MCP servers. Required, so a test can never read or write your real secrets or their key. */
+  readonly secrets: Layer.Layer<SecretStore, never, FileSystem.FileSystem | ChildProcessSpawner.ChildProcessSpawner>;
   /** Where thread worktrees are made. Required, so a test can never make one in your real data directory. */
   readonly worktrees: Layer.Layer<WorktreeRoot>;
   /** How inbox items reach you: in-app and Web Push unless a test chooses (a channel that fails, say). */
@@ -137,6 +142,7 @@ export const makeHttpApp = (options: AppOptions) =>
         options.agents,
         options.attachments,
         options.worktrees,
+        options.secrets.pipe(Layer.provide(ProcessesLive)),
         indexing(options.watch, options.watchPollMs),
         WallClockLive,
         EventConnectionsLive,
@@ -152,7 +158,7 @@ const ServerLive = Layer.unwrap(
   }),
 );
 
-export const makeAppLive = (options: Omit<AppOptions, "watch" | "watchPollMs" | "agents" | "attachments" | "worktrees">) =>
+export const makeAppLive = (options: Omit<AppOptions, "watch" | "watchPollMs" | "agents" | "attachments" | "worktrees" | "secrets">) =>
   Layer.unwrap(
     Effect.map(AppConfig.watchPollMs, (pollMs) =>
       makeHttpApp({
@@ -162,6 +168,7 @@ export const makeAppLive = (options: Omit<AppOptions, "watch" | "watchPollMs" | 
         agents: AgentCatalogLive,
         attachments: AttachmentStoreLive,
         worktrees: WorktreeRootLive,
+        secrets: SecretStoreLive,
       }),
     ),
   ).pipe(Layer.provide(SqliteLive), Layer.provide(ServerLive));

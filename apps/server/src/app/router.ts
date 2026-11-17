@@ -16,6 +16,7 @@ import { pinsRouter } from "../features/pins/router.js";
 import { providersRouter } from "../features/providers/router.js";
 import { schedulesRouter } from "../features/schedules/router.js";
 import { searchRouter } from "../features/search/router.js";
+import { secretsRouter } from "../features/secrets/router.js";
 import { threadsRouter } from "../features/threads/router.js";
 import { vaultsRouter } from "../features/vaults/router.js";
 import { testHooksRouter } from "./test-hooks.js";
@@ -38,6 +39,7 @@ export const router = Layer.mergeAll(
   changesRouter,
   agentsRouter,
   mcpServersRouter,
+  secretsRouter,
   schedulesRouter,
   inboxRouter,
   eventsRouter,

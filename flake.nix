@@ -76,6 +76,8 @@
                     port = 4320;
                     watchPollMs = 2000;
                     providerEnv.withhold = [ "AWS_*" "NPM_TOKEN" ];
+                    secretFiles = { github = "/run/secrets/github"; jira = "/run/secrets/jira"; };
+                    secretsKey = "systemd-creds";
                     enableLinger = true;
                     desktopEntry = true;
                   };
@@ -89,6 +91,8 @@
             grep -q 'Environment="WIKI_AGENTS_PORT=4320"' ${unit}
             grep -q 'Environment="WIKI_AGENTS_WATCH_POLL_MS=2000"' ${unit}
             grep -q 'Environment="WIKI_AGENTS_PROVIDER_ENV_WITHHOLD=AWS_\*,NPM_TOKEN"' ${unit}
+            grep -q 'Environment="WIKI_AGENTS_SECRET_FILES=github=/run/secrets/github,jira=/run/secrets/jira"' ${unit}
+            grep -q 'Environment="WIKI_AGENTS_SECRETS_KEY=systemd-creds"' ${unit}
             grep -q 'WantedBy=wiki-agents.target' ${unit}
             test -e ${home.activationPackage}/home-files/.config/systemd/user/wiki-agents.target
             test -e ${home.activationPackage}/home-path/share/applications/wiki-agents.desktop

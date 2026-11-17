@@ -43,6 +43,9 @@ if (process.env["E2E_ROOT"] === undefined) {
     writeFileSync(join(root, "vault", path), text);
   }
   mkdirSync(join(root, "projects"));
+  // A secret declared in the service's configuration, as sops-nix would provide it.
+  mkdirSync(join(root, "run-secrets"));
+  writeFileSync(join(root, "run-secrets", "jira"), "jira-token\n");
   process.env["E2E_ROOT"] = root;
   process.env["E2E_PORT"] = String(41000 + Math.floor(Math.random() * 2000));
 }
@@ -77,6 +80,10 @@ export default defineConfig({
       WIKI_AGENTS_STATIC_DIR: join(web, "build"),
       // This checkout's migrations, not those of an installed copy whose settings the shell may carry.
       WIKI_AGENTS_MIGRATIONS_DIR: join(server, "drizzle"),
+      // Stored secrets' key in the run's folder, never systemd's or your own.
+      WIKI_AGENTS_SECRETS_KEY: "file",
+      WIKI_AGENTS_SECRETS_KEY_FILE: join(root, "state", "secrets.key"),
+      WIKI_AGENTS_SECRET_FILES: `jira=${join(root, "run-secrets", "jira")}`,
       WIKI_AGENTS_OPENCODE: "wiki-agents-e2e-no-opencode",
       WIKI_AGENTS_CLAUDE: "wiki-agents-e2e-no-claude",
       WIKI_AGENTS_CODEX: "wiki-agents-e2e-no-codex",

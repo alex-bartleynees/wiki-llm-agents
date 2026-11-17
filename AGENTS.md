@@ -23,7 +23,8 @@ Read `README.md` first. Design decisions are in the user's vault at
   generated SQL by hand. For what Drizzle can't declare (FTS5 virtual tables), write
   a custom migration: `npx drizzle-kit generate --custom --name <name>` in
   `apps/server`.
-- Code used by several features lives in `apps/server/src/shared/` (`vault/` path
+- Code used by several features lives in `apps/server/src/shared/` (`config-files.ts`
+  for hash-checked writes to the config directory, `vault/` path
   guard and walker, `markdown/` parsing and link resolution); features read each
   other's data through ports (`indexing/vault-index.ts`), never their adapters.
 - In the web app use `#lib/...` imports (SvelteKit 3), not `$lib`.

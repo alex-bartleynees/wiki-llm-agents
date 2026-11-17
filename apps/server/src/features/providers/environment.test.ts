@@ -42,6 +42,14 @@ describe("providerEnvironment", () => {
     expect(env).not.toHaveProperty("WIKI_AGENTS_VAPID_KEYS_FILE");
   });
 
+  it("never passes the secrets' settings, even when named", () => {
+    const secrets = { ...source, WIKI_AGENTS_SECRETS_KEY_FILE: "/state/secrets.key", WIKI_AGENTS_SECRET_FILES: "github=/run/secrets/github" };
+    const env = providerEnvironment(secrets, { withhold: [], pass: ["WIKI_AGENTS_*", "WIKI_AGENTS_SECRETS_KEY_FILE", "WIKI_AGENTS_SECRET_FILES"] });
+    expect(env.WIKI_AGENTS_DATA_DIR).toBe("/data");
+    expect(env).not.toHaveProperty("WIKI_AGENTS_SECRETS_KEY_FILE");
+    expect(env).not.toHaveProperty("WIKI_AGENTS_SECRET_FILES");
+  });
+
   it("matches a name exactly unless it ends with *", () => {
     const env = providerEnvironment(source, { withhold: ["AWS"], pass: [] });
     expect(env.AWS_REGION).toBe("ap-southeast-2");

@@ -36,7 +36,7 @@ import { VAULT_FILES } from "../fixtures/opencode/fixture.js";
 import { CSV_PROMPT, csvMessage, csvPath, SALES_CSV, SALES_TOTAL } from "../fixtures/csv.js";
 import { RED_SQUARE, sha256 } from "../fixtures/image.js";
 import { mcpSession } from "./infrastructure/mcp.js";
-import { makeTestApp, TestAgents, TestAttachments, TestWorktrees } from "./infrastructure/test-app.js";
+import { makeTestApp, TestAgents, TestAttachments, TestSecrets, TestWorktrees } from "./infrastructure/test-app.js";
 import {
   answer,
   decode,
@@ -707,7 +707,7 @@ const migrationsDir = fileURLToPath(new URL("../../drizzle", import.meta.url));
 
 /** The app over a database file and an OpenCode that outlives it (sessions are OpenCode's own data). */
 const appOn = (file: string, fake: FakeOpenCode) =>
-  makeHttpApp({ vaults: [], watch: false, providers: providersOver(Layer.succeed(Fake, fake)), agents: TestAgents, attachments: TestAttachments, worktrees: TestWorktrees }).pipe(
+  makeHttpApp({ vaults: [], watch: false, providers: providersOver(Layer.succeed(Fake, fake)), agents: TestAgents, attachments: TestAttachments, worktrees: TestWorktrees, secrets: TestSecrets }).pipe(
     Layer.provideMerge(Layer.effect(Sqlite, makeSqlite({ file, migrationsDir }))),
     Layer.provideMerge(NodeHttpServer.layerTest),
   );

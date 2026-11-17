@@ -151,6 +151,30 @@ in
       };
     };
 
+    secretFiles = mkOption {
+      type = types.attrsOf types.str;
+      default = { };
+      example = { github = "/run/secrets/github"; };
+      description = ''
+        Secrets MCP servers use as `''${secret:<name>}`, each a file holding the value
+        (sops-nix, agenix, systemd credentials). The app reads the file when it connects
+        and stores nothing; Settings lists them. Names are lowercase letters, digits and
+        hyphens. Sets `WIKI_AGENTS_SECRET_FILES`.
+      '';
+    };
+
+    secretsKey = mkOption {
+      type = types.enum [ "auto" "systemd-creds" "file" ];
+      default = "auto";
+      description = ''
+        What protects the key of the secrets entered in Settings: `systemd-creds`
+        (encrypted by systemd for this user on this machine; systemd 256 or later), `file`
+        (a key file only you can read, under `$XDG_STATE_HOME/wiki-agents`), or `auto`
+        for the first that works. Applies when the first secret is stored. Sets
+        `WIKI_AGENTS_SECRETS_KEY`.
+      '';
+    };
+
     enableLinger = mkOption {
       type = types.bool;
       default = false;
@@ -211,6 +235,10 @@ in
           // lib.optionalAttrs (cfg.providerEnv.pass != [ ]) {
             WIKI_AGENTS_PROVIDER_ENV_PASS = lib.concatStringsSep "," cfg.providerEnv.pass;
           }
+          // lib.optionalAttrs (cfg.secretFiles != { }) {
+            WIKI_AGENTS_SECRET_FILES = lib.concatStringsSep "," (lib.mapAttrsToList (name: path: "${name}=${path}") cfg.secretFiles);
+          }
+          // lib.optionalAttrs (cfg.secretsKey != "auto") { WIKI_AGENTS_SECRETS_KEY = cfg.secretsKey; }
           // cfg.environment
         );
         Restart = "on-failure";

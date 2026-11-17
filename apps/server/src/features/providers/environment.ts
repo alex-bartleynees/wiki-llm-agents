@@ -8,6 +8,13 @@
 /** The app's own settings: paths, ports and key files no agent needs. */
 const APP_PREFIX = "WIKI_AGENTS_";
 
+/**
+ * Where the stored secrets' key is and which files hold declared secrets
+ * (`WIKI_AGENTS_SECRETS_KEY_FILE`, `WIKI_AGENTS_SECRET_FILES`...): kept from providers
+ * even when `pass` names them, so no setting hands an agent the way to a secret.
+ */
+const NEVER_PASSED = /^WIKI_AGENTS_SECRET/;
+
 export interface ProviderEnvironmentRules {
   /** Names kept from providers, on top of the app's own. A trailing `*` matches a prefix. */
   readonly withhold: ReadonlyArray<string>;
@@ -24,7 +31,7 @@ const matches = (patterns: ReadonlyArray<string>, name: string) =>
 export const providerEnvironment = (source: NodeJS.ProcessEnv, rules: ProviderEnvironmentRules): Record<string, string> => {
   const env: Record<string, string> = {};
   for (const [name, value] of Object.entries(source)) {
-    if (value === undefined) continue;
+    if (value === undefined || NEVER_PASSED.test(name)) continue;
     const withheld = name.startsWith(APP_PREFIX) || matches(rules.withhold, name);
     if (withheld && !matches(rules.pass, name)) continue;
     env[name] = value;

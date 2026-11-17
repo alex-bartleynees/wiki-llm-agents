@@ -655,6 +655,42 @@ access: ask                       # optional: allow, ask or deny, instead of the
 
 API: `GET /api/mcp-servers`, and `GET`, `PUT` and `DELETE /api/mcp-servers/:id`.
 
+### Secrets
+
+**Settings › Secrets** holds the tokens MCP servers use as `${secret:name}`. Values go
+in and never come out: the page and the API show names, dates and which servers use
+each, never a value. **Replace** starts from an empty field.
+
+- **Declared files** (preferred on NixOS): `WIKI_AGENTS_SECRET_FILES` (home-manager
+  `secretFiles = { github = "/run/secrets/github"; }`) names a file per secret, from
+  sops-nix, agenix or systemd credentials. The app reads it when it connects (a final
+  new line is dropped) and stores nothing; Settings lists it and says if it can't be
+  read. A declared name hides a stored one and can't be set or deleted in the app.
+- **Stored secrets** (hosts without a secrets setup): entered in Settings, kept in
+  `<data dir>/secrets/secrets.enc` (0600, folder 0700). Envelope encryption: a random
+  data key encrypts each value with AES-256-GCM, bound to the secret's name; a key from
+  the key source wraps the data key. Names and dates are in the clear.
+- **Key source** (`WIKI_AGENTS_SECRETS_KEY`, home-manager `secretsKey`): `systemd-creds`
+  (the key encrypted by `systemd-creds --user` for this user on this machine, TPM where
+  there is one; systemd 256 or later), `file` (a 0600 key file), or `auto` (default:
+  the first that works). The key lives at `WIKI_AGENTS_SECRETS_KEY_FILE` (default
+  `$XDG_STATE_HOME/wiki-agents/secrets.key`, the systemd one beside it as `.cred`),
+  outside the data directory, so a copy or backup of the data alone opens nothing.
+  Secrets are per machine: enter them once on each.
+- A lost or foreign key makes the store **unreadable**: Settings says so, and you
+  delete the stored secrets and enter them again. There is no recovery or export.
+- **Delete** refuses while servers refer to the secret unless confirmed (`?force=true`);
+  those servers then have no secret.
+- `/api/secrets` answers only requests addressed to an IP, `localhost` or a `*.ts.net`
+  name (403 otherwise), against DNS rebinding.
+- `WIKI_AGENTS_SECRET*` variables are never passed to providers, even when
+  `WIKI_AGENTS_PROVIDER_ENV_PASS` names them.
+- **Not used yet:** the MCP gateway will resolve secrets when it connects upstream,
+  into headers or a stdio server's environment, never into an agent's.
+
+API: `GET /api/secrets`, `PUT /api/secrets/:name` (`{ value, expiresAt }`) and
+`DELETE /api/secrets/:name`.
+
 ### Change review
 
 Every note a turn changes in its thread's vault is recorded, with the version before
@@ -828,6 +864,9 @@ design/             Claude Design mockup
 | `WIKI_AGENTS_PROVIDER_ENV_WITHHOLD` | unset; environment variables kept from OpenCode, Claude Code and Codex, and so from every command an agent runs: names separated by commas, a trailing `*` matching a prefix (`AWS_*, NPM_TOKEN`). The app's own `WIKI_AGENTS_*` variables are always kept from them; everything else (`PATH`, `HOME`, `SSH_AUTH_SOCK`, Nix, provider keys) goes through. Restart the app after changing it |
 | `WIKI_AGENTS_PROVIDER_ENV_PASS` | unset; variables passed to the providers anyway, over the list above and the `WIKI_AGENTS_*` rule (same form) |
 | `WIKI_AGENTS_CONFIG_DIR` | `$XDG_CONFIG_HOME/wiki-agents` (rules and agents) |
+| `WIKI_AGENTS_SECRET_FILES` | unset; secrets kept as files outside the app, `name=/path` entries separated by commas (`github=/run/secrets/github`), each usable as `${secret:name}` |
+| `WIKI_AGENTS_SECRETS_KEY` | `auto`; what protects the stored secrets' key: `systemd-creds`, `file`, or `auto` for the first that works. Applies when the first secret is stored |
+| `WIKI_AGENTS_SECRETS_KEY_FILE` | `$XDG_STATE_HOME/wiki-agents/secrets.key` (the systemd-encrypted key beside it as `secrets.key.cred`); keep it out of the data directory |
 | `WIKI_AGENTS_TIMEZONE` | `Pacific/Auckland`: the timezone new schedules use unless they say otherwise |
 | `WIKI_AGENTS_TEST_HOOKS` | `false`; `true` serves `POST /api/test/clock` and adds the replay provider, for end-to-end tests only |
 | `WIKI_AGENTS_VAPID_KEYS_FILE` | unset: Web Push keys are made on first start and kept in the database |
@@ -868,7 +907,9 @@ package; default: `opencode` from your user profile, which must be 2.2.x), `open
 (a package; default: `claude` from your user profile, which must be 2.1.x), `codex`
 (a package; default: `codex` from your user profile, 0.166 or later),
 `environment`, `providerEnv.withhold` and `providerEnv.pass` (lists; set
-`WIKI_AGENTS_PROVIDER_ENV_WITHHOLD` and `_PASS`), `enableLinger` and `desktopEntry`
+`WIKI_AGENTS_PROVIDER_ENV_WITHHOLD` and `_PASS`), `secretFiles` (name → file; sets
+`WIKI_AGENTS_SECRET_FILES`), `secretsKey` (`auto`, `systemd-creds` or `file`),
+`enableLinger` and `desktopEntry`
 (default off). `nix flake check`
 builds a home-manager configuration with the module (`checks.hm-module`).
 

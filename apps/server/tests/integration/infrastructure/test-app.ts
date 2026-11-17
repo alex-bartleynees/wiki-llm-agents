@@ -9,6 +9,8 @@ import { type AppOptions, makeHttpApp } from "../../../src/app/layers.js";
 import { makeAttachmentStore } from "../../../src/features/attachments/store-live.js";
 import { makeWorktreeRoot } from "../../../src/features/projects/worktrees.js";
 import { makeProviderRegistry } from "../../../src/features/providers/registry-live.js";
+import type { DeclaredSecrets } from "../../../src/features/secrets/declared.js";
+import { makeSecretStore } from "../../../src/features/secrets/store-live.js";
 import { ReplayAdapter } from "../../../src/features/providers/replay/adapter.js";
 import { makeSqlite, Sqlite } from "../../../src/shared/persistence/sqlite.js";
 
@@ -62,6 +64,27 @@ export const TestWorktrees = Layer.unwrap(
   ),
 );
 
+/**
+ * Secrets in a fresh temp folder with a key file beside it (never systemd, never your
+ * real key), removed when the test layer closes. `root` is where a test finds
+ * `data/secrets.enc` and `state/secrets.key`.
+ */
+export const makeTestSecrets = (options: { readonly declared?: DeclaredSecrets; readonly onRoot?: (root: string) => void } = {}) =>
+  Layer.unwrap(
+    Effect.map(
+      Effect.acquireRelease(
+        Effect.sync(() => mkdtempSync(join(tmpdir(), "wiki-agents-secrets-"))),
+        (dir) => Effect.sync(() => rmSync(dir, { recursive: true, force: true })),
+      ),
+      (root) => {
+        options.onRoot?.(root);
+        return makeSecretStore({ dir: join(root, "data"), keyFile: join(root, "state", "secrets.key"), keySource: "file", declared: options.declared ?? { files: new Map(), problems: [] } });
+      },
+    ),
+  );
+
+export const TestSecrets = makeTestSecrets();
+
 /** The replay provider alone, so tests never start OpenCode. */
 export const ReplayOnly = makeProviderRegistry(Effect.succeed([ReplayAdapter]));
 
@@ -70,6 +93,6 @@ export const ReplayOnly = makeProviderRegistry(Effect.succeed([ReplayAdapter]));
  * Sqlite is exposed so tests can seed data the API can't create yet.
  */
 export const makeTestApp = (options: Partial<AppOptions> = {}) =>
-  makeHttpApp({ vaults: [], watch: false, providers: ReplayOnly, agents: TestAgents, attachments: TestAttachments, worktrees: TestWorktrees, ...options }).pipe(Layer.provideMerge(TestSqlite), Layer.provideMerge(NodeHttpServer.layerTest));
+  makeHttpApp({ vaults: [], watch: false, providers: ReplayOnly, agents: TestAgents, attachments: TestAttachments, worktrees: TestWorktrees, secrets: TestSecrets, ...options }).pipe(Layer.provideMerge(TestSqlite), Layer.provideMerge(NodeHttpServer.layerTest));
 
 export const TestApp = makeTestApp();

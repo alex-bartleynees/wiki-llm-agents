@@ -3,6 +3,7 @@
   import AppearanceSettings from "#lib/features/appearance/AppearanceSettings.svelte";
   import McpServersSettings from "#lib/features/mcp-servers/McpServersSettings.svelte";
   import CommitMessageSettings from "#lib/features/projects/CommitMessageSettings.svelte";
+  import SecretsSettings from "#lib/features/secrets/SecretsSettings.svelte";
   import ProviderList from "#lib/features/threads/ProviderList.svelte";
   import AddVaultForm from "#lib/features/vaults/AddVaultForm.svelte";
   import VaultList from "#lib/features/vaults/VaultList.svelte";
@@ -37,6 +38,13 @@
     giving their tools to agents comes with the MCP gateway, which isn't built yet.
   </p>
   <McpServersSettings />
+  <h1 class="next">Secrets</h1>
+  <p class="hint">
+    Tokens MCP servers use, written in a server's headers or environment as <code>{"${secret:name}"}</code>. They are kept
+    encrypted on this machine and can be replaced but never shown again; enter them once on each machine. Secrets declared in the
+    service's configuration (<code>WIKI_AGENTS_SECRET_FILES</code>, e.g. from sops-nix) are listed here and changed there.
+  </p>
+  <SecretsSettings />
 </section>
 
 <style>

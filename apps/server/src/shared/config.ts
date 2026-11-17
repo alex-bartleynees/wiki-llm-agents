@@ -5,6 +5,7 @@ import { Config } from "effect";
 
 const xdgDataHome = process.env.XDG_DATA_HOME ?? join(homedir(), ".local", "share");
 const xdgConfigHome = process.env.XDG_CONFIG_HOME ?? join(homedir(), ".config");
+const xdgStateHome = process.env.XDG_STATE_HOME ?? join(homedir(), ".local", "state");
 
 /** Process configuration. Every value has a default so `wiki-agents` starts with no setup. */
 export const AppConfig = {
@@ -43,6 +44,20 @@ export const AppConfig = {
   providerEnvWithhold: Config.String("WIKI_AGENTS_PROVIDER_ENV_WITHHOLD").pipe(Config.withDefault("")),
   /** Environment variables passed to provider processes anyway, over the list above and `WIKI_AGENTS_*`. */
   providerEnvPass: Config.String("WIKI_AGENTS_PROVIDER_ENV_PASS").pipe(Config.withDefault("")),
+  /**
+   * Secrets kept as files outside the app (sops-nix, agenix): `name=/path` entries
+   * separated by commas, each usable as `${secret:name}`. The app reads a file when it
+   * connects and stores nothing.
+   */
+  secretFiles: Config.String("WIKI_AGENTS_SECRET_FILES").pipe(Config.withDefault("")),
+  /**
+   * What protects the key of the secrets entered in Settings: `systemd-creds` (encrypted
+   * by systemd for this user and machine), `file` (a key file only you can read), or
+   * `auto` for the first of those that works. Applies when the first secret is stored.
+   */
+  secretsKey: Config.Literals(["auto", "systemd-creds", "file"], "WIKI_AGENTS_SECRETS_KEY").pipe(Config.withDefault("auto" as const)),
+  /** The key file; the systemd-encrypted key is kept beside it as `<file>.cred`. Keep it out of the data directory. */
+  secretsKeyFile: Config.String("WIKI_AGENTS_SECRETS_KEY_FILE").pipe(Config.withDefault(join(xdgStateHome, "wiki-agents", "secrets.key"))),
   /** The timezone a new schedule's times are in unless it says otherwise (IANA name). */
   timezone: Config.String("WIKI_AGENTS_TIMEZONE").pipe(Config.withDefault("Pacific/Auckland")),
   /**
