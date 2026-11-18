@@ -19,7 +19,8 @@ const transportOf = ({ transport }: McpServerInput) =>
 /**
  * A server file with `input`'s settings. When `existing` (the file as it is on disk)
  * is a YAML map, its settings are replaced in place, so comments above them and
- * their order stay. `access` is left out when it follows the agent.
+ * their order stay. `access` is left out when it follows the agent, `excludeTools`
+ * when it is empty.
  *
  * The result isn't checked here; the caller parses it as the loader would.
  */
@@ -38,5 +39,8 @@ export const mcpServerFileText = (input: McpServerInput, existing: string | null
   const scopes = (oauth?.scopes ?? []).map((scope) => scope.trim()).filter((scope) => scope !== "");
   if (oauth === null) doc.delete("oauth");
   else doc.set("oauth", doc.createNode({ ...(clientId === "" ? {} : { clientId }), ...(scopes.length === 0 ? {} : { scopes }) }));
+  const excluded = [...new Set(input.excludeTools.map((name) => name.trim()).filter((name) => name !== ""))];
+  if (excluded.length === 0) doc.delete("excludeTools");
+  else doc.set("excludeTools", doc.createNode(excluded));
   return `${doc.toString({ lineWidth: 0 }).trimEnd()}\n`;
 };

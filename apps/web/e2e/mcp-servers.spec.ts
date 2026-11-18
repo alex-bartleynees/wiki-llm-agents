@@ -56,13 +56,16 @@ test("adds an MCP server in Settings, edits it, and deletes it to the trash", as
   await editor.getByLabel("Access", { exact: true }).selectOption("ask");
   await editor.getByLabel("Give its tools to every thread, whatever the agent").check();
   await expect(editor).toContainText("including threads without a named agent");
+  await editor.getByLabel("Tools to leave out").fill(" delete_repository \n\ncreate_repository");
   await noOverflow(page);
   await editor.getByRole("button", { name: "Save" }).click();
   await expect(item).toContainText(`${id} · stdio · app`);
   await expect(item).toContainText("Available to every thread");
   await expect(item).toContainText("github-mcp-server stdio --read-only");
+  await expect(item).toContainText("Left out: delete_repository, create_repository");
   expect(readFileSync(file, "utf8")).toContain("    GITHUB_PERSONAL_ACCESS_TOKEN: ${secret:github}\n");
   expect(readFileSync(file, "utf8")).toContain("access: ask\n");
+  expect(readFileSync(file, "utf8")).toContain("excludeTools:\n  - delete_repository\n  - create_repository\n");
 
   // Changed on disk while the editor is open: saving is refused, nothing is overwritten.
   await item.getByRole("button", { name: `Edit GitHub ${width}` }).click();
@@ -81,6 +84,25 @@ test("adds an MCP server in Settings, edits it, and deletes it to the trash", as
   expect(existsSync(file)).toBe(false);
   expect(existsSync(join(e2eRoot(), "config", ".trash", "mcp", `${id}.yaml`))).toBe(true);
   await noOverflow(page);
+});
+
+test("shows the built-in browser, which a file would replace and which can't be deleted", async ({ page }) => {
+  await page.goto("/settings");
+  const item = page.getByRole("list", { name: "MCP servers" }).getByRole("listitem", { name: "Browser (Playwright)" });
+  await expect(item).toContainText("playwright · stdio · thread · built in");
+  await expect(item).toContainText("Available only to agents that list this server");
+  await expect(item).toContainText("wiki-agents-e2e-no-browser --headless --isolated");
+  await expect(item).toContainText("Left out: browser_run_code_unsafe, browser_file_upload, browser_evaluate");
+  await noOverflow(page);
+
+  await item.getByRole("button", { name: "Edit Browser (Playwright)" }).click();
+  const editor = page.getByRole("form", { name: "Edit playwright" });
+  await expect(editor.getByRole("note")).toContainText(`Saving writes ${join(folder(), "playwright.yaml")}, which then replaces it`);
+  await expect(editor.getByLabel("Tools to leave out")).toHaveValue("browser_run_code_unsafe\nbrowser_file_upload\nbrowser_evaluate");
+  await expect(editor.getByRole("button", { name: "Delete" })).toHaveCount(0);
+  await noOverflow(page);
+  await editor.getByRole("button", { name: "Cancel" }).click();
+  expect(existsSync(join(folder(), "playwright.yaml"))).toBe(false);
 });
 
 test("lists a server file that doesn't load, with the reason", async ({ page }, info) => {

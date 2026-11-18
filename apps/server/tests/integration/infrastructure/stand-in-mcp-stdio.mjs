@@ -1,12 +1,14 @@
 // An MCP server over stdio for the connection pool's tests, run with node. Tools:
-// `env` (says back an environment variable), `cwd` (where it runs), `echo`, and
-// `exit` (stops the process, as a server that crashes).
+// `env` (says back an environment variable), `cwd` (where it runs), `args` (its command
+// line arguments, one per line), `echo`, and `exit` (stops the process, as a server that
+// crashes).
 import { createInterface } from "node:readline";
 
 const VERSIONS = ["2025-11-25", "2025-06-18"];
 const TOOLS = [
   { name: "env", inputSchema: { type: "object", properties: { name: { type: "string" } } }, annotations: { readOnlyHint: true } },
   { name: "cwd", inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } },
+  { name: "args", inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } },
   { name: "echo", inputSchema: { type: "object", properties: { text: { type: "string" } } } },
   { name: "exit", inputSchema: { type: "object", properties: {} } },
 ];
@@ -35,6 +37,7 @@ createInterface({ input: process.stdin }).on("line", (line) => {
       const args = params?.arguments ?? {};
       if (params?.name === "env") return text(id, process.env[args.name] ?? "(unset)");
       if (params?.name === "cwd") return text(id, process.cwd());
+      if (params?.name === "args") return text(id, process.argv.slice(2).join("\n"));
       if (params?.name === "echo") return text(id, String(args.text ?? ""));
       if (params?.name === "exit") process.exit(3);
       return send({ id, error: { code: -32602, message: `Unknown tool ${params?.name}` } });

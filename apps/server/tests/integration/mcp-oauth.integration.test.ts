@@ -35,6 +35,7 @@ const server = (url: string, extra: Partial<McpServerInput> = {}): McpServerInpu
   default: false,
   access: null,
   oauth: null,
+  excludeTools: [],
   ...extra,
 });
 const COFFEE = server(keycloak.mcpUrl, { title: "Coffee journal", oauth: { clientId: "coffee-journal-ai-agent", scopes: ["journal:read"] } });

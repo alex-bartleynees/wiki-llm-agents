@@ -32,6 +32,7 @@ const common = {
   scope: Schema.optionalKey(Schema.Literals(["app", "project", "thread"])),
   default: Schema.optionalKey(Schema.Boolean),
   access: Schema.optionalKey(Schema.Literals(["allow", "ask", "deny"])),
+  excludeTools: Schema.optionalKey(Schema.Array(NonEmpty)),
 };
 
 /** Unknown keys are errors, so a typo (`comand: npx`) can't quietly start nothing. */
@@ -168,5 +169,7 @@ export const parseMcpServer = (id: string, path: string, text: string): Result.R
     default: file.default ?? false,
     access: file.access ?? null,
     oauth: "oauth" in file && file.oauth !== undefined ? { clientId: file.oauth.clientId ?? null, scopes: file.oauth.scopes ?? [] } : null,
+    excludeTools: [...new Set(file.excludeTools ?? [])],
+    builtIn: false,
   });
 };

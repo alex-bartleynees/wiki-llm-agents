@@ -80,6 +80,7 @@
                     secretsKey = "systemd-creds";
                     enableLinger = true;
                     desktopEntry = true;
+                    browser.enable = true;
                   };
                 }
               ];
@@ -93,6 +94,7 @@
             grep -q 'Environment="WIKI_AGENTS_PROVIDER_ENV_WITHHOLD=AWS_\*,NPM_TOKEN"' ${unit}
             grep -q 'Environment="WIKI_AGENTS_SECRET_FILES=github=/run/secrets/github,jira=/run/secrets/jira"' ${unit}
             grep -q 'Environment="WIKI_AGENTS_SECRETS_KEY=systemd-creds"' ${unit}
+            grep -q 'Environment="WIKI_AGENTS_BROWSER_MCP=${pkgs.playwright-mcp}/bin/playwright-mcp"' ${unit}
             grep -q 'WantedBy=wiki-agents.target' ${unit}
             test -e ${home.activationPackage}/home-files/.config/systemd/user/wiki-agents.target
             test -e ${home.activationPackage}/home-path/share/applications/wiki-agents.desktop

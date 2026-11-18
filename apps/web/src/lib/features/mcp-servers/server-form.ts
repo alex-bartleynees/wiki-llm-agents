@@ -23,6 +23,8 @@ export interface ServerForm {
   everyThread: boolean;
   /** Empty to follow the agent's autonomy. */
   access: AutonomyLevel | "";
+  /** Tools no agent gets, by the server's own names, one per line. */
+  excludeTools: string;
 }
 
 export const BLANK_FORM: ServerForm = {
@@ -39,6 +41,7 @@ export const BLANK_FORM: ServerForm = {
   scope: "app",
   everyThread: false,
   access: "",
+  excludeTools: "",
 };
 
 export const formFromServer = (server: McpServerInput): ServerForm => ({
@@ -47,6 +50,7 @@ export const formFromServer = (server: McpServerInput): ServerForm => ({
   scope: server.scope,
   everyThread: server.default,
   access: server.access ?? "",
+  excludeTools: server.excludeTools.join("\n"),
   ...(server.transport.type === "stdio"
     ? {
         type: "stdio" as const,
@@ -78,9 +82,12 @@ const pairs = (text: string, separator: string, what: string) => {
   return { values, problems };
 };
 
+/** Non-blank lines, trimmed, each once. */
+const lines = (text: string) => [...new Set(text.split("\n").map((line) => line.trim()).filter((line) => line !== ""))];
+
 /** What the form saves, or what to fix in it first. */
 export const inputFromForm = (form: ServerForm): { readonly input: McpServerInput } | { readonly problems: ReadonlyArray<string> } => {
-  const shared = { title: form.title.trim(), scope: form.scope, default: form.everyThread, access: form.access === "" ? null : form.access, oauth: null };
+  const shared = { title: form.title.trim(), scope: form.scope, default: form.everyThread, access: form.access === "" ? null : form.access, oauth: null, excludeTools: lines(form.excludeTools) };
   if (form.type === "stdio") {
     const env = pairs(form.env, "=", "the environment");
     if (env.problems.length > 0) return { problems: env.problems };

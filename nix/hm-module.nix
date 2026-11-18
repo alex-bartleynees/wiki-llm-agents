@@ -123,6 +123,27 @@ in
       '';
     };
 
+    browser = {
+      enable = mkEnableOption ''
+        the browser for frontend agents: the built-in `playwright` MCP server (Playwright
+        MCP with headless Chromium), which agents get by listing `playwright` in their MCP
+        servers. The app runs it headless with an in-memory profile per thread, in its own
+        state folder, with the app's own addresses blocked and the tools that run code or
+        read files left out. Sets `WIKI_AGENTS_BROWSER_MCP`
+      '';
+      package = mkOption {
+        type = types.package;
+        default = pkgs.playwright-mcp;
+        defaultText = lib.literalExpression "pkgs.playwright-mcp";
+        description = ''
+          The Playwright MCP package. nixpkgs' comes with the Chromium of its own Playwright
+          version, so nothing is downloaded at runtime. Another build must take Playwright
+          MCP's flags (`--headless --isolated --output-dir --blocked-origins`); for anything
+          else, write `mcp/playwright.yaml` in `configDir`, which replaces the built-in server.
+        '';
+      };
+    };
+
     environment = mkOption {
       type = types.attrsOf types.str;
       default = { };
@@ -244,6 +265,7 @@ in
           // lib.optionalAttrs cfg.opencodeTodo { WIKI_AGENTS_OPENCODE_TODO = "true"; }
           // lib.optionalAttrs (cfg.claudeCode != null) { WIKI_AGENTS_CLAUDE = lib.getExe cfg.claudeCode; }
           // lib.optionalAttrs (cfg.codex != null) { WIKI_AGENTS_CODEX = lib.getExe cfg.codex; }
+          // lib.optionalAttrs cfg.browser.enable { WIKI_AGENTS_BROWSER_MCP = lib.getExe cfg.browser.package; }
           // lib.optionalAttrs (cfg.providerEnv.withhold != [ ]) {
             WIKI_AGENTS_PROVIDER_ENV_WITHHOLD = lib.concatStringsSep "," cfg.providerEnv.withhold;
           }

@@ -25,6 +25,7 @@ const GITHUB: McpServerInput = {
   default: false,
   access: null,
   oauth: null,
+  excludeTools: [],
 };
 
 const BROWSER: McpServerInput = {
@@ -34,6 +35,7 @@ const BROWSER: McpServerInput = {
   default: true,
   access: "ask",
   oauth: null,
+  excludeTools: [],
 };
 
 layer(TestApp)("MCP servers", (it) => {
@@ -49,7 +51,7 @@ layer(TestApp)("MCP servers", (it) => {
   it.effect("creates servers, lists them by title and reads one back", () =>
     Effect.gen(function* () {
       const github = yield* saveOk("github", GITHUB, null);
-      expect(github.server).toEqual({ id: "github", path: join((yield* list).folder, "github.yaml"), ...GITHUB });
+      expect(github.server).toEqual({ id: "github", path: join((yield* list).folder, "github.yaml"), builtIn: false, ...GITHUB });
       expect(readFileSync(github.server.path, "utf8")).toBe(
         "title: GitHub\ntransport:\n  type: http\n  url: https://api.githubcopilot.com/mcp/\n  headers:\n    Authorization: Bearer ${secret:github}\nscope: app\ndefault: false\n",
       );
@@ -123,14 +125,14 @@ layer(TestApp)("MCP servers", (it) => {
   it.effect("deletes a server to the trash, only the version you saw", () =>
     Effect.gen(function* () {
       const { folder } = yield* list;
-      const browser = yield* get("browser");
+      const hash = (yield* get("browser")).hash ?? "";
       expect((yield* del("browser", "0".repeat(64))).status).toBe(409);
-      const { trashPath } = yield* del("browser", browser.hash).pipe(Effect.flatMap(decode(DeleteMcpServerResponse)));
+      const { trashPath } = yield* del("browser", hash).pipe(Effect.flatMap(decode(DeleteMcpServerResponse)));
       expect(trashPath).toBe(join(folder, "..", ".trash", "mcp", "browser.yaml"));
       expect(existsSync(trashPath)).toBe(true);
       expect(existsSync(join(folder, "browser.yaml"))).toBe(false);
-      expect((yield* del("browser", browser.hash)).status).toBe(404);
-      expect((yield* del("Not An Id", browser.hash)).status).toBe(400);
+      expect((yield* del("browser", hash)).status).toBe(404);
+      expect((yield* del("Not An Id", hash)).status).toBe(400);
 
       // A second server of the same name goes beside the first in the trash.
       mkdirSync(folder, { recursive: true });

@@ -11,6 +11,7 @@ const GITHUB: McpServerInput = {
   default: false,
   access: null,
   oauth: null,
+  excludeTools: [],
 };
 
 describe("mcpServerFileText", () => {
@@ -33,9 +34,10 @@ describe("mcpServerFileText", () => {
       default: true,
       access: "deny",
       oauth: null,
+      excludeTools: [],
     };
     const parsed = parseMcpServer("browser", "/config/mcp/browser.yaml", mcpServerFileText(input, null));
-    expect(Result.getOrThrow(parsed)).toEqual({ id: "browser", path: "/config/mcp/browser.yaml", ...input });
+    expect(Result.getOrThrow(parsed)).toEqual({ id: "browser", path: "/config/mcp/browser.yaml", builtIn: false, ...input });
   });
 
   it("edits a file in place: comments and order stay, and a removed setting goes", () => {

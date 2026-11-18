@@ -87,6 +87,8 @@ export default defineConfig({
       WIKI_AGENTS_OPENCODE: "wiki-agents-e2e-no-opencode",
       WIKI_AGENTS_CLAUDE: "wiki-agents-e2e-no-claude",
       WIKI_AGENTS_CODEX: "wiki-agents-e2e-no-codex",
+      // Adds the built-in browser server to Settings; nothing starts it in the flows.
+      WIKI_AGENTS_BROWSER_MCP: "wiki-agents-e2e-no-browser",
       // Lets flows move the schedules' clock instead of waiting (POST /api/test/clock),
       // and adds the replay provider, which exists for tests only.
       WIKI_AGENTS_TEST_HOOKS: "true",

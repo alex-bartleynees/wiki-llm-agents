@@ -644,6 +644,7 @@ transport:
 scope: app                        # app, project or thread: how many connections
 default: false                    # true: every thread gets its tools
 access: ask                       # optional: allow, ask or deny for all its tools, instead of the agent's autonomy
+excludeTools: [delete_repository] # optional: the server's tools no agent gets and the app never calls
 ```
 
 - Unknown settings are errors; a file that doesn't load is listed with the reason.
@@ -673,6 +674,44 @@ access: ask                       # optional: allow, ask or deny for all its too
   provider entry again; OpenCode also gets a new entry name and removes the old one.
   A failed registration is retried on the next turn. Gateway calls time out after
   two minutes; an unavailable server leaves the vault tools working.
+
+#### The browser (Playwright)
+
+Frontend agents can open a preview, click through it, read its console and see
+screenshots, through Microsoft's [Playwright MCP](https://github.com/microsoft/playwright-mcp)
+server. The app adds it as the built-in server `playwright` when
+`WIKI_AGENTS_BROWSER_MCP` names the program (a path, or a name on `PATH`). There is no
+host path in the config folder, so a synced folder works on every machine. Give it to
+an agent by listing `playwright` in its **MCP servers**.
+
+- **home-manager:** `services.wiki-agents.browser.enable = true;`. The package defaults
+  to nixpkgs' `playwright-mcp`, which comes with the Chromium of its own Playwright
+  version, so nothing is downloaded. Set `browser.package` to use another build.
+- **Without Nix:** `npm i -g @playwright/mcp`, `npx playwright install chromium`, then
+  `WIKI_AGENTS_BROWSER_MCP=playwright-mcp`.
+- **The app sets how it runs**, however it was installed. The browser is headless,
+  with an in-memory profile and one browser per thread (`scope: thread`, closed after
+  ten idle minutes). It runs in `<data dir>/browser`: Playwright lets it read and
+  upload files only under that folder, so neither the project nor your home folder.
+  Screenshots it saves go to `browser/output`.
+- **The app's own addresses are blocked** in the browser (loopback, the configured
+  host, and every address of the machine when listening on all of them). The app has
+  no login and trusts requests to `localhost` or an IP, so an agent's browser must not
+  reach it. This is Playwright's origin blocking, a guardrail: it doesn't stop a
+  redirect, nor a `*.ts.net` name served by Tailscale.
+- **Left out:** `browser_run_code_unsafe` (Playwright code in the server's own process,
+  outside every sandbox), `browser_file_upload` and `browser_evaluate`.
+- **Approvals:** `access` is unset. Screenshots, snapshots, console and network
+  listings are read-only and follow the agent's `read`; navigation, clicks and typing
+  follow its `tools` (default `ask`).
+- **To change any of it,** write `mcp/playwright.yaml` (or press **Save** on the
+  built-in server in Settings, which writes it with this machine's command and
+  paths). The file replaces the built-in server completely, even when it doesn't load.
+
+Live check with the real browser (no model): `WIKI_AGENTS_LIVE_BROWSER=1
+WIKI_AGENTS_BROWSER_MCP=$(nix build --no-link --print-out-paths
+nixpkgs#playwright-mcp)/bin/playwright-mcp nix develop -c npx -w @wiki-agents/server
+vitest run tests/live/browser.live.test.ts`.
 
 #### Connections
 

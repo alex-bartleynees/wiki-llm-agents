@@ -12,6 +12,8 @@ const server = (transport: McpServerSummary["transport"]): McpServerSummary => (
   default: false,
   access: null,
   oauth: null,
+  excludeTools: [],
+  builtIn: false,
 });
 
 const connection = (extra: Partial<McpConnection>): McpConnection => ({

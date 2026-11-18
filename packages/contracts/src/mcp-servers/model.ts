@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { Effect, Schema } from "effect";
 import { AutonomyLevel } from "../agents/model.js";
 
 /**
@@ -66,14 +66,25 @@ export const McpServerInput = Schema.Struct({
   access: Schema.NullOr(AutonomyLevel),
   /** Sign-in settings; HTTP servers only, null for none. */
   oauth: Schema.NullOr(McpOAuth),
+  /**
+   * The server's own names of tools no agent gets and the app never calls
+   * (`browser_run_code_unsafe`). Empty when left out, so a client that predates it
+   * (an open tab after an upgrade) still saves.
+   */
+  excludeTools: Schema.Array(Schema.String).pipe(Schema.withDecodingDefaultKey(Effect.succeed([]))),
 });
 export type McpServerInput = typeof McpServerInput.Type;
 
 export const McpServerSummary = Schema.Struct({
   /** The file name without `.yaml`, e.g. `github`; tools are named `<id>__<tool>`. */
   id: Schema.String,
-  /** Absolute path of the server's file. */
+  /** Absolute path of the server's file; for a built-in server, where a file replacing it would go. */
   path: Schema.String,
+  /**
+   * Added by the app, not from a file: the browser, when `WIKI_AGENTS_BROWSER_MCP`
+   * names its program. Saving it writes the file, which then replaces it.
+   */
+  builtIn: Schema.Boolean,
   ...McpServerInput.fields,
 });
 export type McpServerSummary = typeof McpServerSummary.Type;

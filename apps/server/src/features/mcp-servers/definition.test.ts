@@ -20,6 +20,8 @@ describe("parseMcpServer", () => {
       default: false,
       access: null,
       oauth: null,
+      excludeTools: [],
+      builtIn: false,
     });
   });
 
@@ -48,8 +50,14 @@ describe("parseMcpServer", () => {
     expect(Result.getOrThrow(parse("transport:\n  type: http\n  url: https://mcp.atlassian.com/v1/mcp\noauth: {}\n", "jira")).oauth).toEqual({ clientId: null, scopes: [] });
   });
 
+  it("reads tools to leave out, each once", () => {
+    const parsed = parse("transport:\n  type: stdio\n  command: playwright-mcp\nexcludeTools: [browser_evaluate, browser_file_upload, browser_evaluate]\n", "browser");
+    expect(Result.getOrThrow(parsed).excludeTools).toEqual(["browser_evaluate", "browser_file_upload"]);
+    expect(problems("transport:\n  type: stdio\n  command: x\nexcludeTools: ['']\n")).toEqual([expect.stringContaining("excludeTools.0")]);
+  });
+
   it.each([
-    ["sign-in on a command", "transport:\n  type: stdio\n  command: serve\noauth:\n  clientId: x\n", ["oauth: Only a server reached by URL (`type: http`) signs in."]],
+    ["sign-in on a command","transport:\n  type: stdio\n  command: serve\noauth:\n  clientId: x\n", ["oauth: Only a server reached by URL (`type: http`) signs in."]],
     ["two scopes in one entry", "transport:\n  type: http\n  url: https://example.com/mcp\noauth:\n  scopes: [read write]\n", ["oauth.scopes.0: One scope per entry, without spaces."]],
     ["a misspelt sign-in setting", "transport:\n  type: http\n  url: https://example.com/mcp\noauth:\n  client: x\n", ["oauth.client: Unknown setting; check the spelling."]],
   ])("refuses %s", (_what, text, expected) => {

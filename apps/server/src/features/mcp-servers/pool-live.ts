@@ -93,7 +93,11 @@ export const connectionKey = (server: McpServerDefinition, context: McpScopeCont
   }
 };
 
-const fingerprintOf = (server: McpServerDefinition) => JSON.stringify([server.transport, server.scope, server.oauth]);
+const fingerprintOf = (server: McpServerDefinition) => JSON.stringify([server.transport, server.scope, server.oauth, server.excludeTools]);
+
+/** The server's tools without those its settings leave out. */
+export const withoutExcluded = (server: Pick<McpServerDefinition, "excludeTools">, tools: ReadonlyArray<McpSchema.Tool>) =>
+  server.excludeTools.length === 0 ? tools : tools.filter((tool) => !server.excludeTools.includes(tool.name));
 
 const toolInfo = (tool: McpSchema.Tool): McpToolInfo => ({
   name: tool.name,
@@ -226,7 +230,8 @@ export const makeMcpPool = (options: McpPoolOptions) =>
                 ),
               );
         const client = yield* McpClient.make({ ...CLIENT_INFO, timeout: CONNECT_TIMEOUT }).pipe(Effect.provideService(McpClient.Transport, transport));
-        const tools = yield* client.listTools();
+        // Left out here, so no agent is given them, Test doesn't list them and a call to one is refused as unknown.
+        const tools = withoutExcluded(server, yield* client.listTools());
         return { client, tools, protocolVersion: protocol.protocolVersion };
       });
 

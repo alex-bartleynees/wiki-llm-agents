@@ -38,6 +38,12 @@ export const AppConfig = {
   /** The Codex executable: a path, or a name looked up on `PATH`. */
   codexBinary: Config.String("WIKI_AGENTS_CODEX").pipe(Config.withDefault("codex")),
   /**
+   * Playwright MCP's executable (`playwright-mcp`: a path, or a name looked up on
+   * `PATH`). Set, it adds the built-in `playwright` MCP server, the browser for
+   * frontend agents; unset, there is none (home-manager `browser.enable` sets it).
+   */
+  browserMcp: Config.option(Config.String("WIKI_AGENTS_BROWSER_MCP")),
+  /**
    * Environment variables kept from provider processes (and so from every command an
    * agent runs), on top of the app's own `WIKI_AGENTS_*`: names separated by commas, a
    * trailing `*` matching a prefix (`AWS_*, NPM_TOKEN`).

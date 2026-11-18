@@ -41,6 +41,7 @@ const GITHUB: McpServerInput = {
   default: false,
   access: null,
   oauth: null,
+  excludeTools: [],
 };
 
 layer(makeTestApp({ secrets }))("secrets", (it) => {

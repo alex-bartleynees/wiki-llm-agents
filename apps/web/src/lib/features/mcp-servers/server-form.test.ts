@@ -9,6 +9,7 @@ const HTTP: McpServerInput = {
   default: false,
   access: null,
   oauth: null,
+  excludeTools: [],
 };
 
 const COFFEE: McpServerInput = {
@@ -18,6 +19,7 @@ const COFFEE: McpServerInput = {
   default: false,
   access: null,
   oauth: { clientId: "coffee-journal-ai-agent", scopes: ["coffee-journal:read"] },
+  excludeTools: [],
 };
 
 const STDIO: McpServerInput = {
@@ -27,6 +29,7 @@ const STDIO: McpServerInput = {
   default: true,
   access: "ask",
   oauth: null,
+  excludeTools: ["browser_evaluate", "browser_file_upload"],
 };
 
 describe("the server form", () => {
@@ -40,13 +43,17 @@ describe("the server form", () => {
 
   it("shows pairs one per line", () => {
     expect(formFromServer(HTTP).headers).toBe("Authorization: Bearer ${secret:github}\nX-Mode: read: only");
-    expect(formFromServer(STDIO)).toMatchObject({ args: "-y\n@playwright/mcp", env: "TOKEN=${env:BROWSER_TOKEN}\nURL=a=b" });
+    expect(formFromServer(STDIO)).toMatchObject({ args: "-y\n@playwright/mcp", env: "TOKEN=${env:BROWSER_TOKEN}\nURL=a=b", excludeTools: "browser_evaluate\nbrowser_file_upload" });
+  });
+
+  it("reads tools to leave out one per line, trimmed and once each", () => {
+    expect(inputFromForm({ ...BLANK_FORM, url: "https://mcp.example.com", excludeTools: " a \n\nb\na" })).toMatchObject({ input: { excludeTools: ["a", "b"] } });
   });
 
   it("trims what was typed and skips blank lines", () => {
     const form = { ...BLANK_FORM, type: "stdio" as const, title: " Notes ", command: " notes-mcp ", args: "\n serve \n\n", env: "\nA = 1\n", cwd: "  " };
     expect(inputFromForm(form)).toEqual({
-      input: { title: "Notes", transport: { type: "stdio", command: "notes-mcp", args: ["serve"], env: { A: "1" }, cwd: null }, scope: "app", default: false, access: null, oauth: null },
+      input: { title: "Notes", transport: { type: "stdio", command: "notes-mcp", args: ["serve"], env: { A: "1" }, cwd: null }, scope: "app", default: false, access: null, oauth: null, excludeTools: [] },
     });
   });
 

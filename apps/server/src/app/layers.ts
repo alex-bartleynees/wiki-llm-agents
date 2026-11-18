@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { ProjectRepositoryLive } from "../features/projects/sqlite-repository.js";
 import { NodeChildProcessSpawner, NodeFileSystem, NodeHttpServer, NodePath } from "@effect/platform-node";
 import { Effect, type FileSystem, Layer, Option } from "effect";
@@ -28,7 +29,8 @@ import { IndexStoreLive } from "../features/indexing/sqlite-store.js";
 import { IndexingStartup } from "../features/indexing/startup.js";
 import { makeVaultWatcher, VaultWatcherNoop } from "../features/indexing/watcher.js";
 import { McpConnectionsLive } from "../features/mcp-oauth/connections-live.js";
-import { McpServerCatalogLive } from "../features/mcp-servers/catalog-live.js";
+import { appOrigins, type BrowserSettings } from "../features/mcp-servers/browser.js";
+import { makeMcpServerCatalog } from "../features/mcp-servers/catalog-live.js";
 import { McpPoolLive } from "../features/mcp-servers/pool-live.js";
 import { McpGatewayLive } from "../features/mcp/gateway-live.js";
 import { McpTokensLive } from "../features/mcp/tokens.js";
@@ -88,6 +90,8 @@ export interface AppOptions {
   readonly channels?: Layer.Layer<DeliveryChannels, never, InboxBus | DigestSignal | NotificationsRepository | WallClock | PushSender>;
   /** Sends Web Push notifications; the real push services unless a test stands in for them. */
   readonly pushSender?: Layer.Layer<PushSender, unknown, NotificationsRepository>;
+  /** How to run the built-in browser MCP server; none unless given (`WIKI_AGENTS_BROWSER_MCP` in the app). */
+  readonly browser?: BrowserSettings | null;
 }
 
 /**
@@ -144,7 +148,7 @@ export const makeHttpApp = (options: AppOptions) =>
     // Providers and the pool withhold what SecretMaterial lists, which reads the server list.
     Layer.provideMerge(options.providers ?? ProviderRegistryLive),
     Layer.provideMerge(SecretMaterialLive),
-    Layer.provideMerge(McpServerCatalogLive),
+    Layer.provideMerge(makeMcpServerCatalog(options.browser ?? null)),
     Layer.provideMerge(Layer.mergeAll(
         RepositoriesLive,
         NoteWriteLockLive,
@@ -167,13 +171,26 @@ const ServerLive = Layer.unwrap(
   }),
 );
 
-export const makeAppLive = (options: Omit<AppOptions, "watch" | "watchPollMs" | "agents" | "attachments" | "worktrees" | "secrets">) =>
+/** The built-in browser's settings from `WIKI_AGENTS_BROWSER_MCP`, or null when it isn't set. */
+const browserSettings = Effect.gen(function* () {
+  const command = yield* AppConfig.browserMcp;
+  if (Option.isNone(command) || command.value.trim() === "") return null;
+  const settings: BrowserSettings = {
+    command: command.value.trim(),
+    stateDir: join(yield* AppConfig.dataDir, "browser"),
+    blockedOrigins: appOrigins(yield* AppConfig.host, yield* AppConfig.port),
+  };
+  return settings;
+});
+
+export const makeAppLive = (options: Omit<AppOptions, "watch" | "watchPollMs" | "agents" | "attachments" | "worktrees" | "secrets" | "browser">) =>
   Layer.unwrap(
-    Effect.map(AppConfig.watchPollMs, (pollMs) =>
+    Effect.map(Effect.all([AppConfig.watchPollMs, browserSettings]), ([pollMs, browser]) =>
       makeHttpApp({
         ...options,
         watch: true,
         watchPollMs: Option.getOrUndefined(pollMs),
+        browser,
         agents: AgentCatalogLive,
         attachments: AttachmentStoreLive,
         worktrees: WorktreeRootLive,

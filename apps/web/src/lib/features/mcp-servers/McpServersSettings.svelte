@@ -27,8 +27,10 @@
   interface Editing {
     /** Null for a server that doesn't exist yet. */
     readonly id: string | null;
-    /** The file's hash the edit started from; null for a new server. */
+    /** The file's hash the edit started from; null for a new server, or a built-in one without a file. */
     readonly hash: string | null;
+    /** A server the app adds itself (the browser): saving writes a file that replaces it. */
+    readonly builtIn: boolean;
   }
 
   let folder = $state("");
@@ -222,7 +224,7 @@
     notice = null;
     try {
       const current = await getMcpServer(server.id);
-      open({ id: server.id, hash: current.hash }, formFromServer(current.server));
+      open({ id: server.id, hash: current.hash, builtIn: current.server.builtIn }, formFromServer(current.server));
     } catch (cause) {
       loadError = errorMessage(cause, `Could not open ${server.title}`);
       await load();
@@ -285,9 +287,11 @@
             <span class="title">{server.title}</span>
             <span class="meta">
               <code>{server.id}</code> · {server.transport.type} · {server.scope}
+              {#if server.builtIn}· <span class="built-in">built in</span>{/if}
             </span>
             <span class="availability">{server.default ? "Available to every thread" : "Available only to agents that list this server"}</span>
             <span class="where">{describeTransport(server)}</span>
+            {#if server.excludeTools.length > 0}<span class="where">Left out: {server.excludeTools.join(", ")}</span>{/if}
             {#if canSignIn(server)}
               {@const connection = connections.get(server.id)}
               {#if connection}
@@ -386,7 +390,7 @@
 
   {#if editing === null}
     <div class="actions">
-      <button type="button" class="primary" onclick={() => open({ id: null, hash: null }, { ...BLANK_FORM })}>Add server</button>
+      <button type="button" class="primary" onclick={() => open({ id: null, hash: null, builtIn: false }, { ...BLANK_FORM })}>Add server</button>
     </div>
   {:else}
     <form
@@ -505,6 +509,18 @@
         </select>
       </label>
       <p class="hint" id="mcp-policy-help">Without an override, tools the server marks read-only follow the agent's <em>Read files</em> autonomy and its other tools follow <em>Use other MCP servers' tools</em>. An override replaces the agent's autonomy for all of this server's tools, for every agent, from the next message.</p>
+      <label>
+        <span class="label">Tools to leave out</span>
+        <textarea bind:value={form.excludeTools} rows="3" aria-label="Tools to leave out" aria-describedby="mcp-exclude-help" placeholder="browser_run_code_unsafe" autocapitalize="off" autocomplete="off" spellcheck="false"></textarea>
+      </label>
+      <p class="hint" id="mcp-exclude-help">The server's own tool names, one per line. No agent gets them and the app never calls them.</p>
+
+      {#if editing.builtIn}
+        <p class="hint" role="note">
+          The app adds this server itself. Saving writes <code>{folder}/{editing.id}.yaml</code>, which then replaces it, on every machine that shares this config folder; its
+          command and paths are this machine's.
+        </p>
+      {/if}
 
       {#if errors.length > 0}
         <ul class="error" role="alert">
@@ -515,7 +531,7 @@
       <div class="actions">
         <button type="submit" class="primary" disabled={saving}>{saving ? "Saving…" : editing.id === null ? "Add" : "Save"}</button>
         <button type="button" onclick={close} disabled={saving}>Cancel</button>
-        {#if editing.id !== null}
+        {#if editing.id !== null && editing.hash !== null}
           {#if confirmingDelete}
             <button type="button" class="danger" onclick={() => void remove()} disabled={saving}>Move {editing.id} to the trash</button>
           {:else}

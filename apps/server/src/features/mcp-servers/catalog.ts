@@ -28,8 +28,8 @@ export class McpServerNotFound extends Data.TaggedError("McpServerNotFound")<{
  */
 export interface McpServerCatalogService {
   readonly current: Effect.Effect<McpServerList>;
-  /** The server and its file's hash, for saving or deleting that version. */
-  readonly get: (serverId: string) => Effect.Effect<{ readonly server: McpServerDefinition; readonly hash: string }, McpServerNotFound>;
+  /** The server and its file's hash, for saving or deleting that version; null for a built-in server without a file. */
+  readonly get: (serverId: string) => Effect.Effect<{ readonly server: McpServerDefinition; readonly hash: string | null }, McpServerNotFound>;
 }
 
 export class McpServerCatalog extends Context.Service<McpServerCatalog, McpServerCatalogService>()("McpServerCatalog") {}
