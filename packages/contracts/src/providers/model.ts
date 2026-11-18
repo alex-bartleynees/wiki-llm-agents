@@ -14,6 +14,11 @@ export const ProviderCapabilities = Schema.Struct({
    * are sent like any other file: listed by path for the agent to read.
    */
   images: Schema.Boolean,
+  /**
+   * Compacts a thread's conversation on request (Compact conversation), with the
+   * provider's own compaction. Absent means it can't.
+   */
+  compact: Schema.optionalKey(Schema.Boolean),
 });
 export type ProviderCapabilities = typeof ProviderCapabilities.Type;
 

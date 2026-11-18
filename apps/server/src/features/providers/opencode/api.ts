@@ -79,6 +79,12 @@ export interface OpenCodeApi {
    * OpenCode starts running it unless a turn is already running. Returns its inbox id.
    */
   readonly prompt: (sessionId: string, text: string, files?: ReadonlyArray<OpenCodeFile>) => Effect.Effect<string, OpenCodeError>;
+  /**
+   * Asks OpenCode to compact the session's conversation. OpenCode admits it to the
+   * session's inbox and returns its inbox id at once; the work is reported by
+   * `session.compaction.*` events.
+   */
+  readonly compact: (sessionId: string) => Effect.Effect<string, OpenCodeError>;
   /** Withdraws a queued message that hasn't been delivered to the agent yet. */
   readonly cancelPrompt: (sessionId: string, inboxId: string) => Effect.Effect<void, OpenCodeError>;
   /** True when a running turn was stopped; false when nothing was running. */

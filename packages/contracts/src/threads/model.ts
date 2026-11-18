@@ -46,6 +46,15 @@ export const UserMessage = Schema.TaggedStruct("user.message", {
   imagesAsFiles: Schema.optionalKey(Schema.Boolean),
 });
 
+/**
+ * You asked the provider to compact the conversation (Compact conversation). It
+ * starts a turn instead of a message: the provider summarises the conversation in
+ * its own session, and the turn ends when it says how that went.
+ */
+export const CompactionRequested = Schema.TaggedStruct("compaction.requested", {
+  turnId: Schema.String,
+});
+
 export const TurnStarted = Schema.TaggedStruct("turn.started", {
   turnId: Schema.String,
 });
@@ -204,14 +213,20 @@ export const PlanUpdated = Schema.TaggedStruct("plan.updated", {
   steps: Schema.Array(PlanStep),
 });
 
-/** A native compaction outcome observed while the provider was streaming a turn. */
+/**
+ * A native compaction outcome observed while the provider was streaming a turn.
+ * `noop`: a compaction you asked for finished without the provider reporting that
+ * it compacted anything (nothing to compact, or it doesn't say).
+ */
 export const ContextCompaction = Schema.TaggedStruct("context.compaction", {
   turnId: Schema.String,
-  outcome: Schema.Literals(["completed", "failed"]),
+  outcome: Schema.Literals(["completed", "failed", "noop"]),
   trigger: Schema.Literals(["auto", "manual", "unknown"]),
   summaryOnly: Schema.optionalKey(Schema.Boolean),
   beforeTokens: Schema.optionalKey(Schema.Number),
   afterTokens: Schema.optionalKey(Schema.Number),
+  /** Why it failed, when the provider says. */
+  reason: Schema.optionalKey(Schema.String),
 });
 
 export const TurnOutcome = Schema.Literals(["completed", "interrupted", "failed"]);
@@ -227,6 +242,7 @@ export const TurnFinished = Schema.TaggedStruct("turn.finished", {
 
 export const ThreadEvent = Schema.Union([
   UserMessage,
+  CompactionRequested,
   NoteContext,
   TurnStarted,
   MessageDelta,

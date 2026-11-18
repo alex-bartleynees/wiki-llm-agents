@@ -42,6 +42,8 @@ interface TurnScript {
   readonly images?: ReadonlyArray<typeof RED_SQUARE>;
   /** Attach `SALES_CSV` as the app does: kept in the attachments folder and listed by path after the prompt. */
   readonly csv?: true;
+  /** Instead of a prompt, compact the conversation (the session's `compact`, `thread/compact/start`). */
+  readonly compact?: true;
 }
 
 interface Scenario {
@@ -100,6 +102,13 @@ const SCENARIOS: Readonly<Record<string, Scenario>> = {
   "interrupt-mid-stream": { turns: [{ prompt: "Write a 500-word story about a lighthouse.", interrupt: "after-text" }] },
   image: { turns: [{ prompt: IMAGE_PROMPT, images: [RED_SQUARE] }] },
   csv: { turns: [{ prompt: CSV_PROMPT, csv: true }] },
+  compact: {
+    turns: [
+      { prompt: "Remember the word 'kiwi'. Reply with just OK." },
+      { prompt: "", compact: true },
+      { prompt: "Which word did I ask you to remember? Reply with just the word." },
+    ],
+  },
 };
 
 /** Notifications the adapter reads; the rest (rate limits, moderation, status) would only make fixtures bigger. */
@@ -116,7 +125,7 @@ const KEPT = new Set([
 ]);
 
 /** Item types the adapter shows. */
-const SHOWN_ITEMS = new Set(["agentMessage", "commandExecution", "fileChange", "mcpToolCall", "webSearch", "imageView", "collabAgentToolCall"]);
+const SHOWN_ITEMS = new Set(["agentMessage", "commandExecution", "fileChange", "mcpToolCall", "webSearch", "imageView", "collabAgentToolCall", "contextCompaction"]);
 
 const kept = (message: JsonRpcMessage): boolean => {
   if (message.method === undefined) return false;
@@ -219,7 +228,11 @@ const record = (name: string, scenario: Scenario, model: string) =>
         }
         const text = script.csv === true ? csvMessage(attachments) : script.prompt;
         const turnSetup: SessionSetup = script.csv === true ? { ...setup, attachmentFolders: [dirname(csvPath(attachments))] } : setup;
-        const fiber = yield* session.startTurn({ turnId, text, images, setup: turnSetup }).pipe(
+        const events =
+          script.compact === true && session.compact !== undefined
+            ? session.compact({ turnId, setup })
+            : session.startTurn({ turnId, text, images, setup: turnSetup });
+        const fiber = yield* events.pipe(
           Stream.runForEach((event) =>
             Effect.gen(function* () {
               // Approvals the script doesn't expect are denied, so a recording never waits.
@@ -236,7 +249,12 @@ const record = (name: string, scenario: Scenario, model: string) =>
           yield* stop;
         }
         yield* Fiber.join(fiber);
-        turns.push({ prompt: text, ...(script.images === undefined ? {} : { images: script.images.map(fixtureImage) }), steps });
+        turns.push({
+          prompt: text,
+          ...(script.images === undefined ? {} : { images: script.images.map(fixtureImage) }),
+          ...(script.compact === true ? { compact: true as const } : {}),
+          steps,
+        });
       }
       const fixture: Fixture = {
         scenario: name,

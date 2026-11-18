@@ -169,7 +169,12 @@ export interface TurnMapper {
  * name the files they write, so vault changes are attributed to the turn. `deniedOutput`
  * says why a declined item didn't run.
  */
-export const makeTurnMapper = (turnId: string, cwd: string, deniedOutput: (itemId: string) => string | undefined): TurnMapper => {
+/** `compacting`: the turn is a compaction you asked for (`thread/compact/start`). */
+export interface TurnMapperOptions {
+  readonly compacting?: boolean;
+}
+
+export const makeTurnMapper = (turnId: string, cwd: string, deniedOutput: (itemId: string) => string | undefined, options: TurnMapperOptions = {}): TurnMapper => {
   const streamed = new Set<string>();
   const changes = new Map<string, ReadonlyArray<FileUpdateChange>>();
   const usage: UsageTotal = { inputTokens: 0, outputTokens: 0, calls: 0, cacheReadTokens: 0, reasoningTokens: 0 };
@@ -203,7 +208,7 @@ export const makeTurnMapper = (turnId: string, cwd: string, deniedOutput: (itemI
     const denied = (status: string) => (status === "declined" ? (deniedOutput(item.id) ?? "Denied.") : undefined);
     switch (item.type) {
       case "contextCompaction":
-        return [{ _tag: "context.compaction", turnId, outcome: "completed", trigger: "unknown" }];
+        return [{ _tag: "context.compaction", turnId, outcome: "completed", trigger: options.compacting === true ? "manual" : "unknown" }];
       case "agentMessage":
         return streamed.has(item.id) || item.text === "" ? [] : [{ _tag: "message.delta", turnId, messageId: item.id, text: item.text }];
       case "commandExecution":
@@ -254,6 +259,9 @@ export const makeTurnMapper = (turnId: string, cwd: string, deniedOutput: (itemI
       case "item/completed":
         return finished((raw as Notifications["item/completed"]).item);
       case "thread/tokenUsage/updated": {
+        // A compaction turn's update leaves the total as it was and gives a `last` with no
+        // input or output (0.167.1), so its cost isn't known: the turn reports no usage.
+        if (options.compacting === true) return [];
         const { last, total, modelContextWindow } = (raw as Notifications["thread/tokenUsage/updated"]).tokenUsage;
         // The first total includes prior turns. Later snapshots can repeat or arrive stale.
         let cacheRead = last.cachedInputTokens;

@@ -30,8 +30,8 @@ import { worktreeProblem } from "../projects/worktrees.js";
 import { DEFAULT_AUTONOMY } from "@wiki-agents/contracts/agents/model";
 import { effectiveAutonomy } from "../agents/sources.js";
 import type { ToolCallCheck } from "../mcp/gateway.js";
-import { NoTurnRunning, RequestClosed, RequestNotFound, ThreadBusy, ThreadNotFound, ToolCallRefused, WrongAnswerKind } from "./errors.js";
-import { type PendingRequest, ThreadRepository } from "./repository.js";
+import { CompactionUnavailable, NoTurnRunning, RequestClosed, RequestNotFound, ThreadBusy, ThreadNotFound, ToolCallRefused, WrongAnswerKind } from "./errors.js";
+import { type PendingRequest, ThreadRepository, type TurnKind } from "./repository.js";
 import { ThreadBus } from "./thread-bus.js";
 import { threadWorkspace } from "./workspace.js";
 
@@ -59,6 +59,7 @@ type Message =
       readonly reply: Deferred.Deferred<string, ThreadBusy | DbError>;
     }
   | { readonly _tag: "Interrupt"; readonly reply: Deferred.Deferred<string, NoTurnRunning | DbError> }
+  | { readonly _tag: "Compact"; readonly operationId: string; readonly reply: Deferred.Deferred<CompactStarted, CompactError> }
   | {
       readonly _tag: "AnswerRequest";
       readonly requestId: string;
@@ -78,6 +79,18 @@ type Message =
   | { readonly _tag: "ProviderEnded"; readonly turnId: string; readonly exit: Exit.Exit<void, ProviderError> };
 
 export type AnswerError = RequestNotFound | RequestClosed | WrongAnswerKind | DbError;
+
+/** The compaction's turn, and whether this call started it (false: the operation id had already). */
+export interface CompactStarted {
+  readonly turnId: string;
+  readonly started: boolean;
+}
+export type CompactError = ThreadBusy | CompactionUnavailable | DbError;
+
+/** Why a compaction turn ends when the server stopped under it: it is never started again or continued. */
+export const COMPACTION_NOT_STARTED = "The server stopped before the compaction started, so nothing was compacted.";
+export const COMPACTION_UNSUPPORTED = "This thread's provider can't compact its conversation from the app.";
+export const COMPACTION_CUT_OFF ="The server stopped during the compaction; the provider may or may not have compacted the conversation.";
 
 /** How a message is sent. */
 export interface SendOptions {
@@ -122,6 +135,12 @@ export interface ThreadActor {
   readonly sendMessage: (text: string, notes?: ReadonlyArray<ContextNote>, options?: SendOptions) => Effect.Effect<string, ThreadBusy | DbError>;
   /** Stops the running turn; returns its id. */
   readonly interrupt: Effect.Effect<string, NoTurnRunning | DbError>;
+  /**
+   * Asks the provider to compact the conversation, as a turn of its own whose id is
+   * `operationId`. Refused while a turn runs or waits for you; the same id again
+   * returns that turn instead of compacting twice.
+   */
+  readonly compact: (operationId: string) => Effect.Effect<CompactStarted, CompactError>;
   readonly answerRequest: (requestId: string, answer: RequestAnswer) => Effect.Effect<void, AnswerError>;
   /** Saves the thread's model and tells an open provider session to use it from the next turn. */
   readonly setModel: (model: string) => Effect.Effect<ThreadSummary, DbError | ProviderError>;
@@ -144,7 +163,10 @@ export interface ThreadActor {
 
 interface RunningTurn {
   readonly id: string;
+  readonly kind: TurnKind;
   readonly unattended: boolean;
+  /** A compaction turn: the provider reported how its compaction went. */
+  compactionReported: boolean;
   fiber: Fiber.Fiber<void> | undefined;
   /** Keeps the actor alive while the turn runs (see `retain`). */
   hold: Scope.Closeable | undefined;
@@ -153,7 +175,7 @@ interface RunningTurn {
 }
 
 /** Events that can change a thread's status, title or progress, so the thread list hears about them. */
-const LIST_EVENTS = new Set<ThreadEvent["_tag"]>(["user.message", "request.opened", "request.resolved", "plan.updated", "turn.finished"]);
+const LIST_EVENTS = new Set<ThreadEvent["_tag"]>(["user.message", "compaction.requested", "request.opened", "request.resolved", "plan.updated", "turn.finished"]);
 
 export const SERVER_STOPPED = "The server stopped during this turn.";
 /** Why a turn fails in a thread whose provider the app no longer runs (replay outside tests, say). */
@@ -333,8 +355,11 @@ export const makeThreadActor = Effect.fnUntraced(function* (
       Effect.provideContext(changeServices),
       Effect.catch((error) => Effect.as(Effect.logError(`thread ${threadId}: can't list the changes of turn ${current.id}`, error), [])),
     );
+    // A compaction that finished without the provider saying it compacted anything is shown as such, never as compacted.
+    const unreported = current.kind === "compaction" && outcome === "completed" && !current.compactionReported;
     yield* record([
       ...cancelled,
+      ...(unreported ? [{ _tag: "context.compaction", turnId: current.id, outcome: "noop", trigger: "manual" } satisfies ThreadEvent] : []),
       ...(changes.length === 0 ? [] : [{ _tag: "turn.changes", turnId: current.id, changes } satisfies ThreadEvent]),
       { _tag: "turn.finished", turnId: current.id, outcome, usage, reason },
     ]);
@@ -375,6 +400,19 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     yield* repository.markDispatched(current.id);
   });
 
+  /** Asks the provider to compact, for a compaction turn already recorded, then drops its outbox row. */
+  const dispatchCompaction = Effect.fnUntraced(function* (current: RunningTurn) {
+    const opened = yield* Effect.result(Effect.flatMap(currentSetup(current.id), (setup) => Effect.map(openSession(setup), (session) => ({ session, setup }))));
+    if (opened._tag === "Failure") return yield* finish("failed", null, opened.failure.message);
+    const { session, setup } = opened.success;
+    if (session.compact === undefined) return yield* finish("failed", null, COMPACTION_UNSUPPORTED);
+    yield* run(current, session.compact({ turnId: current.id, setup }));
+    yield* repository.markDispatched(current.id);
+  });
+
+  const newTurn = (id: string, kind: TurnKind, unattended: boolean) =>
+    Effect.map(Deferred.make<void>(), (ended): RunningTurn => ({ id, kind, unattended, compactionReported: false, fiber: undefined, hold: undefined, ended }));
+
   const resume = Effect.gen(function* () {
     const recovery = yield* repository.recovery(threadId);
     for (const request of recovery.pendingRequests) {
@@ -384,8 +422,10 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     }
     if (Option.isNone(recovery.openTurn)) return;
     const open = recovery.openTurn.value;
-    const current: RunningTurn = { id: open.id, unattended: open.unattended, fiber: undefined, hold: undefined, ended: yield* Deferred.make<void>() };
+    const current = yield* newTurn(open.id, open.kind, open.unattended);
     turn = current;
+    // Compacting costs usage, and nobody may be watching any more: never started or continued after a restart.
+    if (open.kind === "compaction") return yield* finish("interrupted", null, open.dispatched ? COMPACTION_CUT_OFF : COMPACTION_NOT_STARTED);
     yield* trackChanges(current.id);
     if (!open.dispatched) return yield* dispatch(current, open.input);
     const resumed = adapter?.capabilities.resume === true
@@ -412,7 +452,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
   const sendMessage = Effect.fnUntraced(function* (text: string, notes: ReadonlyArray<ContextNote>, options: SendOptions) {
     if (turn !== undefined) return yield* new ThreadBusy({ threadId });
     const unattended = options.unattended === true;
-    const current: RunningTurn = { id: options.turnId ?? randomUUID(), unattended, fiber: undefined, hold: undefined, ended: yield* Deferred.make<void>() };
+    const current = yield* newTurn(options.turnId ?? randomUUID(), "message", unattended);
     yield* record(
       [
         {
@@ -434,6 +474,26 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     yield* trackChanges(current.id);
     yield* dispatch(current, text);
     return current.id;
+  });
+
+  const compact = Effect.fnUntraced(function* (operationId: string) {
+    const earlier = yield* repository.findTurn(operationId);
+    if (Option.isSome(earlier)) {
+      if (earlier.value.threadId === threadId && earlier.value.kind === "compaction") return { turnId: operationId, started: false };
+      return yield* new CompactionUnavailable({ reason: "That operation id is already used by another turn." });
+    }
+    if (turn !== undefined) return yield* new ThreadBusy({ threadId });
+    if (adapter?.capabilities.compact !== true) return yield* new CompactionUnavailable({ reason: COMPACTION_UNSUPPORTED });
+    const summary = Option.getOrUndefined(yield* repository.find(threadId));
+    if (summary?.lastTurn == null) {
+      return yield* new CompactionUnavailable({ reason: "There's no conversation to compact yet." });
+    }
+    const current = yield* newTurn(operationId, "compaction", false);
+    yield* record([{ _tag: "compaction.requested", turnId: current.id }, { _tag: "turn.started", turnId: current.id }], { startTurn: current.id });
+    turn = current;
+    yield* trackChanges(current.id);
+    yield* dispatchCompaction(current);
+    return { turnId: current.id, started: true };
   });
 
   const interrupt = Effect.gen(function* () {
@@ -581,6 +641,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
 
   const onProviderEvent = Effect.fnUntraced(function* (event: ProviderEvent) {
     if (event._tag === "message.delta") replyText += event.text;
+    if (event._tag === "context.compaction" && turn !== undefined) turn.compactionReported = true;
     if ((event._tag === "tool.called" || event._tag === "tool.finished") && event.writes !== undefined) {
       yield* tracker.reportWrites(event.turnId, event.writes).pipe(
         Effect.catch((error) => Effect.logError(`thread ${threadId}: can't attribute writes`, error)),
@@ -619,6 +680,8 @@ export const makeThreadActor = Effect.fnUntraced(function* (
         );
       case "Interrupt":
         return Effect.asVoid(Effect.flatMap(Effect.exit(interrupt), (exit) => Deferred.done(message.reply, exit)));
+      case "Compact":
+        return Effect.asVoid(Effect.flatMap(Effect.exit(compact(message.operationId)), (exit) => Deferred.done(message.reply, exit)));
       case "AnswerRequest":
         return Effect.asVoid(
           Effect.flatMap(Effect.exit(answerRequest(message.requestId, message.answer)), (exit) => Deferred.done(message.reply, exit)),
@@ -681,6 +744,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     recordContext: (note) => ask((reply) => ({ _tag: "Context", note, reply })),
     sendMessage: (text, notes = [], options = {}) => ask((reply) => ({ _tag: "SendMessage", text, notes, options, reply })),
     interrupt: ask((reply) => ({ _tag: "Interrupt", reply })),
+    compact: (operationId) => ask((reply) => ({ _tag: "Compact", operationId, reply })),
     answerRequest: (requestId, answer) => ask((reply) => ({ _tag: "AnswerRequest", requestId, answer, reply })),
     setModel: (model) => ask((reply) => ({ _tag: "SetModel", model, reply })),
     setAgent: (agentId) => ask((reply) => ({ _tag: "SetAgent", agentId, reply })),

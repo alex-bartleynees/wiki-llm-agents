@@ -89,6 +89,12 @@ export interface TurnInput {
   readonly setup: SessionSetup;
 }
 
+/** A compaction you asked for, run as a turn of its own. */
+export interface CompactInput {
+  readonly turnId: string;
+  readonly setup: SessionSetup;
+}
+
 export interface ResumeInput extends TurnInput {
   /** Requests of this turn still waiting for an answer. */
   readonly pendingRequestIds: ReadonlyArray<string>;
@@ -105,6 +111,14 @@ export interface ProviderSession {
    * provider left it (pending requests stay answerable). None when it can't.
    */
   readonly resumeTurn: (turn: ResumeInput) => Effect.Effect<Option.Option<Stream.Stream<ProviderEvent, ProviderError>>>;
+  /**
+   * Compacts the conversation with the provider's own compaction, as a turn of its
+   * own: `context.compaction` once the provider reports how it went (a manual
+   * trigger), then `turn.finished` with what it cost. Accepting the request isn't
+   * reported as compacting: only the provider's own evidence is. Stop interrupts it
+   * like a turn. Present only when the adapter's `capabilities.compact` is true.
+   */
+  readonly compact?: (input: CompactInput) => Stream.Stream<ProviderEvent, ProviderError>;
   /** Asks the provider to stop the turn; the actor stops reading its stream either way. */
   readonly interrupt: (turnId: string) => Effect.Effect<void>;
   readonly answerRequest: (requestId: string, answer: RequestAnswer) => Effect.Effect<void, ProviderError>;

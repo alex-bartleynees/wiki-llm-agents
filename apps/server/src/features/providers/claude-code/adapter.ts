@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { NodeFileSystem } from "@effect/platform-node";
-import type { CanUseTool, HookCallback, Options, PermissionResult, SDKMessage, SDKResultMessage } from "@anthropic-ai/claude-agent-sdk";
+import type { CanUseTool, HookCallback, Options, PermissionResult, SDKMessage, SDKResultMessage, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { ProviderModel, ProviderStatus } from "@wiki-agents/contracts/providers/model";
 import type { RequestAnswer, RequestPrompt } from "@wiki-agents/contracts/threads/model";
 import { Clock, Deferred, Duration, Effect, FileSystem, Option, Queue, Stream } from "effect";
 import {
+  type CompactInput,
   type Completion,
   type CompletionInput,
   DENIED,
@@ -36,6 +37,9 @@ export interface ClaudeCodeAdapterOptions {
   /** How long Stop waits for Claude Code to confirm the turn ended. */
   readonly stopWait?: Duration.Input;
 }
+
+/** Claude Code's own command that compacts the conversation. */
+export const COMPACT_COMMAND = "/compact";
 
 /** Why a turn ended when Claude Code exited under it. */
 export const CLAUDE_STOPPED = "Claude Code stopped unexpectedly. Send a message to start it again.";
@@ -215,7 +219,7 @@ export const makeClaudeCodeAdapter = (options: ClaudeCodeAdapterOptions) =>
 
     const adapter: ProviderAdapter = {
       kind: "claude-code",
-      capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: true, images: true },
+      capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: true, images: true, compact: true },
       enforcement: enforcedAutonomy,
       status,
       listModels,
@@ -368,26 +372,41 @@ export const makeClaudeCodeAdapter = (options: ClaudeCodeAdapterOptions) =>
               return [vaultToolsUnavailable(reason)];
             });
 
-          const startTurn = ({ turnId, text, images, setup }: TurnInput) =>
+          /**
+           * Runs one exchange with Claude Code as the turn: `message` is what the user
+           * sends (given the notices for this turn), and the conversation's messages are
+           * mapped until its result.
+           */
+          const execute = (
+            turnId: string,
+            setup: SessionSetup,
+            message: (notices: ReadonlyArray<string>) => Effect.Effect<SDKUserMessage, ProviderError>,
+            compacting: boolean,
+          ) =>
             Stream.callback<ProviderEvent, ProviderError>((out) =>
               Effect.gen(function* () {
                 latest = setup;
-                const blocks = yield* Effect.forEach(images, (image) => messageImage(fs, image));
                 const current = yield* start(setup);
                 const notices = yield* applyTools(current, setup);
                 yield* Queue.offerAll(out, notices.map((notice): ProviderEvent => ({ _tag: "notice", turnId, text: notice })));
+                const sent = yield* message(notices);
                 const running: RunningTurn = { id: turnId, ended: yield* Deferred.make<void>() };
                 yield* Effect.addFinalizer(() => Effect.sync(() => turn === running && (turn = undefined)));
                 // Together, so a Stop either finds the turn or comes before its message was sent.
                 yield* Effect.sync(() => {
                   turn = running;
-                  current.input.push(userMessage(notices.length === 0 ? text : `${text}\n\nApp notices for this turn:\n${notices.join("\n")}`, blocks));
+                  current.input.push(sent);
                 });
-                const mapper = makeTurnMapper(turnId, cwd, (result: SDKResultMessage) => {
-                  const spent = Math.max(0, result.total_cost_usd - current.cost);
-                  current.cost = result.total_cost_usd;
-                  return current.billed ? spent : null;
-                });
+                const mapper = makeTurnMapper(
+                  turnId,
+                  cwd,
+                  (result: SDKResultMessage) => {
+                    const spent = Math.max(0, result.total_cost_usd - current.cost);
+                    current.cost = result.total_cost_usd;
+                    return current.billed ? spent : null;
+                  },
+                  { compacting },
+                );
                 const end = (events: ReadonlyArray<ProviderEvent>) =>
                   Effect.gen(function* () {
                     yield* Queue.offerAll(out, events);
@@ -437,6 +456,23 @@ export const makeClaudeCodeAdapter = (options: ClaudeCodeAdapterOptions) =>
                 }
               }),
             );
+
+          const startTurn = ({ turnId, text, images, setup }: TurnInput) =>
+            execute(
+              turnId,
+              setup,
+              (notices) =>
+                Effect.map(Effect.forEach(images, (image) => messageImage(fs, image)), (blocks) =>
+                  userMessage(notices.length === 0 ? text : `${text}\n\nApp notices for this turn:\n${notices.join("\n")}`, blocks),
+                ),
+              false,
+            );
+
+          /**
+           * Claude Code's own `/compact` command, sent as the message. Notices aren't added
+           * to it: text after the command would become instructions for the summary.
+           */
+          const compact = ({ turnId, setup }: CompactInput) => execute(turnId, setup, () => Effect.succeed(userMessage(COMPACT_COMMAND)), true);
 
           /**
            * Stops the turn: pending approvals are cancelled, Claude Code is asked to
@@ -489,6 +525,7 @@ export const makeClaudeCodeAdapter = (options: ClaudeCodeAdapterOptions) =>
           const session: ProviderSession = {
             nativeSessionId: sessionId,
             startTurn,
+            compact,
             // Claude Code runs as a child of this server and stops with it, taking any
             // pending approval with it, so there is nothing to resume.
             resumeTurn: () => Effect.succeed(Option.none()),

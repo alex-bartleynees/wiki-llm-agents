@@ -6,6 +6,7 @@ import type { RequestAnswer, RequestPrompt } from "@wiki-agents/contracts/thread
 import { Clock, Deferred, Duration, Effect, FileSystem, Option, Queue, Stream } from "effect";
 import { resolveBinary } from "../binary.js";
 import {
+  type CompactInput,
   DENIED,
   type ModelList,
   type ProviderAdapter,
@@ -222,7 +223,7 @@ export const makeCodexAdapter = (options: CodexAdapterOptions) =>
 
     const adapter: ProviderAdapter = {
       kind: "codex",
-      capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: true, images: true },
+      capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: true, images: true, compact: true },
       enforcement: enforcedAutonomy,
       status,
       listModels,
@@ -370,12 +371,23 @@ export const makeCodexAdapter = (options: CodexAdapterOptions) =>
           let activeMapper: { readonly conversation: Conversation; readonly mapper: ReturnType<typeof makeTurnMapper> } | undefined;
           const mapperOf = (current: Conversation) => (activeMapper?.conversation === current ? activeMapper.mapper : undefined);
 
-          const startTurn = ({ turnId, text, images, setup }: TurnInput) =>
+          /**
+           * Runs one of Codex's turns as the app's turn: `send` asks Codex to start it and
+           * resolves with Codex's turn id when the answer has one (a compaction's
+           * doesn't: `turn/started` says it). Notifications are mapped until it completes.
+           */
+          const execute = (
+            turnId: string,
+            setup: SessionSetup,
+            send: (rpc: RpcClient, thread: string | null) => Promise<string | undefined>,
+            compacting: boolean,
+            failedToStart: string,
+          ) =>
             Stream.callback<ProviderEvent, ProviderError>((out) =>
               Effect.gen(function* () {
                 const current = yield* start(setup);
                 const running: RunningTurn = { id: turnId, codexTurnId: undefined, stopping: false, ended: yield* Deferred.make<void>() };
-                const mapper = makeTurnMapper(turnId, cwd, (itemId) => declined.get(itemId));
+                const mapper = makeTurnMapper(turnId, cwd, (itemId) => declined.get(itemId), { compacting });
                 activeMapper = { conversation: current, mapper };
                 yield* Effect.addFinalizer(() =>
                   Effect.sync(() => {
@@ -387,16 +399,10 @@ export const makeCodexAdapter = (options: CodexAdapterOptions) =>
                 // Together, so a Stop either finds the turn or comes before its message was sent.
                 yield* Effect.sync(() => {
                   turn = running;
-                  current.rpc
-                    .request<TurnStartResponse>("turn/start", {
-                      threadId: thread,
-                      input: turnInput(text, images),
-                      ...(model === null ? {} : { model }),
-                    })
-                    .then(
-                      (response) => Queue.offerUnsafe(current.signals, { _tag: "started", codexTurnId: response.turn.id }),
-                      (error: unknown) => Queue.offerUnsafe(current.signals, { _tag: "startFailed", reason: describeError(error) }),
-                    );
+                  send(current.rpc, thread).then(
+                    (codexTurnId) => codexTurnId !== undefined && Queue.offerUnsafe(current.signals, { _tag: "started", codexTurnId }),
+                    (error: unknown) => Queue.offerUnsafe(current.signals, { _tag: "startFailed", reason: describeError(error) }),
+                  );
                 });
                 const end = (events: ReadonlyArray<ProviderEvent>) =>
                   Effect.gen(function* () {
@@ -424,7 +430,7 @@ export const makeCodexAdapter = (options: CodexAdapterOptions) =>
                       ]);
                     }
                     case "startFailed":
-                      return yield* end([{ _tag: "turn.finished", turnId, outcome: "failed", usage: null, reason: `Codex didn't start the turn: ${signal.reason}` }]);
+                      return yield* end([{ _tag: "turn.finished", turnId, outcome: "failed", usage: null, reason: `${failedToStart}: ${signal.reason}` }]);
                     case "started":
                       yield* learn(signal.codexTurnId);
                       continue;
@@ -459,6 +465,31 @@ export const makeCodexAdapter = (options: CodexAdapterOptions) =>
                   yield* Queue.offerAll(out, events);
                 }
               }),
+            );
+
+          const startTurn = ({ turnId, text, images, setup }: TurnInput) =>
+            execute(
+              turnId,
+              setup,
+              (rpc, thread) =>
+                rpc
+                  .request<TurnStartResponse>("turn/start", { threadId: thread, input: turnInput(text, images), ...(model === null ? {} : { model }) })
+                  .then((response) => response.turn.id),
+              false,
+              "Codex didn't start the turn",
+            );
+
+          /**
+           * `thread/compact/start` answers at once and runs the compaction as a turn of its
+           * own: `turn/started`, a `contextCompaction` item, `turn/completed`.
+           */
+          const compact = ({ turnId, setup }: CompactInput) =>
+            execute(
+              turnId,
+              setup,
+              (rpc, thread) => rpc.request<Record<string, never>>("thread/compact/start", { threadId: thread }).then(() => undefined),
+              true,
+              "Codex didn't start compacting",
             );
 
           const stopCodexTurn = (current: Conversation, codexTurnId: string) =>
@@ -505,6 +536,7 @@ export const makeCodexAdapter = (options: CodexAdapterOptions) =>
               return threadId;
             },
             startTurn,
+            compact,
             // Codex runs as a child of this server and stops with it, taking any
             // pending approval with it, so there is nothing to resume.
             resumeTurn: () => Effect.succeed(Option.none()),

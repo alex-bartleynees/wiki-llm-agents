@@ -21,12 +21,16 @@ export type FixtureStep =
   /** The recorder answered a request: `once`/`reject`, or a question's text. */
   | { readonly call: "reply"; readonly requestId: string; readonly reply: string }
   /** The recorder pressed Stop; what withdrawing the message and interrupting returned. */
-  | { readonly call: "interrupt"; readonly withdrawn: boolean; readonly interrupted: boolean };
+  | { readonly call: "interrupt"; readonly withdrawn: boolean; readonly interrupted: boolean }
+  /** The recorder asked OpenCode to compact the conversation; the inbox id it got back. */
+  | { readonly call: "compact"; readonly inboxId: string };
 
 export interface FixtureTurn {
   readonly prompt: string;
   /** Images sent with the prompt (`tests/fixtures/image.ts`). */
   readonly images?: ReadonlyArray<FixtureImage>;
+  /** A manual compaction rather than a message (`prompt` is empty). */
+  readonly compact?: true;
   readonly steps: ReadonlyArray<FixtureStep>;
 }
 

@@ -26,7 +26,7 @@ import { CSV_PROMPT, csvMessage, SALES_CSV, SALES_TOTAL } from "../fixtures/csv.
 import { RED_SQUARE, sha256 } from "../fixtures/image.js";
 import { mcpSession } from "./infrastructure/mcp.js";
 import { makeTestApp } from "./infrastructure/test-app.js";
-import { answer, decode, getThread, interrupt, isTag, newThread, newVaultWith, sendOk, sendWithOk, setAgent, status, uploadOk, watch as watchStored } from "./infrastructure/threads.js";
+import { answer, compactOk, decode, getThread, interrupt, isTag, newThread, newVaultWith, sendOk, sendWithOk, setAgent, status, uploadOk, watch as watchStored } from "./infrastructure/threads.js";
 
 /** The fake Claude Code the adapter talks to; tests load a recording into it. */
 class Fake extends Context.Service<Fake, FakeSdk>()("FakeClaudeCode") {}
@@ -138,7 +138,7 @@ layer(App)("Claude Code provider", (it) => {
         id: "claude-code",
         kind: "claude-code",
         name: "Claude Code",
-        capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: true, images: true },
+        capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: true, images: true, compact: true },
       });
       const { status: ready } = yield* HttpClient.get("/api/providers/claude-code/status").pipe(Effect.flatMap(decode(GetProviderStatusResponse)));
       expect(ready).toEqual({ _tag: "ready", version: "2.1.316", account: "you@example.com (pro)" });
@@ -270,6 +270,35 @@ layer(App)("Claude Code provider", (it) => {
       expect(fake.calls.filter((call) => call.call === "setMcpServers")).toHaveLength(1);
       const { events } = yield* getThread(thread.id);
       expect(textOf(events.map((stored) => stored.event)).toLowerCase()).toContain("kiwi");
+    }),
+  );
+
+  it.effect("compacts the same session with /compact, showing Claude Code's before and after", () =>
+    Effect.gen(function* () {
+      const { thread, fake, prompts } = yield* setUp("compact");
+      const before = yield* watch(thread.id);
+      yield* sendOk(thread.id, prompts[0]!);
+      completes(yield* before.until(isTag("turn.finished")));
+
+      const compacting = yield* watch(thread.id);
+      const { turnId } = yield* compactOk(thread.id);
+      const seen = yield* compacting.until(isTag("turn.finished"));
+      expect(seen.find((event) => event._tag === "context.compaction")).toEqual({
+        _tag: "context.compaction",
+        turnId,
+        outcome: "completed",
+        trigger: "manual",
+        beforeTokens: 21_875,
+        afterTokens: 7_072,
+      });
+      // `/compact`'s result reports no tokens: unknown, not zero.
+      expect(completes(seen).usage).toBeNull();
+      expect(textOf(seen)).toBe("");
+
+      const after = yield* watch(thread.id);
+      yield* sendOk(thread.id, prompts[2]!);
+      expect(textOf(yield* after.until(isTag("turn.finished"))).toLowerCase()).toContain("kiwi");
+      expect(fake.calls.filter((call) => call.call === "query")).toHaveLength(1);
     }),
   );
 

@@ -2,10 +2,10 @@ import { goto } from "$app/navigation";
 import { shell } from "#lib/ui/layout/shell.svelte.ts";
 import { ThreadStreamMessage } from "@wiki-agents/contracts/threads/event";
 import type { RequestAnswer, ThreadSummary } from "@wiki-agents/contracts/threads/model";
-import { errorMessage, isAbort } from "#lib/api/client.ts";
+import { ApiError, errorMessage, isAbort } from "#lib/api/client.ts";
 import { listen } from "#lib/api/sse.ts";
 import type { SendMessageRequest } from "@wiki-agents/contracts/threads/send-message/request";
-import { answerRequest, getThread, interruptTurn, type MessageFiles, sendMessage, threadTopic } from "./api.ts";
+import { answerRequest, compactContext, getThread, interruptTurn, type MessageFiles, sendMessage, threadTopic } from "./api.ts";
 import { applyEvent, emptyTimeline, type Timeline } from "./timeline.ts";
 
 /**
@@ -82,6 +82,7 @@ class OpenThreadStore {
     this.status = "empty";
     this.error = undefined;
     this.sending = false;
+    this.compacting = false;
   }
 
   /** Updates the summary (title, status) from the thread list's stream. */
@@ -107,6 +108,33 @@ class OpenThreadStore {
 
   async stop() {
     await this.#act(interruptTurn, "Could not stop the turn");
+  }
+
+  /** Compact conversation is on its way; the button waits for it. */
+  compacting = $state(false);
+  /**
+   * The operation id of a compaction whose request got no answer (the network, say):
+   * the next click sends it again, so the server starts it at most once.
+   */
+  #unanswered: { readonly threadId: string; readonly operationId: string } | undefined;
+
+  async compact() {
+    const threadId = this.#threadId;
+    if (threadId === null || this.compacting) return;
+    const operationId = this.#unanswered?.threadId === threadId ? this.#unanswered.operationId : crypto.randomUUID();
+    this.#unanswered = { threadId, operationId };
+    this.compacting = true;
+    try {
+      await compactContext(threadId, operationId);
+      this.#unanswered = undefined;
+      this.error = undefined;
+    } catch (error) {
+      // The server answered (busy, nothing to compact): that click is settled.
+      if (error instanceof ApiError) this.#unanswered = undefined;
+      this.error = errorMessage(error, "Could not compact the conversation");
+    } finally {
+      this.compacting = false;
+    }
   }
 
   async answer(requestId: string, answer: RequestAnswer) {

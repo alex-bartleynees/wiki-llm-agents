@@ -41,6 +41,8 @@ interface TurnScript {
   readonly images?: ReadonlyArray<typeof RED_SQUARE>;
   /** Attach `SALES_CSV` as the app does: kept in the attachments folder, listed by path after the prompt, its folder readable. */
   readonly csv?: true;
+  /** Instead of a prompt, compact the conversation (the session's `compact`, which sends `/compact`). */
+  readonly compact?: true;
 }
 
 interface Scenario {
@@ -97,12 +99,20 @@ const SCENARIOS: Readonly<Record<string, Scenario>> = {
   "interrupt-mid-stream": { turns: [{ prompt: "Write a 500-word story about a lighthouse.", interrupt: "after-text" }] },
   image: { turns: [{ prompt: IMAGE_PROMPT, images: [RED_SQUARE] }] },
   csv: { turns: [{ prompt: CSV_PROMPT, csv: true }] },
+  compact: {
+    turns: [
+      { prompt: "Remember the word 'kiwi'. Reply with just OK." },
+      { prompt: "/compact", compact: true },
+      { prompt: "Which word did I ask you to remember? Reply with just the word." },
+    ],
+  },
 };
 
 /** Messages the adapter reads; `init` cut down to what it uses, so fixtures hold none of your setup. */
 const kept = (message: SDKMessage): unknown => {
   switch (message.type) {
     case "system":
+      if (message.subtype === "compact_boundary" || message.subtype === "status") return message;
       if (message.subtype !== "init") return undefined;
       return {
         type: message.type,
@@ -238,7 +248,11 @@ const record = (name: string, scenario: Scenario, model: string) =>
         }
         const text = script.csv === true ? csvMessage(attachments) : script.prompt;
         const turnSetup: SessionSetup = script.csv === true ? { ...setup, attachmentFolders: [dirname(csvPath(attachments))] } : setup;
-        const fiber = yield* session.startTurn({ turnId, text, images, setup: turnSetup }).pipe(
+        const events =
+          script.compact === true && session.compact !== undefined
+            ? session.compact({ turnId, setup })
+            : session.startTurn({ turnId, text, images, setup: turnSetup });
+        const fiber = yield* events.pipe(
           Stream.runForEach((event) =>
             Effect.gen(function* () {
               // Approvals the script doesn't expect are denied, so a recording never waits.

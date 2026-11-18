@@ -35,6 +35,7 @@ const eventTypes = [
   "permission.replied",
   "session.compaction.ended",
   "session.compaction.failed",
+  "session.compaction.started",
   "session.execution.failed",
   "session.execution.interrupted",
   "session.execution.started",
@@ -262,6 +263,8 @@ const makeApi = (client: OpenCodeClient, version: string, hub: PubSub.PubSub<Ope
     call("sending the message", client.session.prompt({ sessionID: sessionId as never, text, ...(files.length === 0 ? {} : { files }) })).pipe(
       Effect.map((item) => item.id as string),
     ),
+  compact: (sessionId) =>
+    call("compacting the conversation", client.session.compact({ sessionID: sessionId as never })).pipe(Effect.map((item) => item.id as string)),
   cancelPrompt: (sessionId, inboxId) =>
     call("withdrawing the message", client.session.inbox.cancel({ sessionID: sessionId as never, inboxID: inboxId as never })),
   interrupt: (sessionId) =>

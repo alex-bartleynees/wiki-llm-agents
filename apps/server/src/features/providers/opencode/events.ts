@@ -135,37 +135,55 @@ export interface TurnMapper {
   readonly usage: () => TurnUsage;
 }
 
-export const makeTurnMapper = (turnId: string, directory: string): TurnMapper => {
+export interface TurnMapperOptions {
+  /**
+   * The turn is a compaction you asked for (`session.compact`), which OpenCode runs
+   * as an execution of its own. Its summarisation request isn't reported as a step,
+   * so its tokens are the turn's usage; and a compaction that ended was applied, not
+   * only summarised.
+   */
+  readonly compacting?: boolean;
+}
+
+export const makeTurnMapper = (turnId: string, directory: string, options: TurnMapperOptions = {}): TurnMapper => {
   const toolNames = new Map<string, string>();
   /** `todowrite` calls shown as the plan, whose results aren't shown. */
   const planCalls = new Set<string>();
   const totals = { input: 0, output: 0, cost: 0, uncached: 0, cacheRead: 0, cacheWrite: 0, reasoning: 0 };
+  /** Some request reported its tokens. */
+  let counted = false;
   let latestStepInput: number | undefined;
 
-  const addStep = (step: {
-    readonly cost?: number | undefined;
-    readonly tokens?:
-      | { readonly input: number; readonly output: number; readonly reasoning: number; readonly cache: { readonly read: number; readonly write: number } }
-      | undefined;
-  }) => {
-    if (step.tokens !== undefined) {
-      totals.uncached += step.tokens.input;
-      totals.cacheRead += step.tokens.cache.read;
-      totals.cacheWrite += step.tokens.cache.write;
-      totals.reasoning += step.tokens.reasoning;
-      latestStepInput = step.tokens.input + step.tokens.cache.read + step.tokens.cache.write;
-      totals.input += latestStepInput;
-      totals.output += step.tokens.output + step.tokens.reasoning;
+  /** Adds a request's tokens and cost; a model step's input is also the latest context seen. */
+  const add = (
+    request: {
+      readonly cost?: number | undefined;
+      readonly tokens?:
+        | { readonly input: number; readonly output: number; readonly reasoning: number; readonly cache: { readonly read: number; readonly write: number } }
+        | undefined;
+    },
+    isStep: boolean,
+  ) => {
+    if (request.tokens !== undefined) {
+      counted = true;
+      totals.uncached += request.tokens.input;
+      totals.cacheRead += request.tokens.cache.read;
+      totals.cacheWrite += request.tokens.cache.write;
+      totals.reasoning += request.tokens.reasoning;
+      const input = request.tokens.input + request.tokens.cache.read + request.tokens.cache.write;
+      if (isStep) latestStepInput = input;
+      totals.input += input;
+      totals.output += request.tokens.output + request.tokens.reasoning;
     }
-    totals.cost += step.cost ?? 0;
+    totals.cost += request.cost ?? 0;
   };
 
   const usage = (): TurnUsage => ({
     inputTokens: totals.input,
     outputTokens: totals.output,
     costUsd: totals.cost,
-    ...(latestStepInput === undefined ? {} : {
-      context: { _tag: "last_step", inputTokens: latestStepInput },
+    ...(latestStepInput === undefined ? {} : { context: { _tag: "last_step", inputTokens: latestStepInput } }),
+    ...(!counted ? {} : {
       breakdown: {
         scope: "reported_steps",
         uncachedInputTokens: totals.uncached,
@@ -234,16 +252,19 @@ export const makeTurnMapper = (turnId: string, directory: string): TurnMapper =>
         return [{ _tag: "request.opened", turnId, requestId: event.data.form.id, prompt: questionPrompt(event) }];
       case "session.compaction.ended":
       case "session.compaction.failed":
+        // In its own execution, the compaction's request is the turn's usage. Inside a
+        // turn it isn't added: OpenCode's session aggregate has it already.
+        if (options.compacting === true) add(event.data, false);
         return [{
           _tag: "context.compaction",
           turnId,
           outcome: event.type === "session.compaction.ended" ? "completed" : "failed",
           trigger: event.data.reason,
-          summaryOnly: true,
+          ...(options.compacting === true ? {} : { summaryOnly: true }),
         }];
       case "session.step.ended":
       case "session.step.failed":
-        addStep(event.data);
+        add(event.data, true);
         return [];
       case "session.execution.succeeded":
         return [finished("completed", null)];

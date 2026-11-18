@@ -42,6 +42,7 @@ import { mcpSession } from "./infrastructure/mcp.js";
 import { makeTestApp, TestAgents, TestAttachments, TestSecrets, TestWorktrees } from "./infrastructure/test-app.js";
 import {
   answer,
+  compactOk,
   decode,
   getThread,
   interrupt,
@@ -137,7 +138,7 @@ layer(App)("OpenCode provider", (it) => {
     Effect.gen(function* () {
       const { providers } = yield* HttpClient.get("/api/providers").pipe(Effect.flatMap(decode(ListProvidersResponse)));
       expect(providers.map((provider) => provider.id)).toEqual(["opencode", "replay"]);
-      expect(providers[0]?.capabilities).toEqual({ interrupt: true, resume: false, approvals: true, questions: true, models: true, images: true });
+      expect(providers[0]?.capabilities).toEqual({ interrupt: true, resume: false, approvals: true, questions: true, models: true, images: true, compact: true });
       const { status: ready } = yield* HttpClient.get("/api/providers/opencode/status").pipe(Effect.flatMap(decode(GetProviderStatusResponse)));
       expect(ready).toEqual({ _tag: "ready", version: "2.2.1", account: null });
       expect((yield* HttpClient.get("/api/providers/nope/status")).status).toBe(404);
@@ -249,6 +250,37 @@ layer(App)("OpenCode provider", (it) => {
       const { events } = yield* getThread(thread.id);
       const replies = events.filter((stored) => stored.event._tag === "message.delta").map((stored) => stored.event);
       expect(textOf(replies).toLowerCase()).toContain("kiwi");
+    }),
+  );
+
+  it.effect("compacts the same session on request, counting the compaction's own request as the turn's usage", () =>
+    Effect.gen(function* () {
+      const { thread, fake, fixture } = yield* setUp("compact");
+      const [first, , last] = fixture.turns;
+      const before = yield* watch(thread.id);
+      yield* sendOk(thread.id, first!.prompt);
+      yield* before.until(isTag("turn.finished"));
+
+      const compacting = yield* watch(thread.id);
+      const { turnId, started } = yield* compactOk(thread.id);
+      expect(started).toBe(true);
+      const seen = yield* compacting.until(isTag("turn.finished"));
+      expect(seen.find((event) => event._tag === "context.compaction")).toEqual({ _tag: "context.compaction", turnId, outcome: "completed", trigger: "manual" });
+      // The summarisation request of the recording: 817 + 10752 cached in, 107 + 469 reasoning out.
+      expect(finishedOf(seen)).toMatchObject({ outcome: "completed", usage: { inputTokens: 11_569, outputTokens: 576, breakdown: { cacheReadTokens: 10_752 } } });
+      expect(finishedOf(seen).usage).not.toHaveProperty("context");
+
+      const after = yield* watch(thread.id);
+      yield* sendOk(thread.id, last!.prompt);
+      expect(textOf(yield* after.until(isTag("turn.finished"))).toLowerCase()).toContain("kiwi");
+      expect(fake.calls.map((call) => call.call).filter((call) => call === "prompt" || call === "compact" || call === "createSession")).toEqual([
+        "createSession",
+        "prompt",
+        "compact",
+        "prompt",
+      ]);
+      const { events } = yield* getThread(thread.id);
+      expect(tags(events.filter((stored) => stored.event.turnId === turnId))).toEqual(["compaction.requested", "turn.started", "context.compaction", "turn.finished"]);
     }),
   );
 

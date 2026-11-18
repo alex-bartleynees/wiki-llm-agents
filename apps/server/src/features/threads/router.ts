@@ -3,6 +3,7 @@ import { saveDraftEndpoint } from "./save-draft/endpoint.js";
 import { Layer } from "effect";
 import { HttpRouter } from "effect/http";
 import { answerRequestEndpoint } from "./answer-request/endpoint.js";
+import { compactContextEndpoint } from "./compact-context/endpoint.js";
 import { createThreadEndpoint } from "./create-thread/endpoint.js";
 import { getThreadEndpoint } from "./get-thread/endpoint.js";
 import { interruptTurnEndpoint } from "./interrupt-turn/endpoint.js";
@@ -28,6 +29,7 @@ export const threadsRouter = Layer.mergeAll(
   HttpRouter.add("GET", "/api/threads/:threadId", getThreadEndpoint),
   HttpRouter.add("POST", "/api/threads/:threadId/messages", sendMessageEndpoint),
   HttpRouter.add("POST", "/api/threads/:threadId/interrupt", interruptTurnEndpoint),
+  HttpRouter.add("POST", "/api/threads/:threadId/compact", compactContextEndpoint),
   HttpRouter.add("POST", "/api/threads/:threadId/requests/:requestId", answerRequestEndpoint),
   HttpRouter.add("GET", "/api/threads/:threadId/models", listModelsEndpoint),
   HttpRouter.add("PUT", "/api/threads/:threadId/model", setModelEndpoint),

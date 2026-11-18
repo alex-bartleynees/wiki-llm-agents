@@ -200,7 +200,12 @@ export interface TurnMapper {
  * whole (an API error, say) is sent whole. Subagents' tool calls are shown, their
  * text isn't.
  */
-export const makeTurnMapper = (turnId: string, cwd: string, cost: (result: SDKResultMessage) => number | null): TurnMapper => {
+/** `compacting`: the turn is a compaction you asked for (`/compact`). */
+export interface TurnMapperOptions {
+  readonly compacting?: boolean;
+}
+
+export const makeTurnMapper = (turnId: string, cwd: string, cost: (result: SDKResultMessage) => number | null, options: TurnMapperOptions = {}): TurnMapper => {
   let messageId: string | undefined;
   const streamed = new Set<string>();
   /** `TodoWrite` calls shown as the plan, whose results aren't shown. */
@@ -259,6 +264,15 @@ export const makeTurnMapper = (turnId: string, cwd: string, cost: (result: SDKRe
         );
       }
       case "system": {
+        if (message.subtype === "status" && message.compact_result === "failed") {
+          return [{
+            _tag: "context.compaction",
+            turnId,
+            outcome: "failed",
+            trigger: options.compacting === true ? "manual" : "unknown",
+            ...(message.compact_error === undefined ? {} : { reason: message.compact_error }),
+          }];
+        }
         if (message.subtype !== "compact_boundary") return [];
         const { trigger, pre_tokens, post_tokens } = message.compact_metadata;
         return [{
@@ -272,12 +286,15 @@ export const makeTurnMapper = (turnId: string, cwd: string, cost: (result: SDKRe
       }
       case "result": {
         const completed = message.subtype === "success" && !message.is_error;
+        const usage = resultUsage(message, cost(message));
+        // `/compact`'s result reports no tokens though the summary cost some (2.1.322): unknown, not zero.
+        const unreported = options.compacting === true && usage.inputTokens === 0 && usage.outputTokens === 0;
         return [
           {
             _tag: "turn.finished",
             turnId,
             outcome: completed ? "completed" : "failed",
-            usage: resultUsage(message, cost(message)),
+            usage: unreported ? null : usage,
             reason: completed ? null : resultFailure(message),
           },
         ];

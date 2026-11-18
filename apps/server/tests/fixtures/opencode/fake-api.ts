@@ -53,7 +53,7 @@ export interface PlayOptions {
 export type FakeCall =
   | { readonly call: "createSession"; readonly model: string | null; readonly permissions: ReadonlyArray<OpenCodePermissionRule> }
   | { readonly call: "prompt"; readonly text: string; readonly files?: ReadonlyArray<OpenCodeFile> }
-  | { readonly call: "cancelPrompt" | "interrupt" }
+  | { readonly call: "cancelPrompt" | "interrupt" | "compact" }
   | { readonly call: "setPermissions"; readonly permissions: ReadonlyArray<OpenCodePermissionRule> }
   | { readonly call: "setInstructions"; readonly text: string | null }
   | { readonly call: "reply"; readonly requestId: string; readonly reply: string; readonly message?: string }
@@ -171,6 +171,22 @@ export const makeFakeOpenCode = Effect.gen(function* () {
       }
     });
 
+  /** Plays a turn's steps in the background, as OpenCode runs what was put in the inbox; returns its inbox id. */
+  const startPlaying = (session: Session, steps: ReadonlyArray<FixtureStep>) =>
+    Effect.gen(function* () {
+      session.stopPressed = yield* Deferred.make<void>();
+      session.startGate = session.options.holdStart === true ? yield* Deferred.make<void>() : undefined;
+      session.running = session.options.holdStart !== true;
+      session.playback = yield* play(session, steps).pipe(Effect.forkIn(scope));
+      yield* Deferred.succeed(session.prompted, undefined);
+      const compacted = steps.find((step) => "call" in step && step.call === "compact");
+      if (compacted !== undefined && "inboxId" in compacted) return compacted.inboxId;
+      const enqueued = steps
+        .map((step) => ("event" in step ? toEvent(session, step.event) : undefined))
+        .find((event) => event?.type === "session.inbox.enqueued");
+      return enqueued?.type === "session.inbox.enqueued" ? (enqueued.data.inboxID as string) : "msg_fake";
+    });
+
   const stopPlayback = (session: Session) => (session.playback === undefined ? Effect.void : Fiber.interrupt(session.playback));
 
   const api: OpenCodeApi = {
@@ -199,27 +215,29 @@ export const makeFakeOpenCode = Effect.gen(function* () {
         calls.push({ call: "setInstructions", text });
       }),
     sessionExists: (sessionId) => Effect.sync(() => sessions.has(sessionId)),
+    compact: (sessionId) =>
+      Effect.gen(function* () {
+        calls.push({ call: "compact" });
+        const session = sessionFor(sessionId);
+        const turn = session.fixture.turns[session.turn++];
+        if (turn === undefined) return yield* Effect.die(new Error(`fixture ${session.fixture.scenario} has no turn ${session.turn}`));
+        if (turn.compact !== true) return yield* Effect.die(new Error(`fixture turn ${session.turn} was the prompt "${turn.prompt}", the adapter compacted`));
+        return yield* startPlaying(session, turn.steps);
+      }),
     prompt: (sessionId, text, files = []) =>
       Effect.gen(function* () {
         calls.push({ call: "prompt", text, ...(files.length === 0 ? {} : { files }) });
         const session = sessionFor(sessionId);
         const turn = session.fixture.turns[session.turn++];
         if (turn === undefined) return yield* Effect.die(new Error(`fixture ${session.fixture.scenario} has no turn ${session.turn}`));
+        if (turn.compact === true) return yield* Effect.die(new Error(`fixture turn ${session.turn} was a compaction, the adapter sent "${text}"`));
         const recordedPrompt = turn.prompt + (session.options.promptSuffixes?.[session.turn - 1] ?? "");
         session.attachments = attachmentsRootIn(recordedPrompt, text);
         const expectedPrompt = session.attachments === undefined ? recordedPrompt : recordedPrompt.replaceAll(ATTACHMENTS, session.attachments);
         if (expectedPrompt !== text) return yield* Effect.die(new Error(`fixture prompt was "${turn.prompt}", the adapter sent "${text}"`));
         const [sent, recorded] = [sentImages(files), recordedImages(turn.images)];
         if (sent !== recorded) return yield* Effect.die(new Error(`fixture images were ${recorded}, the adapter sent ${sent}`));
-        session.stopPressed = yield* Deferred.make<void>();
-        session.startGate = session.options.holdStart === true ? yield* Deferred.make<void>() : undefined;
-        session.running = session.options.holdStart !== true;
-        session.playback = yield* play(session, turn.steps).pipe(Effect.forkIn(scope));
-        yield* Deferred.succeed(session.prompted, undefined);
-        const enqueued = turn.steps
-          .map((step) => ("event" in step ? toEvent(session, step.event) : undefined))
-          .find((event) => event?.type === "session.inbox.enqueued");
-        return enqueued?.type === "session.inbox.enqueued" ? (enqueued.data.inboxID as string) : "msg_fake";
+        return yield* startPlaying(session, turn.steps);
       }),
     // Withdrawing works while the turn is held before it starts; once OpenCode has
     // taken the message it still says yes, and the turn runs anyway (as recorded).

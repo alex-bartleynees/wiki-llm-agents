@@ -6,6 +6,8 @@ import { GetProviderStatusResponse } from "@wiki-agents/contracts/providers/get-
 import { ListProvidersResponse } from "@wiki-agents/contracts/providers/list-providers/response";
 import { AnswerRequestRequest } from "@wiki-agents/contracts/threads/answer-request/request";
 import { AnswerRequestResponse } from "@wiki-agents/contracts/threads/answer-request/response";
+import { CompactContextRequest } from "@wiki-agents/contracts/threads/compact-context/request";
+import { CompactContextResponse } from "@wiki-agents/contracts/threads/compact-context/response";
 import { CreateThreadRequest } from "@wiki-agents/contracts/threads/create-thread/request";
 import { CreateThreadResponse } from "@wiki-agents/contracts/threads/create-thread/response";
 import { GetThreadResponse } from "@wiki-agents/contracts/threads/get-thread/response";
@@ -79,6 +81,14 @@ export const sendMessage = (threadId: string, text: string, notes: SendMessageRe
   postJson(`${threadPath(threadId)}/messages`, SendMessageRequest, { text, notes, ...files }, SendMessageResponse);
 
 export const interruptTurn = (threadId: string) => postJson(`${threadPath(threadId)}/interrupt`, NoBody, {}, InterruptTurnResponse);
+
+/**
+ * Compact conversation: the provider summarises the conversation in its own session.
+ * The same `operationId` again (a retry) never compacts twice; 409 while busy, or
+ * when the provider can't or there is nothing to compact.
+ */
+export const compactContext = (threadId: string, operationId: string) =>
+  postJson(`${threadPath(threadId)}/compact`, CompactContextRequest, { operationId }, CompactContextResponse);
 
 /** Moves the thread to the Done group; 409 while a turn runs or waits for you. */
 export const markDone = (threadId: string) => postJson(`${threadPath(threadId)}/done`, NoBody, {}, MarkDoneResponse);

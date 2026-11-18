@@ -43,6 +43,8 @@ interface TurnScript {
    * the folder; the tests' fake skips that ask when the session's rules allow it.
    */
   readonly csv?: true;
+  /** Instead of a prompt, ask OpenCode to compact the conversation (`session.compact`). */
+  readonly compact?: true;
 }
 
 const SCENARIOS: Readonly<Record<string, ReadonlyArray<TurnScript>>> = {
@@ -70,12 +72,20 @@ const SCENARIOS: Readonly<Record<string, ReadonlyArray<TurnScript>>> = {
   "interrupt-mid-stream": [{ prompt: "Write a 500-word story about a lighthouse.", interrupt: "after-text" }],
   image: [{ prompt: IMAGE_PROMPT, images: [RED_SQUARE] }],
   csv: [{ prompt: CSV_PROMPT, csv: true, answer: { reply: "once" } }],
+  compact: [
+    { prompt: "Remember the word 'kiwi'. Reply with just OK." },
+    { prompt: "", compact: true },
+    { prompt: "Which word did I ask you to remember? Reply with just the word." },
+  ],
 };
 
 /** Scenarios that need a model other than the default when `--model` isn't given: the default free model doesn't take images. */
 const SCENARIO_MODELS: Readonly<Record<string, string>> = { image: "opencode/nemotron-3.5-super-vl-free" };
 
 const END = new Set(["session.execution.succeeded", "session.execution.failed", "session.execution.interrupted"]);
+const COMPACTION_END = new Set(["session.compaction.ended", "session.compaction.failed"]);
+/** After a compaction's end, how long to wait for an execution end that may not come. */
+const AFTER_COMPACTION = "5 seconds";
 
 /** The temp paths in recorded events become `VAULT` and `ATTACHMENTS`, so fixtures don't depend on where they were made. */
 const normalise = (value: unknown, root: string, attachments: string): unknown =>
@@ -98,6 +108,24 @@ const recordTurn = (api: OpenCodeApi, sessionId: string, root: string, attachmen
       }
       const text = script.csv === true ? csvMessage(attachments) : script.prompt;
       const recorded = { prompt: normalise(text, root, attachments) as string, ...(sources.length === 0 ? {} : { images: sources.map(fixtureImage) }) };
+      if (script.compact === true) {
+        const inboxId = yield* api.compact(sessionId);
+        steps.push({ call: "compact", inboxId });
+        let compacted = false;
+        while (true) {
+          const signal: OpenCodeSignal | undefined = Option.getOrUndefined(
+            yield* PubSub.take(subscription).pipe(Effect.timeoutOption(compacted ? AFTER_COMPACTION : "3 minutes")),
+          );
+          if (signal === undefined) {
+            if (compacted) return { prompt: "", compact: true as const, steps };
+            throw new Error("no events for 3 minutes");
+          }
+          if (signal._tag !== "event" || sessionOf(signal.event) !== sessionId) continue;
+          steps.push({ event: normalise(encode(signal.event), root, attachments) });
+          if (END.has(signal.event.type)) return { prompt: "", compact: true as const, steps };
+          if (COMPACTION_END.has(signal.event.type)) compacted = true;
+        }
+      }
       const inboxId = yield* api.prompt(sessionId, text, files);
       if (script.interrupt === "after-send") {
         const withdrawn = yield* api.cancelPrompt(sessionId, inboxId).pipe(Effect.as(true), Effect.catch(() => Effect.succeed(false)));

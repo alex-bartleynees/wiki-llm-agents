@@ -1,5 +1,6 @@
 import { UploadAttachmentResponse } from "@wiki-agents/contracts/attachments/upload-attachment/response";
 import { GetThreadResponse } from "@wiki-agents/contracts/threads/get-thread/response";
+import { CompactContextResponse } from "@wiki-agents/contracts/threads/compact-context/response";
 import { CreateThreadResponse } from "@wiki-agents/contracts/threads/create-thread/response";
 import type { RequestAnswer, StoredThreadEvent, ThreadEvent } from "@wiki-agents/contracts/threads/model";
 import { SendMessageResponse } from "@wiki-agents/contracts/threads/send-message/response";
@@ -57,6 +58,9 @@ export const sendWithOk = (threadId: string, text: string, attachmentIds: Readon
   );
 
 export const interrupt = (threadId: string) => post(`/api/threads/${threadId}/interrupt`, {});
+/** Compact conversation, with the client's operation id (a new one by default). */
+export const compact = (threadId: string, operationId: string = crypto.randomUUID()) => post(`/api/threads/${threadId}/compact`, { operationId });
+export const compactOk = (threadId: string, operationId?: string) => compact(threadId, operationId).pipe(Effect.flatMap(decode(CompactContextResponse)));
 export const markDone = (threadId: string) => post(`/api/threads/${threadId}/done`, {});
 export const reopen = (threadId: string) => post(`/api/threads/${threadId}/reopen`, {});
 export const answer = (threadId: string, requestId: string, value: RequestAnswer) =>

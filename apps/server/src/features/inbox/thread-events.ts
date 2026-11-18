@@ -64,7 +64,11 @@ export const watchThreadEvents = Effect.gen(function* () {
       case "turn.finished": {
         // Stopped by you: nothing to tell you.
         if (event.outcome === "interrupted" && event.reason === null) return;
-        if (!(yield* attended(event.turnId))) return;
+        const turn = Option.getOrUndefined(yield* threads.findTurn(event.turnId));
+        if (turn === undefined || turn.unattended) return;
+        // A compaction you asked for that went through needs nothing more from you; the
+        // thread's last result stays in the inbox. One that didn't is reported.
+        if (turn.kind === "compaction" && event.outcome === "completed") return;
         const thread = yield* threadOf(threadId);
         const name = thread?.title ?? "Untitled thread";
         const item = yield* finishedItem(threadId, event, name);

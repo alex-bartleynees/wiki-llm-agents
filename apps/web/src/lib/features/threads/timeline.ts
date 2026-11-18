@@ -14,6 +14,8 @@ export type TimelineItem =
       readonly attachments: ReadonlyArray<Attachment>;
       readonly imagesAsFiles: boolean;
     }
+  /** You asked the provider to compact the conversation (Compact conversation). */
+  | { readonly kind: "compaction-request"; readonly key: string }
   /** The receipt of a schedule the agent saved, with a link to edit it. */
   | { readonly kind: "schedule"; readonly key: string; readonly receipt: Extract<ThreadEvent, { readonly _tag: "schedule.saved" }> }
   | { readonly kind: "agent"; readonly key: string; text: string }
@@ -56,9 +58,17 @@ export interface Timeline {
   lastSeq: number;
   /** The turn still running, if any. */
   runningTurn: string | null;
+  /** Turns that are compactions you asked for, rather than messages. */
+  readonly compactions: Set<string>;
 }
 
-export const emptyTimeline = (): Timeline => ({ items: [], lastSeq: 0, runningTurn: null });
+export const emptyTimeline = (): Timeline => ({ items: [], lastSeq: 0, runningTurn: null, compactions: new Set() });
+
+/** The running turn is a compaction you asked for. */
+export const isCompacting = (timeline: Timeline) => timeline.runningTurn !== null && timeline.compactions.has(timeline.runningTurn);
+
+/** A turn has finished, so there is a conversation to compact. */
+export const hasConversation = (timeline: Timeline) => timeline.items.some((item) => item.kind === "turn-end");
 
 const find = <K extends TimelineItem["kind"]>(timeline: Timeline, kind: K, key: string) =>
   timeline.items.findLast((item): item is Extract<TimelineItem, { kind: K }> => item.kind === kind && item.key === key);
@@ -90,6 +100,10 @@ export const applyEvent = (timeline: Timeline, stored: StoredThreadEvent): boole
         attachments: event.attachments ?? [],
         imagesAsFiles: event.imagesAsFiles === true,
       });
+      break;
+    case "compaction.requested":
+      timeline.compactions.add(event.turnId);
+      timeline.items.push({ kind: "compaction-request", key: event.turnId });
       break;
     case "turn.started":
       timeline.runningTurn = event.turnId;
@@ -143,13 +157,18 @@ export const applyEvent = (timeline: Timeline, stored: StoredThreadEvent): boole
       break;
     }
     case "context.compaction": {
+      if (event.outcome === "noop") {
+        timeline.items.push({ kind: "notice", key: String(stored.seq), text: "Compaction finished, but the provider didn't report compacting anything" });
+        break;
+      }
       const label = compactionLabel(event.trigger, event.summaryOnly === true);
       const tokens = event.beforeTokens === undefined
         ? ""
         : event.afterTokens === undefined
           ? ` · ${compact.format(event.beforeTokens)} tokens before`
           : ` · ${compact.format(event.beforeTokens)} → ${compact.format(event.afterTokens)} tokens`;
-      timeline.items.push({ kind: "notice", key: String(stored.seq), text: `${label} ${event.outcome}${tokens}` });
+      const reason = event.reason === undefined ? "" : ` · ${event.reason}`;
+      timeline.items.push({ kind: "notice", key: String(stored.seq), text: `${label} ${event.outcome}${tokens}${reason}` });
       break;
     }
     case "turn.finished":
@@ -171,6 +190,7 @@ const compact = new Intl.NumberFormat(undefined, { notation: "compact", maximumF
 /** Names a compaction: automatic ones say so, and a summary-only one is named as such. */
 const compactionLabel = (trigger: "auto" | "manual" | "unknown", summaryOnly: boolean): string => {
   if (trigger === "auto") return summaryOnly ? "Automatic compaction summary" : "Automatic context compaction";
+  if (trigger === "manual" && !summaryOnly) return "Requested compaction";
   return summaryOnly ? "Context compaction summary" : "Context compaction";
 };
 

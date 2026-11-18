@@ -156,6 +156,7 @@ export const makeFakeAppServer = () => {
           const recorded = fixture.turns[index];
           turn += 1;
           if (recorded === undefined) return void fail(message.id, `the fixture has no turn ${index + 1}`);
+          if (recorded.compact === true) return void fail(message.id, `the fixture's turn ${index + 1} is a compaction, not a message`);
           const items = params.input as ReadonlyArray<UserInput>;
           const input = items.flatMap((item) => (item.type === "text" ? [item.text] : [])).join("");
           const recordedPrompt = recorded.prompt + (options.promptSuffixes?.[index] ?? "");
@@ -169,6 +170,17 @@ export const makeFakeAppServer = () => {
           const started = recorded.steps.find((step) => "message" in step && step.message.method === "turn/started");
           const codexTurnId = started !== undefined && "message" in started ? (started.message.params as { turn: { id: string } }).turn.id : `turn-${index}`;
           void reply(message.id, { turn: { id: codexTurnId, status: "inProgress", items: [], error: null } }).then(() => play(index, codexTurnId));
+          return;
+        }
+        case "thread/compact/start": {
+          if (fixture === undefined) return void fail(message.id, "no fixture loaded");
+          const index = turn;
+          const recorded = fixture.turns[index];
+          turn += 1;
+          if (recorded?.compact !== true) return void fail(message.id, `the fixture's turn ${index + 1} isn't a compaction`);
+          const started = recorded.steps.find((step) => "message" in step && step.message.method === "turn/started");
+          const codexTurnId = started !== undefined && "message" in started ? (started.message.params as { turn: { id: string } }).turn.id : `turn-${index}`;
+          void reply(message.id, {}).then(() => play(index, codexTurnId));
           return;
         }
         case "turn/interrupt":

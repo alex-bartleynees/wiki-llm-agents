@@ -1,6 +1,6 @@
 import type { ThreadEvent } from "@wiki-agents/contracts/threads/model";
 import { describe, expect, it } from "vitest";
-import { applyEvent, emptyTimeline } from "./timeline.ts";
+import { applyEvent, emptyTimeline, hasConversation, isCompacting } from "./timeline.ts";
 
 const apply = (events: ReadonlyArray<ThreadEvent>) => {
   const timeline = emptyTimeline();
@@ -60,5 +60,40 @@ describe("a message's attachments in the timeline", () => {
       expect.objectContaining({ kind: "user", text: "", attachments: [shot, csv], imagesAsFiles: true }),
       expect.objectContaining({ kind: "user", text: "plain", attachments: [], imagesAsFiles: false }),
     ]);
+  });
+});
+
+describe("a compaction you asked for in the timeline", () => {
+  it("marks the request, knows the running turn is a compaction, and shows its outcome", () => {
+    const timeline = apply([
+      { _tag: "user.message", turnId: "a", text: "hello" },
+      { _tag: "turn.started", turnId: "a" },
+      { _tag: "turn.finished", turnId: "a", outcome: "completed", usage: null, reason: null },
+      { _tag: "compaction.requested", turnId: "b" },
+      { _tag: "turn.started", turnId: "b" },
+    ]);
+    expect(hasConversation(timeline)).toBe(true);
+    expect(isCompacting(timeline)).toBe(true);
+    expect(timeline.items.map((item) => item.kind)).toEqual(["user", "turn-end", "compaction-request"]);
+
+    applyEvent(timeline, { threadId: "t", seq: 6, at: 0, event: { _tag: "context.compaction", turnId: "b", outcome: "completed", trigger: "manual", beforeTokens: 24_000, afterTokens: 6_000 } });
+    applyEvent(timeline, { threadId: "t", seq: 7, at: 0, event: { _tag: "turn.finished", turnId: "b", outcome: "completed", usage: null, reason: null } });
+    expect(isCompacting(timeline)).toBe(false);
+    // Compact numbers follow the locale (24K, 24k...).
+    expect(timeline.items.at(-2)).toMatchObject({ kind: "notice", text: expect.stringMatching(/^Requested compaction completed · 24k → 6k tokens$/i) });
+  });
+
+  it("says when the provider didn't report compacting anything, and why one failed", () => {
+    const timeline = apply([
+      { _tag: "compaction.requested", turnId: "b" },
+      { _tag: "context.compaction", turnId: "b", outcome: "noop", trigger: "manual" },
+      { _tag: "compaction.requested", turnId: "c" },
+      { _tag: "context.compaction", turnId: "c", outcome: "failed", trigger: "manual", reason: "Not enough messages to compact." },
+    ]);
+    expect(timeline.items.filter((item) => item.kind === "notice").map((item) => (item.kind === "notice" ? item.text : ""))).toEqual([
+      "Compaction finished, but the provider didn't report compacting anything",
+      "Requested compaction failed · Not enough messages to compact.",
+    ]);
+    expect(hasConversation(timeline)).toBe(false);
   });
 });

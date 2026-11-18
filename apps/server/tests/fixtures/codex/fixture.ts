@@ -29,6 +29,8 @@ export interface FixtureTurn {
   readonly prompt: string;
   /** Images sent with the prompt (`tests/fixtures/image.ts`). */
   readonly images?: ReadonlyArray<FixtureImage>;
+  /** A compaction (`thread/compact/start`) rather than a message (`prompt` is empty). */
+  readonly compact?: true;
   readonly steps: ReadonlyArray<FixtureStep>;
 }
 

@@ -1,0 +1,1 @@
+ALTER TABLE `turns` ADD `kind` text DEFAULT 'message' NOT NULL;

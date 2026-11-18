@@ -15,7 +15,7 @@
   import { openThread } from "./open-thread.svelte.ts";
   import { STATUS_LABEL } from "./status.ts";
   import { threads } from "./threads.svelte.ts";
-  import { pendingRequests, type TimelineItem, usageLabel } from "./timeline.ts";
+  import { hasConversation, isCompacting, pendingRequests, type TimelineItem, usageLabel } from "./timeline.ts";
   import WorktreeBar from "./WorktreeBar.svelte";
 
   const timeline = $derived(openThread.timeline);
@@ -44,6 +44,12 @@
     return enforced === null ? "" : describeAutonomy(enforced);
   });
 
+  const compacting = $derived(isCompacting(timeline));
+  /** Why Compact conversation can't be used now; undefined when it can. */
+  const compactBlocked = $derived(
+    status !== "idle" ? "Stop the turn or answer it first" : !hasConversation(timeline) ? "There's no conversation to compact yet" : openThread.compacting ? "Asking the provider…" : undefined,
+  );
+
   const OUTCOME_LABEL = { completed: "Done", interrupted: "Stopped", failed: "Failed" } as const;
 
   /** "Done · 12.5K in · 187 out · $0.026", "Failed · <reason>" */
@@ -59,6 +65,16 @@
   {/if}
   {#if openThread.thread}
     {@const thread = openThread.thread}
+    {#if provider?.capabilities.compact === true}
+      <button
+        type="button"
+        class="done-action"
+        disabled={compactBlocked !== undefined}
+        title={compactBlocked ??
+          `${provider.name} summarises the conversation in its own session, so later turns send less. It uses some of your usage and may lose detail.`}
+        onclick={() => openThread.compact()}>Compact</button
+      >
+    {/if}
     {#if thread.doneAt === null}
       <button
         type="button"
@@ -118,6 +134,8 @@
         {#if item.attachments.length > 0}<MessageAttachments attachments={item.attachments} imagesAsFiles={item.imagesAsFiles} />{/if}
         {#if item.text !== ""}<p class="text">{item.text}</p>{/if}
       </div>
+    {:else if item.kind === "compaction-request"}
+      <p class="compaction-request mono">You asked to compact the conversation</p>
     {:else if item.kind === "agent"}
       <div class="agent"><AgentText text={item.text} /></div>
     {:else if item.kind === "tool"}
@@ -144,7 +162,9 @@
     {/if}
   {/each}
 
-  {#if status === "running"}
+  {#if status === "running" && compacting}
+    <p class="working compacting mono" role="status">Compacting conversation…</p>
+  {:else if status === "running"}
     <p class="working mono" aria-label="The agent is working">●●●</p>
   {/if}
 </div>
@@ -318,6 +338,11 @@
     white-space: pre-wrap;
     overflow-wrap: anywhere;
   }
+  .compaction-request {
+    align-self: flex-end;
+    font-size: 12px;
+    color: var(--ink-2);
+  }
   .turn-end {
     align-self: center;
     font-size: 11px;
@@ -331,6 +356,10 @@
     font-size: 11px;
     letter-spacing: 2px;
     animation: pulse 1.2s ease-in-out infinite;
+  }
+  .working.compacting {
+    letter-spacing: normal;
+    font-size: 12px;
   }
   @keyframes pulse {
     50% {

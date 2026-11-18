@@ -6,7 +6,7 @@ import type { RequestAnswer } from "@wiki-agents/contracts/threads/model";
 import { Duration, Effect, Exit, FileSystem, Option, PubSub, Queue, RcRef, Scope, Stream } from "effect";
 import { pathsWithinRoots } from "../../../shared/vault/path-scope.js";
 import { revisedEntryName } from "../../mcp/vault-tools.js";
-import { type ProviderAdapter, ProviderError, type ProviderEvent, type ProviderSession, type SessionSetup, type TurnImage, type TurnInput, DENIED, SECRET_DENIED, vaultToolsUnavailable } from "../port.js";
+import { type CompactInput, type ProviderAdapter, ProviderError, type ProviderEvent, type ProviderSession, type SessionSetup, type TurnImage, type TurnInput, DENIED, SECRET_DENIED, vaultToolsUnavailable } from "../port.js";
 import type { OpenCodeApi, OpenCodeError, OpenCodeEvent, OpenCodeFile, OpenCodePermissionRule, OpenCodeSignal } from "./api.js";
 import { formAnswer, makeTurnMapper, sessionOf } from "./events.js";
 import { instructionsText, MAX_INSTRUCTIONS_BYTES } from "./instructions.js";
@@ -217,7 +217,17 @@ const makeSession = (connect: Connect, sessionId: string, cwd: string, silence: 
       return true;
     });
 
-  const startTurn = ({ turnId, text, images, setup }: TurnInput) =>
+  /**
+   * Runs one of OpenCode's executions as the turn: `send` puts what starts it in the
+   * session's inbox (a message, or a compaction) and returns its inbox id; the
+   * session's events are mapped until the execution ends.
+   */
+  const execute = (
+    turnId: string,
+    setup: SessionSetup,
+    send: (api: OpenCodeApi, notices: ReadonlyArray<string>) => Effect.Effect<string, OpenCodeError>,
+    compacting: boolean,
+  ) =>
     Stream.callback<ProviderEvent, ProviderError>((queue) =>
       Effect.gen(function* () {
         const api = yield* connect;
@@ -227,10 +237,8 @@ const makeSession = (connect: Connect, sessionId: string, cwd: string, silence: 
         const subscription = yield* api.subscribe;
         const current: RunningTurn = { id: turnId, inboxId: undefined, started: false };
         turn = current;
-        current.inboxId = yield* api
-          .prompt(sessionId, notices.length ? `${text}\n\nApp notices for this turn:\n${notices.join("\n")}` : text, images.map(imageFile))
-          .pipe(Effect.mapError(toProviderError));
-        const mapper = makeTurnMapper(turnId, cwd);
+        current.inboxId = yield* send(api, notices).pipe(Effect.mapError(toProviderError));
+        const mapper = makeTurnMapper(turnId, cwd, { compacting });
         const waiting = new Set<string>();
         /** Checks that found the message still queued and nothing running. */
         let neverStarted = 0;
@@ -310,6 +318,17 @@ const makeSession = (connect: Connect, sessionId: string, cwd: string, silence: 
       }),
     );
 
+  const startTurn = ({ turnId, text, images, setup }: TurnInput) =>
+    execute(
+      turnId,
+      setup,
+      (api, notices) => api.prompt(sessionId, notices.length ? `${text}\n\nApp notices for this turn:\n${notices.join("\n")}` : text, images.map(imageFile)),
+      false,
+    );
+
+  /** OpenCode admits the compaction to the session's inbox and runs it as an execution of its own (checked on 2.2.6). */
+  const compact = ({ turnId, setup }: CompactInput) => execute(turnId, setup, (api) => api.compact(sessionId), true);
+
   /**
    * Stops the turn. Straight after Send, OpenCode may not have started it yet, and
    * its interrupt does nothing then: withdraw the message if it is still queued,
@@ -372,6 +391,7 @@ const makeSession = (connect: Connect, sessionId: string, cwd: string, silence: 
   return {
     nativeSessionId: sessionId,
     startTurn,
+    compact,
     // OpenCode runs inside this server; when it stops, OpenCode cancels the turn and
     // its pending approvals, so there is nothing to resume.
     resumeTurn: () => Effect.succeed(Option.none()),
@@ -418,7 +438,7 @@ export const makeOpenCodeAdapter = (options: OpenCodeAdapterOptions) =>
 
     const adapter: ProviderAdapter = {
       kind: "opencode",
-      capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: true, images: true },
+      capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: true, images: true, compact: true },
       enforcement: enforcedAutonomy,
       openSession: ({ cwd, nativeSessionId, model, setup }) =>
         Effect.gen(function* () {

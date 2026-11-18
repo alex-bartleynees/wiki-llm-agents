@@ -5,6 +5,9 @@ export class ThreadNotFound extends Data.TaggedError("ThreadNotFound")<{ readonl
 /** A turn is already running; one turn at a time per thread. */
 export class ThreadBusy extends Data.TaggedError("ThreadBusy")<{ readonly threadId: string }> {}
 
+/** The thread's conversation can't be compacted: `reason` says why (the provider can't, nothing to compact yet...). */
+export class CompactionUnavailable extends Data.TaggedError("CompactionUnavailable")<{ readonly reason: string }> {}
+
 export class NoTurnRunning extends Data.TaggedError("NoTurnRunning")<{ readonly threadId: string }> {}
 
 export class RequestNotFound extends Data.TaggedError("RequestNotFound")<{ readonly requestId: string }> {}

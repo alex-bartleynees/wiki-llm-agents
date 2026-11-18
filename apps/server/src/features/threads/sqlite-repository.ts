@@ -229,6 +229,9 @@ export const ThreadRepositoryLive = Layer.effect(
                     .where(eq(threads.id, threadId))
                     .run();
                   break;
+                case "compaction.requested":
+                  tx.insert(turns).values({ id: event.turnId, threadId, input: "", kind: "compaction", status: "running", startedAt: when }).run();
+                  break;
                 case "request.opened":
                   tx.insert(runtimeRequests)
                     .values({
@@ -291,7 +294,7 @@ export const ThreadRepositoryLive = Layer.effect(
       recovery: (threadId) =>
         query(() => {
           const turn = db
-            .select({ id: turns.id, input: turns.input, unattended: turns.unattended })
+            .select({ id: turns.id, input: turns.input, kind: turns.kind, unattended: turns.unattended })
             .from(turns)
             .where(and(eq(turns.threadId, threadId), eq(turns.status, "running")))
             .orderBy(desc(turns.startedAt))
@@ -327,6 +330,7 @@ export const ThreadRepositoryLive = Layer.effect(
           const turn: TurnRecord = {
             id: row.id,
             threadId: row.threadId,
+            kind: row.kind,
             status: row.status,
             unattended: row.unattended,
             inputTokens: row.inputTokens,

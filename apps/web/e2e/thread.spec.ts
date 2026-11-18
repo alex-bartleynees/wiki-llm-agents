@@ -156,3 +156,34 @@ test("resumes a draft in an independent browser session", async ({ page, browser
     await device.close();
   }
 });
+
+test("compacts the conversation on request and keeps the outcome after reload", async ({ page }, info) => {
+  await openVault(page);
+  await tab(page, info, "Chat");
+  await useReplay(page);
+  await page.getByRole("button", { name: "New thread", exact: true }).click();
+  const compactButton = page.getByRole("button", { name: "Compact", exact: true });
+  // Nothing to compact before the first turn.
+  await expect(compactButton).toBeDisabled();
+
+  const message = page.getByRole("textbox", { name: "Message" });
+  await message.fill("hello");
+  await message.press("Enter");
+  await expect(page.locator(".turn-end").last()).toHaveText(/^Done/);
+
+  await message.fill("Draft kept while compacting");
+  await compactButton.click();
+  await expect(page.getByText("You asked to compact the conversation")).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Compacting conversation…" })).toBeVisible();
+  await expect(compactButton).toBeDisabled();
+  const outcome = page.getByText("Requested compaction completed · 24K → 6K tokens");
+  await expect(outcome).toBeVisible();
+  await expect(page.locator(".turn-end").last()).toHaveText("Done · 24K in · 900 out");
+  await expect(compactButton).toBeEnabled();
+  await expect(message).toHaveValue("Draft kept while compacting");
+
+  await page.reload();
+  await tab(page, info, "Chat");
+  await expect(outcome).toBeVisible();
+  await expect(page.getByText("You asked to compact the conversation")).toBeVisible();
+});

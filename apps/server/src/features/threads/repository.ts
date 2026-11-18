@@ -27,14 +27,24 @@ export interface PendingRequest {
 /** What a ThreadActor needs to pick up where the last run left off. */
 export interface ThreadRecovery {
   /** The running turn, if any; `dispatched` is false when its `turn.start` outbox row is still there. */
-  readonly openTurn: Option.Option<{ readonly id: string; readonly input: string; readonly dispatched: boolean; readonly unattended: boolean }>;
+  readonly openTurn: Option.Option<{
+    readonly id: string;
+    readonly input: string;
+    readonly kind: TurnKind;
+    readonly dispatched: boolean;
+    readonly unattended: boolean;
+  }>;
   readonly pendingRequests: ReadonlyArray<PendingRequest>;
 }
+
+/** What started a turn: a message, or a compaction you asked for. */
+export type TurnKind = "message" | "compaction";
 
 /** A turn as recorded: its outcome and usage once it has finished. */
 export interface TurnRecord {
   readonly id: string;
   readonly threadId: string;
+  readonly kind: TurnKind;
   readonly status: "running" | TurnOutcome;
   readonly unattended: boolean;
   readonly inputTokens: number | null;

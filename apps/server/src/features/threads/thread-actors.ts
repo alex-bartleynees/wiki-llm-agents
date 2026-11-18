@@ -5,7 +5,7 @@ import { Context, Effect, Layer, RcMap } from "effect";
 import type { ToolCallCheck } from "../mcp/gateway.js";
 import type { AgentNoteWrite } from "../notes/agent-write/use-case.js";
 import type { ThreadBusy } from "./errors.js";
-import { makeThreadActor, type OpenedNote, type ScheduleReceipt, type SendOptions, type ThreadActor } from "./thread-actor.js";
+import { type CompactStarted, makeThreadActor, type OpenedNote, type ScheduleReceipt, type SendOptions, type ThreadActor } from "./thread-actor.js";
 
 /** How long a ThreadActor with nothing running stays in memory after its last use. */
 export const ACTOR_IDLE_TIME = "5 minutes";
@@ -17,6 +17,8 @@ type StartError = Effect.Error<ReturnType<typeof makeThreadActor>>;
 export interface ThreadActorsService {
   readonly sendMessage: (threadId: string, text: string, notes?: ReadonlyArray<ContextNote>, options?: SendOptions) => Effect.Effect<string, StartError | Effect.Error<ReturnType<ThreadActor["sendMessage"]>>>;
   readonly interrupt: (threadId: string) => Effect.Effect<string, StartError | Effect.Error<ThreadActor["interrupt"]>>;
+  /** See `ThreadActor.compact`. */
+  readonly compact: (threadId: string, operationId: string) => Effect.Effect<CompactStarted, StartError | Effect.Error<ReturnType<ThreadActor["compact"]>>>;
   readonly answerRequest: (
     threadId: string,
     requestId: string,
@@ -52,6 +54,7 @@ export const ThreadActorsLive = Layer.effect(
     return ThreadActors.of({
       sendMessage: (threadId, text, notes, options) => withActor(threadId, (actor) => actor.sendMessage(text, notes, options)),
       interrupt: (threadId) => withActor(threadId, (actor) => actor.interrupt),
+      compact: (threadId, operationId) => withActor(threadId, (actor) => actor.compact(operationId)),
       answerRequest: (threadId, requestId, answer) => withActor(threadId, (actor) => actor.answerRequest(requestId, answer)),
       setModel: (threadId, model) => withActor(threadId, (actor) => actor.setModel(model)),
       setAgent: (threadId, agentId) => withActor(threadId, (actor) => actor.setAgent(agentId)),

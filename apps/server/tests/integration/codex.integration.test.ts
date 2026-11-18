@@ -22,7 +22,7 @@ import { CSV_PROMPT, SALES_CSV, SALES_TOTAL } from "../fixtures/csv.js";
 import { RED_SQUARE, sha256 } from "../fixtures/image.js";
 import { mcpSession } from "./infrastructure/mcp.js";
 import { makeTestApp } from "./infrastructure/test-app.js";
-import { answer, decode, getThread, interrupt, isTag, newThread, newVaultWith, sendOk, sendWithOk, setAgent, status, uploadOk } from "./infrastructure/threads.js";
+import { answer, compactOk, decode, getThread, interrupt, isTag, newThread, newVaultWith, sendOk, sendWithOk, setAgent, status, uploadOk } from "./infrastructure/threads.js";
 
 /** The scripted Codex app-server the adapter talks to; tests load a recording into it. */
 class Fake extends Context.Service<Fake, FakeAppServer>()("FakeCodex") {}
@@ -119,7 +119,7 @@ layer(App)("Codex provider", (it) => {
         id: "codex",
         kind: "codex",
         name: "Codex",
-        capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: true, images: true },
+        capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: true, images: true, compact: true },
       });
       const { status: ready } = yield* HttpClient.get("/api/providers/codex/status").pipe(Effect.flatMap(decode(GetProviderStatusResponse)));
       expect(ready).toEqual({ _tag: "ready", version: "0.166.0", account: "you@example.com (plus)" });
@@ -209,6 +209,25 @@ layer(App)("Codex provider", (it) => {
       expect(fake.requests("turn/start")).toHaveLength(2);
       const { events } = yield* getThread(thread.id);
       expect(textOf(events.map((stored) => stored.event)).toLowerCase()).toContain("kiwi");
+    }),
+  );
+
+  it.effect("compacts the same thread with thread/compact/start, reporting the compaction without its unknown cost", () =>
+    Effect.gen(function* () {
+      const { thread, fake, fixture } = yield* setUp("compact");
+      const [first, , last] = fixture.turns;
+      completes(yield* playTurn(thread.id, first!.prompt));
+
+      const compacting = yield* watch(thread.id);
+      const { turnId } = yield* compactOk(thread.id);
+      const seen = yield* compacting.until(isTag("turn.finished"));
+      expect(seen.find((event) => event._tag === "context.compaction")).toEqual({ _tag: "context.compaction", turnId, outcome: "completed", trigger: "manual" });
+      // Codex's usage update for a compaction has no input or output: unknown, not zero.
+      expect(completes(seen).usage).toBeNull();
+      expect(fake.requests("thread/compact/start")).toEqual([{ threadId: expect.any(String) }]);
+
+      expect(textOf(yield* playTurn(thread.id, last!.prompt)).toLowerCase()).toContain("kiwi");
+      expect(fake.launches()).toHaveLength(1);
     }),
   );
 

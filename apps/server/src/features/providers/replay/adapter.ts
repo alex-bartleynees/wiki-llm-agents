@@ -98,6 +98,13 @@ export const receivedText = (text: string, images: ReadonlyArray<TurnImage>): st
   return received.length === 0 ? null : `Replay received: ${received.join("; ")}.`;
 };
 
+/** What replay's Compact conversation reports: after a pause, a compaction from 24K to 6K tokens. */
+export const REPLAY_COMPACTION = {
+  ms: 1500,
+  tokens: { beforeTokens: 24_000, afterTokens: 6_000 },
+  usage: { inputTokens: 24_000, outputTokens: 900, costUsd: null },
+} as const;
+
 /** The transcript for a message: chosen by what you wrote, not by the names of the files listed after it. */
 const transcriptFor = (text: string) => chooseTranscript(text.split(/^Attached files \(/m)[0]!);
 
@@ -254,6 +261,14 @@ const makeSession = (cwd: string) => Effect.gen(function* () {
           ),
         );
       }),
+    compact: ({ turnId }) =>
+      Stream.concat(
+        Stream.unwrap(Effect.as(delay(REPLAY_COMPACTION.ms), Stream.empty)),
+        Stream.fromIterable<ProviderEvent>([
+          { _tag: "context.compaction", turnId, outcome: "completed", trigger: "manual", ...REPLAY_COMPACTION.tokens },
+          { _tag: "turn.finished", turnId, outcome: "completed", usage: REPLAY_COMPACTION.usage, reason: null },
+        ]),
+      ),
     interrupt: () => Effect.void,
     answerRequest: (requestId, answer) => Effect.flatMap(answerFor(requestId), (deferred) => Deferred.succeed(deferred, answer)),
     setModel: () => Effect.void,
@@ -269,7 +284,7 @@ const makeSession = (cwd: string) => Effect.gen(function* () {
  */
 export const ReplayAdapter: ProviderAdapter = {
   kind: "replay",
-  capabilities: { interrupt: true, resume: true, approvals: true, questions: true, models: false, images: true },
+  capabilities: { interrupt: true, resume: true, approvals: true, questions: true, models: false, images: true, compact: true },
   openSession: ({ cwd }) => makeSession(cwd),
   enforcement: () => ({
     autonomy: null,

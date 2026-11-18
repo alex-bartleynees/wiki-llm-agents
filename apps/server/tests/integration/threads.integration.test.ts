@@ -53,7 +53,7 @@ layer(TestApp)("threads", (it) => {
     Effect.gen(function* () {
       const { providers } = yield* HttpClient.get("/api/providers").pipe(Effect.flatMap(decode(ListProvidersResponse)));
       expect(providers).toEqual([
-        expect.objectContaining({ id: "replay", kind: "replay", capabilities: { interrupt: true, resume: true, approvals: true, questions: true, models: false, images: true } }),
+        expect.objectContaining({ id: "replay", kind: "replay", capabilities: { interrupt: true, resume: true, approvals: true, questions: true, models: false, images: true, compact: true } }),
       ]);
     }),
   );

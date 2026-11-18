@@ -1,0 +1,420 @@
+{
+  "scenario": "compact",
+  "codexVersion": "0.167.1",
+  "model": "gpt-5.6-luna",
+  "autonomy": {
+    "read": "allow",
+    "create": "ask",
+    "edit": "ask",
+    "commands": "ask",
+    "web": "ask",
+    "tools": "ask"
+  },
+  "turns": [
+    {
+      "prompt": "Remember the word 'kiwi'. Reply with just OK.",
+      "steps": [
+        {
+          "message": {
+            "method": "turn/started",
+            "params": {
+              "threadId": "__thread__",
+              "turn": {
+                "id": "01a1ee15-a4c7-7c80-8945-e1b79da1394a",
+                "rootTurnId": "01a1ee15-a4c7-7c80-8945-e1b79da1394a",
+                "items": [],
+                "itemsView": "notLoaded",
+                "status": "inProgress",
+                "error": null,
+                "startedAt": 1794995758,
+                "completedAt": null,
+                "durationMs": null
+              }
+            },
+            "emittedAtMs": 1794995758306
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "id": "msg_0fb917d3fb8e0956016afd7630e7e487d0a488eafa47253cb0",
+                "text": "",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1794995761071,
+                "completedAtMs": null
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1ee15-a4c7-7c80-8945-e1b79da1394a",
+              "startedAtMs": 1794995761071
+            },
+            "emittedAtMs": 1794995761071
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1ee15-a4c7-7c80-8945-e1b79da1394a",
+              "itemId": "msg_0fb917d3fb8e0956016afd7630e7e487d0a488eafa47253cb0",
+              "delta": "OK"
+            },
+            "emittedAtMs": 1794995761071
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "id": "msg_0fb917d3fb8e0956016afd7630e7e487d0a488eafa47253cb0",
+                "text": "OK",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1794995761071,
+                "completedAtMs": 1794995761071
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1ee15-a4c7-7c80-8945-e1b79da1394a",
+              "completedAtMs": 1794995761071
+            },
+            "emittedAtMs": 1794995761073
+          }
+        },
+        {
+          "message": {
+            "method": "thread/tokenUsage/updated",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1ee15-a4c7-7c80-8945-e1b79da1394a",
+              "tokenUsage": {
+                "total": {
+                  "totalTokens": 15377,
+                  "inputTokens": 15372,
+                  "cachedInputTokens": 0,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 5,
+                  "reasoningOutputTokens": 0
+                },
+                "last": {
+                  "totalTokens": 15377,
+                  "inputTokens": 15372,
+                  "cachedInputTokens": 0,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 5,
+                  "reasoningOutputTokens": 0
+                },
+                "modelContextWindow": 258400
+              }
+            },
+            "emittedAtMs": 1794995761087
+          }
+        },
+        {
+          "message": {
+            "method": "turn/completed",
+            "params": {
+              "threadId": "__thread__",
+              "turn": {
+                "id": "01a1ee15-a4c7-7c80-8945-e1b79da1394a",
+                "rootTurnId": "01a1ee15-a4c7-7c80-8945-e1b79da1394a",
+                "items": [
+                  {
+                    "type": "agentMessage",
+                    "id": "msg_0fb917d3fb8e0956016afd7630e7e487d0a488eafa47253cb0",
+                    "text": "OK",
+                    "phase": "final_answer",
+                    "memoryCitation": null,
+                    "delivery": null,
+                    "questions": null,
+                    "startedAtMs": 1794995761071,
+                    "completedAtMs": 1794995761071
+                  }
+                ],
+                "itemsView": "summary",
+                "status": "completed",
+                "error": null,
+                "startedAt": 1794995758,
+                "completedAt": 1794995761,
+                "durationMs": 2806
+              }
+            },
+            "emittedAtMs": 1794995761095
+          }
+        }
+      ]
+    },
+    {
+      "prompt": "",
+      "compact": true,
+      "steps": [
+        {
+          "message": {
+            "method": "turn/started",
+            "params": {
+              "threadId": "__thread__",
+              "turn": {
+                "id": "01a1ee15-afcc-7751-856a-d270ea077b3a",
+                "rootTurnId": "01a1ee15-afcc-7751-856a-d270ea077b3a",
+                "items": [],
+                "itemsView": "notLoaded",
+                "status": "inProgress",
+                "error": null,
+                "startedAt": 1794995761,
+                "completedAt": null,
+                "durationMs": null
+              }
+            },
+            "emittedAtMs": 1794995761106
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "contextCompaction",
+                "id": "01a1ee15-afe0-71a0-9871-1335ac4efbcb",
+                "startedAtMs": 1794995761120,
+                "completedAtMs": null
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1ee15-afcc-7751-856a-d270ea077b3a",
+              "startedAtMs": 1794995761120
+            },
+            "emittedAtMs": 1794995761121
+          }
+        },
+        {
+          "message": {
+            "method": "thread/tokenUsage/updated",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1ee15-afcc-7751-856a-d270ea077b3a",
+              "tokenUsage": {
+                "total": {
+                  "totalTokens": 15377,
+                  "inputTokens": 15372,
+                  "cachedInputTokens": 0,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 5,
+                  "reasoningOutputTokens": 0
+                },
+                "last": {
+                  "totalTokens": 17519,
+                  "inputTokens": 0,
+                  "cachedInputTokens": 0,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 0,
+                  "reasoningOutputTokens": 0
+                },
+                "modelContextWindow": 258400
+              }
+            },
+            "emittedAtMs": 1794995763338
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "contextCompaction",
+                "id": "01a1ee15-afe0-71a0-9871-1335ac4efbcb",
+                "startedAtMs": 1794995761120,
+                "completedAtMs": 1794995763338
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1ee15-afcc-7751-856a-d270ea077b3a",
+              "completedAtMs": 1794995763338
+            },
+            "emittedAtMs": 1794995763339
+          }
+        },
+        {
+          "message": {
+            "method": "turn/completed",
+            "params": {
+              "threadId": "__thread__",
+              "turn": {
+                "id": "01a1ee15-afcc-7751-856a-d270ea077b3a",
+                "rootTurnId": "01a1ee15-afcc-7751-856a-d270ea077b3a",
+                "items": [],
+                "itemsView": "notLoaded",
+                "status": "completed",
+                "error": null,
+                "startedAt": 1794995761,
+                "completedAt": 1794995763,
+                "durationMs": 2240
+              }
+            },
+            "emittedAtMs": 1794995763347
+          }
+        }
+      ]
+    },
+    {
+      "prompt": "Which word did I ask you to remember? Reply with just the word.",
+      "steps": [
+        {
+          "message": {
+            "method": "turn/started",
+            "params": {
+              "threadId": "__thread__",
+              "turn": {
+                "id": "01a1ee15-b898-71a1-af50-e8e8b33ab612",
+                "rootTurnId": "01a1ee15-b898-71a1-af50-e8e8b33ab612",
+                "items": [],
+                "itemsView": "notLoaded",
+                "status": "inProgress",
+                "error": null,
+                "startedAt": 1794995763,
+                "completedAt": null,
+                "durationMs": null
+              }
+            },
+            "emittedAtMs": 1794995763359
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "id": "msg_0fb917d3fb8e0956016afd763460a087d0b1892a34a25e997a",
+                "text": "",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1794995764524,
+                "completedAtMs": null
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1ee15-b898-71a1-af50-e8e8b33ab612",
+              "startedAtMs": 1794995764524
+            },
+            "emittedAtMs": 1794995764524
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1ee15-b898-71a1-af50-e8e8b33ab612",
+              "itemId": "msg_0fb917d3fb8e0956016afd763460a087d0b1892a34a25e997a",
+              "delta": "ki"
+            },
+            "emittedAtMs": 1794995764524
+          }
+        },
+        {
+          "message": {
+            "method": "item/agentMessage/delta",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1ee15-b898-71a1-af50-e8e8b33ab612",
+              "itemId": "msg_0fb917d3fb8e0956016afd763460a087d0b1892a34a25e997a",
+              "delta": "wi"
+            },
+            "emittedAtMs": 1794995764524
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "id": "msg_0fb917d3fb8e0956016afd763460a087d0b1892a34a25e997a",
+                "text": "kiwi",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1794995764524,
+                "completedAtMs": 1794995764717
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1ee15-b898-71a1-af50-e8e8b33ab612",
+              "completedAtMs": 1794995764717
+            },
+            "emittedAtMs": 1794995764718
+          }
+        },
+        {
+          "message": {
+            "method": "thread/tokenUsage/updated",
+            "params": {
+              "threadId": "__thread__",
+              "turnId": "01a1ee15-b898-71a1-af50-e8e8b33ab612",
+              "tokenUsage": {
+                "total": {
+                  "totalTokens": 30835,
+                  "inputTokens": 30824,
+                  "cachedInputTokens": 15232,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 11,
+                  "reasoningOutputTokens": 0
+                },
+                "last": {
+                  "totalTokens": 15458,
+                  "inputTokens": 15452,
+                  "cachedInputTokens": 15232,
+                  "cacheWriteInputTokens": 0,
+                  "outputTokens": 6,
+                  "reasoningOutputTokens": 0
+                },
+                "modelContextWindow": 258400
+              }
+            },
+            "emittedAtMs": 1794995764722
+          }
+        },
+        {
+          "message": {
+            "method": "turn/completed",
+            "params": {
+              "threadId": "__thread__",
+              "turn": {
+                "id": "01a1ee15-b898-71a1-af50-e8e8b33ab612",
+                "rootTurnId": "01a1ee15-b898-71a1-af50-e8e8b33ab612",
+                "items": [
+                  {
+                    "type": "agentMessage",
+                    "id": "msg_0fb917d3fb8e0956016afd763460a087d0b1892a34a25e997a",
+                    "text": "kiwi",
+                    "phase": "final_answer",
+                    "memoryCitation": null,
+                    "delivery": null,
+                    "questions": null,
+                    "startedAtMs": 1794995764524,
+                    "completedAtMs": 1794995764717
+                  }
+                ],
+                "itemsView": "summary",
+                "status": "completed",
+                "error": null,
+                "startedAt": 1794995763,
+                "completedAt": 1794995764,
+                "durationMs": 1367
+              }
+            },
+            "emittedAtMs": 1794995764725
+          }
+        }
+      ]
+    }
+  ]
+}

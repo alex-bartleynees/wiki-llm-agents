@@ -50,8 +50,13 @@ export const turns = sqliteTable(
   {
     id: text("id").primaryKey(),
     threadId: text("thread_id").notNull(),
-    /** The message that started the turn, so a restarted turn can be resumed. */
+    /** The message that started the turn, so a restarted turn can be resumed; empty for a compaction. */
     input: text("input").notNull(),
+    /**
+     * `message`: you sent a message. `compaction`: you asked the provider to compact the
+     * conversation; a restart never starts or continues one (it costs usage).
+     */
+    kind: text("kind", { enum: ["message", "compaction"] }).notNull().default("message"),
     status: text("status", { enum: ["running", "completed", "interrupted", "failed"] }).notNull(),
     /** Sent by a schedule with nobody watching: requests are denied instead of waiting. */
     unattended: integer("unattended", { mode: "boolean" }).notNull().default(false),
