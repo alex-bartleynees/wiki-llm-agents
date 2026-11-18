@@ -1,5 +1,5 @@
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Config } from "effect";
 import { DEFAULT_PROTECTED_PATHS } from "./secret-paths.js";
@@ -8,16 +8,18 @@ const xdgDataHome = process.env.XDG_DATA_HOME ?? join(homedir(), ".local", "shar
 const xdgConfigHome = process.env.XDG_CONFIG_HOME ?? join(homedir(), ".config");
 const xdgStateHome = process.env.XDG_STATE_HOME ?? join(homedir(), ".local", "state");
 
+/** A path as an absolute one, a relative one taken from the working directory. */
+const absolute = (path: string) => resolve(path);
+
 /** Process configuration. Every value has a default so `wiki-agents` starts with no setup. */
 export const AppConfig = {
   /** Loopback only; remote access comes later with authentication. */
   host: Config.String("WIKI_AGENTS_HOST").pipe(Config.withDefault("127.0.0.1")),
   port: Config.Port("WIKI_AGENTS_PORT").pipe(Config.withDefault(4317)),
-  dataDir: Config.String("WIKI_AGENTS_DATA_DIR").pipe(
-    Config.withDefault(join(xdgDataHome, "wiki-agents")),
-  ),
+  /** Absolute (a relative one, as `npm run dev` gives, is taken from the working directory): providers refuse relative paths. */
+  dataDir: Config.String("WIKI_AGENTS_DATA_DIR").pipe(Config.withDefault(join(xdgDataHome, "wiki-agents")), Config.map(absolute)),
   /** Rules and agent definitions (`rules/*.md`, `agents/*.md`), seeded on first start. */
-  configDir: Config.String("WIKI_AGENTS_CONFIG_DIR").pipe(Config.withDefault(join(xdgConfigHome, "wiki-agents"))),
+  configDir: Config.String("WIKI_AGENTS_CONFIG_DIR").pipe(Config.withDefault(join(xdgConfigHome, "wiki-agents")), Config.map(absolute)),
   /** Built web app to serve. Unset in development, where Vite serves the UI. */
   staticDir: Config.option(Config.String("WIKI_AGENTS_STATIC_DIR")),
   /**
@@ -71,7 +73,7 @@ export const AppConfig = {
    */
   secretsKey: Config.Literals(["auto", "systemd-creds", "file"], "WIKI_AGENTS_SECRETS_KEY").pipe(Config.withDefault("auto" as const)),
   /** The key file; the systemd-encrypted key is kept beside it as `<file>.cred`. Keep it out of the data directory. */
-  secretsKeyFile: Config.String("WIKI_AGENTS_SECRETS_KEY_FILE").pipe(Config.withDefault(join(xdgStateHome, "wiki-agents", "secrets.key"))),
+  secretsKeyFile: Config.String("WIKI_AGENTS_SECRETS_KEY_FILE").pipe(Config.withDefault(join(xdgStateHome, "wiki-agents", "secrets.key")), Config.map(absolute)),
   /** The timezone a new schedule's times are in unless it says otherwise (IANA name). */
   timezone: Config.String("WIKI_AGENTS_TIMEZONE").pipe(Config.withDefault("Pacific/Auckland")),
   /**
