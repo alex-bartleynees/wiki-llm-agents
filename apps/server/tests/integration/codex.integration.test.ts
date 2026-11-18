@@ -282,6 +282,18 @@ layer(App)("Codex provider", (it) => {
     }),
   );
 
+  it.effect("accepts Codex's own confirmation of a call to the app's MCP server without asking, as the server asks itself", () =>
+    Effect.gen(function* () {
+      const { thread, fake, prompts } = yield* setUp("mcp-confirmation");
+      const events = yield* watch(thread.id);
+      yield* sendOk(thread.id, prompts[0]!);
+      const seen = yield* events.until(isTag("turn.finished"));
+      completes(seen);
+      expect(seen.filter(isTag("request.opened"))).toEqual([]);
+      expect(responses(fake)).toEqual([{ action: "accept", content: {}, _meta: null }]);
+    }),
+  );
+
   it.effect("declines a patch you deny, says so in the step, and the turn carries on", () =>
     Effect.gen(function* () {
       const { thread, fake, prompts } = yield* setUp("approval-denied");

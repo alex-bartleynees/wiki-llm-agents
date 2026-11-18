@@ -11,7 +11,7 @@ import type { OpenCodeApi, OpenCodeError, OpenCodeEvent, OpenCodeFile, OpenCodeP
 import { formAnswer, makeTurnMapper, sessionOf } from "./events.js";
 import { instructionsText, MAX_INSTRUCTIONS_BYTES } from "./instructions.js";
 import { commandNamesProtected, reachesProtected } from "../../../shared/secret-paths.js";
-import { enforcedAutonomy, FILE_ACTIONS, permissionRules } from "./permissions.js";
+import { enforcedAutonomy, FILE_ACTIONS, permissionRules, SEARCH_ACTIONS } from "./permissions.js";
 import { CLIENT_VERSION, isSupportedVersion } from "./server.js";
 
 /**
@@ -154,16 +154,11 @@ const makeSession = (connect: Connect, sessionId: string, cwd: string, silence: 
     }).pipe(Effect.mapError((error) => (error instanceof ProviderError ? error : toProviderError(error))));
 
   /**
-   * OpenCode asks before the agent reaches outside the session's folder (the main
-   * working directory). In a project thread, the project's other working directories
-   * and the shared vault belong to it: allow those once, and the action itself then
-   * follows the agent's autonomy like any other. Anywhere else goes to you. True when
-   * answered here.
-   */
-  /**
    * Refuses a request that reaches a file holding secrets, whatever the rules let
-   * through: a file action or folder (`external_directory`, so a folder holding one
-   * counts) on one, or a command naming one. True when answered here.
+   * through: a file action on one (for a search, a folder holding one counts), a
+   * folder (`external_directory`) inside one, or a command naming one. A folder that
+   * merely holds one is allowed: the file actions in it are still checked. True when
+   * answered here.
    */
   const refuseSecret = (api: OpenCodeApi, setup: SessionSetup, request: { readonly id: string; readonly action: string; readonly resources: ReadonlyArray<string> }) =>
     Effect.gen(function* () {
@@ -171,13 +166,20 @@ const makeSession = (connect: Connect, sessionId: string, cwd: string, silence: 
         request.action === "shell"
           ? request.resources.some((command) => commandNamesProtected(setup.protectedPaths, command))
           : request.action === "external_directory" || FILE_ACTIONS.includes(request.action)
-            ? yield* reachesProtected(setup.protectedPaths, cwd, request.resources, { searches: true }).pipe(Effect.provideService(FileSystem.FileSystem, fs))
+            ? yield* reachesProtected(setup.protectedPaths, cwd, request.resources, { searches: SEARCH_ACTIONS.includes(request.action) }).pipe(Effect.provideService(FileSystem.FileSystem, fs))
             : false;
       if (!reaches) return false;
       yield* api.replyPermission(sessionId, request.id, "reject", SECRET_DENIED).pipe(Effect.mapError(toProviderError));
       return true;
     });
 
+  /**
+   * OpenCode asks before the agent reaches outside the session's folder (the main
+   * working directory). In a project thread, the project's other working directories
+   * and the shared vault belong to it: allow those once, and the action itself then
+   * follows the agent's autonomy like any other. Anywhere else goes to you. True when
+   * answered here.
+   */
   const answerInProject = (api: OpenCodeApi, setup: SessionSetup, request: { readonly id: string; readonly action: string; readonly resources: ReadonlyArray<string> }) =>
     Effect.gen(function* () {
       if (setup.projectRoots === null || request.action !== "external_directory") return false;

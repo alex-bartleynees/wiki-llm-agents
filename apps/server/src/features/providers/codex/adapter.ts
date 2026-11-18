@@ -349,6 +349,12 @@ export const makeCodexAdapter = (options: CodexAdapterOptions) =>
                 }
                 case "mcpServer/elicitation/request": {
                   const params = request.params as ElicitationParams;
+                  // Codex confirms MCP tool calls itself; the app's own server decides each of its
+                  // calls (vault writes, other servers' tools), so asking here would ask twice.
+                  if (params.serverName === VAULT_SERVER && isConfirmation(params)) {
+                    current.rpc.respond(request.id, { action: "accept", content: {}, _meta: null });
+                    return [];
+                  }
                   if (isConfirmation(params)) return yield* ask({ kind: "elicitation", id: request.id }, elicitationPrompt(params));
                   current.rpc.respond(request.id, { action: "decline", content: null, _meta: null });
                   return turn === undefined ? [] : [{ _tag: "notice", turnId: turn.id, text: `${params.serverName} asked for input the app can't show, so it was declined: ${params.message}` }];

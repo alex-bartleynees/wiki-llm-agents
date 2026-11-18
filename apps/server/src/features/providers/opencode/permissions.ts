@@ -19,6 +19,9 @@ export const ACTIONS = {
 /** Actions that read or write files: their resources are paths. */
 export const FILE_ACTIONS: ReadonlyArray<string> = [...ACTIONS.read, ...ACTIONS.edit];
 
+/** Actions that search a folder: one holding a protected path reaches it. */
+export const SEARCH_ACTIONS: ReadonlyArray<string> = ["glob", "grep", "list"];
+
 /** Tools that change nothing and only talk to you or plan: always allowed. */
 export const HARMLESS_ACTIONS = ["question", "todowrite", "todo", "skill"] as const;
 
