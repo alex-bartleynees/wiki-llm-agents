@@ -2,6 +2,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Config } from "effect";
+import { DEFAULT_PROTECTED_PATHS } from "./secret-paths.js";
 
 const xdgDataHome = process.env.XDG_DATA_HOME ?? join(homedir(), ".local", "share");
 const xdgConfigHome = process.env.XDG_CONFIG_HOME ?? join(homedir(), ".config");
@@ -50,6 +51,13 @@ export const AppConfig = {
    * connects and stores nothing.
    */
   secretFiles: Config.String("WIKI_AGENTS_SECRET_FILES").pipe(Config.withDefault("")),
+  /**
+   * More of what no agent may read or change, whatever its autonomy, on top of the
+   * secrets: entries separated by commas or new lines, each a path (`/…` or `~/…`, a
+   * file or a folder), a name pattern matched in any folder (`.env.*`), or an exception
+   * to one (`!.env.example`). Empty for none.
+   */
+  protectedPaths: Config.String("WIKI_AGENTS_PROTECTED_PATHS").pipe(Config.withDefault(DEFAULT_PROTECTED_PATHS)),
   /**
    * What protects the key of the secrets entered in Settings: `systemd-creds` (encrypted
    * by systemd for this user and machine), `file` (a key file only you can read), or

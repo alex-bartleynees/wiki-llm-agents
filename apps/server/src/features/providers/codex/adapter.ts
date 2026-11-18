@@ -31,6 +31,7 @@ import {
 } from "./events.js";
 import { developerInstructions, findGitRoot } from "./instructions.js";
 import { APPROVAL_POLICY, autonomyConfig, decideCommand, decideFileChange, enforcedAutonomy, permissionsReachProtected, SANDBOX } from "./permissions.js";
+import { isUnprotected } from "../../../shared/secret-paths.js";
 import type {
   CommandApprovalParams,
   ElicitationParams,
@@ -258,7 +259,7 @@ export const makeCodexAdapter = (options: CodexAdapterOptions) =>
               const instructions = developerInstructions(setup.instructions, realCwd, gitRoot);
               const tools = setup.vaultTools;
               const config = {
-                ...autonomyConfig(setup.autonomy, setup.protectedPaths),
+                ...autonomyConfig(setup.autonomy, setup.protection, [cwd, realCwd, ...(setup.projectRoots ?? [])]),
                 ...(tools === null ? {} : { [`mcp_servers.${VAULT_SERVER}`]: { url: tools.url, bearer_token_env_var: TOKEN_ENV } }),
               };
               const key = JSON.stringify([instructions, config, tools?.token ?? null, tools?.revision ?? null]);
@@ -281,7 +282,7 @@ export const makeCodexAdapter = (options: CodexAdapterOptions) =>
                 ...(model === null ? {} : { model }),
                 approvalPolicy: APPROVAL_POLICY,
                 // The permission profile replaces the sandbox mode; sent together, the mode wins (Codex 0.167.1).
-                ...(setup.protectedPaths.length === 0 ? { sandbox: SANDBOX } : {}),
+                ...(isUnprotected(setup.protection) ? { sandbox: SANDBOX } : {}),
                 config,
                 developerInstructions: instructions,
               };
@@ -326,17 +327,17 @@ export const makeCodexAdapter = (options: CodexAdapterOptions) =>
               switch (request.method) {
                 case "item/commandExecution/requestApproval": {
                   const params = request.params as CommandApprovalParams;
-                  return yield* decide(decideCommand(setup.autonomy, setup.protectedPaths, params.command ?? ""), { kind: "command", id: request.id, itemId: params.itemId }, Effect.sync(() => commandPrompt(params, cwd)));
+                  return yield* decide(decideCommand(setup.autonomy, setup.protection, params.command ?? ""), { kind: "command", id: request.id, itemId: params.itemId }, Effect.sync(() => commandPrompt(params, cwd)));
                 }
                 case "item/fileChange/requestApproval": {
                   const params = request.params as FileChangeApprovalParams;
                   const changes = mapperOf(current)?.fileChange(params.itemId) ?? [];
-                  const level = yield* withFs(decideFileChange({ autonomy: setup.autonomy, roots: setup.projectRoots ?? [realCwd], cwd, changes, protectedPaths: setup.protectedPaths }));
+                  const level = yield* withFs(decideFileChange({ autonomy: setup.autonomy, roots: setup.projectRoots ?? [realCwd], cwd, changes, protection: setup.protection }));
                   return yield* decide(level, { kind: "fileChange", id: request.id, itemId: params.itemId }, withFs(fileChangePrompt(changes, cwd, params.reason)));
                 }
                 case "item/permissions/requestApproval": {
                   const params = request.params as PermissionsApprovalParams;
-                  if (permissionsReachProtected(setup.protectedPaths, params.permissions)) {
+                  if (permissionsReachProtected(setup.protection, params.permissions)) {
                     // Nothing granted: the access asked for would reach a file holding secrets.
                     current.rpc.respond(request.id, { permissions: {}, scope: "turn" });
                     return [];

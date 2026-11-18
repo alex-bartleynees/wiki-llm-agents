@@ -798,6 +798,32 @@ each, never a value. **Replace** starts from an empty field.
   Outside Codex this is a best effort for commands: one that reaches a file without
   naming it (`cd` first, a glob, a variable) isn't caught. Real isolation needs a
   sandbox that denies the read, or a separate OS user.
+- **Extra protected paths and `.env` files:** `WIKI_AGENTS_PROTECTED_PATHS`
+  (home-manager `protectedPaths`) adds to that list, entries separated by commas: a
+  path (`/…` or `~/…`, a file or a folder), a name pattern matched in any folder
+  (`*.pem`; `*` and `?` as wildcards, no `/`), or `!` and a name for an exception. The
+  default is `.env, .env.*, !.env.example`: every `.env` and `.env.local`,
+  `.env.production`… but not `.env.example`. Set it empty to protect nothing extra.
+  They're denied the same way, with these differences:
+  - Codex: each name pattern is a deny glob below the working folder and a project's
+    other directories (`<root>/**/.env`); an exception is cut out of the pattern, as
+    Codex globs can only deny (`.env.`, `.env.[!e]*`, … `.env.example?*`). Codex lists
+    a glob's matches as each command starts, so a `.env` made mid-session is denied
+    from the next command on, but not to a process already running (a dev server). A
+    `.env` outside those folders is denied only to the app's own checks (patches,
+    commands outside the sandbox).
+  - Claude Code: the hook denies file tools on a matching file or anything in a
+    matching folder, and commands naming one, also through a shell glob (`cat .env*`,
+    `.*`). A search of a folder that might hold one follows `read`.
+  - OpenCode: its rules can't say "`.env.*` but not `.env.example`", so anything that
+    might name one (`*.env*`) asks, and the app answers: refused when it reaches a
+    protected name, otherwise as the agent's rules would have (`.env.example` read
+    without asking when reading is allowed).
+
+  This stops accidental reads (`cat .env`, reading it to "check the config"), not an
+  agent set on the values: `source .env` is caught, but a dev server or test runner
+  that loads `.env` itself isn't. For that, keep the real `.env` where the agent's user
+  can't read it.
 
 API: `GET /api/secrets`, `PUT /api/secrets/:name` (`{ value, expiresAt }`) and
 `DELETE /api/secrets/:name`.
@@ -976,6 +1002,7 @@ design/             Claude Design mockup
 | `WIKI_AGENTS_PROVIDER_ENV_PASS` | unset; variables passed to the providers anyway, over the list above and the `WIKI_AGENTS_*` rule (same form) |
 | `WIKI_AGENTS_CONFIG_DIR` | `$XDG_CONFIG_HOME/wiki-agents` (rules and agents) |
 | `WIKI_AGENTS_SECRET_FILES` | unset; secrets kept as files outside the app, `name=/path` entries separated by commas (`github=/run/secrets/github`), each usable as `${secret:name}` |
+| `WIKI_AGENTS_PROTECTED_PATHS` | `.env, .env.*, !.env.example`; more that no agent may read or change: paths (`/…`, `~/…`), name patterns matched in any folder, `!` exceptions, separated by commas. Empty protects nothing extra |
 | `WIKI_AGENTS_SECRETS_KEY` | `auto`; what protects the stored secrets' key: `systemd-creds`, `file`, or `auto` for the first that works. Applies when the first secret is stored |
 | `WIKI_AGENTS_SECRETS_KEY_FILE` | `$XDG_STATE_HOME/wiki-agents/secrets.key` (the systemd-encrypted key beside it as `secrets.key.cred`); keep it out of the data directory |
 | `WIKI_AGENTS_TIMEZONE` | `Pacific/Auckland`: the timezone new schedules use unless they say otherwise |
@@ -1019,7 +1046,8 @@ package; default: `opencode` from your user profile, which must be 2.2.x), `open
 (a package; default: `codex` from your user profile, 0.166 or later),
 `environment`, `providerEnv.withhold` and `providerEnv.pass` (lists; set
 `WIKI_AGENTS_PROVIDER_ENV_WITHHOLD` and `_PASS`), `secretFiles` (name → file; sets
-`WIKI_AGENTS_SECRET_FILES`), `secretsKey` (`auto`, `systemd-creds` or `file`),
+`WIKI_AGENTS_SECRET_FILES`), `protectedPaths` (a list; default `.env`, `.env.*`,
+`!.env.example`; sets `WIKI_AGENTS_PROTECTED_PATHS`), `secretsKey` (`auto`, `systemd-creds` or `file`),
 `enableLinger` and `desktopEntry`
 (default off). `nix flake check`
 builds a home-manager configuration with the module (`checks.hm-module`).

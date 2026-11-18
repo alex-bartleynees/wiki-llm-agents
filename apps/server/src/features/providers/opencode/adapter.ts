@@ -11,7 +11,7 @@ import type { OpenCodeApi, OpenCodeError, OpenCodeEvent, OpenCodeFile, OpenCodeP
 import { formAnswer, makeTurnMapper, sessionOf } from "./events.js";
 import { instructionsText, MAX_INSTRUCTIONS_BYTES } from "./instructions.js";
 import { commandNamesProtected, reachesProtected } from "../../../shared/secret-paths.js";
-import { enforcedAutonomy, FILE_ACTIONS, permissionRules, SEARCH_ACTIONS } from "./permissions.js";
+import { enforcedAutonomy, FILE_ACTIONS, levelBehindNameCheck, permissionRules, SEARCH_ACTIONS } from "./permissions.js";
 import { CLIENT_VERSION, isSupportedVersion } from "./server.js";
 
 /**
@@ -33,6 +33,9 @@ export interface OpenCodeAdapterOptions {
 }
 
 const toProviderError = (error: OpenCodeError) => new ProviderError({ message: error.message, cause: error });
+
+/** OpenCode no longer has the request: it was settled already (the turn ended, or OpenCode settled it with another). */
+const alreadySettled = (error: OpenCodeError) => (error.cause as { readonly _tag?: unknown } | undefined)?._tag === "PermissionNotFoundError";
 
 const END_EVENTS = new Set<string>(["session.execution.succeeded", "session.execution.failed", "session.execution.interrupted"]);
 
@@ -89,7 +92,7 @@ interface Applied {
 }
 
 const sessionRules = (setup: SessionSetup) =>
-  permissionRules(setup.autonomy, setup.vaultTools === null ? null : revisedEntryName(setup.vaultTools), setup.attachmentFolders, setup.protectedPaths);
+  permissionRules(setup.autonomy, setup.vaultTools === null ? null : revisedEntryName(setup.vaultTools), setup.attachmentFolders, setup.protection);
 const rulesKey = (setup: SessionSetup) => JSON.stringify(sessionRules(setup));
 
 export { vaultToolsUnavailable } from "../port.js";
@@ -154,7 +157,18 @@ const makeSession = (connect: Connect, sessionId: string, cwd: string, silence: 
     }).pipe(Effect.mapError((error) => (error instanceof ProviderError ? error : toProviderError(error))));
 
   /**
-   * Refuses a request that reaches a file holding secrets, whatever the rules let
+   * Answers a request on the app's own authority. One OpenCode no longer has is left
+   * be rather than failing the turn: seen live when the model asked for several files
+   * at once and one was refused.
+   */
+  const answerItself = (api: OpenCodeApi, requestId: string, reply: "once" | "reject", message?: string) =>
+    api.replyPermission(sessionId, requestId, reply, message).pipe(
+      Effect.catchIf(alreadySettled, () => Effect.void),
+      Effect.mapError(toProviderError),
+    );
+
+  /**
+   * Refuses a request that reaches a protected file, whatever the rules let
    * through: a file action on one (for a search, a folder holding one counts), a
    * folder (`external_directory`) inside one, or a command naming one. A folder that
    * merely holds one is allowed: the file actions in it are still checked. True when
@@ -164,12 +178,26 @@ const makeSession = (connect: Connect, sessionId: string, cwd: string, silence: 
     Effect.gen(function* () {
       const reaches =
         request.action === "shell"
-          ? request.resources.some((command) => commandNamesProtected(setup.protectedPaths, command))
+          ? request.resources.some((command) => commandNamesProtected(setup.protection, command))
           : request.action === "external_directory" || FILE_ACTIONS.includes(request.action)
-            ? yield* reachesProtected(setup.protectedPaths, cwd, request.resources, { searches: SEARCH_ACTIONS.includes(request.action) }).pipe(Effect.provideService(FileSystem.FileSystem, fs))
+            ? yield* reachesProtected(setup.protection, cwd, request.resources, { searches: SEARCH_ACTIONS.includes(request.action) }).pipe(Effect.provideService(FileSystem.FileSystem, fs))
             : false;
       if (!reaches) return false;
-      yield* api.replyPermission(sessionId, request.id, "reject", SECRET_DENIED).pipe(Effect.mapError(toProviderError));
+      yield* answerItself(api, request.id, "reject", SECRET_DENIED);
+      return true;
+    });
+
+  /**
+   * Answers a request OpenCode asked only because it might reach a protected name
+   * (see `nameCheckRules`) and that `refuseSecret` let through: as the agent's rules
+   * would have without the check. True when answered here; a request those rules ask
+   * about goes on as usual.
+   */
+  const answerNameCheck = (api: OpenCodeApi, setup: SessionSetup, request: { readonly id: string; readonly action: string; readonly resources: ReadonlyArray<string> }) =>
+    Effect.gen(function* () {
+      const level = levelBehindNameCheck(sessionRules(setup), setup.protection, request.action, request.resources);
+      if (level === null || level === "ask") return false;
+      yield* (level === "allow" ? answerItself(api, request.id, "once") : answerItself(api, request.id, "reject", DENIED));
       return true;
     });
 
@@ -185,7 +213,7 @@ const makeSession = (connect: Connect, sessionId: string, cwd: string, silence: 
       if (setup.projectRoots === null || request.action !== "external_directory") return false;
       const inside = yield* pathsWithinRoots(setup.projectRoots, cwd, request.resources).pipe(Effect.provideService(FileSystem.FileSystem, fs));
       if (!inside) return false;
-      yield* api.replyPermission(sessionId, request.id, "once").pipe(Effect.mapError(toProviderError));
+      yield* answerItself(api, request.id, "once");
       return true;
     });
 
@@ -254,6 +282,7 @@ const makeSession = (connect: Connect, sessionId: string, cwd: string, silence: 
               break;
             case "permission.asked":
               if (yield* refuseSecret(api, setup, event.data)) continue;
+              if (yield* answerNameCheck(api, setup, event.data)) continue;
               if (yield* answerInProject(api, setup, event.data)) continue;
               requests.set(event.data.id, { kind: "permission" });
               waiting.add(event.data.id);

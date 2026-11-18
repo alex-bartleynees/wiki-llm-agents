@@ -124,7 +124,7 @@ layer(makeTestApp({ vaults: [sharedRoot], providers: makeProviderRegistry(Effect
         autonomy: { read: "deny", create: "deny", edit: "deny", commands: "deny", web: "deny" },
         vaultTools: null,
         attachmentFolders: [],
-        protectedPaths: [],
+        protection: { paths: [], names: [] },
       });
       expect(session.input.setup.instructions.map((instruction) => instruction.text).join("\n")).toContain("commit messages");
       const prompt = session.prompts[0]!;

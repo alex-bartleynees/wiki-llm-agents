@@ -1,5 +1,5 @@
 import { Effect, Stream } from "effect";
-import type { ProviderAdapter, ProviderError, ProviderEvent, TurnInput } from "../../../src/features/providers/port.js";
+import type { ProviderAdapter, ProviderError, ProviderEvent, SessionSetup, TurnInput } from "../../../src/features/providers/port.js";
 import { makeProviderRegistry } from "../../../src/features/providers/registry-live.js";
 import { ReplayAdapter } from "../../../src/features/providers/replay/adapter.js";
 
@@ -18,7 +18,7 @@ export type Script = (turn: { readonly turnId: string; readonly cwd: string }) =
  */
 export const makeScriptedProvider = (options: { readonly images?: boolean } = {}) => {
   const scripts = new Map<string, Script>();
-  const inputs: Array<Omit<TurnInput, "setup"> & { readonly attachmentFolders: ReadonlyArray<string>; readonly protectedPaths: ReadonlyArray<string> }> = [];
+  const inputs: Array<Omit<TurnInput, "setup"> & { readonly attachmentFolders: ReadonlyArray<string>; readonly protection: SessionSetup["protection"] }> = [];
   const adapter: ProviderAdapter = {
     kind: "scripted",
     capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: false, images: options.images === true },
@@ -26,7 +26,7 @@ export const makeScriptedProvider = (options: { readonly images?: boolean } = {}
       Effect.succeed({
         nativeSessionId: null,
         startTurn: ({ turnId, text, images, setup }) => {
-          inputs.push({ turnId, text, images, attachmentFolders: setup.attachmentFolders, protectedPaths: setup.protectedPaths });
+          inputs.push({ turnId, text, images, attachmentFolders: setup.attachmentFolders, protection: setup.protection });
           const script = scripts.get(text) ?? scripts.get(text.split("\n")[0]!) ?? scripts.get("*");
           if (script === undefined) return Stream.die(new Error(`no script for "${text}"`));
           return Stream.unwrap(

@@ -163,6 +163,21 @@ in
       '';
     };
 
+    protectedPaths = mkOption {
+      type = types.listOf types.str;
+      default = [ ".env" ".env.*" "!.env.example" ];
+      example = [ ".env" ".env.*" "!.env.example" "!.env.sample" "*.pem" "~/.aws" ];
+      description = ''
+        What no agent may read or change, whatever its autonomy, on top of the secrets:
+        a path (`/…` or `~/…`, a file or a folder and everything in it), a name pattern
+        matched in any folder (`*` and `?` as wildcards, no `/`), or `!` and a name
+        pattern for an exception. Enforced like the secret files: Codex's sandbox denies
+        them, Claude Code's and OpenCode's tool checks refuse them, and commands naming
+        them are refused (a best effort). `[ ]` protects nothing extra. Sets
+        `WIKI_AGENTS_PROTECTED_PATHS`.
+      '';
+    };
+
     secretsKey = mkOption {
       type = types.enum [ "auto" "systemd-creds" "file" ];
       default = "auto";
@@ -239,6 +254,7 @@ in
             WIKI_AGENTS_SECRET_FILES = lib.concatStringsSep "," (lib.mapAttrsToList (name: path: "${name}=${path}") cfg.secretFiles);
           }
           // lib.optionalAttrs (cfg.secretsKey != "auto") { WIKI_AGENTS_SECRETS_KEY = cfg.secretsKey; }
+          // { WIKI_AGENTS_PROTECTED_PATHS = lib.concatStringsSep "," cfg.protectedPaths; }
           // cfg.environment
         );
         Restart = "on-failure";

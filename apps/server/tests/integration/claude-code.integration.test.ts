@@ -495,7 +495,7 @@ layer(App)("Claude Code provider", (it) => {
         const root = realpathSync(vault.rootPath);
         fake.load(loadFixture("multi-turn"), root);
         const adapter = yield* adapterOver(fake.sdk);
-        const setup = { instructions: [], autonomy: loadFixture("multi-turn").autonomy, projectRoots: null, attachmentFolders: [], protectedPaths: [], vaultTools: null };
+        const setup = { instructions: [], autonomy: loadFixture("multi-turn").autonomy, projectRoots: null, attachmentFolders: [], protection: { paths: [], names: [] }, vaultTools: null };
         // First run: a new session id, given to Claude Code to create.
         const first = yield* Effect.scoped(
           Effect.gen(function* () {

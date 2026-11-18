@@ -246,7 +246,7 @@ export const makeClaudeCodeAdapter = (options: ClaudeCodeAdapterOptions) =>
                 autonomy: setup.autonomy,
                 roots: setup.projectRoots ?? [realCwd],
                 readable: setup.attachmentFolders,
-                protectedPaths: setup.protectedPaths,
+                protection: setup.protection,
                 cwd,
                 vaultTools: setup.vaultTools?.name ?? null,
                 toolName: input.tool_name,

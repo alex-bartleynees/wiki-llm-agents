@@ -2,6 +2,7 @@ import type { Autonomy } from "@wiki-agents/contracts/agents/model";
 import type { ProviderCapabilities, ProviderModel, ProviderStatus } from "@wiki-agents/contracts/providers/model";
 import type { RequestAnswer, ThreadEvent, TurnUsage } from "@wiki-agents/contracts/threads/model";
 import { Data, type Effect, type Option, type Scope, type Stream } from "effect";
+import type { Protection } from "../../shared/secret-paths.js";
 import type { VaultToolsEntry } from "../mcp/vault-tools.js";
 
 /**
@@ -55,11 +56,12 @@ export interface SessionSetup extends AgentSetup {
    */
   readonly attachmentFolders: ReadonlyArray<string>;
   /**
-   * Absolute paths no tool may read or write, whatever the autonomy: the files and
-   * folders that hold secrets (see `SecretMaterial`). Adapters deny them with every
-   * means the provider has: its sandbox, its permission rules, or the app's own check.
+   * What no tool may read or write, whatever the autonomy: the files and folders that
+   * hold secrets and the extra protected paths and name patterns (see
+   * `SecretMaterial`). Adapters deny them with every means the provider has: its
+   * sandbox, its permission rules, or the app's own check.
    */
-  readonly protectedPaths: ReadonlyArray<string>;
+  readonly protection: Protection;
   /**
    * The vault MCP server for this thread, which the provider registers for the
    * session; null when there is none (the replay provider ignores it). A provider
@@ -174,5 +176,5 @@ export const vaultToolsUnavailable = (reason: string) => `The vault tools aren't
 /** Sent with a denial, so the agent carries on instead of the turn ending. */
 export const DENIED = "The user denied this. Don't try it another way; say what you would have done.";
 
-/** Sent when a tool call reaches a file holding secrets (see `SessionSetup.protectedPaths`). */
-export const SECRET_DENIED = "This reaches a file that holds the app's secrets, which agents may never read or change. Don't try it another way.";
+/** Sent when a tool call reaches a protected file (see `SessionSetup.protection`). */
+export const SECRET_DENIED = "This reaches a protected file (secrets, or a file such as .env), which agents may never read or change. Don't try it another way.";

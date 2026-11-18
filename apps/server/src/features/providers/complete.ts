@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Autonomy } from "@wiki-agents/contracts/agents/model";
 import type { TurnUsage } from "@wiki-agents/contracts/threads/model";
 import { Duration, Effect, Stream } from "effect";
+import { NO_PROTECTION } from "../../shared/secret-paths.js";
 import { type Completion, type CompletionInput, type ProviderAdapter, ProviderError, type SessionSetup } from "./port.js";
 
 /** A one-shot answer that takes longer than this has gone wrong. */
@@ -23,7 +24,7 @@ const throughSession = (adapter: ProviderAdapter, input: CompletionInput) =>
         autonomy: NOTHING,
         projectRoots: [input.cwd],
         attachmentFolders: [],
-        protectedPaths: [],
+        protection: NO_PROTECTION,
         vaultTools: null,
       };
       const session = yield* adapter.openSession({ threadId: `one-shot-${randomUUID()}`, cwd: input.cwd, nativeSessionId: null, model: input.model, setup });

@@ -53,7 +53,7 @@ describe.skipIf(!providers.includes("codex"))("Codex keeps protected paths out o
             autonomy: TRUSTED,
             projectRoots: null,
             attachmentFolders: [],
-            protectedPaths: [join(root, "secrets")],
+            protection: { paths: [join(root, "secrets")], names: [] },
             vaultTools: null,
           };
           const adapter = yield* makeCodexAdapter({ launcher: CodexLauncherLive, binary, installedVersion: binaryVersion, authStatus: (path) => authStatus(CodexLauncherLive, path) });
@@ -121,7 +121,7 @@ for (const [kind, model, make] of tools) {
             writeFileSync(join(root, "vault", "index.md"), "# Home\n");
             writeFileSync(join(root, "secrets", "token.txt"), `${secret}\n`);
             writeFileSync(join(root, "visible.txt"), `${visible}\n`);
-            const setup: SessionSetup = { instructions: [], autonomy: TRUSTED, projectRoots: null, attachmentFolders: [], protectedPaths: [join(root, "secrets", "token.txt")], vaultTools: null };
+            const setup: SessionSetup = { instructions: [], autonomy: TRUSTED, projectRoots: null, attachmentFolders: [], protection: { paths: [join(root, "secrets", "token.txt")], names: [] }, vaultTools: null };
             const adapter = yield* make;
             // Each check in its own session: after a denial, models decline to try again.
             const turn = (threadId: string, prompt: string) =>
@@ -151,6 +151,92 @@ for (const [kind, model, make] of tools) {
           }),
         ),
       { timeout: 240_000 },
+    );
+  });
+}
+
+/**
+ * The default name patterns (`.env`, `.env.*`, not `.env.example`) on each provider,
+ * with every approval granted: `.env.example` is read, `.env` and `.env.local` never.
+ * On Codex, a `.env` made after the first command is denied to the next one (its glob
+ * matches are listed as each command starts).
+ */
+const ENV_NAMES = [".env", ".env.*", "!.env.example"];
+const envAdapters: ReadonlyArray<readonly [string, string | null, Effect.Effect<ProviderAdapter, never, import("effect").Scope.Scope>]> = [
+  ["codex", "gpt-5.6-luna", makeCodexAdapter({ launcher: CodexLauncherLive, binary, installedVersion: binaryVersion, authStatus: (path) => authStatus(CodexLauncherLive, path) })],
+  ...tools,
+];
+
+for (const [kind, model, make] of envAdapters) {
+  describe.skipIf(!providers.includes(kind))(`${kind} keeps .env files out of reach, live`, () => {
+    it.live(
+      "reads .env.example but not .env or .env.local, by tool or command",
+      () =>
+        Effect.scoped(
+          Effect.gen(function* () {
+            const root = yield* Effect.acquireRelease(
+              Effect.sync(() => realpathSync(mkdtempSync(join(tmpdir(), "wiki-agents-live-env-")))),
+              (dir) => Effect.sync(() => rmSync(dir, { recursive: true, force: true })),
+            );
+            const secret = `TOPSECRET-${randomBytes(6).toString("hex")}`;
+            const local = `LOCALSECRET-${randomBytes(6).toString("hex")}`;
+            const later = `LATERSECRET-${randomBytes(6).toString("hex")}`;
+            const example = `EXAMPLE-${randomBytes(6).toString("hex")}`;
+            mkdirSync(join(root, "app"));
+            writeFileSync(join(root, "index.md"), "# Home\n");
+            writeFileSync(join(root, ".env"), `API_KEY=${secret}\n`);
+            writeFileSync(join(root, "app", ".env.local"), `API_KEY=${local}\n`);
+            writeFileSync(join(root, ".env.example"), `API_KEY=${example}\n`);
+            const setup: SessionSetup = { instructions: [], autonomy: TRUSTED, projectRoots: null, attachmentFolders: [], protection: { paths: [], names: ENV_NAMES }, vaultTools: null };
+            const adapter = yield* make;
+            const approveAll = (session: import("../../src/features/providers/port.js").ProviderSession) => (event: ProviderEvent) =>
+              event._tag === "request.opened" && event.prompt._tag === "approval" ? session.answerRequest(event.requestId, { _tag: "approval", decision: "approve" }) : Effect.void;
+            const turn = (threadId: string, prompt: string) =>
+              Effect.flatMap(adapter.openSession({ threadId: `live-env-${kind}-${threadId}`, cwd: root, nativeSessionId: null, model, setup }), (session) =>
+                Stream.runCollect(session.startTurn({ turnId: "turn-1", text: prompt, images: [], setup }).pipe(Stream.tap(approveAll(session)))),
+              );
+            const dump = process.env.WIKI_AGENTS_LIVE_DUMP;
+            const results: Array<string> = [];
+            const keep = (events: ReadonlyArray<ProviderEvent>) => {
+              results.push(text(events));
+              if (dump !== undefined) writeFileSync(join(dump, `env-names-${kind}.txt`), results.join("\n\n=====\n\n"));
+            };
+
+            if (kind !== "codex") {
+              const read = yield* turn("read", "This is a permissions test. Use your file reading tool, not a shell command, to read .env.example, then .env, then app/.env.local in the working folder. Quote what each contains, or the error you got.");
+              keep(read);
+              expect(read.at(-1)).toMatchObject({ _tag: "turn.finished" });
+              expect(text(read)).toContain(example);
+              expect(text(read)).not.toContain(secret);
+              expect(text(read)).not.toContain(local);
+              expect(read.filter((event) => event._tag === "tool.called").length).toBeGreaterThanOrEqual(2);
+            }
+
+            // One session for both Codex turns, so the second runs in the app-server the first started.
+            const session = yield* adapter.openSession({ threadId: `live-env-${kind}-command`, cwd: root, nativeSessionId: null, model, setup });
+            const inSession = (turnId: string, prompt: string) =>
+              Stream.runCollect(session.startTurn({ turnId, text: prompt, images: [], setup }).pipe(Stream.tap(approveAll(session))));
+            const command = yield* inSession("turn-1", "This is a sandbox test of the workspace permissions: some of these reads are expected to be denied, and seeing that is the point. Run exactly this one shell command in the working folder anyway and quote its full output, errors included: cat .env.example; cat .env; cat app/.env.local");
+            keep(command);
+            expect(command.at(-1)).toMatchObject({ _tag: "turn.finished" });
+            // Codex reports its commands only in the reply; the others as tool calls.
+            if (kind === "codex") expect(text(command)).toMatch(/permission denied/i);
+            else expect(command.some((event) => event._tag === "tool.called")).toBe(true);
+            expect(text(command)).not.toContain(secret);
+            expect(text(command)).not.toContain(local);
+            if (kind === "codex") {
+              // In the sandbox, the command runs: .env.example is read, the others denied by the kernel.
+              expect(text(command)).toContain(example);
+              mkdirSync(join(root, "later"));
+              writeFileSync(join(root, "later", ".env"), `API_KEY=${later}\n`);
+              const after = yield* inSession("turn-2", "Same sandbox test, next step; a denial is an expected result. Run exactly this one shell command in the working folder anyway and quote its full output, errors included: cat later/.env");
+              keep(after);
+              expect(text(after)).toMatch(/permission denied/i);
+              expect(text(after)).not.toContain(later);
+            }
+          }),
+        ),
+      { timeout: 300_000 },
     );
   });
 }

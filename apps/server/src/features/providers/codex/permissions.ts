@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 import type { Autonomy, AutonomyLevel } from "@wiki-agents/contracts/agents/model";
 import { Effect, FileSystem } from "effect";
-import { commandNamesProtected, reachesProtected } from "../../../shared/secret-paths.js";
+import { commandNamesProtected, isUnprotected, namePatterns, type Protection, reachesProtected } from "../../../shared/secret-paths.js";
 import { pathsWithinRoots } from "../../../shared/vault/path-scope.js";
 import type { AskForApproval, FileUpdateChange, SandboxMode } from "./protocol.js";
 
@@ -19,22 +19,71 @@ export const SANDBOX: SandboxMode = "read-only";
 /** The permission profile a thread with protected paths runs under. */
 export const PERMISSION_PROFILE = "wiki_agents";
 
+/** A literal for a Codex glob: its special characters each in a class of their own. */
+const globLiteral = (text: string) => text.replace(/[[\]{}*?\\]/g, "[$&]");
+
+/**
+ * Codex globs for files matching `pattern` but none of `exceptions`. Codex globs only
+ * deny (a `read` glob can't reopen a file), so an exception is cut out of the pattern:
+ * for `.env.*` without `.env.example`, `.env.`, `.env.[!e]*`, `.env.e`, `.env.e[!x]*`…
+ * `.env.example?*` (checked with Codex 0.167.1). That works for a pattern ending in its
+ * only `*` (`.env.*`) and exceptions that are plain names; otherwise the exceptions
+ * stay denied in Codex's sandbox, the stricter way round.
+ */
+export const codexNameGlobs = (pattern: string, exceptions: ReadonlyArray<string>): ReadonlyArray<string> => {
+  const star = pattern.indexOf("*");
+  const prefix = pattern.slice(0, Math.max(star, 0));
+  const cuttable = star >= 0 && star === pattern.length - 1 && !prefix.includes("?");
+  const cut = cuttable ? exceptions.filter((name) => !/[*?]/.test(name) && name.startsWith(prefix)).map((name) => name.slice(prefix.length)) : [];
+  if (cut.length === 0) return [pattern.split(/([*?])/).map((part, index) => (index % 2 === 1 ? part : globLiteral(part))).join("")];
+  // Every name starting with `prefix` but no cut-out suffix, walking the suffixes' characters as a tree.
+  const globs: Array<string> = [];
+  const walk = (start: string) => {
+    if (!cut.includes(start)) globs.push(globLiteral(prefix + start));
+    const next = [...new Set(cut.filter((suffix) => suffix.length > start.length && suffix.startsWith(start)).map((suffix) => suffix[start.length]!))].sort();
+    if (next.length === 0) {
+      globs.push(`${globLiteral(prefix + start)}?*`);
+      return;
+    }
+    globs.push(`${globLiteral(prefix + start)}[!${next.map((char) => (char === "]" || char === "!" || char === "\\" ? `\\${char}` : char)).join("")}]*`);
+    for (const char of next) walk(start + char);
+  };
+  walk("");
+  return globs;
+};
+
+/**
+ * The deny entries for `protection` in a permission profile's `filesystem` table: each
+ * protected path, and each name pattern as a glob in every folder of `roots` (the
+ * working folder, a project's directories). Codex lists a glob's matches when each
+ * command starts, so a `.env` made later is denied from the next command on.
+ */
+export const protectedEntries = (protection: Protection, roots: ReadonlyArray<string>): ReadonlyArray<readonly [string, string]> => {
+  const { match, except } = namePatterns(protection.names);
+  const globs = match.flatMap((pattern) => codexNameGlobs(pattern, except));
+  return [
+    ...protection.paths.map((path) => [path, "none"] as const),
+    ...[...new Set(roots)].flatMap((root) => globs.map((glob) => [`${globLiteral(root)}/**/${glob}`, "none"] as const)),
+  ];
+};
+
 /**
  * `config.toml` overrides for the thread: Codex's web search can't ask first, so it is
- * on only when the web is allowed. With protected paths, the thread runs under a
+ * on only when the web is allowed. With anything protected, the thread runs under a
  * permission profile like the read-only sandbox (read everything, write nothing) that
- * also denies reading them, so the sandbox itself stops every command reaching them,
- * however it names them. Checked with Codex 0.167.1: the profile wins over
- * `sandbox_mode`, a folder denies what is inside, and a path that doesn't exist is fine.
+ * also denies reading it, so the sandbox itself stops every command reaching it,
+ * however it names it. Checked with Codex 0.167.1: the profile wins over
+ * `sandbox_mode`, a folder denies what is inside, a path that doesn't exist is fine,
+ * and absolute globs (`<root>/**\/.env`) deny every match below the root.
  */
-export const autonomyConfig = (autonomy: Autonomy, protectedPaths: ReadonlyArray<string>): Record<string, unknown> => ({
+export const autonomyConfig = (autonomy: Autonomy, protection: Protection, roots: ReadonlyArray<string>): Record<string, unknown> => ({
   web_search: autonomy.web === "allow" ? "live" : "disabled",
   "features.default_mode_request_user_input": true,
-  ...(protectedPaths.length === 0
+  ...(isUnprotected(protection)
     ? {}
     : {
         default_permissions: PERMISSION_PROFILE,
-        [`permissions.${PERMISSION_PROFILE}.filesystem`]: Object.fromEntries([[":root", "read"], ...protectedPaths.map((path) => [path, "none"])]),
+        [`permissions.${PERMISSION_PROFILE}.filesystem`]: Object.fromEntries([[":root", "read"], ...protectedEntries(protection, roots)]),
       }),
 });
 
@@ -61,8 +110,8 @@ export interface FileChangeDecision {
   readonly roots: ReadonlyArray<string>;
   readonly cwd: string;
   readonly changes: ReadonlyArray<FileUpdateChange>;
-  /** Paths holding secrets: a change touching one is denied whatever the autonomy. */
-  readonly protectedPaths: ReadonlyArray<string>;
+  /** What is protected: a change touching it is denied whatever the autonomy. */
+  readonly protection: Protection;
 }
 
 /**
@@ -72,7 +121,7 @@ export interface FileChangeDecision {
  */
 export const decideFileChange = Effect.fnUntraced(function* (input: FileChangeDecision): Effect.fn.Return<AutonomyLevel, never, FileSystem.FileSystem> {
   if (input.changes.length === 0) return "ask" as const;
-  if (yield* reachesProtected(input.protectedPaths, input.cwd, changedPaths(input.changes, input.cwd))) return "deny" as const;
+  if (yield* reachesProtected(input.protection, input.cwd, changedPaths(input.changes, input.cwd))) return "deny" as const;
   let level: AutonomyLevel = "allow";
   for (const change of input.changes) level = strictest(level, (yield* creates(change, input.cwd)) ? input.autonomy.create : input.autonomy.edit);
   if (level === "deny") return level;
@@ -85,12 +134,12 @@ export const decideFileChange = Effect.fnUntraced(function* (input: FileChangeDe
  * network), where the profile's denials don't apply: one naming a protected path is
  * denied (a best effort; see `commandNamesProtected`).
  */
-export const decideCommand = (autonomy: Autonomy, protectedPaths: ReadonlyArray<string>, command: string): AutonomyLevel =>
-  commandNamesProtected(protectedPaths, command) ? "deny" : autonomy.commands;
+export const decideCommand = (autonomy: Autonomy, protection: Protection, command: string): AutonomyLevel =>
+  commandNamesProtected(protection, command) ? "deny" : autonomy.commands;
 
 /** Codex asks for more access than the sandbox gives: never to a protected path. */
-export const permissionsReachProtected = (protectedPaths: ReadonlyArray<string>, permissions: unknown) =>
-  commandNamesProtected(protectedPaths, JSON.stringify(permissions) ?? "");
+export const permissionsReachProtected = (protection: Protection, permissions: unknown) =>
+  commandNamesProtected(protection, JSON.stringify(permissions) ?? "");
 
 /** What Codex enforces for `autonomy`, with notes where it differs from the file. */
 export const enforcedAutonomy = (autonomy: Autonomy) => {

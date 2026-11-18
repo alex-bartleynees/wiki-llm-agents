@@ -47,7 +47,7 @@ const app = makeTestApp({
 });
 
 layer(app)("files and variables holding secrets", (it) => {
-  it.effect("tells every turn which paths no tool may reach: the store, its key, declared files and MCP servers' files", () =>
+  it.effect("tells every turn what no tool may reach: the store, its key, declared files, MCP servers' files and .env files", () =>
     Effect.gen(function* () {
       yield* saveServer("jira", VARIABLE);
       const vault = yield* newVault;
@@ -55,11 +55,13 @@ layer(app)("files and variables holding secrets", (it) => {
       const events = yield* watch(thread.id);
       yield* sendOk(thread.id, "hello");
       yield* events.until(isTag("turn.finished"));
-      const paths = provider.inputs.at(-1)!.protectedPaths;
+      const { paths, names } = provider.inputs.at(-1)!.protection;
       expect(paths).toEqual(
         expect.arrayContaining([join(secretsRoot, "data"), join(secretsRoot, "state", "secrets.key"), join(secretsRoot, "state", "secrets.key.cred"), declared, referenced]),
       );
       expect(paths).not.toContain(vault.rootPath);
+      // WIKI_AGENTS_PROTECTED_PATHS is unset here: the default name patterns.
+      expect(names).toEqual([".env", ".env.*", "!.env.example"]);
     }),
   );
 

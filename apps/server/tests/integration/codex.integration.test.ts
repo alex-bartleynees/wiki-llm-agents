@@ -10,7 +10,7 @@ import { Context, Effect, Layer, PubSub, Stream } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/http";
 import { CODEX_STOPPED, makeCodexAdapter, NOT_ALLOWED, TOKEN_ENV } from "../../src/features/providers/codex/adapter.js";
 import { VAULT_SERVER } from "../../src/features/providers/codex/events.js";
-import { PERMISSION_PROFILE } from "../../src/features/providers/codex/permissions.js";
+import { PERMISSION_PROFILE, protectedEntries } from "../../src/features/providers/codex/permissions.js";
 import { SecretMaterial } from "../../src/features/secrets/material.js";
 import { DENIED, ProviderError, vaultToolsUnavailable } from "../../src/features/providers/port.js";
 import { makeProviderRegistry } from "../../src/features/providers/registry-live.js";
@@ -162,7 +162,7 @@ layer(App)("Codex provider", (it) => {
 
   it.effect("streams a simple turn in one app-server, read-only with the secrets denied, and keeps the Codex thread for the app's thread", () =>
     Effect.gen(function* () {
-      const { thread, fake, prompts } = yield* setUp("simple");
+      const { vault, thread, fake, prompts } = yield* setUp("simple");
       const events = yield* watch(thread.id);
       const turnId = yield* sendOk(thread.id, prompts[0]!);
       const seen = yield* events.until(isTag("turn.finished"));
@@ -181,8 +181,8 @@ layer(App)("Codex provider", (it) => {
       expect(seen.filter(isTag("request.opened"))).toEqual([]);
 
       const [started] = fake.requests("thread/start");
-      // Read-only, as a permission profile that also denies the secret store's files (it replaces the sandbox mode).
-      const paths = (yield* (yield* SecretMaterial).current).paths;
+      // Read-only, as a permission profile that also denies the secret store's files and .env files (it replaces the sandbox mode).
+      const { paths, names } = yield* (yield* SecretMaterial).current;
       expect(paths.length).toBeGreaterThan(0);
       expect(started).not.toHaveProperty("sandbox");
       expect(started).toMatchObject({
@@ -192,7 +192,7 @@ layer(App)("Codex provider", (it) => {
           web_search: "disabled",
           [`mcp_servers.${VAULT_SERVER}`]: { url: expect.stringMatching(/\/mcp$/), bearer_token_env_var: TOKEN_ENV },
           default_permissions: PERMISSION_PROFILE,
-          [`permissions.${PERMISSION_PROFILE}.filesystem`]: Object.fromEntries([[":root", "read"], ...paths.map((path) => [path, "none"])]),
+          [`permissions.${PERMISSION_PROFILE}.filesystem`]: Object.fromEntries([[":root", "read"], ...protectedEntries({ paths, names }, [vault.rootPath, realpathSync(vault.rootPath)])]),
         },
       });
       const { thread: stored } = yield* getThread(thread.id);
@@ -446,7 +446,7 @@ layer(App)("Codex provider", (it) => {
         const fixture = loadFixture("multi-turn");
         fake.load(fixture, root);
         const adapter = yield* adapterOver(fake);
-        const setup = { instructions: [], autonomy: fixture.autonomy, projectRoots: null, attachmentFolders: [], protectedPaths: [], vaultTools: null };
+        const setup = { instructions: [], autonomy: fixture.autonomy, projectRoots: null, attachmentFolders: [], protection: { paths: [], names: [] }, vaultTools: null };
         const first = yield* Effect.scoped(
           Effect.gen(function* () {
             const session = yield* adapter.openSession({ threadId: "t", cwd: root, nativeSessionId: null, model: null, setup });

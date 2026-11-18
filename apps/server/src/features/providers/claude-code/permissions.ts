@@ -1,7 +1,7 @@
 import { dirname, isAbsolute, resolve } from "node:path";
 import type { Autonomy, AutonomyLevel } from "@wiki-agents/contracts/agents/model";
 import { Effect, FileSystem } from "effect";
-import { commandNamesProtected, reachesProtected } from "../../../shared/secret-paths.js";
+import { commandNamesProtected, type Protection, reachesProtected } from "../../../shared/secret-paths.js";
 import { pathsWithinRoots } from "../../../shared/vault/path-scope.js";
 import { ENTRY_PREFIX, serverDecides } from "../../mcp/vault-tools.js";
 
@@ -64,8 +64,8 @@ export interface DecisionInput {
   readonly roots: ReadonlyArray<string>;
   /** Canonical folders the agent may also read, but not write, without asking (the thread's own attachments). */
   readonly readable: ReadonlyArray<string>;
-  /** Paths holding secrets: denied to every tool whatever the autonomy (see `SessionSetup.protectedPaths`). */
-  readonly protectedPaths: ReadonlyArray<string>;
+  /** What is protected: denied to every tool whatever the autonomy (see `SessionSetup.protection`). */
+  readonly protection: Protection;
   readonly cwd: string;
   /** The thread's vault tools MCP server; null when it has none. */
   readonly vaultTools: string | null;
@@ -89,9 +89,9 @@ const SEARCHES = ["Glob", "Grep", "LS"];
  * `Write` to a file that doesn't
  * exist yet is creating; any other write is editing. Tools this doesn't know ask,
  * as do `AskUserQuestion` (it is how a question reaches you) and other MCP servers'
- * tools; other threads' vault tools are denied. A file tool reaching a protected path,
- * or a command naming one, is `secret` before anything else (naming is a best effort:
- * a command can reach a file without naming it).
+ * tools; other threads' vault tools are denied. A file tool reaching a protected path
+ * or name (`.env`), or a command naming one, is `secret` before anything else (naming
+ * is a best effort: a command can reach a file without naming it).
  *
  * Claude Code finds and searches files with shell commands (it has no Glob or Grep).
  * While commands ask and reading is allowed, commands are left to Claude Code, which
@@ -105,13 +105,13 @@ export const decide = Effect.fnUntraced(function* (input: DecisionInput): Effect
     return serverDecides(toolName.slice(mcpPrefix(input.vaultTools).length)) ? "allow" : autonomy.read;
   }
   if (toolName.startsWith(`mcp__${ENTRY_PREFIX}`)) return "deny" as const;
-  if (has(TOOLS.commands, toolName) && commandNamesProtected(input.protectedPaths, field(toolInput, "command") ?? "")) return "secret" as const;
+  if (has(TOOLS.commands, toolName) && commandNamesProtected(input.protection, field(toolInput, "command") ?? "")) return "secret" as const;
   if (has(TOOLS.commands, toolName)) return autonomy.commands === "ask" && autonomy.read === "allow" ? "defer" : autonomy.commands;
   if (has(TOOLS.web, toolName)) return autonomy.web;
   const reads = has(TOOLS.read, toolName);
   const target = writeTarget(toolName, toolInput, cwd);
   const reached = reads ? toolPaths(toolName, toolInput, cwd) : target === undefined ? [] : [target];
-  if (yield* reachesProtected(input.protectedPaths, cwd, reached, { searches: SEARCHES.includes(toolName) })) return "secret" as const;
+  if (yield* reachesProtected(input.protection, cwd, reached, { searches: SEARCHES.includes(toolName) })) return "secret" as const;
   if (!reads && target === undefined) return "ask" as const;
   const fs = yield* FileSystem.FileSystem;
   const level = reads ? autonomy.read : toolName === "Write" && !(yield* fs.exists(target!).pipe(Effect.orElseSucceed(() => true))) ? autonomy.create : autonomy.edit;

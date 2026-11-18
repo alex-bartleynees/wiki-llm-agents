@@ -7,6 +7,7 @@ import { Effect } from "effect";
 import { afterAll, describe, expect, it } from "vitest";
 import { VAULT_WRITE_TOOLS } from "../../mcp/vault-tools.js";
 import { decide, enforcedAutonomy } from "./permissions.js";
+import type { Protection } from "../../../shared/secret-paths.js";
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), "wiki-agents-claude-permissions-")));
 const vault = join(root, "vault");
@@ -35,9 +36,11 @@ writeFileSync(join(secrets, "secrets.enc"), "{}");
 writeFileSync(keyFile, "key");
 symlinkSync(join(root, "state"), join(vault, "state-link"));
 
-const decision = (toolName: string, toolInput: unknown, autonomy: Autonomy = DEFAULT_AUTONOMY, roots = [vault], readable = [own], protectedPaths = [secrets, keyFile]) =>
+const ENV_NAMES = [".env", ".env.*", "!.env.example"];
+
+const decision = (toolName: string, toolInput: unknown, autonomy: Autonomy = DEFAULT_AUTONOMY, roots = [vault], readable = [own], protection: Protection = { paths: [secrets, keyFile], names: ENV_NAMES }) =>
   Effect.runPromise(
-    decide({ autonomy, roots, readable, protectedPaths, cwd: vault, vaultTools: "wiki-agents-thread-1", toolName, toolInput }).pipe(Effect.provide(NodeFileSystem.layer)),
+    decide({ autonomy, roots, readable, protection, cwd: vault, vaultTools: "wiki-agents-thread-1", toolName, toolInput }).pipe(Effect.provide(NodeFileSystem.layer)),
   );
 
 describe("autonomy → Claude Code tool decisions", () => {
@@ -129,5 +132,37 @@ describe("files holding secrets", () => {
     expect(await decision("Read", { file_path: join(vault, "Notes/Tea.md") })).toBe("allow");
     expect(await decision("Read", { file_path: join(root, "data", "app.db") })).toBe("ask");
     expect(await decision("Grep", { pattern: "north", path: own })).toBe("allow");
+  });
+});
+
+describe("protected names (.env)", () => {
+  it("denies .env and .env.* files in any folder, as written or relative, but not .env.example", async () => {
+    expect(await decision("Read", { file_path: ".env" }, TRUSTED)).toBe("secret");
+    expect(await decision("Read", { file_path: join(vault, "app", ".env.local") }, TRUSTED)).toBe("secret");
+    expect(await decision("Read", { file_path: join(outside, ".env") }, TRUSTED)).toBe("secret");
+    expect(await decision("Write", { file_path: ".env", content: "KEY=x" }, TRUSTED)).toBe("secret");
+    expect(await decision("Read", { file_path: join(vault, ".env", "values") }, TRUSTED)).toBe("secret");
+    expect(await decision("Read", { file_path: ".env.example" }, TRUSTED)).toBe("allow");
+    expect(await decision("Read", { file_path: ".envrc" }, TRUSTED)).toBe("allow");
+  });
+
+  it("denies commands naming one, through a glob too, and leaves look-alikes", async () => {
+    expect(await decision("Bash", { command: "cat .env" }, TRUSTED)).toBe("secret");
+    expect(await decision("Bash", { command: "source ./app/.env.local && npm start" }, TRUSTED)).toBe("secret");
+    expect(await decision("Bash", { command: "docker run --env-file=.env app" }, TRUSTED)).toBe("secret");
+    expect(await decision("Bash", { command: "cat .env*" }, TRUSTED)).toBe("secret");
+    expect(await decision("Bash", { command: "head .*" }, TRUSTED)).toBe("secret");
+    expect(await decision("Bash", { command: "cat .env.example" }, TRUSTED)).toBe("allow");
+    expect(await decision("Bash", { command: "ls *" }, TRUSTED)).toBe("allow");
+    expect(await decision("Bash", { command: "node -e 'console.log(process.env.HOME)'" }, TRUSTED)).toBe("allow");
+  });
+
+  it("doesn't count a folder that might hold one: searches follow read", async () => {
+    expect(await decision("Grep", { pattern: "KEY", path: vault }, TRUSTED)).toBe("allow");
+    expect(await decision("Glob", { pattern: "**/.env" }, TRUSTED)).toBe("allow");
+  });
+
+  it("protects nothing by name when no patterns are set", async () => {
+    expect(await decision("Read", { file_path: ".env" }, TRUSTED, [vault], [own], { paths: [], names: [] })).toBe("allow");
   });
 });

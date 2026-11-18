@@ -1,6 +1,6 @@
 import { homedir } from "node:os";
 import type { Autonomy, AutonomyLevel } from "@wiki-agents/contracts/agents/model";
-import { spellings } from "../../../shared/secret-paths.js";
+import { namePatterns, NO_PROTECTION, type Protection, spellings } from "../../../shared/secret-paths.js";
 import { ENTRY_PREFIX, GATEWAY_TOOL_PATTERN, VAULT_WRITE_TOOLS } from "../../mcp/vault-tools.js";
 import type { OpenCodePermissionRule } from "./api.js";
 
@@ -50,7 +50,12 @@ export const mcpToolsAction = (server: string) => mcpToolAction(server, "*");
  * folder), so reading there follows `read`; writes there name the absolute file and
  * still ask, or stay denied. Checked live with OpenCode 2.2.6.
  *
- * Paths holding secrets come last, so nothing overrides them: every file action and
+ * Protected names (`.env`) can't be written as rules exactly (`.env.*` but not
+ * `.env.example`), so any request that might reach one asks (`*.env*`), and the
+ * adapter answers it: refused when it does reach one, otherwise as the rules before
+ * would have (see `levelBehindNameCheck`).
+ *
+ * Protected paths come last, so nothing overrides them: every file action and
  * `external_directory` on them is denied, and so is a shell command naming one (a
  * best effort; the adapter also refuses any request that reaches one).
  */
@@ -58,7 +63,7 @@ export const permissionRules = (
   autonomy: Autonomy,
   vaultTools: string | null = null,
   attachmentFolders: ReadonlyArray<string> = [],
-  protectedPaths: ReadonlyArray<string> = [],
+  protection: Protection = NO_PROTECTION,
   home: string = homedir(),
 ): ReadonlyArray<OpenCodePermissionRule> => {
   const levels: ReadonlyArray<readonly [ReadonlyArray<string>, AutonomyLevel]> = [
@@ -83,14 +88,43 @@ export const permissionRules = (
       { action: "external_directory", resource: `${folder}/*`, effect: "allow" } as const,
       ...ACTIONS.edit.map((action) => ({ action, resource: `${folder}/*`, effect: strictest(fileWrites(autonomy), "ask") }) as const),
     ]),
-    ...protectedPaths.flatMap((path) => [
+    ...nameCheckRules(protection),
+    ...protection.paths.flatMap((path) => [
       ...[...FILE_ACTIONS, "external_directory"].flatMap((action) => [path, `${path}/*`].map((resource) => ({ action, resource, effect: "deny" }) as const)),
       ...spellings(path, home).map((spelling) => ({ action: "shell", resource: `*${spelling}*`, effect: "deny" }) as const),
     ]),
   ];
 };
 
-const LEVEL_WORD: Readonly<Record<AutonomyLevel, string>> = { allow: "are allowed", ask: "ask first", deny: "are denied" };
+/** Actions whose resources may name a protected file: file actions, folders outside the session's, and commands. */
+const NAME_CHECKED_ACTIONS: ReadonlyArray<string> = [...FILE_ACTIONS, "external_directory", "shell"];
+
+/** Rules that make OpenCode ask, so the adapter decides, whenever a resource has a protected name pattern anywhere in it. */
+export const nameCheckRules = (protection: Protection): ReadonlyArray<OpenCodePermissionRule> =>
+  namePatterns(protection.names).match.flatMap((pattern) =>
+    NAME_CHECKED_ACTIONS.map((action) => ({ action, resource: `*${pattern}*`, effect: "ask" }) as const),
+  );
+
+/**
+ * For a request OpenCode asked because of a name check (see `nameCheckRules`), and
+ * that reaches no protected file: what the rules without the name checks answer for
+ * it, the strictest over its resources. Null when no name check matched, so OpenCode
+ * asked for its own reasons and the request goes on as usual.
+ */
+export const levelBehindNameCheck = (
+  rules: ReadonlyArray<OpenCodePermissionRule>,
+  protection: Protection,
+  action: string,
+  resources: ReadonlyArray<string>,
+): AutonomyLevel | null => {
+  const checks = nameCheckRules(protection);
+  if (!resources.some((resource) => checks.some((rule) => wildcard(rule.action, action) && wildcard(rule.resource, resource)))) return null;
+  const checkKeys = new Set(checks.map((rule) => JSON.stringify(rule)));
+  const without = rules.filter((rule) => !checkKeys.has(JSON.stringify(rule)));
+  return resources.map((resource) => ruleEffect(without, action, resource)).reduce<AutonomyLevel>(strictest, "allow");
+};
+
+const LEVEL_WORD:Readonly<Record<AutonomyLevel, string>> = { allow: "are allowed", ask: "ask first", deny: "are denied" };
 
 /** What OpenCode enforces for `autonomy`, with notes where it differs from the file. */
 export const enforcedAutonomy = (autonomy: Autonomy) => {

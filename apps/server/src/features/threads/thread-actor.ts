@@ -247,7 +247,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     );
     // sessionSetup has just read the agent, so it is there.
     // Read before the tools, so MCP servers started for this turn already go without them.
-    const { paths: protectedPaths } = yield* secretMaterial.current;
+    const { paths, names } = yield* secretMaterial.current;
     const agentServers = agentId === null ? [] : yield* catalog.get(agentId).pipe(Effect.map((found) => found.mcp), Effect.orElseSucceed(() => []));
     const tools = yield* vaultTools.current(agentServers);
     if (tools.notices.length > 0) yield* record(tools.notices.map((text): ThreadEvent => ({ _tag: "notice", turnId, text })));
@@ -256,7 +256,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
       instructions: project === null ? agent.instructions : [...agent.instructions, projectInstruction(project, directories, vault.rootPath, worktree)],
       projectRoots: project === null ? null : projectRoots(directories, vault.rootPath),
       attachmentFolders: yield* ownAttachmentFolders,
-      protectedPaths,
+      protection: { paths, names },
       vaultTools: tools.entry,
     };
     return setup;

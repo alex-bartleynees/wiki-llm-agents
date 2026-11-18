@@ -22,6 +22,7 @@ import { TestClock } from "effect/testing";
 import { makeHttpApp } from "../../src/app/layers.js";
 import { makeAttachmentStore } from "../../src/features/attachments/store-live.js";
 import { DENIED, makeOpenCodeAdapter, OPENCODE_STOPPED, SESSION_PERMISSIONS, vaultToolsUnavailable } from "../../src/features/providers/opencode/adapter.js";
+import { SECRET_DENIED } from "../../src/features/providers/port.js";
 import { type OpenCodeApi, OpenCodeError } from "../../src/features/providers/opencode/api.js";
 import { permissionRules } from "../../src/features/providers/opencode/permissions.js";
 import { entryName } from "../../src/features/mcp/vault-tools.js";
@@ -632,9 +633,17 @@ layer(ProjectApp)("OpenCode in a project", (it) => {
   /**
    * A project with a main and an extra working directory, an OpenCode thread in it
    * (with `agentId`), and `scenario` loaded. With `reaching`, the recording's edit
-   * approval becomes OpenCode asking to reach that path outside the main directory.
+   * approval becomes OpenCode asking to reach that path outside the main directory;
+   * with `asking`, it becomes that request.
    */
-  const projectThread = (scenario: string, options: { readonly reaching?: (folders: { readonly extra: string; readonly outside: string }) => string; readonly agentId?: string } = {}) =>
+  const projectThread = (
+    scenario: string,
+    options: {
+      readonly reaching?: (folders: { readonly extra: string; readonly outside: string }) => string;
+      readonly asking?: (folders: { readonly repo: string }) => { readonly action: string; readonly resources: ReadonlyArray<string> };
+      readonly agentId?: string;
+    } = {},
+  ) =>
     Effect.gen(function* () {
       const base = yield* Effect.acquireRelease(
         Effect.sync(() => realpathSync(mkdtempSync(join(tmpdir(), "wiki-agents-project-")))),
@@ -645,13 +654,14 @@ layer(ProjectApp)("OpenCode in a project", (it) => {
       const { project } = yield* post("/api/projects", { name: "Repo", workingDirectories: [repo, extra] }).pipe(Effect.flatMap(decode(RegisterProjectResponse)));
       const recorded = loadFixture(scenario);
       const target = options.reaching?.({ extra, outside });
-      const fixture = target === undefined ? recorded : {
+      const request = options.asking?.({ repo }) ?? (target === undefined ? undefined : { action: "external_directory", resources: [`${target}/*`] });
+      const fixture = request === undefined ? recorded : {
         ...recorded,
         turns: recorded.turns.map((turn) => ({
           ...turn,
           steps: turn.steps.map((step) => {
             const event = "event" in step ? (step.event as { type: string; data: Record<string, unknown> }) : undefined;
-            return event?.type === "permission.asked" ? { event: { ...event, data: { ...event.data, action: "external_directory", resources: [`${target}/*`] } } } : step;
+            return event?.type === "permission.asked" ? { event: { ...event, data: { ...event.data, ...request } } } : step;
           }),
         })),
       };
@@ -690,6 +700,30 @@ layer(ProjectApp)("OpenCode in a project", (it) => {
       yield* answer(thread.id, requestIdOf(opened), { _tag: "approval", decision: "approve" });
       expect(finishedOf(yield* events.until(isTag("turn.finished"))).outcome).toBe("completed");
       expect(fake.calls).toContainEqual({ call: "reply", requestId: requestIdOf(opened), reply: "once" });
+    }),
+  );
+
+  it.effect("refuses a request reaching a .env file, and answers one OpenCode asked only because of the name check from the autonomy", () =>
+    Effect.gen(function* () {
+      const refused = yield* projectThread("approval-denied", { asking: ({ repo }) => ({ action: "read", resources: [join(repo, ".env")] }) });
+      const events = yield* watch(refused.thread.id);
+      yield* sendOk(refused.thread.id, refused.prompts[0]!);
+      expect((yield* events.until(isTag("turn.finished"))).map((event) => event._tag)).not.toContain("request.opened");
+      expect(refused.fake.calls).toContainEqual(expect.objectContaining({ call: "reply", reply: "reject", message: SECRET_DENIED }));
+
+      // Reading is allowed by default: .env.example is read without asking you.
+      const allowed = yield* projectThread("approval-approved", { asking: ({ repo }) => ({ action: "read", resources: [join(repo, ".env.example")] }) });
+      const more = yield* watch(allowed.thread.id);
+      yield* sendOk(allowed.thread.id, allowed.prompts[0]!);
+      expect((yield* more.until(isTag("turn.finished"))).map((event) => event._tag)).not.toContain("request.opened");
+      expect(allowed.fake.calls).toContainEqual(expect.objectContaining({ call: "reply", reply: "once" }));
+
+      // Editing asks by default: an edit of .env.example still comes to you.
+      const asked = yield* projectThread("approval-approved", { asking: ({ repo }) => ({ action: "edit", resources: [join(repo, ".env.example")] }) });
+      const last = yield* watch(asked.thread.id);
+      yield* sendOk(asked.thread.id, asked.prompts[0]!);
+      yield* last.until(isTag("request.opened"));
+      expect(asked.fake.calls.some((call) => call.call === "reply")).toBe(false);
     }),
   );
 
@@ -742,9 +776,10 @@ describe("OpenCode status", () => {
   );
 });
 
-/** The paths every turn denies: the test secret store's files (and any MCP server's `${file:…}`). */
+/** What every turn protects: the test secret store's files (and any MCP server's `${file:…}`) and the default .env names. */
 const secretPaths = Effect.gen(function* () {
-  return (yield* (yield* SecretMaterial).current).paths;
+  const { paths, names } = yield* (yield* SecretMaterial).current;
+  return { paths, names };
 });
 
 const migrationsDir = fileURLToPath(new URL("../../drizzle", import.meta.url));

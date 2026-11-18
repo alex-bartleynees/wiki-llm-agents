@@ -1,13 +1,16 @@
 import { Context, type Effect } from "effect";
 
-/** What no agent may reach, read from the secret store and the MCP server files at one moment. */
+/** What no agent may reach, read from the secret store, the MCP server files and the configuration at one moment. */
 export interface SecretMaterialList {
   /**
-   * Absolute paths of files and folders holding secrets: the stored secrets, their key,
-   * declared secret files and every `${file:…}` an MCP server refers to. Each in its
-   * written form and, where it exists and differs, its canonical one. Sorted.
+   * Absolute paths of files and folders no agent may reach: the stored secrets, their
+   * key, declared secret files, every `${file:…}` an MCP server refers to, and the paths
+   * in `WIKI_AGENTS_PROTECTED_PATHS`. Each in its written form and, where it exists and
+   * differs, its canonical one. Sorted.
    */
   readonly paths: ReadonlyArray<string>;
+  /** Name patterns from `WIKI_AGENTS_PROTECTED_PATHS`, `!` exceptions included, as written (see `Protection.names`). */
+  readonly names: ReadonlyArray<string>;
   /** Environment variables MCP servers refer to with `${env:…}`: withheld from providers whatever the settings. Sorted. */
   readonly envNames: ReadonlyArray<string>;
 }

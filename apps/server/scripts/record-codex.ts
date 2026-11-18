@@ -193,7 +193,7 @@ const record = (name: string, scenario: Scenario, model: string) =>
       const launcher = recordingLauncher(log, [realpathSync(root), attachments]);
       const adapter = yield* makeCodexAdapter({ launcher, binary, installedVersion: binaryVersion, authStatus: (path) => authStatus(CodexLauncherLive, path) });
       const autonomy = scenario.autonomy ?? DEFAULT_AUTONOMY;
-      const setup: SessionSetup = { instructions: [], autonomy, projectRoots: null, attachmentFolders: [], protectedPaths: [], vaultTools: null };
+      const setup: SessionSetup = { instructions: [], autonomy, projectRoots: null, attachmentFolders: [], protection: { paths: [], names: [] }, vaultTools: null };
       const session = yield* adapter.openSession({ threadId: "record", cwd: root, nativeSessionId: null, model, setup });
       const turns = [];
       for (const script of scenario.turns) {

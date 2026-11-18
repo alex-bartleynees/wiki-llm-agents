@@ -5,7 +5,8 @@ import { NodeFileSystem } from "@effect/platform-node";
 import { type Autonomy, DEFAULT_AUTONOMY } from "@wiki-agents/contracts/agents/model";
 import { Effect } from "effect";
 import { afterAll, describe, expect, it } from "vitest";
-import { autonomyConfig, decideCommand, decideFileChange, enforcedAutonomy, PERMISSION_PROFILE, permissionsReachProtected } from "./permissions.js";
+import { NO_PROTECTION, type Protection } from "../../../shared/secret-paths.js";
+import { autonomyConfig, codexNameGlobs, decideCommand, decideFileChange, enforcedAutonomy, PERMISSION_PROFILE, permissionsReachProtected } from "./permissions.js";
 import type { FileUpdateChange } from "./protocol.js";
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), "wiki-agents-codex-permissions-")));
@@ -27,8 +28,11 @@ const remove = (path: string): FileUpdateChange => ({ path, kind: { type: "delet
 const secrets = join(root, "data", "secrets");
 const keyFile = join(root, "state", "secrets.key");
 
-const decision = (changes: ReadonlyArray<FileUpdateChange>, autonomy: Autonomy = DEFAULT_AUTONOMY, roots = [vault], protectedPaths = [secrets, keyFile]) =>
-  Effect.runPromise(decideFileChange({ autonomy, roots, cwd: vault, changes, protectedPaths }).pipe(Effect.provide(NodeFileSystem.layer)));
+const ENV_NAMES = [".env", ".env.*", "!.env.example"];
+const only = (paths: ReadonlyArray<string>): Protection => ({ paths, names: [] });
+
+const decision = (changes: ReadonlyArray<FileUpdateChange>, autonomy: Autonomy = DEFAULT_AUTONOMY, roots = [vault], protection: Protection = { paths: [secrets, keyFile], names: ENV_NAMES }) =>
+  Effect.runPromise(decideFileChange({ autonomy, roots, cwd: vault, changes, protection }).pipe(Effect.provide(NodeFileSystem.layer)));
 
 describe("autonomy → Codex patch decisions", () => {
   it("tells creating a file from editing one, and takes the strictest of a patch's files", async () => {
@@ -56,14 +60,14 @@ describe("autonomy → Codex patch decisions", () => {
   });
 
   it("answers commands outside the sandbox from commands autonomy", () => {
-    expect(decideCommand(DEFAULT_AUTONOMY, [keyFile], "npm install")).toBe("ask");
-    expect(decideCommand(RESEARCHER, [keyFile], "npm install")).toBe("deny");
-    expect(decideCommand(TRUSTED, [keyFile], "npm install")).toBe("allow");
+    expect(decideCommand(DEFAULT_AUTONOMY, only([keyFile]), "npm install")).toBe("ask");
+    expect(decideCommand(RESEARCHER, only([keyFile]), "npm install")).toBe("deny");
+    expect(decideCommand(TRUSTED, only([keyFile]), "npm install")).toBe("allow");
   });
 
   it("turns web search on only when the web is allowed, and says what Codex can't enforce", () => {
-    expect(autonomyConfig(RESEARCHER, [])).toMatchObject({ web_search: "live" });
-    expect(autonomyConfig(DEFAULT_AUTONOMY, [])).toMatchObject({ web_search: "disabled" });
+    expect(autonomyConfig(RESEARCHER, NO_PROTECTION, [vault])).toMatchObject({ web_search: "live" });
+    expect(autonomyConfig(DEFAULT_AUTONOMY, NO_PROTECTION, [vault])).toMatchObject({ web_search: "disabled" });
     const enforced = enforcedAutonomy({ ...DEFAULT_AUTONOMY, read: "ask" });
     expect(enforced.autonomy).toEqual({ ...DEFAULT_AUTONOMY, read: "allow", web: "deny" });
     expect(enforced.notes.join("\n")).toMatch(/reading is always allowed/);
@@ -80,16 +84,42 @@ describe("files holding secrets", () => {
   });
 
   it("denies a command outside the sandbox that names one, and access asked for one", () => {
-    expect(decideCommand(TRUSTED, [keyFile], `cat ${keyFile}`)).toBe("deny");
-    expect(permissionsReachProtected([secrets], { fileSystem: { entries: [{ access: "read", path: { type: "path", path: join(secrets, "secrets.enc") } }] } })).toBe(true);
-    expect(permissionsReachProtected([secrets], { fileSystem: { write: [vault] } })).toBe(false);
+    expect(decideCommand(TRUSTED, only([keyFile]), `cat ${keyFile}`)).toBe("deny");
+    expect(permissionsReachProtected(only([secrets]), { fileSystem: { entries: [{ access: "read", path: { type: "path", path: join(secrets, "secrets.enc") } }] } })).toBe(true);
+    expect(permissionsReachProtected(only([secrets]), { fileSystem: { write: [vault] } })).toBe(false);
   });
 
   it("runs the thread under a profile that reads everything but them", () => {
-    expect(autonomyConfig(TRUSTED, [secrets, keyFile])).toMatchObject({
+    expect(autonomyConfig(TRUSTED, only([secrets, keyFile]), [vault])).toMatchObject({
       default_permissions: PERMISSION_PROFILE,
       [`permissions.${PERMISSION_PROFILE}.filesystem`]: { ":root": "read", [secrets]: "none", [keyFile]: "none" },
     });
-    expect(autonomyConfig(TRUSTED, [])).not.toHaveProperty("default_permissions");
+    expect(autonomyConfig(TRUSTED, NO_PROTECTION, [vault])).not.toHaveProperty("default_permissions");
+  });
+});
+
+describe("protected names (.env)", () => {
+  it("cuts the exceptions out of a pattern as deny-only globs", () => {
+    expect(codexNameGlobs(".env", ["env.example"])).toEqual([".env"]);
+    expect(codexNameGlobs(".env.*", [])).toEqual([".env.*"]);
+    expect(codexNameGlobs(".env.*", [".env.ex"])).toEqual([".env.", ".env.[!e]*", ".env.e", ".env.e[!x]*", ".env.ex?*"]);
+    expect(codexNameGlobs(".env.*", [".env.ab", ".env.ac"])).toEqual([".env.", ".env.[!a]*", ".env.a", ".env.a[!bc]*", ".env.ab?*", ".env.ac?*"]);
+    // A glob exception can't be cut out: the pattern stays whole, the stricter way round.
+    expect(codexNameGlobs(".env.*", [".env.*.example"])).toEqual([".env.*"]);
+  });
+
+  it("denies the patterns below every root, and the paths, in the profile", () => {
+    const filesystem = autonomyConfig(TRUSTED, { paths: [keyFile], names: ENV_NAMES }, [vault, vault, outside])[`permissions.${PERMISSION_PROFILE}.filesystem`] as Record<string, string>;
+    expect(filesystem).toMatchObject({ ":root": "read", [keyFile]: "none", [`${vault}/**/.env`]: "none", [`${outside}/**/.env.`]: "none", [`${vault}/**/.env.example?*`]: "none" });
+    expect(Object.keys(filesystem).filter((key) => key.startsWith(vault))).toHaveLength(16);
+    expect(Object.values(filesystem).filter((access) => access !== "none")).toEqual(["read"]);
+  });
+
+  it("denies a patch or a command outside the sandbox reaching one, but not .env.example", async () => {
+    expect(await decision([add(join(vault, ".env"))], TRUSTED)).toBe("deny");
+    expect(await decision([update(join(vault, "app", ".env.production"))], TRUSTED)).toBe("deny");
+    expect(await decision([add(join(vault, ".env.example"))], TRUSTED)).toBe("allow");
+    expect(decideCommand(TRUSTED, { paths: [], names: ENV_NAMES }, "cp .env.example .env")).toBe("deny");
+    expect(decideCommand(TRUSTED, { paths: [], names: ENV_NAMES }, "cat .env.example")).toBe("allow");
   });
 });
