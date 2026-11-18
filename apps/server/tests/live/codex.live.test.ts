@@ -28,6 +28,7 @@ const SETUP: SessionSetup = {
   autonomy: DEFAULT_AUTONOMY,
   projectRoots: null,
   attachmentFolders: [],
+  protectedPaths: [],
   vaultTools: null,
 };
 

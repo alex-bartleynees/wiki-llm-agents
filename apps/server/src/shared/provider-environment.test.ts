@@ -50,6 +50,13 @@ describe("providerEnvironment", () => {
     expect(env).not.toHaveProperty("WIKI_AGENTS_SECRET_FILES");
   });
 
+  it("never passes a variable an MCP server takes a secret from, even when named", () => {
+    const env = providerEnvironment(source, { withhold: [], pass: ["NPM_TOKEN", "AWS_*"], secrets: ["NPM_TOKEN", "AWS_SECRET_ACCESS_KEY"] });
+    expect(env).not.toHaveProperty("NPM_TOKEN");
+    expect(env).not.toHaveProperty("AWS_SECRET_ACCESS_KEY");
+    expect(env.AWS_REGION).toBe("ap-southeast-2");
+  });
+
   it("matches a name exactly unless it ends with *", () => {
     const env = providerEnvironment(source, { withhold: ["AWS"], pass: [] });
     expect(env.AWS_REGION).toBe("ap-southeast-2");

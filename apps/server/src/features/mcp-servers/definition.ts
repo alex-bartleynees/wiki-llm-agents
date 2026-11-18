@@ -100,6 +100,23 @@ export const referenceProblems = (field: string, value: string): ReadonlyArray<s
   return problems;
 };
 
+/** The environment variables (`${env:NAME}`) and files (`${file:/path}`) a server's headers or environment refer to. */
+export const referencesOf = (server: McpServerDefinition): { readonly envNames: ReadonlyArray<string>; readonly files: ReadonlyArray<string> } => {
+  const values = Object.values(server.transport.type === "stdio" ? server.transport.env : server.transport.headers);
+  const envNames = new Set<string>();
+  const files = new Set<string>();
+  for (const value of values) {
+    for (const [, inner = ""] of value.matchAll(REFERENCE)) {
+      const colon = inner.indexOf(":");
+      const kind = inner.slice(0, Math.max(colon, 0));
+      const name = inner.slice(colon + 1);
+      if (kind === "env") envNames.add(name);
+      else if (kind === "file") files.add(name);
+    }
+  }
+  return { envNames: [...envNames], files: [...files] };
+};
+
 /** Whether a server is one the app signs in to (OAuth): reached by URL, without an `Authorization` header of its own. */
 export const signsIn = (server: McpServerDefinition) =>
   server.transport.type === "http" && !Object.keys(server.transport.headers).some((name) => name.toLowerCase() === "authorization");

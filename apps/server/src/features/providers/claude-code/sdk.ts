@@ -29,16 +29,16 @@ export interface ClaudeCodeSdk {
 }
 
 /**
- * The real SDK, starting Claude Code with `base` as its environment (see
+ * The real SDK, starting Claude Code with `base()` as its environment, read as it starts (see
  * `providerEnvironment`); the SDK would otherwise hand it this process's own.
  */
-export const makeClaudeCodeSdk = (base: Readonly<Record<string, string | undefined>>): ClaudeCodeSdk => ({
-  query: ({ prompt, options }) => query({ prompt, options: { ...options, env: { ...base, ...options.env } } }),
+export const makeClaudeCodeSdk = (base: () => Readonly<Record<string, string | undefined>>): ClaudeCodeSdk => ({
+  query: ({ prompt, options }) => query({ prompt, options: { ...options, env: { ...base(), ...options.env } } }),
   sessionExists: async (sessionId, cwd) => (await getSessionInfo(sessionId, { dir: cwd })) !== undefined,
 });
 
 /** Claude Code with this process's whole environment: for the recorder and live tests, not the app. */
-export const ClaudeCodeSdkLive: ClaudeCodeSdk = makeClaudeCodeSdk(process.env);
+export const ClaudeCodeSdkLive: ClaudeCodeSdk = makeClaudeCodeSdk(() => process.env);
 
 /**
  * Messages for a conversation, pushed as the user sends them. Claude Code keeps

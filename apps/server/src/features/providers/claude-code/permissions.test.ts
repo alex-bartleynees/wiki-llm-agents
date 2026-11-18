@@ -27,9 +27,17 @@ afterAll(() => rmSync(root, { recursive: true, force: true }));
 const RESEARCHER: Autonomy = { read: "allow", create: "allow", edit: "ask", commands: "deny", web: "allow", tools: "allow" };
 const TRUSTED: Autonomy = { read: "allow", create: "allow", edit: "allow", commands: "allow", web: "allow", tools: "allow" };
 
-const decision = (toolName: string, toolInput: unknown, autonomy: Autonomy = DEFAULT_AUTONOMY, roots = [vault], readable = [own]) =>
+const secrets = join(root, "data", "secrets");
+const keyFile = join(root, "state", "secrets.key");
+mkdirSync(secrets, { recursive: true });
+mkdirSync(join(root, "state"));
+writeFileSync(join(secrets, "secrets.enc"), "{}");
+writeFileSync(keyFile, "key");
+symlinkSync(join(root, "state"), join(vault, "state-link"));
+
+const decision = (toolName: string, toolInput: unknown, autonomy: Autonomy = DEFAULT_AUTONOMY, roots = [vault], readable = [own], protectedPaths = [secrets, keyFile]) =>
   Effect.runPromise(
-    decide({ autonomy, roots, readable, cwd: vault, vaultTools: "wiki-agents-thread-1", toolName, toolInput }).pipe(Effect.provide(NodeFileSystem.layer)),
+    decide({ autonomy, roots, readable, protectedPaths, cwd: vault, vaultTools: "wiki-agents-thread-1", toolName, toolInput }).pipe(Effect.provide(NodeFileSystem.layer)),
   );
 
 describe("autonomy → Claude Code tool decisions", () => {
@@ -97,5 +105,29 @@ describe("autonomy → Claude Code tool decisions", () => {
   it("notes where Claude Code's enforcement differs from the file", () => {
     expect(enforcedAutonomy(RESEARCHER)).toEqual({ autonomy: RESEARCHER, notes: [expect.stringContaining("outside the working folder")] });
     expect(enforcedAutonomy(DEFAULT_AUTONOMY).notes).toHaveLength(2);
+  });
+});
+
+describe("files holding secrets", () => {
+  it("denies reading, writing or searching them whatever the autonomy, through a symlink too", async () => {
+    expect(await decision("Read", { file_path: join(secrets, "secrets.enc") }, TRUSTED)).toBe("secret");
+    expect(await decision("Read", { file_path: keyFile }, TRUSTED)).toBe("secret");
+    expect(await decision("Read", { file_path: "state-link/secrets.key" }, TRUSTED)).toBe("secret");
+    expect(await decision("Write", { file_path: join(secrets, "new.enc"), content: "x" }, TRUSTED)).toBe("secret");
+    expect(await decision("Edit", { file_path: keyFile, old_string: "a", new_string: "b" }, TRUSTED)).toBe("secret");
+    expect(await decision("Grep", { pattern: "key", path: join(root, "data") }, TRUSTED)).toBe("secret");
+    expect(await decision("Glob", { pattern: `${root}/state/*` }, TRUSTED)).toBe("secret");
+  });
+
+  it("denies a command naming one, from the home folder too; other commands follow commands", async () => {
+    expect(await decision("Bash", { command: `cat ${keyFile}` }, TRUSTED)).toBe("secret");
+    expect(await decision("Bash", { command: `cp -r ${secrets} /tmp/x` })).toBe("secret");
+    expect(await decision("Bash", { command: "ls" }, TRUSTED)).toBe("allow");
+  });
+
+  it("leaves everything else as before", async () => {
+    expect(await decision("Read", { file_path: join(vault, "Notes/Tea.md") })).toBe("allow");
+    expect(await decision("Read", { file_path: join(root, "data", "app.db") })).toBe("ask");
+    expect(await decision("Grep", { pattern: "north", path: own })).toBe("allow");
   });
 });

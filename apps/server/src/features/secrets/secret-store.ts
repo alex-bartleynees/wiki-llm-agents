@@ -55,6 +55,11 @@ export interface SecretStoreService {
   readonly readCredentials: (prefix: string) => Effect.Effect<ReadonlyMap<string, string>, SecretStoreUnavailable>;
   /** Stores a credential, or forgets it with null (which needs no key). */
   readonly writeCredential: (key: string, value: string | null) => Effect.Effect<void, SecretStoreUnavailable>;
+  /**
+   * Absolute paths an agent must never reach: the stored secrets' folder, the key and
+   * its systemd-encrypted copy, and every declared secret's file. Some may not exist yet.
+   */
+  readonly files: ReadonlyArray<string>;
 }
 
 export class SecretStore extends Context.Service<SecretStore, SecretStoreService>()("SecretStore") {}

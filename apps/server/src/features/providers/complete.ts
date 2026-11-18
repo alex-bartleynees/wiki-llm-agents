@@ -23,6 +23,7 @@ const throughSession = (adapter: ProviderAdapter, input: CompletionInput) =>
         autonomy: NOTHING,
         projectRoots: [input.cwd],
         attachmentFolders: [],
+        protectedPaths: [],
         vaultTools: null,
       };
       const session = yield* adapter.openSession({ threadId: `one-shot-${randomUUID()}`, cwd: input.cwd, nativeSessionId: null, model: input.model, setup });

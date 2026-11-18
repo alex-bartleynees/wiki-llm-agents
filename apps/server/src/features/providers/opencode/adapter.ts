@@ -6,11 +6,12 @@ import type { RequestAnswer } from "@wiki-agents/contracts/threads/model";
 import { Duration, Effect, Exit, FileSystem, Option, PubSub, Queue, RcRef, Scope, Stream } from "effect";
 import { pathsWithinRoots } from "../../../shared/vault/path-scope.js";
 import { revisedEntryName } from "../../mcp/vault-tools.js";
-import { type ProviderAdapter, ProviderError, type ProviderEvent, type ProviderSession, type SessionSetup, type TurnImage, type TurnInput, DENIED, vaultToolsUnavailable } from "../port.js";
+import { type ProviderAdapter, ProviderError, type ProviderEvent, type ProviderSession, type SessionSetup, type TurnImage, type TurnInput, DENIED, SECRET_DENIED, vaultToolsUnavailable } from "../port.js";
 import type { OpenCodeApi, OpenCodeError, OpenCodeEvent, OpenCodeFile, OpenCodePermissionRule, OpenCodeSignal } from "./api.js";
 import { formAnswer, makeTurnMapper, sessionOf } from "./events.js";
 import { instructionsText, MAX_INSTRUCTIONS_BYTES } from "./instructions.js";
-import { enforcedAutonomy, permissionRules } from "./permissions.js";
+import { commandNamesProtected, reachesProtected } from "../../../shared/secret-paths.js";
+import { enforcedAutonomy, FILE_ACTIONS, permissionRules } from "./permissions.js";
 import { CLIENT_VERSION, isSupportedVersion } from "./server.js";
 
 /**
@@ -88,7 +89,7 @@ interface Applied {
 }
 
 const sessionRules = (setup: SessionSetup) =>
-  permissionRules(setup.autonomy, setup.vaultTools === null ? null : revisedEntryName(setup.vaultTools), setup.attachmentFolders);
+  permissionRules(setup.autonomy, setup.vaultTools === null ? null : revisedEntryName(setup.vaultTools), setup.attachmentFolders, setup.protectedPaths);
 const rulesKey = (setup: SessionSetup) => JSON.stringify(sessionRules(setup));
 
 export { vaultToolsUnavailable } from "../port.js";
@@ -159,6 +160,24 @@ const makeSession = (connect: Connect, sessionId: string, cwd: string, silence: 
    * follows the agent's autonomy like any other. Anywhere else goes to you. True when
    * answered here.
    */
+  /**
+   * Refuses a request that reaches a file holding secrets, whatever the rules let
+   * through: a file action or folder (`external_directory`, so a folder holding one
+   * counts) on one, or a command naming one. True when answered here.
+   */
+  const refuseSecret = (api: OpenCodeApi, setup: SessionSetup, request: { readonly id: string; readonly action: string; readonly resources: ReadonlyArray<string> }) =>
+    Effect.gen(function* () {
+      const reaches =
+        request.action === "shell"
+          ? request.resources.some((command) => commandNamesProtected(setup.protectedPaths, command))
+          : request.action === "external_directory" || FILE_ACTIONS.includes(request.action)
+            ? yield* reachesProtected(setup.protectedPaths, cwd, request.resources, { searches: true }).pipe(Effect.provideService(FileSystem.FileSystem, fs))
+            : false;
+      if (!reaches) return false;
+      yield* api.replyPermission(sessionId, request.id, "reject", SECRET_DENIED).pipe(Effect.mapError(toProviderError));
+      return true;
+    });
+
   const answerInProject = (api: OpenCodeApi, setup: SessionSetup, request: { readonly id: string; readonly action: string; readonly resources: ReadonlyArray<string> }) =>
     Effect.gen(function* () {
       if (setup.projectRoots === null || request.action !== "external_directory") return false;
@@ -232,6 +251,7 @@ const makeSession = (connect: Connect, sessionId: string, cwd: string, silence: 
               current.inboxId = undefined;
               break;
             case "permission.asked":
+              if (yield* refuseSecret(api, setup, event.data)) continue;
               if (yield* answerInProject(api, setup, event.data)) continue;
               requests.set(event.data.id, { kind: "permission" });
               waiting.add(event.data.id);

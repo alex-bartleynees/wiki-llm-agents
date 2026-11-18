@@ -22,7 +22,7 @@ chmodSync(binary, 0o755);
 describe("makeCodexLauncher", () => {
   it("starts Codex with the given environment plus the launch's additions", async () => {
     const source = { PATH: process.env.PATH, KEPT: "kept", WIKI_AGENTS_DATA_DIR: "/data", NPM_TOKEN: "npm-secret" };
-    const launcher = makeCodexLauncher(providerEnvironment(source, { withhold: ["NPM_TOKEN"], pass: [] }));
+    const launcher = makeCodexLauncher(() => providerEnvironment(source, { withhold: ["NPM_TOKEN"], pass: [] }));
     const message = await new Promise<JsonRpcMessage>((resolve, reject) => {
       const child = launcher.launch({ binary, cwd: dir, env: { WIKI_AGENTS_VAULT_TOKEN: "thread-token" } });
       child.listen({ message: resolve, exit: (reason) => reject(new Error(reason ?? "exited without a message")) });

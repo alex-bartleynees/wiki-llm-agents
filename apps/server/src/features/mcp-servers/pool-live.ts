@@ -5,7 +5,8 @@ import { McpClient, type McpClientError, McpProtocol, McpSchema } from "effect/a
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/http";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import { networkReason } from "../../shared/network-reason.js";
-import { ProviderEnvironment } from "../../shared/provider-environment.js";
+import { type EnvironmentSource, makeProviderEnvironment } from "../../shared/provider-environment.js";
+import { SecretMaterial } from "../secrets/material.js";
 import { WallClock } from "../../shared/wall-clock.js";
 import { McpConnections } from "../mcp-oauth/connections.js";
 import { SecretStore } from "../secrets/secret-store.js";
@@ -117,7 +118,7 @@ const seconds = (ms: number) => `${Math.round(ms / 1000)} s`;
 
 export interface McpPoolOptions {
   /** What a stdio server's environment starts with, before its own `env`: what providers get. */
-  readonly environment: Readonly<Record<string, string>>;
+  readonly environment: EnvironmentSource;
   readonly idleTimeToLive?: Duration.Input;
 }
 
@@ -209,7 +210,7 @@ export const makeMcpPool = (options: McpPoolOptions) =>
             ? yield* McpClient.stdio({
                 command: ChildProcess.make(server.transport.command, server.transport.args, {
                   cwd: server.transport.cwd ?? cwd ?? homedir(),
-                  env: { ...options.environment, ...values },
+                  env: { ...options.environment(), ...values },
                   extendEnv: false,
                 }),
                 protocol,
@@ -411,8 +412,14 @@ export const makeMcpPool = (options: McpPoolOptions) =>
     });
   });
 
-/** The pool, with stdio servers started in the environment providers get. */
+/**
+ * The pool, with stdio servers started in the environment providers get: no server
+ * sees the variables other servers take secrets from, only what its own `env` gives it.
+ */
 export const McpPoolLive = Layer.effect(
   McpPool,
-  Effect.flatMap(ProviderEnvironment, (environment) => makeMcpPool({ environment })),
+  Effect.gen(function* () {
+    const material = yield* SecretMaterial;
+    return yield* makeMcpPool({ environment: yield* makeProviderEnvironment(() => material.latest().envNames) });
+  }),
 );

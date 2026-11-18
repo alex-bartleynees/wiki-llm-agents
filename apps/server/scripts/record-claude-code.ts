@@ -212,7 +212,7 @@ const record = (name: string, scenario: Scenario, model: string) =>
       const log = { steps: [] as Array<FixtureStep>, sent: () => {} };
       const adapter = yield* makeClaudeCodeAdapter({ sdk: recordingSdk(log), binary, installedVersion: binaryVersion, authStatus });
       const autonomy = scenario.autonomy ?? DEFAULT_AUTONOMY;
-      const setup: SessionSetup = { instructions: [], autonomy, projectRoots: null, attachmentFolders: [], vaultTools: null };
+      const setup: SessionSetup = { instructions: [], autonomy, projectRoots: null, attachmentFolders: [], protectedPaths: [], vaultTools: null };
       const session = yield* adapter.openSession({ threadId: "record", cwd: root, nativeSessionId: null, model, setup });
       const turns = [];
       for (const script of scenario.turns) {

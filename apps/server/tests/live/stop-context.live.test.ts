@@ -25,7 +25,7 @@ import type { ProviderAdapter, ProviderEvent, SessionSetup } from "../../src/fea
 const wanted = new Set((process.env.WIKI_AGENTS_LIVE_STOP ?? "").split(",").filter(Boolean));
 
 const AUTONOMY: Autonomy = { read: "allow", create: "allow", edit: "allow", commands: "allow", web: "deny", tools: "deny" };
-const SETUP: SessionSetup = { instructions: [], autonomy: AUTONOMY, projectRoots: null, attachmentFolders: [], vaultTools: null };
+const SETUP: SessionSetup = { instructions: [], autonomy: AUTONOMY, projectRoots: null, attachmentFolders: [], protectedPaths: [], vaultTools: null };
 
 const TASK = [
   "Do these steps in order, one tool call per step, without asking me anything:",

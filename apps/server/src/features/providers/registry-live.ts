@@ -10,7 +10,8 @@ import { makeClaudeCodeSdk } from "./claude-code/sdk.js";
 import { makeCodexLauncher } from "./codex/app-server.js";
 import { makeCodexAdapter } from "./codex/adapter.js";
 import { authStatus as codexAuthStatus, binaryVersion as codexVersion } from "./codex/cli.js";
-import { ProviderEnvironment } from "../../shared/provider-environment.js";
+import { makeProviderEnvironment } from "../../shared/provider-environment.js";
+import { SecretMaterial } from "../secrets/material.js";
 import { makeOpenCodeAdapter } from "./opencode/adapter.js";
 import { binaryVersion, startServer } from "./opencode/server.js";
 import type { ProviderAdapter } from "./port.js";
@@ -93,21 +94,33 @@ export const makeProviderRegistry = <E, R>(makeAdapters: Effect.Effect<ReadonlyA
     }),
   );
 
+/**
+ * The environment providers start with, worked out as each process starts: without
+ * the variables MCP servers take secrets from (as last read; every turn reads them).
+ */
+const ProviderEnvironment = Effect.gen(function* () {
+  const material = yield* SecretMaterial;
+  return yield* makeProviderEnvironment(() => material.latest().envNames);
+});
+
 /** OpenCode, run from the `opencode` on PATH (or `WIKI_AGENTS_OPENCODE`), with its todo tool if `WIKI_AGENTS_OPENCODE_TODO`. */
-export const OpenCodeAdapterLive: Effect.Effect<ProviderAdapter, never, Scope.Scope> = Effect.gen(function* () {
+export const OpenCodeAdapterLive: Effect.Effect<ProviderAdapter, never, Scope.Scope | SecretMaterial> = Effect.gen(function* () {
   const binary = yield* AppConfig.opencodeBinary.pipe(Effect.orDie);
   const todo = yield* AppConfig.opencodeTodo.pipe(Effect.orDie);
-  return yield* makeOpenCodeAdapter({ start: startServer({ binary, todo, env: yield* ProviderEnvironment }), installedVersion: binaryVersion(binary) });
+  const environment = yield* ProviderEnvironment;
+  // OpenCode stops when idle, so each start takes the environment as it is then.
+  const start = Effect.suspend(() => startServer({ binary, todo, env: environment() }));
+  return yield* makeOpenCodeAdapter({ start, installedVersion: binaryVersion(binary) });
 });
 
 /** Claude Code, run from the `claude` on PATH (or `WIKI_AGENTS_CLAUDE`), with your login. */
-export const ClaudeCodeAdapterLive: Effect.Effect<ProviderAdapter> = Effect.gen(function* () {
+export const ClaudeCodeAdapterLive: Effect.Effect<ProviderAdapter, never, SecretMaterial> = Effect.gen(function* () {
   const binary = yield* AppConfig.claudeBinary.pipe(Effect.orDie);
   return yield* makeClaudeCodeAdapter({ sdk: makeClaudeCodeSdk(yield* ProviderEnvironment), binary, installedVersion: claudeVersion, authStatus });
 });
 
 /** Codex, run from the `codex` on PATH (or `WIKI_AGENTS_CODEX`), with your login. */
-export const CodexAdapterLive: Effect.Effect<ProviderAdapter> = Effect.gen(function* () {
+export const CodexAdapterLive: Effect.Effect<ProviderAdapter, never, SecretMaterial> = Effect.gen(function* () {
   const binary = yield* AppConfig.codexBinary.pipe(Effect.orDie);
   const launcher = makeCodexLauncher(yield* ProviderEnvironment);
   return yield* makeCodexAdapter({

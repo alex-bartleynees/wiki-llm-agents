@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 import type { Autonomy, AutonomyLevel } from "@wiki-agents/contracts/agents/model";
 import { Effect, FileSystem } from "effect";
+import { commandNamesProtected, reachesProtected } from "../../../shared/secret-paths.js";
 import { pathsWithinRoots } from "../../../shared/vault/path-scope.js";
 import type { AskForApproval, FileUpdateChange, SandboxMode } from "./protocol.js";
 
@@ -15,10 +16,26 @@ import type { AskForApproval, FileUpdateChange, SandboxMode } from "./protocol.j
 export const APPROVAL_POLICY: AskForApproval = "on-request";
 export const SANDBOX: SandboxMode = "read-only";
 
-/** `config.toml` overrides for the thread: Codex's web search can't ask first, so it is on only when the web is allowed. */
-export const autonomyConfig = (autonomy: Autonomy): Record<string, unknown> => ({
+/** The permission profile a thread with protected paths runs under. */
+export const PERMISSION_PROFILE = "wiki_agents";
+
+/**
+ * `config.toml` overrides for the thread: Codex's web search can't ask first, so it is
+ * on only when the web is allowed. With protected paths, the thread runs under a
+ * permission profile like the read-only sandbox (read everything, write nothing) that
+ * also denies reading them, so the sandbox itself stops every command reaching them,
+ * however it names them. Checked with Codex 0.167.1: the profile wins over
+ * `sandbox_mode`, a folder denies what is inside, and a path that doesn't exist is fine.
+ */
+export const autonomyConfig = (autonomy: Autonomy, protectedPaths: ReadonlyArray<string>): Record<string, unknown> => ({
   web_search: autonomy.web === "allow" ? "live" : "disabled",
   "features.default_mode_request_user_input": true,
+  ...(protectedPaths.length === 0
+    ? {}
+    : {
+        default_permissions: PERMISSION_PROFILE,
+        [`permissions.${PERMISSION_PROFILE}.filesystem`]: Object.fromEntries([[":root", "read"], ...protectedPaths.map((path) => [path, "none"])]),
+      }),
 });
 
 const STRICTNESS: Readonly<Record<AutonomyLevel, number>> = { allow: 0, ask: 1, deny: 2 };
@@ -44,6 +61,8 @@ export interface FileChangeDecision {
   readonly roots: ReadonlyArray<string>;
   readonly cwd: string;
   readonly changes: ReadonlyArray<FileUpdateChange>;
+  /** Paths holding secrets: a change touching one is denied whatever the autonomy. */
+  readonly protectedPaths: ReadonlyArray<string>;
 }
 
 /**
@@ -53,6 +72,7 @@ export interface FileChangeDecision {
  */
 export const decideFileChange = Effect.fnUntraced(function* (input: FileChangeDecision): Effect.fn.Return<AutonomyLevel, never, FileSystem.FileSystem> {
   if (input.changes.length === 0) return "ask" as const;
+  if (yield* reachesProtected(input.protectedPaths, input.cwd, changedPaths(input.changes, input.cwd))) return "deny" as const;
   let level: AutonomyLevel = "allow";
   for (const change of input.changes) level = strictest(level, (yield* creates(change, input.cwd)) ? input.autonomy.create : input.autonomy.edit);
   if (level === "deny") return level;
@@ -60,8 +80,17 @@ export const decideFileChange = Effect.fnUntraced(function* (input: FileChangeDe
   return inside ? level : strictest(level, "ask");
 });
 
-/** A command Codex asks to run outside its read-only sandbox (to write, or reach the network). */
-export const decideCommand = (autonomy: Autonomy): AutonomyLevel => autonomy.commands;
+/**
+ * A command Codex asks to run outside its read-only sandbox (to write, or reach the
+ * network), where the profile's denials don't apply: one naming a protected path is
+ * denied (a best effort; see `commandNamesProtected`).
+ */
+export const decideCommand = (autonomy: Autonomy, protectedPaths: ReadonlyArray<string>, command: string): AutonomyLevel =>
+  commandNamesProtected(protectedPaths, command) ? "deny" : autonomy.commands;
+
+/** Codex asks for more access than the sandbox gives: never to a protected path. */
+export const permissionsReachProtected = (protectedPaths: ReadonlyArray<string>, permissions: unknown) =>
+  commandNamesProtected(protectedPaths, JSON.stringify(permissions) ?? "");
 
 /** What Codex enforces for `autonomy`, with notes where it differs from the file. */
 export const enforcedAutonomy = (autonomy: Autonomy) => {

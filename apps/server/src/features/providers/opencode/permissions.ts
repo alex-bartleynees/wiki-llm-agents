@@ -1,4 +1,6 @@
+import { homedir } from "node:os";
 import type { Autonomy, AutonomyLevel } from "@wiki-agents/contracts/agents/model";
+import { spellings } from "../../../shared/secret-paths.js";
 import { ENTRY_PREFIX, GATEWAY_TOOL_PATTERN, VAULT_WRITE_TOOLS } from "../../mcp/vault-tools.js";
 import type { OpenCodePermissionRule } from "./api.js";
 
@@ -13,6 +15,9 @@ export const ACTIONS = {
   commands: ["shell"],
   web: ["webfetch", "websearch", "browser"],
 } as const;
+
+/** Actions that read or write files: their resources are paths. */
+export const FILE_ACTIONS: ReadonlyArray<string> = [...ACTIONS.read, ...ACTIONS.edit];
 
 /** Tools that change nothing and only talk to you or plan: always allowed. */
 export const HARMLESS_ACTIONS = ["question", "todowrite", "todo", "skill"] as const;
@@ -41,11 +46,17 @@ export const mcpToolsAction = (server: string) => mcpToolAction(server, "*");
  * `external_directory` with `<folder>/*` before any tool works outside the session's
  * folder), so reading there follows `read`; writes there name the absolute file and
  * still ask, or stay denied. Checked live with OpenCode 2.2.6.
+ *
+ * Paths holding secrets come last, so nothing overrides them: every file action and
+ * `external_directory` on them is denied, and so is a shell command naming one (a
+ * best effort; the adapter also refuses any request that reaches one).
  */
 export const permissionRules = (
   autonomy: Autonomy,
   vaultTools: string | null = null,
   attachmentFolders: ReadonlyArray<string> = [],
+  protectedPaths: ReadonlyArray<string> = [],
+  home: string = homedir(),
 ): ReadonlyArray<OpenCodePermissionRule> => {
   const levels: ReadonlyArray<readonly [ReadonlyArray<string>, AutonomyLevel]> = [
     [HARMLESS_ACTIONS, "allow"],
@@ -68,6 +79,10 @@ export const permissionRules = (
     ...attachmentFolders.flatMap((folder) => [
       { action: "external_directory", resource: `${folder}/*`, effect: "allow" } as const,
       ...ACTIONS.edit.map((action) => ({ action, resource: `${folder}/*`, effect: strictest(fileWrites(autonomy), "ask") }) as const),
+    ]),
+    ...protectedPaths.flatMap((path) => [
+      ...[...FILE_ACTIONS, "external_directory"].flatMap((action) => [path, `${path}/*`].map((resource) => ({ action, resource, effect: "deny" }) as const)),
+      ...spellings(path, home).map((spelling) => ({ action: "shell", resource: `*${spelling}*`, effect: "deny" }) as const),
     ]),
   ];
 };

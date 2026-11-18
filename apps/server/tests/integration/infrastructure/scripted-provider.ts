@@ -13,12 +13,12 @@ export type Script = (turn: { readonly turnId: string; readonly cwd: string }) =
  * A provider whose turns run scripts chosen by the message's text, so tests can make
  * an agent change files exactly as they need: the whole text, else its first line (the
  * message before the notes and files the app adds). Each turn's input (with the
- * attachment folders its setup let it read) is kept in `inputs`. A script under `*` runs for any other text. A turn ends after its script's events
+ * attachment folders its setup let it read, and the paths it may never reach) is kept in `inputs`. A script under `*` runs for any other text. A turn ends after its script's events
  * unless the script ends it (or opened a request, which keeps it waiting).
  */
 export const makeScriptedProvider = (options: { readonly images?: boolean } = {}) => {
   const scripts = new Map<string, Script>();
-  const inputs: Array<Omit<TurnInput, "setup"> & { readonly attachmentFolders: ReadonlyArray<string> }> = [];
+  const inputs: Array<Omit<TurnInput, "setup"> & { readonly attachmentFolders: ReadonlyArray<string>; readonly protectedPaths: ReadonlyArray<string> }> = [];
   const adapter: ProviderAdapter = {
     kind: "scripted",
     capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: false, images: options.images === true },
@@ -26,7 +26,7 @@ export const makeScriptedProvider = (options: { readonly images?: boolean } = {}
       Effect.succeed({
         nativeSessionId: null,
         startTurn: ({ turnId, text, images, setup }) => {
-          inputs.push({ turnId, text, images, attachmentFolders: setup.attachmentFolders });
+          inputs.push({ turnId, text, images, attachmentFolders: setup.attachmentFolders, protectedPaths: setup.protectedPaths });
           const script = scripts.get(text) ?? scripts.get(text.split("\n")[0]!) ?? scripts.get("*");
           if (script === undefined) return Stream.die(new Error(`no script for "${text}"`));
           return Stream.unwrap(

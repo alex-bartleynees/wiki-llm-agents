@@ -778,6 +778,26 @@ each, never a value. **Replace** starts from an empty field.
   `WIKI_AGENTS_PROVIDER_ENV_PASS` names them.
 - **Resolved by the connection pool:** secrets go only to upstream connections,
   into headers or a stdio server's environment, never into an agent's.
+- **Withheld from providers:** a variable an MCP server reads with `${env:NAME}` is
+  kept from OpenCode, Claude Code and Codex (and from other stdio MCP servers), even
+  when `WIKI_AGENTS_PROVIDER_ENV_PASS` names it. The list is read every turn and when
+  a provider starts; a provider process already running when a server first refers
+  to a variable keeps it until it restarts.
+- **Out of every agent's reach:** the stored secrets' folder, the key and its `.cred`,
+  every declared file and every `${file:…}` path are denied whatever the agent's
+  autonomy:
+  - Codex runs such threads under a permission profile (read everything, write
+    nothing, those paths `none`), so its sandbox refuses them to every command,
+    however it names them. Commands it asks to run outside the sandbox are denied when
+    they name one.
+  - Claude Code's tool hook denies file tools on them (searching a folder that holds
+    one too) and commands that name one, also as `~/…` or `$HOME/…`.
+  - OpenCode's session rules deny file actions and `external_directory` on them and
+    commands that name one, and the app refuses any request reaching one.
+
+  Outside Codex this is a best effort for commands: one that reaches a file without
+  naming it (`cd` first, a glob, a variable) isn't caught. Real isolation needs a
+  sandbox that denies the read, or a separate OS user.
 
 API: `GET /api/secrets`, `PUT /api/secrets/:name` (`{ value, expiresAt }`) and
 `DELETE /api/secrets/:name`.

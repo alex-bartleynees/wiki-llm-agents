@@ -25,6 +25,7 @@ import { DENIED, makeOpenCodeAdapter, OPENCODE_STOPPED, SESSION_PERMISSIONS, vau
 import { type OpenCodeApi, OpenCodeError } from "../../src/features/providers/opencode/api.js";
 import { permissionRules } from "../../src/features/providers/opencode/permissions.js";
 import { entryName } from "../../src/features/mcp/vault-tools.js";
+import { SecretMaterial } from "../../src/features/secrets/material.js";
 import { binaryVersion } from "../../src/features/providers/opencode/server.js";
 import { makeProviderRegistry } from "../../src/features/providers/registry-live.js";
 import { ReplayAdapter } from "../../src/features/providers/replay/adapter.js";
@@ -156,8 +157,8 @@ layer(App)("OpenCode provider", (it) => {
       expect(fake.calls.some((call) => call.call === "reply")).toBe(false);
       const folder = dirname(csvPath(attachmentsDir));
       const rules = fake.calls.findLast((call) => call.call === "setPermissions" || call.call === "createSession");
-      expect(rules).toMatchObject({ permissions: permissionRules(DEFAULT_AUTONOMY, entryName(thread.id), [folder]) });
-      expect(rules && "permissions" in rules ? rules.permissions.slice(-4) : []).toEqual([
+      expect(rules).toMatchObject({ permissions: permissionRules(DEFAULT_AUTONOMY, entryName(thread.id), [folder], yield* secretPaths) });
+      expect(rules && "permissions" in rules ? rules.permissions.filter((rule) => rule.resource === `${folder}/*`) : []).toEqual([
         { action: "external_directory", resource: `${folder}/*`, effect: "allow" },
         { action: "edit", resource: `${folder}/*`, effect: "ask" },
         { action: "write", resource: `${folder}/*`, effect: "ask" },
@@ -227,7 +228,7 @@ layer(App)("OpenCode provider", (it) => {
       expect(seen.filter((event) => event._tag === "tool.finished")).toHaveLength(tools.length);
       expect(textOf(seen)).toMatch(/Coffee|Tea|index/);
       // Everything asks first except reading; the catch-all comes first, as the last matching rule wins.
-      expect(fake.calls[0]).toEqual({ call: "createSession", model: null, permissions: permissionRules(DEFAULT_AUTONOMY, entryName(thread.id)) });
+      expect(fake.calls[0]).toEqual({ call: "createSession", model: null, permissions: permissionRules(DEFAULT_AUTONOMY, entryName(thread.id), [], yield* secretPaths) });
       expect(SESSION_PERMISSIONS[0]).toEqual({ action: "*", resource: "*", effect: "ask" });
       expect(SESSION_PERMISSIONS.slice(1).map((rule) => rule.action)).not.toEqual(expect.arrayContaining(["edit"]));
       expect(SESSION_PERMISSIONS.filter((rule) => ["edit", "shell", "webfetch"].includes(rule.action))).toEqual([]);
@@ -260,7 +261,7 @@ layer(App)("OpenCode provider", (it) => {
       expect(finishedOf(yield* events.until(isTag("turn.finished"))).outcome).toBe("completed");
 
       const researcher = { read: "allow", create: "allow", edit: "ask", commands: "deny", web: "allow", tools: "allow" } as const;
-      expect(fake.calls[0]).toEqual({ call: "createSession", model: null, permissions: permissionRules(researcher, entryName(thread.id)) });
+      expect(fake.calls[0]).toEqual({ call: "createSession", model: null, permissions: permissionRules(researcher, entryName(thread.id), [], yield* secretPaths) });
       const instructions = fake.calls.find((call) => call.call === "setInstructions");
       if (instructions?.call !== "setInstructions" || instructions.text === null) throw new Error("no instructions were set");
       expect(instructions.text).toContain("# Wiki-LLM rules");
@@ -287,7 +288,7 @@ layer(App)("OpenCode provider", (it) => {
       const second = fake.calls.slice(afterFirst);
       const reviewer = { read: "allow", create: "deny", edit: "deny", commands: "deny", web: "ask", tools: "ask" } as const;
       expect(second.map((call) => call.call)).toEqual(["setPermissions", "setInstructions", "prompt"]);
-      expect(second[0]).toEqual({ call: "setPermissions", permissions: permissionRules(reviewer, entryName(thread.id)) });
+      expect(second[0]).toEqual({ call: "setPermissions", permissions: permissionRules(reviewer, entryName(thread.id), [], yield* secretPaths) });
       expect(second[1]).toMatchObject({ call: "setInstructions", text: expect.stringContaining("You are the Reviewer agent") });
       expect(fake.calls.filter((call) => call.call === "setInstructions")).toHaveLength(2);
     }),
@@ -741,6 +742,11 @@ describe("OpenCode status", () => {
   );
 });
 
+/** The paths every turn denies: the test secret store's files (and any MCP server's `${file:…}`). */
+const secretPaths = Effect.gen(function* () {
+  return (yield* (yield* SecretMaterial).current).paths;
+});
+
 const migrationsDir = fileURLToPath(new URL("../../drizzle", import.meta.url));
 
 /** The app over a database file and an OpenCode that outlives it (sessions are OpenCode's own data). */
@@ -787,12 +793,12 @@ describe("OpenCode across a restart", () => {
           const turnId = yield* sendOk(thread.id, fixture.turns[0]!.prompt);
           const seen = yield* events.until((event) => event._tag === "turn.finished" && event.turnId === turnId);
           expect(finishedOf(seen).outcome).toBe("completed");
-          return (yield* getThread(thread.id)).events;
+          return { events: (yield* getThread(thread.id)).events, paths: yield* secretPaths };
         }),
       );
       const entry = { directory: root, name: entryName(thread.id) };
       expect(fake.calls).toEqual([
-        { call: "setPermissions", permissions: permissionRules(DEFAULT_AUTONOMY, entry.name) },
+        { call: "setPermissions", permissions: permissionRules(DEFAULT_AUTONOMY, entry.name, [], stored.paths) },
         // This run hasn't set the session's instructions yet, so it sets them again.
         { call: "setInstructions", text: expect.stringContaining("# Wiki-LLM rules") },
         // The last run's token went with it: the entry gets this run's.
@@ -801,7 +807,7 @@ describe("OpenCode across a restart", () => {
         // The thread's entry goes when its actor stops with the app.
         { call: "removeMcpServer", ...entry },
       ]);
-      expect(tags(stored).filter((tag) => tag === "turn.finished")).toHaveLength(2);
+      expect(tags(stored.events).filter((tag) => tag === "turn.finished")).toHaveLength(2);
     }),
   );
 });

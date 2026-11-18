@@ -55,6 +55,12 @@ export interface SessionSetup extends AgentSetup {
    */
   readonly attachmentFolders: ReadonlyArray<string>;
   /**
+   * Absolute paths no tool may read or write, whatever the autonomy: the files and
+   * folders that hold secrets (see `SecretMaterial`). Adapters deny them with every
+   * means the provider has: its sandbox, its permission rules, or the app's own check.
+   */
+  readonly protectedPaths: ReadonlyArray<string>;
+  /**
    * The vault MCP server for this thread, which the provider registers for the
    * session; null when there is none (the replay provider ignores it). A provider
    * that can't register it still runs the turn, without the tools.
@@ -167,3 +173,6 @@ export const vaultToolsUnavailable = (reason: string) => `The vault tools aren't
 
 /** Sent with a denial, so the agent carries on instead of the turn ending. */
 export const DENIED = "The user denied this. Don't try it another way; say what you would have done.";
+
+/** Sent when a tool call reaches a file holding secrets (see `SessionSetup.protectedPaths`). */
+export const SECRET_DENIED = "This reaches a file that holds the app's secrets, which agents may never read or change. Don't try it another way.";

@@ -13,6 +13,7 @@ import {
   ProviderError,
   type ProviderEvent,
   type ProviderSession,
+  SECRET_DENIED,
   type SessionSetup,
   type TurnImage,
   type TurnInput,
@@ -245,6 +246,7 @@ export const makeClaudeCodeAdapter = (options: ClaudeCodeAdapterOptions) =>
                 autonomy: setup.autonomy,
                 roots: setup.projectRoots ?? [realCwd],
                 readable: setup.attachmentFolders,
+                protectedPaths: setup.protectedPaths,
                 cwd,
                 vaultTools: setup.vaultTools?.name ?? null,
                 toolName: input.tool_name,
@@ -255,8 +257,8 @@ export const makeClaudeCodeAdapter = (options: ClaudeCodeAdapterOptions) =>
             return {
               hookSpecificOutput: {
                 hookEventName: "PreToolUse",
-                permissionDecision: decision,
-                ...(decision === "deny" ? { permissionDecisionReason: NOT_ALLOWED } : {}),
+                permissionDecision: decision === "secret" ? "deny" : decision,
+                ...(decision === "deny" ? { permissionDecisionReason: NOT_ALLOWED } : decision === "secret" ? { permissionDecisionReason: SECRET_DENIED } : {}),
               },
             };
           };

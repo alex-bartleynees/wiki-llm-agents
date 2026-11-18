@@ -22,6 +22,7 @@ import { AgentCatalog } from "../agents/catalog.js";
 import { sessionSetup } from "../agents/session-setup.js";
 import { ProviderError, type ProviderEvent, type ProviderSession, type SessionSetup, type TurnImage } from "../providers/port.js";
 import { VaultTools } from "../mcp/vault-tools.js";
+import { SecretMaterial } from "../secrets/material.js";
 import { ProviderRegistry } from "../providers/registry.js";
 import { projectInstruction, projectRoots } from "../projects/project-context.js";
 import { ProjectRepository } from "../projects/repository.js";
@@ -183,6 +184,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     Effect.catchTag("ProviderInstanceNotFound", () => Effect.succeed(undefined)),
   );
   const catalog = yield* AgentCatalog;
+  const secretMaterial = yield* SecretMaterial;
   const fs = yield* FileSystem.FileSystem;
   const contextServices = yield* Effect.context<FileSystem.FileSystem | VaultIndex | VaultRepository>();
   const changeServices = yield* Effect.context<Indexer | VaultIndex | ChangeTracker | FileSystem.FileSystem>();
@@ -244,6 +246,8 @@ export const makeThreadActor = Effect.fnUntraced(function* (
       Effect.mapError((error) => (error._tag === "AgentNotFound" ? new ProviderError({ message: error.reason }) : error)),
     );
     // sessionSetup has just read the agent, so it is there.
+    // Read before the tools, so MCP servers started for this turn already go without them.
+    const { paths: protectedPaths } = yield* secretMaterial.current;
     const agentServers = agentId === null ? [] : yield* catalog.get(agentId).pipe(Effect.map((found) => found.mcp), Effect.orElseSucceed(() => []));
     const tools = yield* vaultTools.current(agentServers);
     if (tools.notices.length > 0) yield* record(tools.notices.map((text): ThreadEvent => ({ _tag: "notice", turnId, text })));
@@ -252,6 +256,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
       instructions: project === null ? agent.instructions : [...agent.instructions, projectInstruction(project, directories, vault.rootPath, worktree)],
       projectRoots: project === null ? null : projectRoots(directories, vault.rootPath),
       attachmentFolders: yield* ownAttachmentFolders,
+      protectedPaths,
       vaultTools: tools.entry,
     };
     return setup;

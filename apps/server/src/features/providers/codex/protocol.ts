@@ -30,7 +30,8 @@ export interface ThreadParams {
   readonly cwd: string;
   readonly model?: string;
   readonly approvalPolicy: AskForApproval;
-  readonly sandbox: SandboxMode;
+  /** Left out when `config` sets a permission profile, which it would override. */
+  readonly sandbox?: SandboxMode;
   /** `config.toml` overrides as dotted keys, e.g. `mcp_servers.<name>`. */
   readonly config: Record<string, unknown>;
   readonly developerInstructions: string | null;

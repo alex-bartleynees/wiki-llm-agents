@@ -38,6 +38,7 @@ import type { ProviderRegistry } from "../features/providers/registry.js";
 import { ProviderRegistryLive } from "../features/providers/registry-live.js";
 import { SchedulerSignalLive } from "../features/schedules/signal.js";
 import type { SecretStore } from "../features/secrets/secret-store.js";
+import { SecretMaterialLive } from "../features/secrets/material-live.js";
 import { SecretStoreLive } from "../features/secrets/store-live.js";
 import { ScheduleRepositoryLive } from "../features/schedules/sqlite-repository.js";
 import { SchedulesStartup } from "../features/schedules/startup.js";
@@ -140,11 +141,13 @@ export const makeHttpApp = (options: AppOptions) =>
     Layer.provideMerge(options.pushSender ?? PushSenderLive),
     Layer.provideMerge(McpPoolLive),
     Layer.provideMerge(McpConnectionsLive),
+    // Providers and the pool withhold what SecretMaterial lists, which reads the server list.
+    Layer.provideMerge(options.providers ?? ProviderRegistryLive),
+    Layer.provideMerge(SecretMaterialLive),
     Layer.provideMerge(McpServerCatalogLive),
     Layer.provideMerge(Layer.mergeAll(
         RepositoriesLive,
         NoteWriteLockLive,
-        options.providers ?? ProviderRegistryLive,
         options.agents,
         options.attachments,
         options.worktrees,
