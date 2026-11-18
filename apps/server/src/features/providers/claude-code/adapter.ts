@@ -46,6 +46,16 @@ export const NOT_ALLOWED = "The agent's autonomy in this app doesn't allow this.
 /** Where Claude Code's settings, skills, MCP servers and `CLAUDE.md` files come from: everywhere it reads them itself. */
 export const SETTING_SOURCES: NonNullable<Options["settingSources"]> = ["user", "project", "local"];
 
+/**
+ * How long Claude Code waits on a call to the app's tools. Its own limit for an HTTP
+ * server is five minutes without a response (2.1.322: `CLAUDE_CODE_MCP_TOOL_IDLE_TIMEOUT`,
+ * default 300000), which a call waiting for your approval, from the phone say, can pass.
+ * A per-server `timeout` raises that idle limit and caps the whole call, so a call still
+ * ends if nothing answers it for an hour. Upstream servers' own calls are cut after two
+ * minutes by the gateway (`CALL_TIMEOUT`), apart from the approval.
+ */
+export const APP_TOOL_CALL_TIMEOUT_MS = 60 * 60 * 1000;
+
 /** How long a model list is reused before Claude Code is asked again. */
 const MODELS_TTL = Duration.minutes(10);
 
@@ -341,7 +351,10 @@ export const makeClaudeCodeAdapter = (options: ClaudeCodeAdapterOptions) =>
               const key = JSON.stringify([tools.name, tools.url, tools.token, tools.revision]);
               if (current.tools === key) return [];
               const result = yield* tryPromise(
-                () => current.query.setMcpServers({ [tools.name]: { type: "http", url: tools.url, headers: { Authorization: `Bearer ${tools.token}` } } }),
+                () =>
+                  current.query.setMcpServers({
+                    [tools.name]: { type: "http", url: tools.url, headers: { Authorization: `Bearer ${tools.token}` }, timeout: APP_TOOL_CALL_TIMEOUT_MS },
+                  }),
                 "Claude Code didn't take the vault tools",
               ).pipe(Effect.result);
               const raw = result._tag === "Failure" ? result.failure.message : result.success.errors[tools.name];

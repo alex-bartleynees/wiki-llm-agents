@@ -91,7 +91,7 @@ in
       default = null;
       description = ''
         OpenCode package for the OpenCode provider. Null uses `opencode` from your user
-        profile, the same one your terminal runs. The app needs OpenCode 2.2.x.
+        profile, the same one your terminal runs. The app needs OpenCode 2.2.x or 2.3.x.
       '';
     };
 

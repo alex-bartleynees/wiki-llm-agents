@@ -15,7 +15,7 @@ import { Context, Effect, Layer, PubSub, Stream } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/http";
 import { makeAttachmentStore } from "../../src/features/attachments/store-live.js";
 import { entryName } from "../../src/features/mcp/vault-tools.js";
-import { CLAUDE_STOPPED, makeClaudeCodeAdapter, NOT_ALLOWED, SETTING_SOURCES } from "../../src/features/providers/claude-code/adapter.js";
+import { APP_TOOL_CALL_TIMEOUT_MS, CLAUDE_STOPPED, makeClaudeCodeAdapter, NOT_ALLOWED, SETTING_SOURCES } from "../../src/features/providers/claude-code/adapter.js";
 import { DENIED, ProviderError, vaultToolsUnavailable } from "../../src/features/providers/port.js";
 import { makeProviderRegistry } from "../../src/features/providers/registry-live.js";
 import { ReplayAdapter } from "../../src/features/providers/replay/adapter.js";
@@ -232,7 +232,7 @@ layer(App)("Claude Code provider", (it) => {
       expect(options?.mcpServers).toBeUndefined();
       expect(fake.calls).toContainEqual({
         call: "setMcpServers",
-        servers: { [entryName(thread.id)]: { type: "http", url: expect.stringMatching(/\/mcp$/), headers: { Authorization: expect.stringMatching(/^Bearer /) } } },
+        servers: { [entryName(thread.id)]: { type: "http", url: expect.stringMatching(/\/mcp$/), headers: { Authorization: expect.stringMatching(/^Bearer /) }, timeout: APP_TOOL_CALL_TIMEOUT_MS } },
       });
       expect(options?.resume).toBeUndefined();
       expect(stored.status).toBe("idle");

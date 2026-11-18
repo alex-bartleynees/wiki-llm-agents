@@ -2,23 +2,49 @@ import { type ChildProcess, spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { NodeHttpClient } from "@effect/platform-node";
 import { OpenCode, type OpenCodeClient } from "@opencode/client/effect";
+import { EventGroup } from "@opencode/protocol/groups/event";
 import { Mcp } from "@opencode/schema/mcp";
-import { Cause, Clock, Deferred, Duration, Effect, Exit, Fiber, Layer, Option, PubSub, Schedule, type Scope, Stream } from "effect";
+import { Cause, Clock, Context, Deferred, Duration, Effect, Exit, Fiber, Layer, Option, PubSub, Schedule, type Scope, Stream } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/http";
 import { type OpenCodeApi, OpenCodeError, type OpenCodeModel, type OpenCodeSignal, modelName, modelRef } from "./api.js";
+import { HttpApi, HttpApiClient } from "effect/http-api";
 import { INSTRUCTIONS_KEY } from "./instructions.js";
 
 /**
- * The OpenCode version the pinned `@opencode/client` speaks. Other 2.2 releases are
- * accepted; anything else is reported as unsupported before a turn can fail on it.
+ * The OpenCode releases the pinned client is checked against (live tests), by
+ * `major.minor`; anything else is reported as unsupported before a turn can fail on it.
  */
-export const CLIENT_VERSION = "2.2.1";
+export const SUPPORTED_VERSIONS: ReadonlyArray<string> = ["2.2", "2.3"];
 
 export const isSupportedVersion = (version: string) => {
   const [major, minor] = version.replace(/^v/, "").split(".");
-  const [clientMajor, clientMinor] = CLIENT_VERSION.split(".");
-  return major === clientMajor && minor === clientMinor;
+  return SUPPORTED_VERSIONS.includes(`${major}.${minor}`);
 };
+
+/** `2.2.x or 2.3.x`, for the reason a provider is unavailable. */
+export const supportedVersionsText = () => SUPPORTED_VERSIONS.map((version) => `${version}.x`).join(" or ");
+
+// Filter on the server before the pinned protocol decoder sees newer event types.
+const eventApi = HttpApi.make("opencode-events").add(EventGroup);
+const eventTypes = [
+  "form.cancelled",
+  "form.created",
+  "form.replied",
+  "mcp.status.changed",
+  "permission.asked",
+  "permission.replied",
+  "session.execution.failed",
+  "session.execution.interrupted",
+  "session.execution.started",
+  "session.execution.succeeded",
+  "session.step.ended",
+  "session.step.failed",
+  "session.text.delta",
+  "session.tool.called",
+  "session.tool.failed",
+  "session.tool.input.started",
+  "session.tool.success",
+] as const;
 
 const STARTUP_TIMEOUT = Duration.seconds(30);
 const CALL_TIMEOUT = Duration.seconds(30);
@@ -342,14 +368,11 @@ export const startServer = (options: ServerOptions): Effect.Effect<OpenCodeApi, 
     const { url } = launched;
     // Built in the server's scope: the client keeps using it after `make` returns.
     const http = yield* Layer.build(NodeHttpClient.layerUndici);
-    const client = yield* OpenCode.make({ baseUrl: url }).pipe(
-      Effect.updateService(HttpClient.HttpClient, (http) =>
-        HttpClient.mapRequest(http, (request) =>
-          HttpClientRequest.setHeader(request, "authorization", `Basic ${Buffer.from(`opencode:${password}`).toString("base64")}`),
-        ),
-      ),
-      Effect.provide(http),
+    const authenticated = HttpClient.mapRequest(Context.get(http, HttpClient.HttpClient), (request) =>
+      HttpClientRequest.setHeader(request, "authorization", `Basic ${Buffer.from(`opencode:${password}`).toString("base64")}`),
     );
+    const client = yield* OpenCode.make({ baseUrl: url }).pipe(Effect.provideService(HttpClient.HttpClient, authenticated));
+    const events = yield* HttpApiClient.group(eventApi, { group: "server.event", baseUrl: url, httpClient: authenticated });
     const info = client.server.info().pipe(
       Effect.timeoutOrElse({
         duration: CALL_TIMEOUT,
@@ -383,7 +406,7 @@ export const startServer = (options: ServerOptions): Effect.Effect<OpenCodeApi, 
     const hub = yield* Effect.acquireRelease(PubSub.unbounded<OpenCodeSignal>(), PubSub.shutdown);
     const connected = yield* Deferred.make<void>();
     let reconnecting = false;
-    const connection = client.event.subscribe().pipe(
+    const connection = Stream.unwrap(events["event.subscribe"]({ query: { types: eventTypes } })).pipe(
       Stream.runForEach((event) => {
         if (event.type !== "server.connected") return PubSub.publish(hub, { _tag: "event", event });
         if (!reconnecting) return Deferred.succeed(connected, undefined);

@@ -19,7 +19,8 @@ describe("isSupportedVersion", () => {
   it.each([
     ["2.2.1", true],
     ["v2.2.5", true],
-    ["2.3.0", false],
+    ["2.3.0", true],
+    ["2.4.0", false],
     ["1.19.5", false],
   ])("%s", (version, supported) => {
     expect(isSupportedVersion(version)).toBe(supported);

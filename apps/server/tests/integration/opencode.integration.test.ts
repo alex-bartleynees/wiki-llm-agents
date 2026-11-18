@@ -753,7 +753,7 @@ describe("OpenCode status", () => {
     Effect.gen(function* () {
       expect(yield* statusWith(Effect.succeed("1.19.5"))).toEqual({
         _tag: "unavailable",
-        reason: "OpenCode 1.19.5 is installed; this app supports 2.2.x.",
+        reason: "OpenCode 1.19.5 is installed; this app supports 2.2.x or 2.3.x.",
       });
     }),
   );

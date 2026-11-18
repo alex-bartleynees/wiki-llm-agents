@@ -166,7 +166,7 @@ the form so you can correct a choice and retry.
 
 Available providers:
 
-- **OpenCode** (the default): your installed `opencode` 2.2.x, with your own login and
+- **OpenCode** (the default): your installed `opencode` 2.2.x or 2.3.x, with your own login and
   config. The app runs one `opencode serve` on a free localhost port with a generated
   password, started with the first thread that needs it and stopped 5 minutes after
   the last one closes (and with the app). Each thread is an OpenCode session in the
@@ -623,9 +623,9 @@ One opt-in test runs a real turn on the installed Codex:
 
 #### OpenCode client
 
-The client library is `@opencode/client` (and `@opencode/protocol`), pinned to exactly
-the installed OpenCode's version (2.2.1); they ask for an older `effect`, which the
-root `overrides` replaces with the app's, so there is one copy.
+The OpenCode client and protocol packages are pinned to 2.2.1. The app requests
+only the events it handles so newer event types do not interrupt turns. The root
+`overrides` uses the app’s version of `effect` for these packages.
 
 ### MCP servers
 
@@ -1079,7 +1079,7 @@ services.wiki-agents = {
 
 Options: `vaults`, `host` (default `127.0.0.1`), `port` (default `4317`), `dataDir`,
 `configDir` (rules and agents; never written by Nix), `watchPollMs`, `opencode` (a
-package; default: `opencode` from your user profile, which must be 2.2.x), `opencodeTodo`
+package; default: `opencode` from your user profile, which must be 2.2.x or 2.3.x), `opencodeTodo`
 (default off; sets `WIKI_AGENTS_OPENCODE_TODO`), `claudeCode`
 (a package; default: `claude` from your user profile, which must be 2.1.x), `codex`
 (a package; default: `codex` from your user profile, 0.166 or later),

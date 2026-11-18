@@ -12,7 +12,7 @@ import { formAnswer, makeTurnMapper, sessionOf } from "./events.js";
 import { instructionsText, MAX_INSTRUCTIONS_BYTES } from "./instructions.js";
 import { commandNamesProtected, reachesProtected } from "../../../shared/secret-paths.js";
 import { enforcedAutonomy, FILE_ACTIONS, levelBehindNameCheck, permissionRules, SEARCH_ACTIONS } from "./permissions.js";
-import { CLIENT_VERSION, isSupportedVersion } from "./server.js";
+import { isSupportedVersion, supportedVersionsText } from "./server.js";
 
 /**
  * A session's rules without an agent: read freely, ask before anything else (see
@@ -410,7 +410,7 @@ export const makeOpenCodeAdapter = (options: OpenCodeAdapterOptions) =>
     const status: Effect.Effect<ProviderStatus> = Effect.gen(function* () {
       const installed = yield* options.installedVersion;
       if (!isSupportedVersion(installed)) {
-        return { _tag: "unavailable", reason: `OpenCode ${installed} is installed; this app supports ${CLIENT_VERSION.replace(/\.\d+$/, ".x")}.` } as const;
+        return { _tag: "unavailable", reason: `OpenCode ${installed} is installed; this app supports ${supportedVersionsText()}.` } as const;
       }
       const api = yield* Effect.scoped(live);
       return { _tag: "ready", version: api.version, account: null } as const;
