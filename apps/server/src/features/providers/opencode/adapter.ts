@@ -76,6 +76,35 @@ const nextSignal = (subscription: PubSub.Subscription<OpenCodeSignal>, sessionId
   }).pipe(Effect.timeoutOption(wait));
 
 /**
+ * How long a turn OpenCode had no route for waits before each new attempt (10 s in
+ * all); OpenCode saying its models changed cuts a wait short. No route costs nothing.
+ */
+export const ROUTE_BACKOFF: ReadonlyArray<Duration.Duration> = [1, 2, 3, 4].map((seconds) => Duration.seconds(seconds));
+
+/**
+ * OpenCode had no route to the model (`provider.no-route`). OpenCode 2.3.0 says so
+ * for Copilot Auto when a turn arrives before Copilot's models have loaded for the
+ * folder, about 3 seconds after its first use; a moment later the same turn works.
+ * Its `model.updated` events don't say which provider loaded, so one can come and
+ * the route still be missing: they only end a wait early.
+ */
+const unrouted = (event: OpenCodeEvent) =>
+  event.type === "session.execution.failed" && (event.data.error as { readonly type?: unknown }).type === "provider.no-route";
+
+/** Waits for OpenCode to say its models changed, or for `wait`; false when the server stopped. */
+const modelsUpdatedOrAfter = (subscription: PubSub.Subscription<OpenCodeSignal>, wait: Duration.Input) =>
+  Effect.gen(function* () {
+    while (true) {
+      const signal = yield* PubSub.take(subscription);
+      if (signal._tag === "stopped") return false;
+      if (signal._tag === "event" && signal.event.type === "model.updated") return true;
+    }
+  }).pipe(
+    Effect.timeoutOption(wait),
+    Effect.map((updated) => Option.getOrElse(updated, () => true)),
+  );
+
+/**
  * The OpenCode server a session uses: the shared one, held in the session's scope,
  * or a new one when that has stopped.
  */
@@ -277,12 +306,39 @@ const makeSession = (
         const current: RunningTurn = { id: turnId, inboxId: undefined, started: false };
         turn = current;
         const selected = yield* turnModel(api);
-        current.inboxId = yield* send(api, notices).pipe(Effect.mapError(toProviderError));
+        /** What was sent; a message's inbox id is also its id in the session's history. */
+        let sentId = yield* send(api, notices).pipe(Effect.mapError(toProviderError));
+        current.inboxId = sentId;
         const mapper = makeTurnMapper(turnId, cwd, { compacting, selectedModel: selected });
         const name = namer(api);
         const waiting = new Set<string>();
         /** Checks that found the message still queued and nothing running. */
         let neverStarted = 0;
+        /** The turn has shown something (text, a tool, a request...), so it can't be sent again. */
+        let shown = false;
+        let rerouted = 0;
+
+        /**
+         * The turn failed for want of a route before it showed anything: after the
+         * next wait in `ROUTE_BACKOFF`, take the message out of the session and send
+         * it again, so the model sees it once. False when it shouldn't or couldn't be
+         * (the turn then fails with OpenCode's reason, as before).
+         */
+        const sendAgain = Effect.gen(function* () {
+          const wait = ROUTE_BACKOFF[rerouted];
+          if (shown || compacting || wait === undefined) return false;
+          if (!(yield* modelsUpdatedOrAfter(subscription, wait)) || turn !== current) return false;
+          const removed = yield* api.removeMessage(sessionId, sentId).pipe(
+            Effect.as(true),
+            Effect.catch((error) => Effect.as(Effect.logWarning(`couldn't take the unrouted message out of OpenCode's session: ${error.message}`), false)),
+          );
+          if (!removed) return false;
+          rerouted++;
+          current.started = false;
+          sentId = yield* send(api, notices).pipe(Effect.mapError(toProviderError));
+          current.inboxId = sentId;
+          return true;
+        });
 
         const end = (events: ReadonlyArray<ProviderEvent>) =>
           Effect.gen(function* () {
@@ -352,8 +408,10 @@ const makeSession = (
           }
           // The end of an earlier turn can arrive after this one was sent; only this turn's end counts.
           if (!current.started && (END_EVENTS.has(event.type) || event.type === "session.compaction.ended" || event.type === "session.compaction.failed")) continue;
+          if (unrouted(event) && (yield* sendAgain)) continue;
           const events = yield* Effect.forEach(mapper.map(event), name);
           if (events.some((mapped) => mapped._tag === "turn.finished")) return yield* end(events);
+          if (events.length > 0) shown = true;
           yield* Queue.offerAll(queue, events);
         }
       }),

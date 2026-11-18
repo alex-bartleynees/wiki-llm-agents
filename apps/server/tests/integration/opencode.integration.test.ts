@@ -21,7 +21,7 @@ import { HttpClient, HttpClientRequest } from "effect/http";
 import { TestClock } from "effect/testing";
 import { makeHttpApp } from "../../src/app/layers.js";
 import { makeAttachmentStore } from "../../src/features/attachments/store-live.js";
-import { DENIED, makeOpenCodeAdapter, OPENCODE_STOPPED, SESSION_PERMISSIONS, vaultToolsUnavailable } from "../../src/features/providers/opencode/adapter.js";
+import { DENIED, makeOpenCodeAdapter, OPENCODE_STOPPED, ROUTE_BACKOFF, SESSION_PERMISSIONS, vaultToolsUnavailable } from "../../src/features/providers/opencode/adapter.js";
 import { SECRET_DENIED } from "../../src/features/providers/port.js";
 import { type OpenCodeApi, OpenCodeError } from "../../src/features/providers/opencode/api.js";
 import { permissionRules } from "../../src/features/providers/opencode/permissions.js";
@@ -605,6 +605,72 @@ layer(App)("OpenCode provider", (it) => {
       const { thread: after, events: stored } = yield* getThread(thread.id);
       expect(after.model).toBeNull();
       expect(stored.map((event) => event.event).filter(isTag("model.routed"))).toEqual([routed]);
+    }),
+  );
+
+  /** Plays a turn to its end, moving the clock on through the adapter's waits before sending an unrouted turn again. */
+  const untilFinishedThroughWaits = (events: Effect.Success<ReturnType<typeof watch>>) =>
+    Effect.gen(function* () {
+      const done = yield* Effect.forkChild(events.until(isTag("turn.finished")));
+      for (let step = 0; step < 20 && done.pollUnsafe() === undefined; step++) yield* TestClock.adjust("1 second");
+      return yield* Fiber.join(done);
+    });
+
+  it.effect("sends a turn OpenCode had no route for yet again, taking the failed message out first, until it routes", () =>
+    Effect.gen(function* () {
+      // Recorded on OpenCode 2.3.0 straight after it started: Copilot Auto had no
+      // route twice (the second time after a `model.updated`), then ran the turn.
+      const { thread, fake, fixture, prompts } = yield* setUp("copilot-auto-cold");
+      expect(fixture.turns).toHaveLength(3);
+      const events = yield* watch(thread.id);
+      yield* sendOk(thread.id, prompts[0]!);
+      const seen = yield* untilFinishedThroughWaits(events);
+
+      expect(finishedOf(seen)).toMatchObject({ outcome: "completed", reason: null });
+      expect(textOf(seen)).toContain("OK");
+      expect(seen.filter(isTag("model.routed"))).toMatchObject([{ model: { id: "github-copilot/gpt-6-luna" } }]);
+      const sent = fake.calls.filter((call) => call.call === "prompt" || call.call === "removeMessage").map((call) => call.call);
+      expect(sent).toEqual(["prompt", "removeMessage", "prompt", "removeMessage", "prompt"]);
+    }),
+  );
+
+  it.effect("fails with OpenCode's reason when the route never comes, leaving the last message in the session", () =>
+    Effect.gen(function* () {
+      const vault = yield* newVaultWith(VAULT_FILES);
+      const cold = loadFixture("copilot-auto-cold");
+      const unrouted = cold.turns[0]!;
+      const fake = yield* Fake;
+      // No route on every attempt: the first try and one for each wait.
+      yield* fake.load({ ...cold, turns: Array.from({ length: ROUTE_BACKOFF.length + 1 }, () => unrouted) }, vault.rootPath);
+      const thread = yield* newThread(vault.id, "opencode");
+      const events = yield* watch(thread.id);
+      yield* sendOk(thread.id, unrouted.prompt);
+      const seen = yield* untilFinishedThroughWaits(events);
+
+      expect(finishedOf(seen)).toMatchObject({ outcome: "failed", reason: "Model unavailable: github-copilot/auto" });
+      expect(fake.calls.filter((call) => call.call === "prompt")).toHaveLength(ROUTE_BACKOFF.length + 1);
+      expect(fake.calls.filter((call) => call.call === "removeMessage")).toHaveLength(ROUTE_BACKOFF.length);
+    }),
+  );
+
+  it.effect("doesn't send a turn again once it has shown something", () =>
+    Effect.gen(function* () {
+      const vault = yield* newVaultWith(VAULT_FILES);
+      const cold = loadFixture("copilot-auto-cold");
+      const [unrouted, , routed] = cold.turns;
+      // Text arrives, then OpenCode reports no route: sending again would repeat the reply.
+      const steps = [...routed!.steps.filter((step) => !("event" in step) || !JSON.stringify(step.event).includes("session.execution.succeeded")), ...unrouted!.steps.slice(1)];
+      const fake = yield* Fake;
+      yield* fake.load({ ...cold, turns: [{ prompt: unrouted!.prompt, steps }] }, vault.rootPath);
+      const thread = yield* newThread(vault.id, "opencode");
+      const events = yield* watch(thread.id);
+      yield* sendOk(thread.id, unrouted!.prompt);
+      const seen = yield* untilFinishedThroughWaits(events);
+
+      expect(finishedOf(seen)).toMatchObject({ outcome: "failed" });
+      expect(textOf(seen)).toContain("OK");
+      expect(fake.calls.filter((call) => call.call === "prompt")).toHaveLength(1);
+      expect(fake.calls.some((call) => call.call === "removeMessage")).toBe(false);
     }),
   );
 

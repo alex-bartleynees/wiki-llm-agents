@@ -73,3 +73,32 @@ describe.skipIf(!live)("OpenCode, live", () => {
     { timeout: 180_000 },
   );
 });
+
+/**
+ * Copilot Auto's first turn on a freshly started OpenCode, where 2.3.0 has no route
+ * for it until Copilot's models load: the adapter sends it again. Needs a Copilot
+ * login too, and costs a small Copilot request:
+ *
+ *   WIKI_AGENTS_LIVE_COPILOT=1 npx vitest run tests/live/opencode.live.test.ts
+ */
+describe.skipIf(process.env.WIKI_AGENTS_LIVE_COPILOT !== "1")("OpenCode, live, Copilot Auto", () => {
+  it.live(
+    "runs the first turn after OpenCode starts",
+    () =>
+      Effect.scoped(
+        Effect.gen(function* () {
+          const root = yield* Effect.acquireRelease(
+            Effect.sync(() => mkdtempSync(join(tmpdir(), "wiki-agents-live-"))),
+            (dir) => Effect.sync(() => rmSync(dir, { recursive: true, force: true })),
+          );
+          writeFileSync(join(root, "index.md"), "# Home\n");
+          const adapter = yield* makeOpenCodeAdapter({ start: startServer({ binary }), installedVersion: binaryVersion(binary) });
+          const session = yield* adapter.openSession({ threadId: "live", cwd: root, nativeSessionId: null, model: "github-copilot/auto", setup: SETUP });
+          const events = yield* Stream.runCollect(session.startTurn({ turnId: "turn-1", text: "Reply with just OK.", images: [], setup: SETUP }));
+          expect(events.at(-1)).toMatchObject({ _tag: "turn.finished", outcome: "completed" });
+          expect(events.filter((event) => event._tag === "model.routed")).toHaveLength(1);
+        }),
+      ),
+    { timeout: 120_000 },
+  );
+});

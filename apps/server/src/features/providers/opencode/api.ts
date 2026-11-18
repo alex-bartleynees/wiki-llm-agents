@@ -85,6 +85,13 @@ export interface OpenCodeApi {
    * `session.compaction.*` events.
    */
   readonly compact: (sessionId: string) => Effect.Effect<string, OpenCodeError>;
+  /**
+   * Takes a delivered message, and everything after it, out of the session's
+   * history (a revert, committed at once; files untouched). For a message whose
+   * turn failed before the agent did anything, so it can be sent again without
+   * the model seeing it twice. A message's id is its inbox id.
+   */
+  readonly removeMessage: (sessionId: string, messageId: string) => Effect.Effect<void, OpenCodeError>;
   /** Withdraws a queued message that hasn't been delivered to the agent yet. */
   readonly cancelPrompt: (sessionId: string, inboxId: string) => Effect.Effect<void, OpenCodeError>;
   /** True when a running turn was stopped; false when nothing was running. */

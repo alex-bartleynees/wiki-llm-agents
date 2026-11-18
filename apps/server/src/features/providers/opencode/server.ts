@@ -31,6 +31,7 @@ const eventTypes = [
   "form.created",
   "form.replied",
   "mcp.status.changed",
+  "model.updated",
   "permission.asked",
   "permission.replied",
   "session.compaction.ended",
@@ -266,6 +267,13 @@ const makeApi = (client: OpenCodeClient, version: string, hub: PubSub.PubSub<Ope
     ),
   compact: (sessionId) =>
     call("compacting the conversation", client.session.compact({ sessionID: sessionId as never })).pipe(Effect.map((item) => item.id as string)),
+  removeMessage: (sessionId, messageId) =>
+    call(
+      "removing the failed message",
+      client.session.revert
+        .stage({ sessionID: sessionId as never, messageID: messageId as never, files: false })
+        .pipe(Effect.andThen(client.session.revert.commit({ sessionID: sessionId as never }))),
+    ),
   cancelPrompt: (sessionId, inboxId) =>
     call("withdrawing the message", client.session.inbox.cancel({ sessionID: sessionId as never, inboxID: inboxId as never })),
   interrupt: (sessionId) =>

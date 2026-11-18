@@ -1,0 +1,215 @@
+{
+  "scenario": "copilot-auto-cold",
+  "opencodeVersion": "2.3.0",
+  "model": "github-copilot/auto",
+  "sessionId": "ses_e0f048e8bffeTjt2nNlNaean9c",
+  "turns": [
+    {
+      "prompt": "Reply with just OK.",
+      "steps": [
+        {
+          "event": {
+            "id": "evt_1f0fb73de001B2W9i3U2UgN7d6",
+            "created": 1795044373470,
+            "type": "session.execution.started",
+            "durable": {
+              "aggregateID": "ses_e0f048e8bffeTjt2nNlNaean9c",
+              "seq": 2,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e0f048e8bffeTjt2nNlNaean9c"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f0fb73f3001nywb5RkP6FOyMM",
+            "created": 1795044373491,
+            "type": "session.execution.failed",
+            "durable": {
+              "aggregateID": "ses_e0f048e8bffeTjt2nNlNaean9c",
+              "seq": 5,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e0f048e8bffeTjt2nNlNaean9c",
+              "error": {
+                "type": "provider.no-route",
+                "message": "Model unavailable: github-copilot/auto"
+              }
+            }
+          }
+        },
+        {
+          "call": "removeMessage",
+          "messageId": "msg_1f0fb71a7001RnmzxGLZuWxbb7"
+        }
+      ]
+    },
+    {
+      "prompt": "Reply with just OK.",
+      "steps": [
+        {
+          "event": {
+            "id": "evt_1f0fb77f2001n94W9ZNVLHTMq0",
+            "created": 1795044374514,
+            "type": "session.execution.started",
+            "durable": {
+              "aggregateID": "ses_e0f048e8bffeTjt2nNlNaean9c",
+              "seq": 9,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e0f048e8bffeTjt2nNlNaean9c"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f0fb77fb001gvTIo4pCeOomqV",
+            "created": 1795044374523,
+            "type": "session.execution.failed",
+            "durable": {
+              "aggregateID": "ses_e0f048e8bffeTjt2nNlNaean9c",
+              "seq": 11,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e0f048e8bffeTjt2nNlNaean9c",
+              "error": {
+                "type": "provider.no-route",
+                "message": "Model unavailable: github-copilot/auto"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f0fb7bd4001PtdtRAHuTLr7f7",
+            "created": 1795044375508,
+            "type": "model.updated",
+            "location": {
+              "directory": "/tmp/nix-shell.bEWPeP/wiki-agents-record-eWncYZ"
+            },
+            "data": {}
+          }
+        },
+        {
+          "call": "removeMessage",
+          "messageId": "msg_1f0fb77f0001PUyVCkTbRehq6J"
+        }
+      ]
+    },
+    {
+      "prompt": "Reply with just OK.",
+      "steps": [
+        {
+          "event": {
+            "id": "evt_1f0fb7be3001cKripIryKdcZ6k",
+            "created": 1795044375523,
+            "type": "session.execution.started",
+            "durable": {
+              "aggregateID": "ses_e0f048e8bffeTjt2nNlNaean9c",
+              "seq": 15,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e0f048e8bffeTjt2nNlNaean9c"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f0fb83a80017coise69MTfQ3U",
+            "created": 1795044377512,
+            "type": "session.step.started",
+            "durable": {
+              "aggregateID": "ses_e0f048e8bffeTjt2nNlNaean9c",
+              "seq": 18,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e0f048e8bffeTjt2nNlNaean9c",
+              "assistantMessageID": "msg_1f0fb7d420013XgfE8jct8Zpjq",
+              "agent": "build",
+              "model": {
+                "id": "gpt-6-luna",
+                "providerID": "github-copilot"
+              },
+              "started": 1795044375878
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f0fb83ae001eTqwS6HJyEnmOx",
+            "created": 1795044377518,
+            "type": "session.text.delta",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e0f048e8bffeTjt2nNlNaean9c",
+              "assistantMessageID": "msg_1f0fb7d420013XgfE8jct8Zpjq",
+              "ordinal": 0,
+              "delta": "OK"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f0fb8477001RIb9mPXq3gynGj",
+            "created": 1795044377719,
+            "type": "session.step.ended",
+            "durable": {
+              "aggregateID": "ses_e0f048e8bffeTjt2nNlNaean9c",
+              "seq": 23,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e0f048e8bffeTjt2nNlNaean9c",
+              "assistantMessageID": "msg_1f0fb7d420013XgfE8jct8Zpjq",
+              "finish": "stop",
+              "native": {
+                "responseId": "redacted",
+                "serviceTier": "default"
+              },
+              "cost": 0.0011359575,
+              "tokens": {
+                "input": 3,
+                "output": 5,
+                "reasoning": 0,
+                "cache": {
+                  "read": 0,
+                  "write": 10075
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f0fb847a001ApiDtAWe7V30NT",
+            "created": 1795044377722,
+            "type": "session.execution.succeeded",
+            "durable": {
+              "aggregateID": "ses_e0f048e8bffeTjt2nNlNaean9c",
+              "seq": 24,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e0f048e8bffeTjt2nNlNaean9c"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

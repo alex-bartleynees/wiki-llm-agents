@@ -56,6 +56,7 @@ export type FakeCall =
   | { readonly call: "createSession"; readonly model: string | null; readonly permissions: ReadonlyArray<OpenCodePermissionRule> }
   | { readonly call: "prompt"; readonly text: string; readonly files?: ReadonlyArray<OpenCodeFile> }
   | { readonly call: "cancelPrompt" | "interrupt" | "compact" }
+  | { readonly call: "removeMessage"; readonly messageId: string }
   | { readonly call: "setPermissions"; readonly permissions: ReadonlyArray<OpenCodePermissionRule> }
   | { readonly call: "setInstructions"; readonly text: string | null }
   | { readonly call: "reply"; readonly requestId: string; readonly reply: string; readonly message?: string }
@@ -240,6 +241,10 @@ export const makeFakeOpenCode = Effect.gen(function* () {
         const [sent, recorded] = [sentImages(files), recordedImages(turn.images)];
         if (sent !== recorded) return yield* Effect.die(new Error(`fixture images were ${recorded}, the adapter sent ${sent}`));
         return yield* startPlaying(session, turn.steps);
+      }),
+    removeMessage: (_sessionId, messageId) =>
+      Effect.sync(() => {
+        calls.push({ call: "removeMessage", messageId });
       }),
     // Withdrawing works while the turn is held before it starts; once OpenCode has
     // taken the message it still says yes, and the turn runs anyway (as recorded).

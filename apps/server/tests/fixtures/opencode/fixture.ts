@@ -23,7 +23,12 @@ export type FixtureStep =
   /** The recorder pressed Stop; what withdrawing the message and interrupting returned. */
   | { readonly call: "interrupt"; readonly withdrawn: boolean; readonly interrupted: boolean }
   /** The recorder asked OpenCode to compact the conversation; the inbox id it got back. */
-  | { readonly call: "compact"; readonly inboxId: string };
+  | { readonly call: "compact"; readonly inboxId: string }
+  /**
+   * OpenCode had no route for the turn, then loaded models (`model.updated`, recorded
+   * before this): the recorder took the message out and sent it again, as the next turn.
+   */
+  | { readonly call: "removeMessage"; readonly messageId: string };
 
 export interface FixtureTurn {
   readonly prompt: string;

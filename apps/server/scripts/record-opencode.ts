@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { OpenCodeEvent } from "@opencode/protocol/groups/event";
 import { Effect, Option, PubSub, Schema } from "effect";
-import { DENIED, imageFile, SESSION_PERMISSIONS } from "../src/features/providers/opencode/adapter.js";
+import { DENIED, imageFile, ROUTE_BACKOFF, SESSION_PERMISSIONS } from "../src/features/providers/opencode/adapter.js";
 import type { OpenCodeApi, OpenCodeSignal } from "../src/features/providers/opencode/api.js";
 import { sessionOf } from "../src/features/providers/opencode/events.js";
 import { startServer } from "../src/features/providers/opencode/server.js";
@@ -45,6 +45,13 @@ interface TurnScript {
   readonly csv?: true;
   /** Instead of a prompt, ask OpenCode to compact the conversation (`session.compact`). */
   readonly compact?: true;
+  /**
+   * Sent to a router model on a cold server, where OpenCode fails it for want of a
+   * route: as the adapter does, waits (`ROUTE_BACKOFF`, cut short by `model.updated`,
+   * which is recorded), takes the message out and sends it again until it routes.
+   * Each attempt is a turn of the fixture.
+   */
+  readonly unrouted?: true;
 }
 
 const SCENARIOS: Readonly<Record<string, ReadonlyArray<TurnScript>>> = {
@@ -79,10 +86,12 @@ const SCENARIOS: Readonly<Record<string, ReadonlyArray<TurnScript>>> = {
   ],
   // A Copilot Auto turn: OpenCode reports the model it was routed to on each step.
   "copilot-auto": [{ prompt: "Reply with just OK." }],
+  // The same, straight after OpenCode starts: no route at first, then sent again (a turn per attempt).
+  "copilot-auto-cold": [{ prompt: "Reply with just OK.", unrouted: true }],
 };
 
 /** Scenarios that need a model other than the default when `--model` isn't given: the default free model doesn't take images, and Copilot Auto is the subject of its own. */
-const SCENARIO_MODELS: Readonly<Record<string, string>> = { image: "opencode/nemotron-3.5-super-vl-free", "copilot-auto": "github-copilot/auto" };
+const SCENARIO_MODELS: Readonly<Record<string, string>> = { image: "opencode/nemotron-3.5-super-vl-free", "copilot-auto": "github-copilot/auto", "copilot-auto-cold": "github-copilot/auto" };
 
 const END = new Set(["session.execution.succeeded", "session.execution.failed", "session.execution.interrupted"]);
 const COMPACTION_END = new Set(["session.compaction.ended", "session.compaction.failed"]);
@@ -95,7 +104,7 @@ const AFTER_COMPACTION = "5 seconds";
 const normalise = (value: unknown, root: string, attachments: string): unknown =>
   JSON.parse(JSON.stringify(value).replaceAll(root, VAULT).replaceAll(attachments, ATTACHMENTS));
 
-const recordTurn = (api: OpenCodeApi, sessionId: string, root: string, attachments: string, script: TurnScript) =>
+const recordTurn = (api: OpenCodeApi, sessionId: string, root: string, attachments: string, script: TurnScript, attempt = 0) =>
   Effect.scoped(
     Effect.gen(function* () {
       const subscription = yield* api.subscribe;
@@ -146,6 +155,25 @@ const recordTurn = (api: OpenCodeApi, sessionId: string, root: string, attachmen
         if (signal._tag !== "event" || sessionOf(signal.event) !== sessionId) continue;
         const event = signal.event;
         steps.push({ event: normalise(encode(event), root, attachments) });
+        const noRoute = event.type === "session.execution.failed" && (event.data.error as { readonly type?: unknown }).type === "provider.no-route";
+        if (END.has(event.type) && script.unrouted === true && attempt === 0 && !noRoute) {
+          throw new Error(`OpenCode routed the cold turn (${event.type}); nothing to record, try again`);
+        }
+        if (script.unrouted === true && noRoute) {
+          const wait = ROUTE_BACKOFF[attempt];
+          if (wait === undefined) throw new Error("OpenCode still had no route after every retry");
+          // As the adapter does: OpenCode's next `model.updated`, or the backoff, then again.
+          const updated = yield* Effect.gen(function* () {
+            while (true) {
+              const next = yield* PubSub.take(subscription);
+              if (next._tag === "event" && next.event.type === "model.updated") return next.event;
+            }
+          }).pipe(Effect.timeoutOption(wait));
+          if (Option.isSome(updated)) steps.push({ event: encode(updated.value) });
+          yield* api.removeMessage(sessionId, inboxId);
+          steps.push({ call: "removeMessage", messageId: inboxId });
+          return { ...recorded, steps, again: true as const };
+        }
         if (END.has(event.type)) return { ...recorded, steps };
         if (script.interrupt === "after-text" && !interrupted && event.type === "session.text.delta") {
           interrupted = yield* api.interrupt(sessionId);
@@ -183,7 +211,7 @@ const record = (name: string, turns: ReadonlyArray<TurnScript>, model: string | 
         writeFileSync(join(root, path), content);
       }
       const api = yield* startServer({ binary: process.env.WIKI_AGENTS_OPENCODE ?? "opencode" });
-      if (model?.endsWith("/auto") === true) {
+      if (model?.endsWith("/auto") === true && !turns.some((turn) => turn.unrouted === true)) {
         // OpenCode 2.3.0 fails a router model (`provider.no-route`) until the provider's
         // own model list has loaded for the folder, about 3 seconds after first use.
         yield* api.listModels(root);
@@ -191,7 +219,18 @@ const record = (name: string, turns: ReadonlyArray<TurnScript>, model: string | 
       }
       const sessionId = yield* api.createSession({ directory: root, model, permissions: SESSION_PERMISSIONS });
       const recorded = [];
-      for (const script of turns) recorded.push(yield* recordTurn(api, sessionId, root, attachments, script));
+      for (const script of turns) {
+        // An unrouted turn is sent again: each attempt is a turn of the fixture.
+        for (let attempt = 0; ; attempt++) {
+          const result = yield* recordTurn(api, sessionId, root, attachments, script, attempt);
+          if (!("again" in result)) {
+            recorded.push(result);
+            break;
+          }
+          const { again: _again, ...turn } = result;
+          recorded.push(turn);
+        }
+      }
       const fixture: Fixture = {
         scenario: name,
         opencodeVersion: api.version,
