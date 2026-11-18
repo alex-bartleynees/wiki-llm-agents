@@ -200,9 +200,24 @@ layer(App)("Claude Code provider", (it) => {
     }),
   );
 
+  it.effect("completes the turn without a context estimate when the context query fails", () =>
+    Effect.gen(function* () {
+      const { thread, prompts } = yield* setUp("simple", { contextUsageFails: true });
+      const events = yield* watch(thread.id);
+      const turnId = yield* sendOk(thread.id, prompts[0]!);
+      const seen = yield* events.until(isTag("turn.finished"));
+
+      const finished = completes(seen);
+      expect(finished.turnId).toBe(turnId);
+      expect(finished.outcome).toBe("completed");
+      expect(finished.usage?.inputTokens).toBeGreaterThan(0);
+      expect(finished.usage?.context).toBeUndefined();
+    }),
+  );
+
   it.effect("streams a simple turn in one Claude Code process with the app's options, and keeps the session for the thread", () =>
     Effect.gen(function* () {
-      const { thread, fake, prompts } = yield* setUp("simple");
+      const { thread, fake, prompts } = yield* setUp("simple", { contextUsage: { totalTokens: 32_000, rawMaxTokens: 200_000 } });
       const events = yield* watch(thread.id);
       const turnId = yield* sendOk(thread.id, prompts[0]!);
       const seen = yield* events.until(isTag("turn.finished"));
@@ -211,6 +226,7 @@ layer(App)("Claude Code provider", (it) => {
       expect(finished.turnId).toBe(turnId);
       expect(finished.usage?.inputTokens).toBeGreaterThan(0);
       expect(finished.usage?.outputTokens).toBeGreaterThan(0);
+      expect(finished.usage?.context).toEqual({ _tag: "compaction_window_estimate", usedTokens: 32_000, windowTokens: 200_000 });
       // A claude.ai login is a subscription: no per-token cost.
       expect(finished.usage?.costUsd).toBeNull();
       expect(textOf(seen)).toMatch(/Coffee|Tea|index/);

@@ -46,7 +46,7 @@ describe("Claude Code events", () => {
     const usage = { input_tokens: 1, output_tokens: 2, cache_read_input_tokens: 3, cache_creation_input_tokens: 4 };
     const result = { type: "result", subtype: "success", is_error: true, result: "API Error: overloaded", usage, total_cost_usd: 0.01 } as unknown as SDKMessage;
     expect(mapper.map(result)).toEqual([
-      { _tag: "turn.finished", turnId: "turn", outcome: "failed", usage: { inputTokens: 8, outputTokens: 2, costUsd: 0.01 }, reason: "API Error: overloaded" },
+      { _tag: "turn.finished", turnId: "turn", outcome: "failed", usage: { inputTokens: 8, outputTokens: 2, costUsd: 0.01, breakdown: { scope: "main_loop", uncachedInputTokens: 1, cacheReadTokens: 3, cacheWriteTokens: 4 } }, reason: "API Error: overloaded" },
     ]);
   });
 

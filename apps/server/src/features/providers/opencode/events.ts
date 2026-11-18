@@ -139,7 +139,8 @@ export const makeTurnMapper = (turnId: string, directory: string): TurnMapper =>
   const toolNames = new Map<string, string>();
   /** `todowrite` calls shown as the plan, whose results aren't shown. */
   const planCalls = new Set<string>();
-  const totals = { input: 0, output: 0, cost: 0 };
+  const totals = { input: 0, output: 0, cost: 0, uncached: 0, cacheRead: 0, cacheWrite: 0, reasoning: 0 };
+  let latestStepInput: number | undefined;
 
   const addStep = (step: {
     readonly cost?: number | undefined;
@@ -148,13 +149,32 @@ export const makeTurnMapper = (turnId: string, directory: string): TurnMapper =>
       | undefined;
   }) => {
     if (step.tokens !== undefined) {
-      totals.input += step.tokens.input + step.tokens.cache.read + step.tokens.cache.write;
+      totals.uncached += step.tokens.input;
+      totals.cacheRead += step.tokens.cache.read;
+      totals.cacheWrite += step.tokens.cache.write;
+      totals.reasoning += step.tokens.reasoning;
+      latestStepInput = step.tokens.input + step.tokens.cache.read + step.tokens.cache.write;
+      totals.input += latestStepInput;
       totals.output += step.tokens.output + step.tokens.reasoning;
     }
     totals.cost += step.cost ?? 0;
   };
 
-  const usage = (): TurnUsage => ({ inputTokens: totals.input, outputTokens: totals.output, costUsd: totals.cost });
+  const usage = (): TurnUsage => ({
+    inputTokens: totals.input,
+    outputTokens: totals.output,
+    costUsd: totals.cost,
+    ...(latestStepInput === undefined ? {} : {
+      context: { _tag: "last_step", inputTokens: latestStepInput },
+      breakdown: {
+        scope: "reported_steps",
+        uncachedInputTokens: totals.uncached,
+        cacheReadTokens: totals.cacheRead,
+        cacheWriteTokens: totals.cacheWrite,
+        reasoningTokens: totals.reasoning,
+      },
+    }),
+  });
 
   const finished = (outcome: "completed" | "failed" | "interrupted", reason: string | null): ProviderEvent => ({
     _tag: "turn.finished",
@@ -212,6 +232,15 @@ export const makeTurnMapper = (turnId: string, directory: string): TurnMapper =>
         return [{ _tag: "request.opened", turnId, requestId: event.data.id, prompt: approvalPrompt(event) }];
       case "form.created":
         return [{ _tag: "request.opened", turnId, requestId: event.data.form.id, prompt: questionPrompt(event) }];
+      case "session.compaction.ended":
+      case "session.compaction.failed":
+        return [{
+          _tag: "context.compaction",
+          turnId,
+          outcome: event.type === "session.compaction.ended" ? "completed" : "failed",
+          trigger: event.data.reason,
+          summaryOnly: true,
+        }];
       case "session.step.ended":
       case "session.step.failed":
         addStep(event.data);

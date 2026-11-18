@@ -61,7 +61,7 @@ describe("Claude Code one-shot call", () => {
       const { sdk, calls } = stubSdk([init("ANTHROPIC_API_KEY"), result({})]);
       const adapter = yield* adapterWith(sdk);
       const completion = yield* adapter.complete!(input);
-      expect(completion).toEqual({ text: "Add tick boxes", usage: { inputTokens: 900, outputTokens: 12, costUsd: 0.0021 } });
+      expect(completion).toEqual({ text: "Add tick boxes", usage: { inputTokens: 900, outputTokens: 12, costUsd: 0.0021, breakdown: { scope: "main_loop", uncachedInputTokens: 800, cacheReadTokens: 100, cacheWriteTokens: 0 } } });
       const [call] = calls;
       expect(call!.params.options).toMatchObject({
         cwd: "/tmp",

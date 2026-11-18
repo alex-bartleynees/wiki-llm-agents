@@ -33,6 +33,8 @@ const eventTypes = [
   "mcp.status.changed",
   "permission.asked",
   "permission.replied",
+  "session.compaction.ended",
+  "session.compaction.failed",
   "session.execution.failed",
   "session.execution.interrupted",
   "session.execution.started",

@@ -102,6 +102,7 @@ export interface TokenUsageBreakdown {
   readonly inputTokens: number;
   readonly cachedInputTokens: number;
   readonly outputTokens: number;
+  readonly reasoningOutputTokens?: number;
 }
 
 export interface TurnError {
@@ -116,7 +117,7 @@ export interface Notifications {
   readonly "item/started": { readonly item: ThreadItem; readonly turnId: string };
   readonly "item/completed": { readonly item: ThreadItem; readonly turnId: string };
   readonly "item/agentMessage/delta": { readonly itemId: string; readonly delta: string; readonly turnId: string };
-  readonly "thread/tokenUsage/updated": { readonly turnId: string; readonly tokenUsage: { readonly last: TokenUsageBreakdown } };
+  readonly "thread/tokenUsage/updated": { readonly turnId: string; readonly tokenUsage: { readonly last: TokenUsageBreakdown; readonly total?: TokenUsageBreakdown; readonly modelContextWindow?: number | null } };
   readonly "turn/completed": { readonly turn: { readonly id: string; readonly status: TurnStatus; readonly error: TurnError | null } };
   readonly "turn/plan/updated": {
     readonly turnId: string;

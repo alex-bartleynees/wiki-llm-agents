@@ -181,6 +181,12 @@ export const resultUsage = (result: SDKResultMessage, costUsd: number | null): T
   inputTokens: result.usage.input_tokens + result.usage.cache_read_input_tokens + result.usage.cache_creation_input_tokens,
   outputTokens: result.usage.output_tokens,
   costUsd,
+  breakdown: {
+    scope: "main_loop",
+    uncachedInputTokens: result.usage.input_tokens,
+    cacheReadTokens: result.usage.cache_read_input_tokens,
+    cacheWriteTokens: result.usage.cache_creation_input_tokens,
+  },
 });
 
 export interface TurnMapper {
@@ -251,6 +257,18 @@ export const makeTurnMapper = (turnId: string, cwd: string, cost: (result: SDKRe
               ]
             : [],
         );
+      }
+      case "system": {
+        if (message.subtype !== "compact_boundary") return [];
+        const { trigger, pre_tokens, post_tokens } = message.compact_metadata;
+        return [{
+          _tag: "context.compaction",
+          turnId,
+          outcome: "completed",
+          trigger,
+          beforeTokens: pre_tokens,
+          ...(post_tokens === undefined ? {} : { afterTokens: post_tokens }),
+        }];
       }
       case "result": {
         const completed = message.subtype === "success" && !message.is_error;

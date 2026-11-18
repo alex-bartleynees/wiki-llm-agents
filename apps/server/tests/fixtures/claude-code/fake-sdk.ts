@@ -21,6 +21,9 @@ export interface PlayOptions {
   readonly crashAfter?: number;
   /** Why the vault tools' MCP server fails to connect; it connects when unset. */
   readonly mcpError?: string;
+  readonly contextUsage?: { readonly totalTokens: number; readonly rawMaxTokens: number };
+  /** Makes the context-usage query fail, as the CLI does when it can't answer. */
+  readonly contextUsageFails?: boolean;
 }
 
 /** What the adapter asked of Claude Code, in order. */
@@ -154,6 +157,7 @@ export const makeFakeSdk = () => {
     }
 
     const messages = play();
+    const { contextUsage } = options;
     return {
       [Symbol.asyncIterator]: () => messages,
       interrupt: async () => {
@@ -165,6 +169,13 @@ export const makeFakeSdk = () => {
         calls.push({ call: "setModel", model });
       },
       supportedModels: async () => FAKE_MODELS,
+      ...(options.contextUsageFails ? {
+        getContextUsage: async () => {
+          throw new Error("context usage unavailable");
+        },
+      } : contextUsage === undefined ? {} : {
+        getContextUsage: async () => contextUsage,
+      }),
       setMcpServers: async (servers) => {
         calls.push({ call: "setMcpServers", servers });
         const failed = options.mcpError;

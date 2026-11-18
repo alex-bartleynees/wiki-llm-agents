@@ -65,7 +65,12 @@ describe.skipIf(!live)("Claude Code, live", () => {
           );
           const asked = events.flatMap((event) => (event._tag === "request.opened" && event.prompt._tag === "approval" ? [event.prompt.title] : []));
           for (const title of asked) expect(title).not.toMatch(/^Read /);
-          expect(events.at(-1)).toMatchObject({ _tag: "turn.finished", outcome: "completed" });
+          const finished = events.at(-1);
+          expect(finished?._tag, "Claude Code didn't report a turn result").toBe("turn.finished");
+          if (finished?._tag === "turn.finished") {
+            expect(finished.outcome, finished.reason ?? undefined).toBe("completed");
+            expect(finished.usage?.breakdown).toMatchObject({ scope: "main_loop" });
+          }
           const reply = events.flatMap((event) => (event._tag === "message.delta" ? [event.text] : [])).join("");
           expect(reply.toLowerCase()).toContain("tea");
           expect(reply).toContain("PINEAPPLE");

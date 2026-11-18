@@ -41,7 +41,32 @@ describe("Codex events", () => {
     expect(mapper.fileChange("3")).toEqual(changes);
     for (const tokens of [10, 20]) mapper.map("thread/tokenUsage/updated", { turnId: "c", tokenUsage: { last: { inputTokens: tokens, cachedInputTokens: 0, outputTokens: 1 } } });
     expect(mapper.map("turn/completed", { turn: { id: "c", status: "failed", error: { message: "Usage limit reached", additionalDetails: "Try again later" } } })).toEqual([
-      { _tag: "turn.finished", turnId: "t", outcome: "failed", usage: { inputTokens: 30, outputTokens: 2, costUsd: null }, reason: "Usage limit reached\nTry again later" },
+      { _tag: "turn.finished", turnId: "t", outcome: "failed", usage: { inputTokens: 30, outputTokens: 2, costUsd: null, breakdown: { scope: "reported_requests", cacheReadTokens: 0 } }, reason: "Usage limit reached\nTry again later" },
+    ]);
+  });
+
+  it("counts a request once when a snapshot without a total sits between totals", () => {
+    const mapper = makeTurnMapper("t", CWD, () => undefined);
+    // Request 1 (10 in) is reported with a total; request 2 (5 in) has none; request 3 (35 in) has a total covering 1–3.
+    const zero = { cachedInputTokens: 0, reasoningOutputTokens: 0 };
+    mapper.map("thread/tokenUsage/updated", { turnId: "c", tokenUsage: { last: { inputTokens: 10, outputTokens: 1, ...zero }, total: { inputTokens: 110, outputTokens: 1, ...zero } } });
+    mapper.map("thread/tokenUsage/updated", { turnId: "c", tokenUsage: { last: { inputTokens: 5, outputTokens: 1, ...zero } } });
+    mapper.map("thread/tokenUsage/updated", { turnId: "c", tokenUsage: { last: { inputTokens: 35, outputTokens: 1, ...zero }, total: { inputTokens: 150, outputTokens: 3, ...zero } } });
+    expect(mapper.map("turn/completed", { turn: { id: "c", status: "completed", error: null } })).toEqual([
+      { _tag: "turn.finished", turnId: "t", outcome: "completed", usage: { inputTokens: 50, outputTokens: 3, costUsd: null, breakdown: { scope: "reported_requests", cacheReadTokens: 0, reasoningTokens: 0 } }, reason: null },
+    ]);
+  });
+
+  it("counts cumulative usage updates once and excludes prior turns", () => {
+    const mapper = makeTurnMapper("t", CWD, () => undefined);
+    const first = { inputTokens: 110, cachedInputTokens: 10, outputTokens: 11, reasoningOutputTokens: 4 };
+    const second = { inputTokens: 150, cachedInputTokens: 30, outputTokens: 14, reasoningOutputTokens: 6 };
+    const last = { inputTokens: 10, cachedInputTokens: 5, outputTokens: 1, reasoningOutputTokens: 1 };
+    for (const total of [first, first, second, first, second]) {
+      mapper.map("thread/tokenUsage/updated", { turnId: "c", tokenUsage: { last, total, modelContextWindow: 1000 } });
+    }
+    expect(mapper.map("turn/completed", { turn: { id: "c", status: "completed", error: null } })).toEqual([
+      { _tag: "turn.finished", turnId: "t", outcome: "completed", usage: { inputTokens: 50, outputTokens: 4, costUsd: null, context: { _tag: "last_request", inputTokens: 10, windowTokens: 1000 }, breakdown: { scope: "reported_requests", cacheReadTokens: 25, reasoningTokens: 3 } }, reason: null },
     ]);
   });
 

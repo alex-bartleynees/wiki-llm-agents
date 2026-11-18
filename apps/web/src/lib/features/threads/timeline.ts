@@ -142,6 +142,16 @@ export const applyEvent = (timeline: Timeline, stored: StoredThreadEvent): boole
       if (change) change.undone = true;
       break;
     }
+    case "context.compaction": {
+      const label = compactionLabel(event.trigger, event.summaryOnly === true);
+      const tokens = event.beforeTokens === undefined
+        ? ""
+        : event.afterTokens === undefined
+          ? ` · ${compact.format(event.beforeTokens)} tokens before`
+          : ` · ${compact.format(event.beforeTokens)} → ${compact.format(event.afterTokens)} tokens`;
+      timeline.items.push({ kind: "notice", key: String(stored.seq), text: `${label} ${event.outcome}${tokens}` });
+      break;
+    }
     case "turn.finished":
       timeline.items.push({ kind: "turn-end", key: `${event.turnId}:end`, outcome: event.outcome, usage: event.usage, reason: event.reason });
       if (timeline.runningTurn === event.turnId) timeline.runningTurn = null;
@@ -158,10 +168,31 @@ export const pendingRequests = (timeline: Timeline) =>
 
 const compact = new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 });
 
+/** Names a compaction: automatic ones say so, and a summary-only one is named as such. */
+const compactionLabel = (trigger: "auto" | "manual" | "unknown", summaryOnly: boolean): string => {
+  if (trigger === "auto") return summaryOnly ? "Automatic compaction summary" : "Automatic context compaction";
+  return summaryOnly ? "Context compaction summary" : "Context compaction";
+};
+
+const contextLabel = (context: NonNullable<TurnUsage["context"]>): string => {
+  switch (context._tag) {
+    case "last_request":
+      return `${compact.format(context.inputTokens)} last request input / ${compact.format(context.windowTokens)} window`;
+    case "last_step":
+      return `${compact.format(context.inputTokens)} last reported step input`;
+    case "compaction_window_estimate":
+      return `${compact.format(context.usedTokens)} estimated context / ${compact.format(context.windowTokens)} compaction window`;
+  }
+};
+
 /** "12.5K in · 187 out · $0.026" */
 export const usageLabel = (usage: TurnUsage) =>
   [
     `${compact.format(usage.inputTokens)} in`,
     `${compact.format(usage.outputTokens)} out`,
+    ...(usage.breakdown?.cacheReadTokens ? [`${compact.format(usage.breakdown.cacheReadTokens)} cache read`] : []),
+    ...(usage.breakdown?.cacheWriteTokens ? [`${compact.format(usage.breakdown.cacheWriteTokens)} cache write`] : []),
+    ...(usage.breakdown?.reasoningTokens ? [`${compact.format(usage.breakdown.reasoningTokens)} reasoning`] : []),
+    ...(usage.context === undefined ? [] : [contextLabel(usage.context)]),
     ...(usage.costUsd === null ? [] : [`$${usage.costUsd.toFixed(usage.costUsd < 0.1 ? 3 : 2)}`]),
   ].join(" · ");

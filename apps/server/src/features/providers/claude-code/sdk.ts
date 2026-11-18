@@ -1,4 +1,4 @@
-import { getSessionInfo, type McpServerConfig, type McpSetServersResult, type ModelInfo, type Options, query, type SDKMessage, type SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
+import { getSessionInfo, type McpServerConfig, type McpSetServersResult, type ModelInfo, type Options, query, type SDKControlGetContextUsageResponse, type SDKMessage, type SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 
 /**
  * The part of the Claude Agent SDK the adapter uses. Tests swap it for one that plays
@@ -10,6 +10,7 @@ import { getSessionInfo, type McpServerConfig, type McpSetServersResult, type Mo
 export interface ClaudeQuery extends AsyncIterable<SDKMessage> {
   readonly interrupt: () => Promise<unknown>;
   readonly setModel: (model?: string) => Promise<void>;
+  readonly getContextUsage?: (options: { readonly detail: "summary" }) => Promise<Pick<SDKControlGetContextUsageResponse, "totalTokens" | "rawMaxTokens">>;
   readonly supportedModels: () => Promise<ReadonlyArray<ModelInfo>>;
   /** Replaces the servers the app added; resolves once they connected or failed. */
   readonly setMcpServers: (servers: Record<string, McpServerConfig>) => Promise<McpSetServersResult>;

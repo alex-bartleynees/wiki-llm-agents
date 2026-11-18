@@ -127,6 +127,21 @@ export const TRANSCRIPTS: ReadonlyArray<Transcript> = [
     usage: { inputTokens: 10_240, outputTokens: 142, costUsd: 0.0187 },
   },
   {
+    name: "context-usage",
+    keywords: ["contextusage"],
+    steps: [
+      { type: "compaction", observation: { outcome: "completed", trigger: "auto", beforeTokens: 20_000, afterTokens: 8_000 } },
+      { type: "text", text: "The conversation continued after compaction." },
+    ],
+    usage: {
+      inputTokens: 12_000,
+      outputTokens: 200,
+      costUsd: null,
+      breakdown: { scope: "main_loop", cacheReadTokens: 3_000 },
+      context: { _tag: "compaction_window_estimate", usedTokens: 8_000, windowTokens: 100_000 },
+    },
+  },
+  {
     name: "simple",
     keywords: [],
     steps: [

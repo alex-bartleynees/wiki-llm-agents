@@ -91,8 +91,17 @@ describe("makeTurnMapper", () => {
     mapper.map(event("session.step.ended", { sessionID: "ses_1", ...step }));
     mapper.map(event("session.step.failed", { sessionID: "ses_1", ...step, error: { type: "aborted", message: "x" } }));
     expect(mapper.map(event("session.execution.succeeded", { sessionID: "ses_1" }))).toEqual([
-      { _tag: "turn.finished", turnId: "turn-1", outcome: "completed", usage: { inputTokens: 222, outputTokens: 14, costUsd: 0.02 }, reason: null },
+      { _tag: "turn.finished", turnId: "turn-1", outcome: "completed", usage: { inputTokens: 222, outputTokens: 14, costUsd: 0.02, context: { _tag: "last_step", inputTokens: 111 }, breakdown: { scope: "reported_steps", uncachedInputTokens: 20, cacheReadTokens: 200, cacheWriteTokens: 2, reasoningTokens: 4 } }, reason: null },
     ]);
+  });
+
+  it("reports compaction without adding its aggregate usage to the turn", () => {
+    const mapper = makeTurnMapper("turn-1", "/vault");
+    const data = { sessionID: "ses_1", reason: "auto", tokens: { input: 800, output: 100 } };
+    expect(mapper.map(event("session.compaction.ended", data))).toEqual([
+      { _tag: "context.compaction", turnId: "turn-1", outcome: "completed", trigger: "auto", summaryOnly: true },
+    ]);
+    expect(mapper.usage()).toEqual({ inputTokens: 0, outputTokens: 0, costUsd: 0 });
   });
 
   it("says why OpenCode failed or stopped a turn you didn't stop", () => {

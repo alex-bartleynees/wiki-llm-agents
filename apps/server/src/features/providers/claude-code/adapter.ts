@@ -417,7 +417,21 @@ export const makeClaudeCodeAdapter = (options: ClaudeCodeAdapterOptions) =>
                   const events = mapper.map(message);
                   if (message.type === "result") {
                     saved = true;
-                    return yield* end(events);
+                    const getContextUsage = current.query.getContextUsage?.bind(current.query);
+                    if (getContextUsage === undefined || message.subtype !== "success" || message.is_error) return yield* end(events);
+                    // The estimate only labels the turn's usage, so it waits at most a second and is dropped if the CLI is slow.
+                    const estimate = yield* tryPromise(() => getContextUsage({ detail: "summary" }), "Couldn't read Claude Code context").pipe(
+                      Effect.option,
+                      Effect.timeoutOrElse({ duration: Duration.seconds(1), orElse: () => Effect.succeed(Option.none()) }),
+                    );
+                    if (Option.isNone(estimate)) return yield* end(events);
+                    const { totalTokens, rawMaxTokens } = estimate.value;
+                    if (!Number.isFinite(totalTokens) || totalTokens < 0 || !Number.isFinite(rawMaxTokens) || rawMaxTokens <= 0) return yield* end(events);
+                    return yield* end(events.map((event): ProviderEvent =>
+                      event._tag === "turn.finished" && event.usage !== null
+                        ? { ...event, usage: { ...event.usage, context: { _tag: "compaction_window_estimate", usedTokens: totalTokens, windowTokens: rawMaxTokens } } }
+                        : event,
+                    ));
                   }
                   yield* Queue.offerAll(out, events);
                 }

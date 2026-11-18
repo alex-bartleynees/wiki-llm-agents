@@ -302,7 +302,7 @@ const makeSession = (connect: Connect, sessionId: string, cwd: string, silence: 
               break;
           }
           // The end of an earlier turn can arrive after this one was sent; only this turn's end counts.
-          if (END_EVENTS.has(event.type) && !current.started) continue;
+          if (!current.started && (END_EVENTS.has(event.type) || event.type === "session.compaction.ended" || event.type === "session.compaction.failed")) continue;
           const events = mapper.map(event);
           if (events.some((mapped) => mapped._tag === "turn.finished")) return yield* end(events);
           yield* Queue.offerAll(queue, events);

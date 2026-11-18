@@ -1,4 +1,4 @@
-import type { PlanStep, TurnUsage } from "@wiki-agents/contracts/threads/model";
+import type { PlanStep, ThreadEvent, TurnUsage } from "@wiki-agents/contracts/threads/model";
 
 /**
  * A recorded agent turn, in the app's normalised terms, played back by the replay
@@ -43,6 +43,7 @@ export type Step =
     }
   /** The agent's plan, whole, as it stands now. */
   | { readonly type: "plan"; readonly steps: ReadonlyArray<PlanStep> }
+  | { readonly type: "compaction"; readonly observation: Omit<Extract<ThreadEvent, { readonly _tag: "context.compaction" }>, "_tag" | "turnId"> }
   /** The provider fails the turn. */
   | { readonly type: "fail"; readonly reason: string }
   /** Nothing happens for a while (milliseconds, before the speed factor). */

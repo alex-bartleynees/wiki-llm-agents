@@ -15,6 +15,19 @@ export const TurnUsage = Schema.Struct({
   outputTokens: Schema.Number,
   /** Null when the provider doesn't report a cost (subscriptions). */
   costUsd: Schema.NullOr(Schema.Number),
+  context: Schema.optionalKey(Schema.Union([
+    Schema.TaggedStruct("last_request", { inputTokens: Schema.Number, windowTokens: Schema.Number }),
+    Schema.TaggedStruct("last_step", { inputTokens: Schema.Number }),
+    Schema.TaggedStruct("compaction_window_estimate", { usedTokens: Schema.Number, windowTokens: Schema.Number }),
+  ])),
+  /** Reported categories are already included in inputTokens or outputTokens. */
+  breakdown: Schema.optionalKey(Schema.Struct({
+    scope: Schema.Literals(["main_loop", "reported_steps", "reported_requests"]),
+    uncachedInputTokens: Schema.optionalKey(Schema.Number),
+    cacheReadTokens: Schema.optionalKey(Schema.Number),
+    cacheWriteTokens: Schema.optionalKey(Schema.Number),
+    reasoningTokens: Schema.optionalKey(Schema.Number),
+  })),
 });
 export type TurnUsage = typeof TurnUsage.Type;
 
@@ -191,6 +204,16 @@ export const PlanUpdated = Schema.TaggedStruct("plan.updated", {
   steps: Schema.Array(PlanStep),
 });
 
+/** A native compaction outcome observed while the provider was streaming a turn. */
+export const ContextCompaction = Schema.TaggedStruct("context.compaction", {
+  turnId: Schema.String,
+  outcome: Schema.Literals(["completed", "failed"]),
+  trigger: Schema.Literals(["auto", "manual", "unknown"]),
+  summaryOnly: Schema.optionalKey(Schema.Boolean),
+  beforeTokens: Schema.optionalKey(Schema.Number),
+  afterTokens: Schema.optionalKey(Schema.Number),
+});
+
 export const TurnOutcome = Schema.Literals(["completed", "interrupted", "failed"]);
 export type TurnOutcome = typeof TurnOutcome.Type;
 
@@ -217,6 +240,7 @@ export const ThreadEvent = Schema.Union([
   ChangeUndone,
   ScheduleSaved,
   PlanUpdated,
+  ContextCompaction,
   TurnFinished,
 ]);
 export type ThreadEvent = typeof ThreadEvent.Type;

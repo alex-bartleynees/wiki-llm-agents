@@ -177,6 +177,8 @@ const makeSession = (cwd: string) => Effect.gen(function* () {
         );
       case "plan":
         return emitAfter(DELAY.tool, { _tag: "plan.updated", turnId, steps: step.steps });
+      case "compaction":
+        return emitAfter(DELAY.tool, { _tag: "context.compaction", turnId, ...step.observation });
       case "pause":
         return Stream.unwrap(Effect.as(delay(step.ms), Stream.empty));
       case "write":

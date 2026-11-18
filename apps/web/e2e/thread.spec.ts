@@ -28,6 +28,26 @@ test("starts a thread with a note picked by @, and answers its approval", async 
   await expect(page.locator(".turn-end").last()).toHaveText(/^Done/);
 });
 
+test("shows context and compaction observations after reload", async ({ page }, info) => {
+  await openVault(page);
+  await tab(page, info, "Chat");
+  await useReplay(page);
+  await page.getByRole("button", { name: "New thread", exact: true }).click();
+  const message = page.getByRole("textbox", { name: "Message" });
+  await message.fill("Show contextusage");
+  await message.press("Enter");
+  const compaction = page.getByText("Automatic context compaction completed");
+  const usage = page.locator(".turn-end").last();
+  await expect(compaction).toBeVisible();
+  await expect(usage).toContainText("3K cache read");
+  await expect(usage).toContainText("8K estimated context / 100K compaction window");
+  await page.reload();
+  await expect(compaction).toBeAttached();
+  await tab(page, info, "Chat");
+  await expect(compaction).toBeVisible();
+  await expect(usage).toContainText("8K estimated context / 100K compaction window");
+});
+
 test("removes an attached note before sending", async ({ page }, info) => {
   await openVault(page);
   await tab(page, info, "Chat");

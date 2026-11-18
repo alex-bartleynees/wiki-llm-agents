@@ -153,6 +153,8 @@ export interface UsageTotal {
   inputTokens: number;
   outputTokens: number;
   calls: number;
+  cacheReadTokens: number | undefined;
+  reasoningTokens: number | undefined;
 }
 
 export interface TurnMapper {
@@ -170,7 +172,9 @@ export interface TurnMapper {
 export const makeTurnMapper = (turnId: string, cwd: string, deniedOutput: (itemId: string) => string | undefined): TurnMapper => {
   const streamed = new Set<string>();
   const changes = new Map<string, ReadonlyArray<FileUpdateChange>>();
-  const usage: UsageTotal = { inputTokens: 0, outputTokens: 0, calls: 0 };
+  const usage: UsageTotal = { inputTokens: 0, outputTokens: 0, calls: 0, cacheReadTokens: 0, reasoningTokens: 0 };
+  let context: TurnUsage["context"];
+  let previousTotal: Notifications["thread/tokenUsage/updated"]["tokenUsage"]["total"];
 
   const called = (item: ThreadItem): ReadonlyArray<ProviderEvent> => {
     switch (item.type) {
@@ -198,6 +202,8 @@ export const makeTurnMapper = (turnId: string, cwd: string, deniedOutput: (itemI
   const finished = (item: ThreadItem): ReadonlyArray<ProviderEvent> => {
     const denied = (status: string) => (status === "declined" ? (deniedOutput(item.id) ?? "Denied.") : undefined);
     switch (item.type) {
+      case "contextCompaction":
+        return [{ _tag: "context.compaction", turnId, outcome: "completed", trigger: "unknown" }];
       case "agentMessage":
         return streamed.has(item.id) || item.text === "" ? [] : [{ _tag: "message.delta", turnId, messageId: item.id, text: item.text }];
       case "commandExecution":
@@ -248,9 +254,37 @@ export const makeTurnMapper = (turnId: string, cwd: string, deniedOutput: (itemI
       case "item/completed":
         return finished((raw as Notifications["item/completed"]).item);
       case "thread/tokenUsage/updated": {
-        const last = (raw as Notifications["thread/tokenUsage/updated"]).tokenUsage.last;
-        usage.inputTokens += last.inputTokens;
-        usage.outputTokens += last.outputTokens;
+        const { last, total, modelContextWindow } = (raw as Notifications["thread/tokenUsage/updated"]).tokenUsage;
+        // The first total includes prior turns. Later snapshots can repeat or arrive stale.
+        let cacheRead = last.cachedInputTokens;
+        let reasoning = last.reasoningOutputTokens;
+        if (total !== undefined && previousTotal !== undefined) {
+          if (total.inputTokens < previousTotal.inputTokens || total.outputTokens < previousTotal.outputTokens) return [];
+          const inputDelta = total.inputTokens - previousTotal.inputTokens;
+          const outputDelta = total.outputTokens - previousTotal.outputTokens;
+          if (inputDelta === 0 && outputDelta === 0) return [];
+          usage.inputTokens += inputDelta;
+          usage.outputTokens += outputDelta;
+          cacheRead = total.cachedInputTokens - previousTotal.cachedInputTokens;
+          reasoning = total.reasoningOutputTokens === undefined || previousTotal.reasoningOutputTokens === undefined
+            ? undefined
+            : total.reasoningOutputTokens - previousTotal.reasoningOutputTokens;
+          if (cacheRead < 0 || cacheRead > inputDelta) usage.cacheReadTokens = undefined;
+          if (reasoning !== undefined && (reasoning < 0 || reasoning > outputDelta)) reasoning = undefined;
+        } else {
+          usage.inputTokens += last.inputTokens;
+          usage.outputTokens += last.outputTokens;
+        }
+        // A snapshot without a total resets the baseline. Its `last` was counted above, and the next total is
+        // counted as "last" again, so no request is counted twice (its delta would otherwise include that request).
+        previousTotal = total;
+        context =typeof modelContextWindow === "number" && modelContextWindow > 0
+          ? { _tag: "last_request", inputTokens: last.inputTokens, windowTokens: modelContextWindow }
+          : undefined;
+        if (usage.cacheReadTokens !== undefined) {
+          usage.cacheReadTokens = Number.isFinite(cacheRead) ? usage.cacheReadTokens + cacheRead : undefined;
+        }
+        usage.reasoningTokens = usage.reasoningTokens === undefined || reasoning === undefined ? undefined : usage.reasoningTokens + reasoning;
         usage.calls += 1;
         return [];
       }
@@ -265,7 +299,17 @@ export const makeTurnMapper = (turnId: string, cwd: string, deniedOutput: (itemI
           outcome !== "failed"
             ? null
             : [turn.error?.message, turn.error?.additionalDetails].filter((part) => part !== undefined && part !== null && part !== "").join("\n") || "Codex's turn failed.";
-        const spent: TurnUsage | null = usage.calls === 0 ? null : { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, costUsd: null };
+        const spent: TurnUsage | null = usage.calls === 0 ? null : {
+          inputTokens: usage.inputTokens,
+          outputTokens: usage.outputTokens,
+          costUsd: null,
+          ...(context === undefined ? {} : { context }),
+          breakdown: {
+            scope: "reported_requests",
+            ...(usage.cacheReadTokens === undefined ? {} : { cacheReadTokens: usage.cacheReadTokens }),
+            ...(usage.reasoningTokens === undefined ? {} : { reasoningTokens: usage.reasoningTokens }),
+          },
+        };
         return [{ _tag: "turn.finished", turnId, outcome, usage: spent, reason }];
       }
       default:
