@@ -8,7 +8,7 @@ import { pathsWithinRoots } from "../../../shared/vault/path-scope.js";
 import { revisedEntryName } from "../../mcp/vault-tools.js";
 import { type CompactInput, type ProviderAdapter, ProviderError, type ProviderEvent, type ProviderSession, type SessionSetup, type TurnImage, type TurnInput, DENIED, SECRET_DENIED, vaultToolsUnavailable } from "../port.js";
 import type { OpenCodeApi, OpenCodeError, OpenCodeEvent, OpenCodeFile, OpenCodePermissionRule, OpenCodeSignal } from "./api.js";
-import { formAnswer, makeTurnMapper, sessionOf } from "./events.js";
+import { formAnswer, isRouter, makeTurnMapper, sessionOf } from "./events.js";
 import { instructionsText, MAX_INSTRUCTIONS_BYTES } from "./instructions.js";
 import { commandNamesProtected, reachesProtected } from "../../../shared/secret-paths.js";
 import { enforcedAutonomy, FILE_ACTIONS, levelBehindNameCheck, permissionRules, SEARCH_ACTIONS } from "./permissions.js";
@@ -97,9 +97,48 @@ const rulesKey = (setup: SessionSetup) => JSON.stringify(sessionRules(setup));
 
 export { vaultToolsUnavailable } from "../port.js";
 
-const makeSession = (connect: Connect, sessionId: string, cwd: string, silence: Duration.Input, applied: Applied, fs: FileSystem.FileSystem): ProviderSession => {
+/** Router providers' names, for a router OpenCode doesn't list (`github-copilot/auto` → Copilot Auto). */
+const ROUTER_PROVIDERS: Readonly<Record<string, string>> = { "github-copilot": "Copilot" };
+
+/** A model's name when OpenCode doesn't list it: a router's made from its provider, anything else its id. */
+export const unlistedModelName = (model: string) => {
+  if (!isRouter(model)) return model;
+  const provider = model.slice(0, model.indexOf("/"));
+  return `${ROUTER_PROVIDERS[provider] ?? provider} Auto`;
+};
+
+const makeSession = (
+  connect: Connect,
+  sessionId: string,
+  cwd: string,
+  silence: Duration.Input,
+  applied: Applied,
+  fs: FileSystem.FileSystem,
+  initialModel: string | null,
+): ProviderSession => {
   let turn: RunningTurn | undefined;
   const requests = new Map<string, PendingRequest>();
+  /** The thread's model as last set; null for OpenCode's default. */
+  let selectedModel = initialModel;
+
+  /** The model this turn asked for: the thread's, or OpenCode's default (null if it can't say). */
+  const turnModel = (api: OpenCodeApi) =>
+    selectedModel !== null ? Effect.succeed(selectedModel) : api.defaultModel(cwd).pipe(Effect.catch(() => Effect.succeed(null)));
+
+  /** Names a routed turn's models from OpenCode's list, asked for once per turn; ids stand in when it can't say. */
+  const namer = (api: OpenCodeApi) => {
+    let listed: ReadonlyMap<string, string> | undefined;
+    return (event: ProviderEvent) =>
+      Effect.gen(function* () {
+        if (event._tag !== "model.routed") return event;
+        listed ??= yield* api.listModels(cwd).pipe(
+          Effect.map((models) => new Map(models.map((model) => [model.id, model.name]))),
+          Effect.catch(() => Effect.succeed(new Map<string, string>())),
+        );
+        const name = (id: string) => listed?.get(id) ?? unlistedModelName(id);
+        return { ...event, selected: { id: event.selected.id, name: name(event.selected.id) }, model: { id: event.model.id, name: name(event.model.id) } };
+      });
+  };
 
   /**
    * Registers the thread's vault tools with OpenCode when they are new, changed (a
@@ -237,8 +276,10 @@ const makeSession = (connect: Connect, sessionId: string, cwd: string, silence: 
         const subscription = yield* api.subscribe;
         const current: RunningTurn = { id: turnId, inboxId: undefined, started: false };
         turn = current;
+        const selected = yield* turnModel(api);
         current.inboxId = yield* send(api, notices).pipe(Effect.mapError(toProviderError));
-        const mapper = makeTurnMapper(turnId, cwd, { compacting });
+        const mapper = makeTurnMapper(turnId, cwd, { compacting, selectedModel: selected });
+        const name = namer(api);
         const waiting = new Set<string>();
         /** Checks that found the message still queued and nothing running. */
         let neverStarted = 0;
@@ -311,7 +352,7 @@ const makeSession = (connect: Connect, sessionId: string, cwd: string, silence: 
           }
           // The end of an earlier turn can arrive after this one was sent; only this turn's end counts.
           if (!current.started && (END_EVENTS.has(event.type) || event.type === "session.compaction.ended" || event.type === "session.compaction.failed")) continue;
-          const events = mapper.map(event);
+          const events = yield* Effect.forEach(mapper.map(event), name);
           if (events.some((mapped) => mapped._tag === "turn.finished")) return yield* end(events);
           yield* Queue.offerAll(queue, events);
         }
@@ -397,7 +438,17 @@ const makeSession = (connect: Connect, sessionId: string, cwd: string, silence: 
     resumeTurn: () => Effect.succeed(Option.none()),
     interrupt,
     answerRequest,
-    setModel: (model) => Effect.flatMap(connect, (api) => api.switchModel(sessionId, model).pipe(Effect.mapError(toProviderError))),
+    setModel: (model) =>
+      Effect.flatMap(connect, (api) =>
+        api.switchModel(sessionId, model).pipe(
+          Effect.mapError(toProviderError),
+          Effect.tap(() =>
+            Effect.sync(() => {
+              selectedModel = model;
+            }),
+          ),
+        ),
+      ),
   };
 };
 
@@ -472,12 +523,12 @@ export const makeOpenCodeAdapter = (options: OpenCodeAdapterOptions) =>
           if (existing && nativeSessionId !== null) {
             // The session keeps the rules it was made with; bring them up to date.
             yield* api.setPermissions(nativeSessionId, rules).pipe(Effect.mapError(toProviderError));
-            return makeSession(connect, nativeSessionId, cwd, silence, applied, fs);
+            return makeSession(connect, nativeSessionId, cwd, silence, applied, fs, model);
           }
           const sessionId = yield* api
             .createSession({ directory: cwd, model, permissions: rules })
             .pipe(Effect.mapError(toProviderError));
-          return makeSession(connect, sessionId, cwd, silence, applied, fs);
+          return makeSession(connect, sessionId, cwd, silence, applied, fs, model);
         }),
       status,
       listModels: (cwd) =>

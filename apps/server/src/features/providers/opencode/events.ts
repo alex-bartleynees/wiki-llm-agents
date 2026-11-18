@@ -3,7 +3,7 @@ import type { ProposedEdit } from "@wiki-agents/contracts/changes/model";
 import type { RequestPrompt, TurnUsage } from "@wiki-agents/contracts/threads/model";
 import { todoSteps } from "../plan.js";
 import type { ProviderEvent } from "../port.js";
-import type { OpenCodeEvent } from "./api.js";
+import { modelName, type OpenCodeEvent } from "./api.js";
 
 /**
  * Translates one turn's OpenCode events into the app's normalised events. Pure:
@@ -143,7 +143,16 @@ export interface TurnMapperOptions {
    * only summarised.
    */
   readonly compacting?: boolean;
+  /**
+   * The session's model (`provider/model`), when known. A step OpenCode reports on
+   * another model, as Copilot Auto routes, gives a `model.routed` (named by its id;
+   * the adapter puts in the listed names).
+   */
+  readonly selectedModel?: string | null;
 }
+
+/** A router's own id, such as `github-copilot/auto`: not a model the turn ran on. */
+export const isRouter = (model: string) => model.endsWith("/auto");
 
 export const makeTurnMapper = (turnId: string, directory: string, options: TurnMapperOptions = {}): TurnMapper => {
   const toolNames = new Map<string, string>();
@@ -153,6 +162,8 @@ export const makeTurnMapper = (turnId: string, directory: string, options: TurnM
   /** Some request reported its tokens. */
   let counted = false;
   let latestStepInput: number | undefined;
+  /** Models already reported as routed to in this turn. */
+  const routedTo = new Set<string>();
 
   /** Adds a request's tokens and cost; a model step's input is also the latest context seen. */
   const add = (
@@ -262,6 +273,13 @@ export const makeTurnMapper = (turnId: string, directory: string, options: TurnM
           trigger: event.data.reason,
           ...(options.compacting === true ? {} : { summaryOnly: true }),
         }];
+      case "session.step.started": {
+        const selected = options.selectedModel ?? null;
+        const model = modelName(event.data.model);
+        if (selected === null || model === selected || isRouter(model) || routedTo.has(model)) return [];
+        routedTo.add(model);
+        return [{ _tag: "model.routed", turnId, selected: { id: selected, name: selected }, model: { id: model, name: model } }];
+      }
       case "session.step.ended":
       case "session.step.failed":
         add(event.data, true);

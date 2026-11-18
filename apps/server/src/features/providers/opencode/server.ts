@@ -42,6 +42,7 @@ const eventTypes = [
   "session.execution.succeeded",
   "session.step.ended",
   "session.step.failed",
+  "session.step.started",
   "session.text.delta",
   "session.tool.called",
   "session.tool.failed",

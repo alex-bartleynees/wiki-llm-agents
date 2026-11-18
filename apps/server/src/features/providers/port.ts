@@ -12,7 +12,7 @@ import type { VaultToolsEntry } from "../mcp/vault-tools.js";
  */
 export type ProviderEvent = Extract<
   ThreadEvent,
-  { readonly _tag: "message.delta" | "tool.called" | "tool.finished" | "request.opened" | "notice" | "plan.updated" | "context.compaction" | "turn.finished" }
+  { readonly _tag: "message.delta" | "tool.called" | "tool.finished" | "request.opened" | "notice" | "plan.updated" | "context.compaction" | "model.routed" | "turn.finished" }
 >;
 
 export class ProviderError extends Data.TaggedError("ProviderError")<{

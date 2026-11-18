@@ -82,6 +82,8 @@
     onchange={(event) => void choose(event.currentTarget.value)}
   >
     {#if current === null}<option value="" disabled>Default model</option>{/if}
+    <!-- Chosen but not listed (Copilot Auto, which OpenCode doesn't list): still shown as the choice. -->
+    {#if current !== null && !models.some((model) => model.id === current)}<option value={current}>{current}</option>{/if}
     {#each sorted as model (model.id)}
       <option value={model.id}>{model.name}{model.free ? " · free" : ""}</option>
     {/each}

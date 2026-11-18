@@ -187,3 +187,24 @@ test("compacts the conversation on request and keeps the outcome after reload", 
   await expect(outcome).toBeVisible();
   await expect(page.getByText("You asked to compact the conversation")).toBeVisible();
 });
+
+test("shows the model a router ran the turn on, beside the reply, and after reload", async ({ page }, info) => {
+  await openVault(page);
+  await tab(page, info, "Chat");
+  await useReplay(page);
+  await page.getByRole("button", { name: "New thread", exact: true }).click();
+  const message = page.getByRole("textbox", { name: "Message" });
+  await message.fill("modelrouting");
+  await message.press("Enter");
+  const routing = page.locator(".routing");
+  await expect(routing).toHaveText("Copilot Auto · Routed to GPT-6 Luna, Claude Haiku 5.5");
+  await expect(page.locator(".turn-end").last()).toHaveText(/^Done/);
+  // Before the reply, so it's clear which answer it applies to.
+  await expect(page.locator(".routing + .agent")).toContainText("Copilot Auto chose a model for this answer.");
+  const box = await routing.boundingBox();
+  expect(box !== null && box.x + box.width <= (page.viewportSize()?.width ?? 0)).toBe(true);
+
+  await page.reload();
+  await tab(page, info, "Chat");
+  await expect(routing).toHaveText("Copilot Auto · Routed to GPT-6 Luna, Claude Haiku 5.5");
+});

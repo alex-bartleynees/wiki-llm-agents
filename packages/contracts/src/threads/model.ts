@@ -229,6 +229,28 @@ export const ContextCompaction = Schema.TaggedStruct("context.compaction", {
   reason: Schema.optionalKey(Schema.String),
 });
 
+/** A model as a turn names it: the provider's id and a name to show. */
+export const NamedModel = Schema.Struct({
+  /** The provider's name for it, e.g. `github-copilot/gpt-6-luna`. */
+  id: Schema.String,
+  /** Its name in the provider's model list, or the id when it isn't listed. */
+  name: Schema.String,
+});
+export type NamedModel = typeof NamedModel.Type;
+
+/**
+ * The provider ran the turn on a model other than the one chosen, as a router
+ * such as Copilot Auto does. Sent once per model, when the provider first reports
+ * it; a turn routed to several models has one for each. The thread keeps its choice.
+ */
+export const ModelRouted = Schema.TaggedStruct("model.routed", {
+  turnId: Schema.String,
+  /** The model the thread asked for, e.g. Copilot Auto. */
+  selected: NamedModel,
+  /** The model the provider says it used. */
+  model: NamedModel,
+});
+
 export const TurnOutcome = Schema.Literals(["completed", "interrupted", "failed"]);
 export type TurnOutcome = typeof TurnOutcome.Type;
 
@@ -257,6 +279,7 @@ export const ThreadEvent = Schema.Union([
   ScheduleSaved,
   PlanUpdated,
   ContextCompaction,
+  ModelRouted,
   TurnFinished,
 ]);
 export type ThreadEvent = typeof ThreadEvent.Type;

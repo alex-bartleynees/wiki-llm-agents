@@ -15,7 +15,7 @@
   import { openThread } from "./open-thread.svelte.ts";
   import { STATUS_LABEL } from "./status.ts";
   import { threads } from "./threads.svelte.ts";
-  import { hasConversation, isCompacting, pendingRequests, type TimelineItem, usageLabel } from "./timeline.ts";
+  import { hasConversation, isCompacting, pendingRequests, routingLabel, type TimelineItem, usageLabel } from "./timeline.ts";
   import WorktreeBar from "./WorktreeBar.svelte";
 
   const timeline = $derived(openThread.timeline);
@@ -136,6 +136,8 @@
       </div>
     {:else if item.kind === "compaction-request"}
       <p class="compaction-request mono">You asked to compact the conversation</p>
+    {:else if item.kind === "routing"}
+      <p class="routing mono" title="The provider chose the model for this answer. The thread stays on {item.selected}.">{routingLabel(item)}</p>
     {:else if item.kind === "agent"}
       <div class="agent"><AgentText text={item.text} /></div>
     {:else if item.kind === "tool"}
@@ -342,6 +344,13 @@
     align-self: flex-end;
     font-size: 12px;
     color: var(--ink-2);
+  }
+  .routing {
+    align-self: flex-start;
+    max-width: 100%;
+    font-size: 11px;
+    color: var(--ink-3);
+    overflow-wrap: anywhere;
   }
   .turn-end {
     align-self: center;

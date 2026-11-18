@@ -77,13 +77,17 @@ const SCENARIOS: Readonly<Record<string, ReadonlyArray<TurnScript>>> = {
     { prompt: "", compact: true },
     { prompt: "Which word did I ask you to remember? Reply with just the word." },
   ],
+  // A Copilot Auto turn: OpenCode reports the model it was routed to on each step.
+  "copilot-auto": [{ prompt: "Reply with just OK." }],
 };
 
-/** Scenarios that need a model other than the default when `--model` isn't given: the default free model doesn't take images. */
-const SCENARIO_MODELS: Readonly<Record<string, string>> = { image: "opencode/nemotron-3.5-super-vl-free" };
+/** Scenarios that need a model other than the default when `--model` isn't given: the default free model doesn't take images, and Copilot Auto is the subject of its own. */
+const SCENARIO_MODELS: Readonly<Record<string, string>> = { image: "opencode/nemotron-3.5-super-vl-free", "copilot-auto": "github-copilot/auto" };
 
 const END = new Set(["session.execution.succeeded", "session.execution.failed", "session.execution.interrupted"]);
 const COMPACTION_END = new Set(["session.compaction.ended", "session.compaction.failed"]);
+/** How long a router model (`…/auto`) is given to become routable in a new folder. */
+const ROUTER_WARM_UP = "6 seconds";
 /** After a compaction's end, how long to wait for an execution end that may not come. */
 const AFTER_COMPACTION = "5 seconds";
 
@@ -179,6 +183,12 @@ const record = (name: string, turns: ReadonlyArray<TurnScript>, model: string | 
         writeFileSync(join(root, path), content);
       }
       const api = yield* startServer({ binary: process.env.WIKI_AGENTS_OPENCODE ?? "opencode" });
+      if (model?.endsWith("/auto") === true) {
+        // OpenCode 2.3.0 fails a router model (`provider.no-route`) until the provider's
+        // own model list has loaded for the folder, about 3 seconds after first use.
+        yield* api.listModels(root);
+        yield* Effect.sleep(ROUTER_WARM_UP);
+      }
       const sessionId = yield* api.createSession({ directory: root, model, permissions: SESSION_PERMISSIONS });
       const recorded = [];
       for (const script of turns) recorded.push(yield* recordTurn(api, sessionId, root, attachments, script));

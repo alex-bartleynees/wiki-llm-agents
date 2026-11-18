@@ -33,7 +33,7 @@ import { ReplayAdapter } from "../../src/features/providers/replay/adapter.js";
 import { SERVER_STOPPED } from "../../src/features/threads/thread-actor.js";
 import { ThreadBus } from "../../src/features/threads/thread-bus.js";
 import { makeSqlite, Sqlite } from "../../src/shared/persistence/sqlite.js";
-import { type FakeOpenCode, loadFixture, makeFakeOpenCode, type PlayOptions } from "../fixtures/opencode/fake-api.js";
+import { FAKE_MODELS, type FakeOpenCode, loadFixture, makeFakeOpenCode, type PlayOptions } from "../fixtures/opencode/fake-api.js";
 import { VAULT_FILES } from "../fixtures/opencode/fixture.js";
 import { CSV_PROMPT, csvMessage, csvPath, SALES_CSV, SALES_TOTAL } from "../fixtures/csv.js";
 import { RED_SQUARE, sha256 } from "../fixtures/image.js";
@@ -578,6 +578,59 @@ layer(App)("OpenCode provider", (it) => {
       expect(fake.calls.at(-1)).toEqual({ call: "switchModel", model: "opencode/big-pickle" });
       const after = yield* HttpClient.get(`/api/threads/${thread.id}/models`).pipe(Effect.flatMap(decode(ListModelsResponse)));
       expect(after.current).toBe("opencode/big-pickle");
+    }),
+  );
+
+  it.effect("says which model Copilot Auto ran a turn on, keeps Auto chosen, and keeps the attribution in the thread's history", () =>
+    Effect.gen(function* () {
+      // Recorded on OpenCode 2.3.0, a session on `github-copilot/auto` (OpenCode's default here).
+      const { thread, fake, fixture, prompts } = yield* setUp("copilot-auto", {
+        models: [...FAKE_MODELS, { id: "github-copilot/gpt-6-luna", name: "GPT-6 Luna", free: false, images: true }],
+      });
+      expect(fixture.model).toBe("github-copilot/auto");
+      const events = yield* watch(thread.id);
+      const turnId = yield* sendOk(thread.id, prompts[0]!);
+      const seen = yield* events.until(isTag("turn.finished"));
+
+      const routed = {
+        _tag: "model.routed",
+        turnId,
+        // OpenCode doesn't list the router itself.
+        selected: { id: "github-copilot/auto", name: "Copilot Auto" },
+        model: { id: "github-copilot/gpt-6-luna", name: "GPT-6 Luna" },
+      };
+      expect(seen.filter(isTag("model.routed"))).toEqual([routed]);
+      expect(finishedOf(seen).outcome).toBe("completed");
+      expect(fake.calls.some((call) => call.call === "switchModel")).toBe(false);
+      const { thread: after, events: stored } = yield* getThread(thread.id);
+      expect(after.model).toBeNull();
+      expect(stored.map((event) => event.event).filter(isTag("model.routed"))).toEqual([routed]);
+    }),
+  );
+
+  it.effect("names a routed model by its id when OpenCode doesn't list it", () =>
+    Effect.gen(function* () {
+      const { thread, prompts } = yield* setUp("copilot-auto");
+      const events = yield* watch(thread.id);
+      yield* sendOk(thread.id, prompts[0]!);
+      const seen = yield* events.until(isTag("turn.finished"));
+      expect(seen.filter(isTag("model.routed"))).toMatchObject([{ model: { id: "github-copilot/gpt-6-luna", name: "github-copilot/gpt-6-luna" } }]);
+    }),
+  );
+
+  it.effect("says nothing about routing when the turn ran on the model the thread chose", () =>
+    Effect.gen(function* () {
+      const luna = { id: "github-copilot/gpt-6-luna", name: "GPT-6 Luna", free: false, images: true };
+      const { thread, fake, prompts } = yield* setUp("copilot-auto", { models: [...FAKE_MODELS, luna] });
+      const chosen = yield* HttpClient.execute(
+        HttpClientRequest.put(`/api/threads/${thread.id}/model`).pipe(HttpClientRequest.bodyJsonUnsafe({ model: luna.id })),
+      ).pipe(Effect.flatMap(decode(SetModelResponse)));
+      expect(chosen.thread.model).toBe(luna.id);
+      const events = yield* watch(thread.id);
+      yield* sendOk(thread.id, prompts[0]!);
+      const seen = yield* events.until(isTag("turn.finished"));
+      expect(fake.calls[0]).toMatchObject({ call: "createSession", model: luna.id });
+      expect(seen.filter(isTag("model.routed"))).toEqual([]);
     }),
   );
 

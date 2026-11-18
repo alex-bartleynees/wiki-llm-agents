@@ -44,6 +44,8 @@ export type Step =
   /** The agent's plan, whole, as it stands now. */
   | { readonly type: "plan"; readonly steps: ReadonlyArray<PlanStep> }
   | { readonly type: "compaction"; readonly observation: Omit<Extract<ThreadEvent, { readonly _tag: "context.compaction" }>, "_tag" | "turnId"> }
+  /** The provider ran the turn on another model than the one chosen (a router such as Copilot Auto). */
+  | { readonly type: "routed"; readonly routing: Omit<Extract<ThreadEvent, { readonly _tag: "model.routed" }>, "_tag" | "turnId"> }
   /** The provider fails the turn. */
   | { readonly type: "fail"; readonly reason: string }
   /** Nothing happens for a while (milliseconds, before the speed factor). */

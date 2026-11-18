@@ -35,6 +35,11 @@ export type TimelineItem =
       /** `pending` until answered; null when cancelled because the turn ended. */
       answer: RequestAnswer | null | "pending";
     }
+  /**
+   * The models a router (Copilot Auto) ran the turn on, in the order the provider
+   * reported them; one per turn, updated in place. The thread keeps its choice.
+   */
+  | { readonly kind: "routing"; readonly key: string; readonly selected: string; models: Array<{ readonly id: string; readonly name: string }> }
   /** The agent's plan for a turn, as it last reported it; one per turn, updated in place. */
   | { readonly kind: "plan"; readonly key: string; readonly turnId: string; steps: ReadonlyArray<PlanStep> }
   | {
@@ -139,6 +144,15 @@ export const applyEvent = (timeline: Timeline, stored: StoredThreadEvent): boole
       else timeline.items.push({ kind: "plan", key: `${event.turnId}:plan`, turnId: event.turnId, steps: event.steps });
       break;
     }
+    case "model.routed": {
+      const routing = find(timeline, "routing", `${event.turnId}:routing`);
+      if (routing === undefined) {
+        timeline.items.push({ kind: "routing", key: `${event.turnId}:routing`, selected: event.selected.name, models: [event.model] });
+      } else if (!routing.models.some((model) => model.id === event.model.id)) {
+        routing.models.push(event.model);
+      }
+      break;
+    }
     case "schedule.saved":
       timeline.items.push({ kind: "schedule", key: String(stored.seq), receipt: event });
       break;
@@ -204,6 +218,10 @@ const contextLabel = (context: NonNullable<TurnUsage["context"]>): string => {
       return `${compact.format(context.usedTokens)} estimated context / ${compact.format(context.windowTokens)} compaction window`;
   }
 };
+
+/** "Copilot Auto · Routed to GPT-6 Luna", or to several models in the order they were used. */
+export const routingLabel = (item: Extract<TimelineItem, { kind: "routing" }>) =>
+  `${item.selected} · Routed to ${item.models.map((model) => model.name).join(", ")}`;
 
 /** "12.5K in · 187 out · $0.026" */
 export const usageLabel = (usage: TurnUsage) =>

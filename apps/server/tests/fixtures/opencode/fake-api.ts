@@ -47,6 +47,8 @@ export interface PlayOptions {
   readonly holdStart?: boolean;
   /** Stop publishing after this many events, as if the stream lost the rest; the turn still runs to its end. */
   readonly loseAfter?: number;
+  /** What `listModels` answers instead of `FAKE_MODELS`. */
+  readonly models?: ReadonlyArray<OpenCodeModel>;
 }
 
 /** What the adapter asked of OpenCode, in order. */
@@ -268,7 +270,7 @@ export const makeFakeOpenCode = Effect.gen(function* () {
         calls.push({ call: "reply", requestId: formId, reply: text });
         yield* Deferred.succeed(yield* replyFor(formId), text);
       }),
-    listModels: () => Effect.succeed(FAKE_MODELS),
+    listModels: () => Effect.sync(() => [...sessions.values()][0]?.options.models ?? FAKE_MODELS),
     defaultModel: () => Effect.sync(() => [...sessions.values()][0]?.fixture.model ?? null),
     switchModel: (_sessionId, model) =>
       Effect.sync(() => {

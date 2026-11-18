@@ -1,6 +1,6 @@
 import type { ThreadEvent } from "@wiki-agents/contracts/threads/model";
 import { describe, expect, it } from "vitest";
-import { applyEvent, emptyTimeline, hasConversation, isCompacting } from "./timeline.ts";
+import { applyEvent, emptyTimeline, hasConversation, isCompacting, routingLabel } from "./timeline.ts";
 
 const apply = (events: ReadonlyArray<ThreadEvent>) => {
   const timeline = emptyTimeline();
@@ -45,6 +45,30 @@ describe("the plan in the timeline", () => {
     expect(timeline.items.map((item) => item.kind)).toEqual(["user", "plan", "agent", "turn-end", "user", "plan"]);
     const plan = timeline.items[1];
     expect(plan?.kind === "plan" ? plan.steps.map((step) => step.status) : []).toEqual(["completed", "in_progress"]);
+  });
+});
+
+describe("the model a router ran the turn on", () => {
+  const auto = { id: "github-copilot/auto", name: "Copilot Auto" };
+  const luna = { id: "github-copilot/gpt-6-luna", name: "GPT-6 Luna" };
+  const haiku = { id: "github-copilot/claude-haiku-5.5", name: "Claude Haiku 5.5" };
+
+  it("shows each turn's models once, by name, before the reply, and turns without routing as before", () => {
+    const timeline = apply([
+      { _tag: "user.message", turnId: "a", text: "hi" },
+      { _tag: "turn.started", turnId: "a" },
+      { _tag: "model.routed", turnId: "a", selected: auto, model: luna },
+      { _tag: "message.delta", turnId: "a", messageId: "m", text: "OK" },
+      { _tag: "model.routed", turnId: "a", selected: auto, model: haiku },
+      { _tag: "model.routed", turnId: "a", selected: auto, model: luna },
+      { _tag: "turn.finished", turnId: "a", outcome: "completed", usage: null, reason: null },
+      { _tag: "user.message", turnId: "b", text: "again" },
+      { _tag: "message.delta", turnId: "b", messageId: "n", text: "OK" },
+      { _tag: "turn.finished", turnId: "b", outcome: "completed", usage: null, reason: null },
+    ]);
+    expect(timeline.items.map((item) => item.kind)).toEqual(["user", "routing", "agent", "turn-end", "user", "agent", "turn-end"]);
+    const routing = timeline.items[1];
+    expect(routing?.kind === "routing" ? routingLabel(routing) : "").toBe("Copilot Auto · Routed to GPT-6 Luna, Claude Haiku 5.5");
   });
 });
 

@@ -142,6 +142,22 @@ export const TRANSCRIPTS: ReadonlyArray<Transcript> = [
     },
   },
   {
+    name: "model-routing",
+    keywords: ["modelrouting"],
+    steps: [
+      {
+        type: "routed",
+        routing: { selected: { id: "github-copilot/auto", name: "Copilot Auto" }, model: { id: "github-copilot/gpt-6-luna", name: "GPT-6 Luna" } },
+      },
+      { type: "text", text: "Copilot Auto chose a model for this answer." },
+      {
+        type: "routed",
+        routing: { selected: { id: "github-copilot/auto", name: "Copilot Auto" }, model: { id: "github-copilot/claude-haiku-5.5", name: "Claude Haiku 5.5" } },
+      },
+    ],
+    usage: { inputTokens: 9_060, outputTokens: 5, costUsd: 0.001 },
+  },
+  {
     name: "simple",
     keywords: [],
     steps: [

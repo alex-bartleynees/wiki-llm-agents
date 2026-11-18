@@ -84,6 +84,35 @@ describe("questionPrompt", () => {
   });
 });
 
+describe("makeTurnMapper, model routing", () => {
+  const step = (providerID: string, id: string) =>
+    event("session.step.started", { sessionID: "ses_1", agent: "build", model: { providerID, id }, assistantMessageID: "msg_1", started: 1 });
+  const routed = (mapper: ReturnType<typeof makeTurnMapper>, steps: ReadonlyArray<ReturnType<typeof step>>) =>
+    steps.flatMap((started) => mapper.map(started)).map((mapped) => (mapped._tag === "model.routed" ? mapped.model.id : mapped._tag));
+
+  it("reports the model a router ran the turn on, by its id, once per model", () => {
+    const mapper = makeTurnMapper("turn-1", "/vault", { selectedModel: "github-copilot/auto" });
+    expect(mapper.map(step("github-copilot", "gpt-6-luna"))).toEqual([
+      {
+        _tag: "model.routed",
+        turnId: "turn-1",
+        selected: { id: "github-copilot/auto", name: "github-copilot/auto" },
+        model: { id: "github-copilot/gpt-6-luna", name: "github-copilot/gpt-6-luna" },
+      },
+    ]);
+    expect(routed(mapper, [step("github-copilot", "gpt-6-luna"), step("github-copilot", "claude-haiku-5.5"), step("github-copilot", "gpt-6-luna")])).toEqual([
+      "github-copilot/claude-haiku-5.5",
+    ]);
+  });
+
+  it("says nothing when the step ran on the chosen model, on the router itself, or the choice isn't known", () => {
+    expect(routed(makeTurnMapper("turn-1", "/vault", { selectedModel: "github-copilot/gpt-6-luna" }), [step("github-copilot", "gpt-6-luna")])).toEqual([]);
+    expect(routed(makeTurnMapper("turn-1", "/vault", { selectedModel: "github-copilot/auto" }), [step("github-copilot", "auto")])).toEqual([]);
+    expect(routed(makeTurnMapper("turn-1", "/vault", { selectedModel: null }), [step("github-copilot", "gpt-6-luna")])).toEqual([]);
+    expect(routed(makeTurnMapper("turn-1", "/vault"), [step("github-copilot", "gpt-6-luna")])).toEqual([]);
+  });
+});
+
 describe("makeTurnMapper", () => {
   it("adds up every step's tokens, cached input included", () => {
     const mapper = makeTurnMapper("turn-1", "/vault");
