@@ -169,6 +169,13 @@
       "when": 1795046278465,
       "tag": "0023_ordinary_shiver_man",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1795068707023,
+      "tag": "0024_thankful_thaddeus_ross",
+      "breakpoints": true
     }
   ]
 }

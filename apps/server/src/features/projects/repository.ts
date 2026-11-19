@@ -58,6 +58,10 @@ export interface ProjectRepositoryService {
   readonly allBrowserSignIns: Effect.Effect<ReadonlyArray<{ readonly projectId: string; readonly signIns: ReadonlyArray<BrowserSignIn> }>, DbError>;
   /** Replaces the project's list. */
   readonly saveBrowserSignIns: (projectId: string, signIns: ReadonlyArray<BrowserSignIn>) => Effect.Effect<void, DbError>;
+  /** The MCP servers every thread in the project gets; empty until saved. */
+  readonly mcpServers: (projectId: string) => Effect.Effect<ReadonlyArray<string>, DbError>;
+  /** Replaces the project's list. */
+  readonly saveMcpServers: (projectId: string, serverIds: ReadonlyArray<string>) => Effect.Effect<void, DbError>;
 }
 
 export class ProjectRepository extends Context.Service<ProjectRepository, ProjectRepositoryService>()("ProjectRepository") {}

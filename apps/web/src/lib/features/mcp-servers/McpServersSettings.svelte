@@ -289,7 +289,7 @@
               <code>{server.id}</code> · {server.transport.type} · {server.scope}
               {#if server.builtIn}· <span class="built-in">built in</span>{/if}
             </span>
-            <span class="availability">{server.default ? "Available to every thread" : "Available only to agents that list this server"}</span>
+            <span class="availability">{server.default ? "Available to every thread" : "Available only to agents and projects that list this server"}</span>
             <span class="where">{describeTransport(server)}</span>
             {#if server.excludeTools.length > 0}<span class="where">Left out: {server.excludeTools.join(", ")}</span>{/if}
             {#if canSignIn(server)}
@@ -485,7 +485,8 @@
           {#if form.everyThread}
             Every thread can use this server's tools from its next message, including threads without a named agent.
           {:else}
-            Only named agents that list this server's ID in their MCP servers field receive its tools. Threads without a named agent do not receive them.
+            Only threads of named agents that list this server's ID in their MCP servers field, and threads in projects that tick it
+            under the project's MCP servers, receive its tools.
           {/if}
         </p>
       </fieldset>

@@ -2,7 +2,7 @@ import { DEFAULT_AUTONOMY } from "@wiki-agents/contracts/agents/model";
 import { Schema } from "effect";
 import { McpSchema } from "effect/ai";
 import { describe, expect, it } from "vitest";
-import { approvalPrompt, MAX_APPROVAL_ARGUMENTS, MAX_RESULT_TEXT, toolCallLevel, toolsOf, truncateResult } from "./gateway.js";
+import { approvalPrompt, MAX_APPROVAL_ARGUMENTS, MAX_RESULT_TEXT, serversFor, toolCallLevel, toolsOf, truncateResult } from "./gateway.js";
 
 /** A tool as a server lists it, decoded as the pool decodes it. */
 const tool = (name: string, annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean }) =>
@@ -59,5 +59,22 @@ describe("truncateResult", () => {
     expect(cut.content[0]).toMatchObject({ type: "text", text: expect.stringMatching(/cut by wiki-agents: 10 more characters/) });
     expect(cut.content[1]).toEqual({ type: "image", data: "", mimeType: "image/png" });
     expect(cut.isError).toBe(false);
+  });
+});
+
+describe("serversFor", () => {
+  const listed = (id: string, isDefault = false) =>
+    ({ id, title: id, default: isDefault }) as unknown as Parameters<typeof serversFor>[0][number];
+  const servers = [listed("everywhere", true), listed("github"), listed("jira"), listed("coffee")];
+
+  it("gives servers for every thread, the agent's and the project's, each once", () => {
+    const { chosen } = serversFor(servers, { agent: ["github"], project: ["jira", "github"] });
+    expect(chosen.map(({ id }) => id)).toEqual(["everywhere", "github", "jira"]);
+  });
+
+  it("says who listed a server that doesn't exist", () => {
+    const { missingForAgent, missingForProject } = serversFor(servers, { agent: ["gone"], project: ["coffee", "removed"] });
+    expect(missingForAgent).toEqual(["gone"]);
+    expect(missingForProject).toEqual(["removed"]);
   });
 });

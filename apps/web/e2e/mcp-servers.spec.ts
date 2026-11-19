@@ -17,7 +17,7 @@ test("adds an MCP server in Settings, edits it, and deletes it to the trash", as
   await form.getByLabel("Server name").fill(`GitHub ${width}`);
   await expect(form.getByLabel("Server id")).toHaveValue(id);
   await expect(form).toContainText("An override replaces the agent's autonomy for all of this server's tools");
-  await expect(form).toContainText("Threads without a named agent do not receive them.");
+  await expect(form).toContainText("threads in projects that tick it");
   await expect(form).toContainText("Controls how connections are reused.");
   await form.getByLabel("URL").fill("https://api.githubcopilot.com/mcp/");
   // A line that isn't `Name: value` is refused before anything is sent.
@@ -42,7 +42,7 @@ test("adds an MCP server in Settings, edits it, and deletes it to the trash", as
     `title: GitHub ${width}\ntransport:\n  type: http\n  url: https://api.githubcopilot.com/mcp/\n  headers:\n    Authorization: Bearer \${secret:github}\nscope: app\ndefault: false\n`,
   );
 
-  await expect(item).toContainText("Available only to agents that list this server");
+  await expect(item).toContainText("Available only to agents and projects that list this server");
 
   // Edit: a command instead of a URL, available to every thread.
   await item.getByRole("button", { name: `Edit GitHub ${width}` }).click();
@@ -90,7 +90,7 @@ test("shows the built-in browser, which a file would replace and which can't be 
   await page.goto("/settings");
   const item = page.getByRole("list", { name: "MCP servers" }).getByRole("listitem", { name: "Browser (Playwright)" });
   await expect(item).toContainText("playwright · stdio · thread · built in");
-  await expect(item).toContainText("Available only to agents that list this server");
+  await expect(item).toContainText("Available only to agents and projects that list this server");
   await expect(item).toContainText("wiki-agents-e2e-no-browser --headless --isolated");
   await expect(item).toContainText("Left out: browser_run_code_unsafe, browser_file_upload, browser_evaluate");
   await noOverflow(page);

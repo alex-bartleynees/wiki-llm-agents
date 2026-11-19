@@ -17,6 +17,7 @@
   import BrowserSignIns from "./BrowserSignIns.svelte";
   import ChangedFiles from "./ChangedFiles.svelte";
   import DiffReview from "./DiffReview.svelte";
+  import ProjectMcpServers from "./ProjectMcpServers.svelte";
   import ProjectThreads from "./ProjectThreads.svelte";
   import ProjectViewSwitch from "./ProjectViewSwitch.svelte";
   import { projects } from "./projects.svelte.ts";
@@ -287,6 +288,8 @@
           <p class="note">Each worktree is its thread's own checkout on its own branch. Review it in <a href="/projects/{selected.id}/diff">Diff</a>; commit and merge with lazygit.</p>
         </section>
       {/if}
+
+      {#key selected.id}<ProjectMcpServers project={selected} />{/key}
 
       {#key selected.id}<BrowserSignIns project={selected} />{/key}
 

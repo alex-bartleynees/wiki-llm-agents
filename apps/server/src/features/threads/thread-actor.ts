@@ -275,9 +275,10 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     // Read before the tools, so MCP servers started for this turn already go without them.
     const { paths, names } = yield* secretMaterial.current;
     const agentServers = agentId === null ? [] : yield* catalog.get(agentId).pipe(Effect.map((found) => found.mcp), Effect.orElseSucceed(() => []));
-    // Read every turn, so a sign-in added in the project reaches the browser on the next one.
+    // Read every turn, so a sign-in or server added in the project reaches threads on their next one.
     const signIns = project === null ? [] : yield* projects.browserSignIns(project.id).pipe(Effect.orElseSucceed(() => []));
-    const tools = yield* vaultTools.current(agentServers, signIns);
+    const projectServers = project === null ? [] : yield* projects.mcpServers(project.id).pipe(Effect.orElseSucceed(() => []));
+    const tools = yield* vaultTools.current(agentServers, { servers: projectServers, signIns });
     if (tools.notices.length > 0) yield* record(tools.notices.map((text): ThreadEvent => ({ _tag: "notice", turnId, text })));
     const setup: SessionSetup = {
       ...agent,

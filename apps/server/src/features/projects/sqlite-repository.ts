@@ -3,7 +3,7 @@ import { Effect, Layer, Option } from "effect";
 import { DbError } from "../../shared/persistence/errors.js";
 import { Sqlite } from "../../shared/persistence/sqlite.js";
 import { type FileVersion, ProjectRepository } from "./repository.js";
-import { commitMessageSettings, projectBrowserSignIns, projectFiles, projectIgnoredFiles, projects, projectWorktrees } from "./table.js";
+import { commitMessageSettings, projectBrowserSignIns, projectFiles, projectIgnoredFiles, projectMcpServers, projects, projectWorktrees } from "./table.js";
 
 const SETTINGS_ROW = "default";
 
@@ -110,6 +110,17 @@ export const ProjectRepositoryLive = Layer.effect(
               .insert(projectBrowserSignIns)
               .values({ projectId, signIns })
               .onConflictDoUpdate({ target: projectBrowserSignIns.projectId, set: { signIns } })
+              .run(),
+        ),
+      mcpServers: (projectId) =>
+        query(() => db.select({ serverIds: projectMcpServers.serverIds }).from(projectMcpServers).where(eq(projectMcpServers.projectId, projectId)).get()?.serverIds ?? []),
+      saveMcpServers: (projectId, serverIds) =>
+        query(
+          () =>
+            void db
+              .insert(projectMcpServers)
+              .values({ projectId, serverIds })
+              .onConflictDoUpdate({ target: projectMcpServers.projectId, set: { serverIds } })
               .run(),
         ),
     });

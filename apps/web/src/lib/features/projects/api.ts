@@ -4,6 +4,9 @@ import { CommitChangesResponse } from "@wiki-agents/contracts/projects/commit-ch
 import { GetBrowserSignInsResponse } from "@wiki-agents/contracts/projects/get-browser-sign-ins/response";
 import { SaveBrowserSignInsRequest } from "@wiki-agents/contracts/projects/save-browser-sign-ins/request";
 import { SaveBrowserSignInsResponse } from "@wiki-agents/contracts/projects/save-browser-sign-ins/response";
+import { GetProjectMcpServersResponse } from "@wiki-agents/contracts/projects/get-project-mcp-servers/response";
+import { SaveProjectMcpServersRequest } from "@wiki-agents/contracts/projects/save-project-mcp-servers/request";
+import { SaveProjectMcpServersResponse } from "@wiki-agents/contracts/projects/save-project-mcp-servers/response";
 import { GetCommitMessageSettingsResponse } from "@wiki-agents/contracts/projects/get-commit-message-settings/response";
 import { GetDiffResponse } from "@wiki-agents/contracts/projects/get-diff/response";
 import { GetGitStatusResponse } from "@wiki-agents/contracts/projects/get-git-status/response";
@@ -96,3 +99,10 @@ export const getBrowserSignIns = (projectId: string, signal?: AbortSignal) => ge
 /** Replaces the project's browser sign-ins; 400 lists what to fix. */
 export const saveBrowserSignIns = (projectId: string, body: SaveBrowserSignInsRequest) =>
   putJson(`${projectPath(projectId)}/browser-sign-ins`, SaveBrowserSignInsRequest, body, SaveBrowserSignInsResponse);
+
+/** The MCP servers every thread in the project gets, whatever its agent. */
+export const getProjectMcpServers = (projectId: string, signal?: AbortSignal) => getJson(`${projectPath(projectId)}/mcp-servers`, GetProjectMcpServersResponse, signal);
+
+/** Replaces the project's MCP servers; 400 lists what to fix. */
+export const saveProjectMcpServers = (projectId: string, body: SaveProjectMcpServersRequest) =>
+  putJson(`${projectPath(projectId)}/mcp-servers`, SaveProjectMcpServersRequest, body, SaveProjectMcpServersResponse);

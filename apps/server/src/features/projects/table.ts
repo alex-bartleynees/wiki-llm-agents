@@ -87,3 +87,12 @@ export const projectBrowserSignIns = sqliteTable("project_browser_sign_ins", {
   projectId: text("project_id").primaryKey(),
   signIns: text("sign_ins", { mode: "json" }).$type<ReadonlyArray<BrowserSignIn>>().notNull(),
 });
+
+/**
+ * Each project's MCP servers (ids, as in `mcp/<id>.yaml`), in the order you gave them:
+ * every thread in the project gets their tools, whatever its agent.
+ */
+export const projectMcpServers = sqliteTable("project_mcp_servers", {
+  projectId: text("project_id").primaryKey(),
+  serverIds: text("server_ids", { mode: "json" }).$type<ReadonlyArray<string>>().notNull(),
+});

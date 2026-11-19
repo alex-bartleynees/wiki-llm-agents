@@ -60,7 +60,7 @@ export const McpServerInput = Schema.Struct({
   title: Schema.String,
   transport: McpTransport,
   scope: McpScope,
-  /** Give its tools to every thread, whatever the agent; otherwise only to agents listing it (`mcp:`). */
+  /** Give its tools to every thread, whatever the agent; otherwise only to agents (`mcp:`) and projects listing it. */
   default: Schema.Boolean,
   /** What its tools need instead of the agent's own autonomy; null to follow the agent. */
   access: Schema.NullOr(AutonomyLevel),

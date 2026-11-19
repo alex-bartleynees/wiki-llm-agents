@@ -17,11 +17,11 @@ import type { McpScopeContext } from "../mcp-servers/pool.js";
 export interface McpGatewayService {
   /**
    * Works out the thread's tools for its next turn: the servers given to every thread
-   * plus `agentServers`, each server's tools whose names fit. A server that is down or
-   * slow leaves out only its own tools. Says what was left out, and why. Whether a
-   * call runs, asks or is refused is decided when it is made (`toolCallLevel`).
+   * plus those its agent and project list, each server's tools whose names fit. A server
+   * that is down or slow leaves out only its own tools. Says what was left out, and why.
+   * Whether a call runs, asks or is refused is decided when it is made (`toolCallLevel`).
    */
-  readonly prepare: (context: McpScopeContext, agentServers: ReadonlyArray<string>) => Effect.Effect<ThreadTools>;
+  readonly prepare: (context: McpScopeContext, selection: ServerSelection) => Effect.Effect<ThreadTools>;
   /** Hides every gateway tool from the thread (its actor closed). */
   readonly release: (threadId: string) => Effect.Effect<void>;
   /**
@@ -125,11 +125,25 @@ export const truncateResult = <R extends { readonly content: ReadonlyArray<{ rea
   return { ...result, content };
 };
 
-/** The servers a thread gets: those for every thread and those its agent lists; and the listed ones that don't exist. */
-export const serversFor = (servers: ReadonlyArray<McpServerSummary>, agentServers: ReadonlyArray<string>) => ({
-  chosen: servers.filter((server) => server.default || agentServers.includes(server.id)),
-  missing: agentServers.filter((id) => !servers.some((server) => server.id === id)),
-});
+/** Which servers a thread's agent and its project list (ids, as in `mcp/<id>.yaml`). */
+export interface ServerSelection {
+  readonly agent: ReadonlyArray<string>;
+  /** Empty for a thread outside any project. */
+  readonly project: ReadonlyArray<string>;
+}
+
+/**
+ * The servers a thread gets: those for every thread, those its agent lists and those its
+ * project lists; and the listed ones that don't exist, by who listed them.
+ */
+export const serversFor = (servers: ReadonlyArray<McpServerSummary>, selection: ServerSelection) => {
+  const absent = (id: string) => !servers.some((server) => server.id === id);
+  return {
+    chosen: servers.filter((server) => server.default || selection.agent.includes(server.id) || selection.project.includes(server.id)),
+    missingForAgent: selection.agent.filter(absent),
+    missingForProject: selection.project.filter(absent),
+  };
+};
 
 /** A server's tools split into those threads get and those held back, with why. */
 export const toolsOf = (server: Pick<McpServerSummary, "id" | "title" | "access" | "browserSignIns">, tools: ReadonlyArray<McpSchema.Tool>) => {

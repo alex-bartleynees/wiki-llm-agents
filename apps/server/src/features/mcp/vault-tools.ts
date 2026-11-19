@@ -26,14 +26,24 @@ export interface VaultToolsTurn {
   readonly notices: ReadonlyArray<string>;
 }
 
+/** What the thread's project adds to its tools, as it is now. */
+export interface ProjectTools {
+  /** MCP servers every thread in the project gets, whatever its agent. */
+  readonly servers: ReadonlyArray<string>;
+  /** Browser sign-ins: a browser that takes them is restarted with them when they change. */
+  readonly signIns: ReadonlyArray<BrowserSignIn>;
+}
+
+/** A thread outside any project. */
+export const NO_PROJECT_TOOLS: ProjectTools = { servers: [], signIns: [] };
+
 export interface VaultToolsAccess {
   /**
-   * The entry for the next turn, with the tools of the servers every thread gets and
-   * of `agentServers`: the same token until it nears expiry or the tools change, then
-   * a new one. `signIns` are the project's browser sign-ins as they are now (none when
-   * left out): a browser that takes them is restarted with them when they change.
+   * The entry for the next turn, with the tools of the servers every thread gets, of
+   * `agentServers` and of the project's servers: the same token until it nears expiry
+   * or the tools change, then a new one.
    */
-  readonly current: (agentServers: ReadonlyArray<string>, signIns?: ReadonlyArray<BrowserSignIn>) => Effect.Effect<VaultToolsTurn>;
+  readonly current: (agentServers: ReadonlyArray<string>, project?: ProjectTools) => Effect.Effect<VaultToolsTurn>;
 }
 
 /** The thread whose tools these are, and where its upstream connections run (see `McpScopeContext`). */

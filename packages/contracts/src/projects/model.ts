@@ -261,3 +261,14 @@ export const browserSignInProblems = (signIns: ReadonlyArray<BrowserSignIn>): Re
   });
   return problems;
 };
+
+/** An MCP server's id, the name of its file in `mcp/<id>.yaml`: lowercase letters, digits and hyphens. */
+export const MCP_SERVER_ID = /^[a-z0-9][a-z0-9-]*$/;
+
+/**
+ * What is wrong with a project's list of MCP servers, for you to fix; empty when it can
+ * be saved. A server that isn't in Settings › MCP servers can still be listed: its
+ * threads are told it's missing, as for an agent's `mcp:`.
+ */
+export const projectMcpServerProblems = (serverIds: ReadonlyArray<string>): ReadonlyArray<string> =>
+  serverIds.filter((id) => !MCP_SERVER_ID.test(id)).map((id) => `"${id}" isn't an MCP server id: lowercase letters, digits and hyphens.`);

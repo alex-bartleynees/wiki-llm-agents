@@ -133,11 +133,13 @@ export const McpGatewayLive = Layer.effect(
       });
 
     return McpGateway.of({
-      prepare: (context, agentServers) =>
+      prepare: (context, selection) =>
         Effect.gen(function* () {
           const { servers } = yield* catalog.current;
-          const { chosen, missing } = serversFor(servers, agentServers);
-          const notices = missing.map((id) => `The agent lists the MCP server "${id}", which isn't in Settings › MCP servers or whose file doesn't load, so it has none of its tools.`);
+          const { chosen, missingForAgent, missingForProject } = serversFor(servers, selection);
+          const missing = (who: string) => (id: string) =>
+            `${who} lists the MCP server "${id}", which isn't in Settings › MCP servers or whose file doesn't load, so it has none of its tools.`;
+          const notices = [...missingForAgent.map(missing("The agent")), ...missingForProject.map(missing("The project"))];
           const lists = yield* Effect.forEach(
             chosen,
             (chosenServer) => pool.tools(chosenServer.id, context).pipe(Effect.timeoutOption(PREPARE_TIMEOUT), Effect.result, Effect.map((tools) => ({ server: chosenServer, tools }))),

@@ -7,6 +7,7 @@ import { getDiffEndpoint } from "./get-diff/endpoint.js";
 import { getFileDiffEndpoint } from "./get-file-diff/endpoint.js";
 import { getCommitMessageSettingsEndpoint } from "./get-commit-message-settings/endpoint.js";
 import { getGitStatusEndpoint } from "./get-git-status/endpoint.js";
+import { getProjectMcpServersEndpoint } from "./get-project-mcp-servers/endpoint.js";
 import { pushBranchEndpoint } from "./push-branch/endpoint.js";
 import { ignoreFileEndpoint } from "./ignore-file/endpoint.js";
 import { listChangesEndpoint } from "./list-changes/endpoint.js";
@@ -16,6 +17,7 @@ import { registerProjectEndpoint } from "./register-project/endpoint.js";
 import { restoreProjectEndpoint } from "./restore-project/endpoint.js";
 import { saveBrowserSignInsEndpoint } from "./save-browser-sign-ins/endpoint.js";
 import { saveCommitMessageSettingsEndpoint } from "./save-commit-message-settings/endpoint.js";
+import { saveProjectMcpServersEndpoint } from "./save-project-mcp-servers/endpoint.js";
 import { reviewChangesEndpoint } from "./review-changes/endpoint.js";
 import { suggestCommitMessageEndpoint } from "./suggest-commit-message/endpoint.js";
 import { unignoreFileEndpoint } from "./unignore-file/endpoint.js";
@@ -38,6 +40,8 @@ export const projectsRouter = Layer.mergeAll(
   HttpRouter.add("POST", "/api/projects/:projectId/git/suggest-message", suggestCommitMessageEndpoint),
   HttpRouter.add("GET", "/api/projects/:projectId/browser-sign-ins", getBrowserSignInsEndpoint),
   HttpRouter.add("PUT", "/api/projects/:projectId/browser-sign-ins", saveBrowserSignInsEndpoint),
+  HttpRouter.add("GET", "/api/projects/:projectId/mcp-servers", getProjectMcpServersEndpoint),
+  HttpRouter.add("PUT", "/api/projects/:projectId/mcp-servers", saveProjectMcpServersEndpoint),
   HttpRouter.add("GET", "/api/commit-messages/settings", getCommitMessageSettingsEndpoint),
   HttpRouter.add("PUT", "/api/commit-messages/settings", saveCommitMessageSettingsEndpoint),
 );
