@@ -1,5 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { dateFromExpiry, describeExpiry, expiryFromDate, isValidName } from "./secret-form.ts";
+import type { SecretSummary } from "@wiki-agents/contracts/secrets/model";
+import { dateFromExpiry, describeExpiry, describeUse, expiryFromDate, isValidName, usesOf } from "./secret-form.ts";
+
+describe("what uses a secret", () => {
+  const secret = (usedBy: Array<string>, usedBySignIns: SecretSummary["usedBySignIns"]): SecretSummary => ({
+    name: "demo-password", source: "stored", createdAt: 1, expiresAt: null, available: true, problem: null, usedBy, usedBySignIns,
+  });
+
+  it("lists servers, then browser sign-ins with their project", () => {
+    const used = secret(["github"], [{ projectId: "p1", project: "Shop", signIn: "My app (local)" }]);
+    expect(usesOf(used)).toEqual(["github", 'sign-in "My app (local)" in Shop']);
+    expect(describeUse(used)).toBe('used by github, sign-in "My app (local)" in Shop');
+  });
+
+  it("says when nothing uses it", () => {
+    expect(usesOf(secret([], []))).toEqual([]);
+    expect(describeUse(secret([], []))).toBe("not used yet");
+  });
+});
 
 describe("isValidName", () => {
   it.each([

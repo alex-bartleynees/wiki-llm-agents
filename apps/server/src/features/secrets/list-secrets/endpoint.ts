@@ -6,7 +6,7 @@ import { guarded } from "../../../shared/host-guard.js";
 import { SecretStore } from "../secret-store.js";
 import { secretUsers, summarise } from "../summaries.js";
 
-/** Names, dates and which servers use each; never a value. */
+/** Names, dates and which servers and browser sign-ins use each; never a value. */
 export const listSecretsEndpoint = guarded(
   Effect.gen(function* () {
     const listed = yield* (yield* SecretStore).list;

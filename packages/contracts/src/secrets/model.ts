@@ -14,6 +14,22 @@ import { Schema } from "effect";
 export const SecretSource = Schema.Literals(["stored", "declared"]);
 export type SecretSource = typeof SecretSource.Type;
 
+/** A project's browser sign-in whose credential names the secret. */
+export const SecretSignInUse = Schema.Struct({
+  projectId: Schema.String,
+  /** The project's name. */
+  project: Schema.String,
+  /** The sign-in's name. */
+  signIn: Schema.String,
+});
+export type SecretSignInUse = typeof SecretSignInUse.Type;
+
+/** What uses a secret, for people: `github`, `sign-in "My app" in Shop`. */
+export const describeSecretUses = (servers: ReadonlyArray<string>, signIns: ReadonlyArray<SecretSignInUse>): ReadonlyArray<string> => [
+  ...servers,
+  ...signIns.map((use) => `sign-in "${use.signIn}" in ${use.project}`),
+];
+
 export const SecretSummary = Schema.Struct({
   /** Lowercase letters, digits and hyphens, as in `${secret:<name>}`. */
   name: Schema.String,
@@ -28,6 +44,8 @@ export const SecretSummary = Schema.Struct({
   problem: Schema.NullOr(Schema.String),
   /** Ids of the MCP servers that refer to it. */
   usedBy: Schema.Array(Schema.String),
+  /** Projects' browser sign-ins that refer to it. */
+  usedBySignIns: Schema.Array(SecretSignInUse),
 });
 export type SecretSummary = typeof SecretSummary.Type;
 

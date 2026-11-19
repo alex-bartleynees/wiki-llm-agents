@@ -54,6 +54,8 @@ export interface ProjectRepositoryService {
   readonly saveCommitMessageSettings: (settings: CommitMessageSettings) => Effect.Effect<void, DbError>;
   /** The project's browser sign-ins; empty until saved. */
   readonly browserSignIns: (projectId: string) => Effect.Effect<ReadonlyArray<BrowserSignIn>, DbError>;
+  /** Every project's sign-ins, for projects that have any. */
+  readonly allBrowserSignIns: Effect.Effect<ReadonlyArray<{ readonly projectId: string; readonly signIns: ReadonlyArray<BrowserSignIn> }>, DbError>;
   /** Replaces the project's list. */
   readonly saveBrowserSignIns: (projectId: string, signIns: ReadonlyArray<BrowserSignIn>) => Effect.Effect<void, DbError>;
 }

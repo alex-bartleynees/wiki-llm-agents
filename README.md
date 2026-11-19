@@ -817,9 +817,10 @@ requests addressed to an IP, `localhost` or a `*.ts.net` name.
 
 ### Secrets
 
-**Settings › Secrets** holds the tokens MCP servers use as `${secret:name}`. Values go
-in and never come out: the page and the API show names, dates and which servers use
-each, never a value. **Replace** starts from an empty field.
+**Settings › Secrets** holds the tokens MCP servers use as `${secret:name}`, and the
+accounts projects' browser sign-ins type. Values go in and never come out: the page and
+the API show names, dates and which servers and sign-ins use each, never a value.
+**Replace** starts from an empty field.
 
 - **Declared files** (preferred on NixOS): `WIKI_AGENTS_SECRET_FILES` (home-manager
   `secretFiles = { github = "/run/secrets/github"; }`) names a file per secret, from
@@ -839,8 +840,9 @@ each, never a value. **Replace** starts from an empty field.
   Secrets are per machine: enter them once on each.
 - A lost or foreign key makes the store **unreadable**: Settings says so, and you
   delete the stored secrets and enter them again. There is no recovery or export.
-- **Delete** refuses while servers refer to the secret unless confirmed (`?force=true`);
-  those servers then have no secret.
+- **Delete** refuses while servers or projects' browser sign-ins refer to the secret
+  unless confirmed (`?force=true`); those then have no secret, and the response lists
+  them (`stillUsedBy`, `stillUsedBySignIns`).
 - `/api/secrets` answers only requests addressed to an IP, `localhost` or a `*.ts.net`
   name (403 otherwise), against DNS rebinding.
 - `WIKI_AGENTS_SECRET*` variables are never passed to providers, even when

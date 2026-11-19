@@ -1,4 +1,4 @@
-import type { KeySource, SecretSummary } from "@wiki-agents/contracts/secrets/model";
+import { describeSecretUses, type KeySource, type SecretSummary } from "@wiki-agents/contracts/secrets/model";
 
 /** As the server checks it: lowercase letters, digits and hyphens, as in `${secret:<name>}`. */
 const NAME_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
@@ -37,5 +37,11 @@ export const describeExpiry = (expiresAt: number | null, now: number): { readonl
   return { text: `expires ${day}`, warn: expiresAt - now < 7 * DAY_MS };
 };
 
-/** Which servers use it, or that none do. */
-export const describeUse = (secret: SecretSummary) => (secret.usedBy.length === 0 ? "not used by a server yet" : `used by ${secret.usedBy.join(", ")}`);
+/** What uses it: servers by id, then projects' browser sign-ins. */
+export const usesOf = (secret: SecretSummary) => describeSecretUses(secret.usedBy, secret.usedBySignIns);
+
+/** Which servers and browser sign-ins use it, or that none do. */
+export const describeUse = (secret: SecretSummary) => {
+  const uses = usesOf(secret);
+  return uses.length === 0 ? "not used yet" : `used by ${uses.join(", ")}`;
+};

@@ -1,10 +1,11 @@
-import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { request as httpRequest } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, layer } from "@effect/vitest";
 import { NodeChildProcessSpawner, NodeFileSystem, NodePath } from "@effect/platform-node";
 import type { McpServerInput } from "@wiki-agents/contracts/mcp-servers/model";
+import { RegisterProjectResponse } from "@wiki-agents/contracts/projects/register-project/response";
 import { DeleteSecretResponse } from "@wiki-agents/contracts/secrets/delete-secret/response";
 import { ListSecretsResponse } from "@wiki-agents/contracts/secrets/list-secrets/response";
 import { SetSecretResponse } from "@wiki-agents/contracts/secrets/set-secret/response";
@@ -14,12 +15,21 @@ import { parseDeclaredSecrets } from "../../src/features/secrets/declared.js";
 import { SecretStore } from "../../src/features/secrets/secret-store.js";
 import { makeTestApp, makeTestSecrets } from "./infrastructure/test-app.js";
 import { afterAll } from "vitest";
-import { decode } from "./infrastructure/threads.js";
+import { decode, post } from "./infrastructure/threads.js";
 
 /** Files declared like `WIKI_AGENTS_SECRET_FILES`, made before the app starts. */
 const declaredDir = mkdtempSync(join(tmpdir(), "wiki-agents-declared-"));
 writeFileSync(join(declaredDir, "jira"), "jira-token\n");
-afterAll(() => rmSync(declaredDir, { recursive: true, force: true }));
+/** A project, with the shared vault projects need, to give browser sign-ins to. */
+const projectsDir = mkdtempSync(join(tmpdir(), "wiki-agents-shop-"));
+const vaultDir = join(projectsDir, "vault");
+const appDir = join(projectsDir, "app");
+for (const dir of [vaultDir, appDir]) mkdirSync(dir);
+writeFileSync(join(vaultDir, "index.md"), "# Shared");
+afterAll(() => {
+  rmSync(declaredDir, { recursive: true, force: true });
+  rmSync(projectsDir, { recursive: true, force: true });
+});
 const declared = parseDeclaredSecrets(`jira=${join(declaredDir, "jira")},gone=${join(declaredDir, "missing")},Bad Name=/x`);
 
 let root = "";
@@ -45,14 +55,14 @@ const GITHUB: McpServerInput = {
   browserSignIns: false,
 };
 
-layer(makeTestApp({ secrets }))("secrets", (it) => {
+layer(makeTestApp({ secrets, vaults: [vaultDir] }))("secrets", (it) => {
   it.effect("lists the declared secrets before anything is stored, with the entries it couldn't use", () =>
     Effect.gen(function* () {
       const listed = yield* list;
       expect(listed.store).toEqual({ state: "empty", keySource: null, problem: null });
       expect(listed.secrets).toEqual([
-        { name: "gone", source: "declared", createdAt: null, expiresAt: null, available: false, problem: expect.stringContaining("missing"), usedBy: [] },
-        { name: "jira", source: "declared", createdAt: null, expiresAt: null, available: true, problem: null, usedBy: [] },
+        { name: "gone", source: "declared", createdAt: null, expiresAt: null, available: false, problem: expect.stringContaining("missing"), usedBy: [], usedBySignIns: [] },
+        { name: "jira", source: "declared", createdAt: null, expiresAt: null, available: true, problem: null, usedBy: [], usedBySignIns: [] },
       ]);
       expect(listed.problems).toEqual([expect.stringContaining('"Bad Name=/x"')]);
     }),
@@ -62,7 +72,7 @@ layer(makeTestApp({ secrets }))("secrets", (it) => {
     Effect.gen(function* () {
       expect((yield* saveServer("github", GITHUB)).status).toBe(200);
       const { secret } = yield* setOk("github", "ghp_very_secret_token", 1_800_000_000_000);
-      expect(secret).toEqual({ name: "github", source: "stored", createdAt: expect.any(Number), expiresAt: 1_800_000_000_000, available: true, problem: null, usedBy: ["github"] });
+      expect(secret).toEqual({ name: "github", source: "stored", createdAt: expect.any(Number), expiresAt: 1_800_000_000_000, available: true, problem: null, usedBy: ["github"], usedBySignIns: [] });
 
       const listed = yield* list;
       expect(listed.store).toEqual({ state: "ready", keySource: "file", problem: null });
@@ -107,7 +117,7 @@ layer(makeTestApp({ secrets }))("secrets", (it) => {
       expect(inUse.status).toBe(409);
       expect(yield* inUse.text).toMatch(/^Still used by github\./);
       const forced = yield* del("github", true).pipe(Effect.flatMap(decode(DeleteSecretResponse)));
-      expect(forced).toEqual({ stillUsedBy: ["github"] });
+      expect(forced).toEqual({ stillUsedBy: ["github"], stillUsedBySignIns: [] });
       expect((yield* list).secrets.map((entry) => entry.name)).toEqual(["gone", "jira"]);
       expect((yield* del("github", true)).status).toBe(404);
       expect((yield* del("never")).status).toBe(404);
@@ -116,6 +126,27 @@ layer(makeTestApp({ secrets }))("secrets", (it) => {
       expect(yield* declaredOne.text).toMatch(/declared in the service's configuration .*; remove it there/);
       // The file stays, keyed, so the next secret reuses the key.
       expect((yield* list).store).toEqual({ state: "empty", keySource: "file", problem: null });
+    }),
+  );
+
+  it.effect("deletes only after the browser sign-ins using it are changed, or when forced", () =>
+    Effect.gen(function* () {
+      const { project } = yield* post("/api/projects", { name: "Shop", workingDirectories: [appDir] }).pipe(Effect.flatMap(decode(RegisterProjectResponse)));
+      yield* setOk("shop-password", "hunter2");
+      const signIn = { name: "My app (local)", origins: ["http://localhost:3000"], credentials: [{ variable: "APP_PASSWORD", secret: "shop-password" }] };
+      const saved = yield* HttpClient.execute(
+        HttpClientRequest.put(`/api/projects/${project.id}/browser-sign-ins`).pipe(HttpClientRequest.bodyJsonUnsafe({ signIns: [signIn] })),
+      );
+      expect(saved.status).toBe(200);
+      const use = { projectId: project.id, project: "Shop", signIn: "My app (local)" };
+      expect((yield* list).secrets.find((entry) => entry.name === "shop-password")).toMatchObject({ usedBy: [], usedBySignIns: [use] });
+
+      const inUse = yield* del("shop-password");
+      expect(inUse.status).toBe(409);
+      expect(yield* inUse.text).toBe('Still used by sign-in "My app (local)" in Shop. Change those first, or delete it anyway and they will have no secret.');
+      const forced = yield* del("shop-password", true).pipe(Effect.flatMap(decode(DeleteSecretResponse)));
+      expect(forced).toEqual({ stillUsedBy: [], stillUsedBySignIns: [use] });
+      expect((yield* list).secrets.map((entry) => entry.name)).toEqual(["gone", "jira"]);
     }),
   );
 

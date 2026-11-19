@@ -102,6 +102,7 @@ export const ProjectRepositoryLive = Layer.effect(
         ),
       browserSignIns: (projectId) =>
         query(() => db.select({ signIns: projectBrowserSignIns.signIns }).from(projectBrowserSignIns).where(eq(projectBrowserSignIns.projectId, projectId)).get()?.signIns ?? []),
+      allBrowserSignIns: query(() => db.select().from(projectBrowserSignIns).all()),
       saveBrowserSignIns: (projectId, signIns) =>
         query(
           () =>

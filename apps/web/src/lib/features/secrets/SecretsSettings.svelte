@@ -1,9 +1,9 @@
 <script lang="ts">
-  import type { SecretStoreStatus, SecretSummary } from "@wiki-agents/contracts/secrets/model";
+  import { describeSecretUses, type SecretStoreStatus, type SecretSummary } from "@wiki-agents/contracts/secrets/model";
   import { untrack } from "svelte";
   import { errorMessage } from "#lib/api/client.ts";
   import { deleteSecret, listSecrets, setSecret } from "./api.ts";
-  import { dateFromExpiry, describeExpiry, describeUse, expiryFromDate, isValidName, KEY_SOURCE_LABELS } from "./secret-form.ts";
+  import { dateFromExpiry, describeExpiry, describeUse, expiryFromDate, isValidName, KEY_SOURCE_LABELS, usesOf } from "./secret-form.ts";
 
   /**
    * Secrets MCP servers use as `${secret:<name>}`: stored encrypted on this machine
@@ -95,7 +95,8 @@
     saving = true;
     deleteError = null;
     try {
-      const { stillUsedBy } = await deleteSecret(secret.name, secret.usedBy.length > 0);
+      const deleted = await deleteSecret(secret.name, usesOf(secret).length > 0);
+      const stillUsedBy = describeSecretUses(deleted.stillUsedBy, deleted.stillUsedBySignIns);
       confirming = null;
       notice = stillUsedBy.length === 0 ? `Deleted ${secret.name}.` : `Deleted ${secret.name}; ${stillUsedBy.join(", ")} now ${stillUsedBy.length === 1 ? "has" : "have"} no secret.`;
       await load();
@@ -148,16 +149,17 @@
             {/if}
           </div>
           {#if confirming === secret.name}
+            {@const uses = usesOf(secret)}
             <div class="confirm">
               <span>
-                {secret.usedBy.length === 0
+                {uses.length === 0
                   ? "Forget this secret? It can't be shown or recovered."
-                  : `${secret.usedBy.join(", ")} ${secret.usedBy.length === 1 ? "uses" : "use"} it and will have no secret until you add it again or change ${secret.usedBy.length === 1 ? "that server" : "those servers"}.`}
+                  : `${uses.join(", ")} ${uses.length === 1 ? "uses" : "use"} it and will have no secret until you add it again or change ${uses.length === 1 ? "it" : "them"}.`}
               </span>
               {#if deleteError}<span class="error" role="alert">{deleteError}</span>{/if}
               <div class="buttons">
                 <button type="button" class="danger" onclick={() => void remove(secret)} disabled={saving}>
-                  {secret.usedBy.length === 0 ? `Forget ${secret.name}` : `Forget ${secret.name} anyway`}
+                  {uses.length === 0 ? `Forget ${secret.name}` : `Forget ${secret.name} anyway`}
                 </button>
                 <button type="button" onclick={() => (confirming = null)} disabled={saving}>Keep it</button>
               </div>
