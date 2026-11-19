@@ -80,4 +80,15 @@ describe("commands naming a protected file", () => {
     expect(names("echo $NODE_ENV && npm run env:check")).toBe(false);
     expect(names("direnv allow .envrc")).toBe(false);
   });
+
+  it("don't take a quoted pattern for a glob, but still catch a quoted name", () => {
+    expect(names("sed -i '152s/.*/x/' src/Settings.svelte")).toBe(false);
+    expect(names('sed -i "96s|.*|answered|" notes.md')).toBe(false);
+    expect(names("rg 'const .* = ' src")).toBe(false);
+    expect(names("ls .*")).toBe(true);
+    expect(names("sed 's/.*/x/' .env")).toBe(true);
+    expect(names("cat '.env'")).toBe(true);
+    expect(names('grep KEY "app/.env.local"')).toBe(true);
+    expect(names("cat \\.env")).toBe(true);
+  });
 });

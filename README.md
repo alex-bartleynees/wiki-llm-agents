@@ -883,7 +883,10 @@ each, never a value. **Replace** starts from an empty field.
     commands outside the sandbox).
   - Claude Code: the hook denies file tools on a matching file or anything in a
     matching folder, and commands naming one, also through a shell glob (`cat .env*`,
-    `.*`). A search of a folder that might hold one follows `read`.
+    `.*`). Only unquoted words count as globs, as only those the shell expands: a
+    quoted `.*` is a `sed` or `grep` pattern (`sed 's/.*/x/' file`), and a quoted glob
+    a program matches itself (`find -name '.e*'`) isn't caught. A search of a folder
+    that might hold one follows `read`.
   - OpenCode: its rules can't say "`.env.*` but not `.env.example`", so anything that
     might name one (`*.env*`) asks, and the app answers: refused when it reaches a
     protected name, otherwise as the agent's rules would have (`.env.example` read

@@ -117,22 +117,53 @@ const shellGlobMatches = (glob: string, name: string) => {
   }
 };
 
-/** Words a command may name a file with: split at spaces, quotes and shell operators (`=` for `--env-file=.env`). */
-const commandWords = (command: string) => command.split(/[\s;|&<>()'"`=,:]+/).filter((word) => word !== "");
+/** A command cut into its quoted (`'…'`, `"…"`) and unquoted stretches. */
+const quotedStretches = (command: string) => {
+  const stretches: Array<{ readonly text: string; readonly quoted: boolean }> = [];
+  let text = "";
+  let quote: "'" | '"' | null = null;
+  const cut = (quoted: boolean) => {
+    if (text !== "") stretches.push({ text, quoted });
+    text = "";
+  };
+  for (let index = 0; index < command.length; index++) {
+    const char = command[index]!;
+    if (quote === null && (char === "'" || char === '"')) {
+      cut(false);
+      quote = char;
+    } else if (quote !== null && char === quote) {
+      cut(true);
+      quote = null;
+    } else if (char === "\\" && quote !== "'" && index + 1 < command.length) {
+      text += command[++index];
+    } else {
+      text += char;
+    }
+  }
+  cut(quote !== null);
+  return stretches;
+};
+
+/** Words a command may name a file with: split at spaces and shell operators (`=` for `--env-file=.env`). */
+const words = (text: string) => text.split(/[\s;|&<>()`=,:]+/).filter((word) => word !== "");
 
 /**
  * True when a shell command names a protected path, or a file or folder with a
- * protected name (also through a glob such as `.env*` or `.*`). A best effort: a
- * command can reach a file without naming it (`cd` first, a variable, a program that
- * loads `.env` itself), which only a sandbox that denies the read can stop.
+ * protected name (also through a glob such as `.env*` or `.*`). Only unquoted words
+ * count as globs, since only those the shell expands: a quoted `.*` is a pattern for
+ * `sed` or `grep`, not files. A best effort: a command can reach a file without
+ * naming it (`cd` first, a variable, a program that loads `.env` itself, `find` with
+ * a quoted `-name` pattern), which only a sandbox that denies the read can stop.
  */
 export const commandNamesProtected = (protection: Protection, command: string, home: string = homedir()) => {
   if (protection.paths.some((path) => spellings(path, home).some((spelling) => command.includes(spelling)))) return true;
   if (protection.names.length === 0) return false;
   const samples = sampleNames(protection.names);
-  return commandWords(command).some((word) =>
-    word.split("/").some((part) =>
-      /[*?[]/.test(part) ? samples.some((sample) => shellGlobMatches(part, sample)) : part !== "" && isProtectedName(protection.names, part),
+  return quotedStretches(command).some(({ text, quoted }) =>
+    words(text).some((word) =>
+      word.split("/").some((part) =>
+        !quoted && /[*?[]/.test(part) ? samples.some((sample) => shellGlobMatches(part, sample)) : part !== "" && isProtectedName(protection.names, part),
+      ),
     ),
   );
 };
