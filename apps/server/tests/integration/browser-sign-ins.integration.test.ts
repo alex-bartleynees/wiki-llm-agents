@@ -3,22 +3,19 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, layer } from "@effect/vitest";
-import type { AgentInput, Autonomy } from "@wiki-agents/contracts/agents/model";
 import { GetBrowserSignInsResponse } from "@wiki-agents/contracts/projects/get-browser-sign-ins/response";
 import type { BrowserSignIn } from "@wiki-agents/contracts/projects/model";
-import { RegisterProjectResponse } from "@wiki-agents/contracts/projects/register-project/response";
 import { SaveBrowserSignInsResponse } from "@wiki-agents/contracts/projects/save-browser-sign-ins/response";
 import { CreateThreadResponse } from "@wiki-agents/contracts/threads/create-thread/response";
-import type { ThreadEvent } from "@wiki-agents/contracts/threads/model";
 import { Effect, Fiber } from "effect";
-import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http";
+import { HttpClient, HttpClientResponse } from "effect/http";
 import { afterAll } from "vitest";
 import { McpPool, type McpScopeContext } from "../../src/features/mcp-servers/pool.js";
 import { SecretStore } from "../../src/features/secrets/secret-store.js";
-import { ThreadActors } from "../../src/features/threads/thread-actors.js";
+import { browserThreadInTurn, isToolRequest, registerProject, saveSignIns, setSecret, signInsPath } from "./infrastructure/browser-sign-ins.js";
 import { mcpSession, tokenFor } from "./infrastructure/mcp.js";
 import { makeTestApp } from "./infrastructure/test-app.js";
-import { answer, decode, getThread, interrupt, post, setAgent, watch } from "./infrastructure/threads.js";
+import { answer, decode, getThread, interrupt, post } from "./infrastructure/threads.js";
 
 // The built-in browser, with the stdio stand-in in place of Playwright MCP: started with
 // the built-in flags, it reads `--secrets` and types a secret for its name, as Playwright does.
@@ -44,48 +41,10 @@ const DEMO: BrowserSignIn = {
   ],
 };
 
-const register = (name: string) =>
-  post("/api/projects", { name, workingDirectories: [appDir] }).pipe(Effect.flatMap(decode(RegisterProjectResponse)), Effect.map((result) => result.project));
-const signInsPath = (projectId: string) => `/api/projects/${projectId}/browser-sign-ins`;
-const saveSignIns = (projectId: string, signIns: ReadonlyArray<BrowserSignIn>) =>
-  HttpClient.execute(HttpClientRequest.put(signInsPath(projectId)).pipe(HttpClientRequest.bodyJsonUnsafe({ signIns })));
-const setSecret = (name: string, value: string) =>
-  HttpClient.execute(HttpClientRequest.put(`/api/secrets/${name}`).pipe(HttpClientRequest.bodyJsonUnsafe({ value, expiresAt: null }))).pipe(
-    Effect.flatMap(HttpClientResponse.filterStatusOk),
-  );
+const register = (name: string) => registerProject(name, appDir);
 const textOf = (result: { readonly content: ReadonlyArray<{ readonly text?: string }> } | Readonly<Record<string, unknown>>) =>
   ((result as { content: ReadonlyArray<{ readonly text?: string }> }).content[0]?.text ?? "") as string;
 const runFiles = Effect.map(Effect.service(SecretStore), (store) => (existsSync(store.runDirectory) ? readdirSync(store.runDirectory) : []));
-
-/** Writes agent `id` with the browser and `autonomy` on top of reading freely. */
-const agentWith = (id: string, autonomy: Partial<Autonomy>) =>
-  Effect.gen(function* () {
-    const agent: AgentInput = {
-      name: id, description: "", provider: null, model: null, sources: [], mcp: ["playwright"],
-      autonomy: { read: "allow", create: "ask", edit: "ask", commands: "deny", web: "deny", tools: "ask", ...autonomy },
-      instructions: "Use the browser.",
-    };
-    yield* HttpClient.execute(HttpClientRequest.put(`/api/agents/${id}`).pipe(HttpClientRequest.bodyJsonUnsafe({ agent, baseHash: null }))).pipe(
-      Effect.flatMap(HttpClientResponse.filterStatusOk),
-    );
-  });
-
-/** A thread in `projectId` whose agent has the browser, with a turn running (the replay waits on a question), and an MCP session for it. */
-const inTurn = (projectId: string, vaultId: string, autonomy: Partial<Autonomy>) =>
-  Effect.gen(function* () {
-    const { thread } = yield* post(`/api/vaults/${vaultId}/threads`, { projectId }).pipe(Effect.flatMap(decode(CreateThreadResponse)));
-    const agentId = `browser-${thread.id.slice(0, 8).toLowerCase()}`;
-    yield* agentWith(agentId, autonomy);
-    yield* setAgent(thread.id, agentId);
-    const events = yield* watch(thread.id);
-    yield* (yield* ThreadActors).sendMessage(thread.id, "Ask me a question");
-    yield* events.until(isQuestion);
-    const mcp = yield* mcpSession((yield* tokenFor(thread.id, vaultId)).token);
-    return { thread, events, mcp };
-  });
-
-const isQuestion = (event: ThreadEvent) => event._tag === "request.opened" && event.prompt._tag === "question";
-const isToolRequest = (event: ThreadEvent) => event._tag === "request.opened" && event.requestId.startsWith("mcp-tool:");
 
 layer(makeTestApp({ browser, vaults: [sharedRoot] }))("browser sign-ins", (it) => {
   it.effect("are saved per project, checked, with sites kept as origins", () =>
@@ -156,7 +115,7 @@ layer(makeTestApp({ browser, vaults: [sharedRoot] }))("browser sign-ins", (it) =
       yield* setSecret("demo-password", PASSWORD);
       const project = yield* register("Typing");
       yield* saveSignIns(project.id, [DEMO]).pipe(Effect.flatMap(HttpClientResponse.filterStatusOk));
-      const { thread, events, mcp } = yield* inTurn(project.id, project.vaultId, { tools: "allow" });
+      const { thread, events, mcp } = yield* browserThreadInTurn(project.id, project.vaultId, { tools: "allow" });
 
       // No page yet, then a page on another site: refused before the browser is asked.
       expect(textOf(yield* mcp.call("playwright__browser_type", { ref: "e1", text: "DEMO_PASSWORD" }))).toMatch(/hasn't reported a page yet/);
@@ -188,7 +147,7 @@ layer(makeTestApp({ browser, vaults: [sharedRoot] }))("browser sign-ins", (it) =
     Effect.gen(function* () {
       const project = yield* register("Cards");
       yield* saveSignIns(project.id, [DEMO]).pipe(Effect.flatMap(HttpClientResponse.filterStatusOk));
-      const { thread, mcp } = yield* inTurn(project.id, project.vaultId, {});
+      const { thread, mcp } = yield* browserThreadInTurn(project.id, project.vaultId, {});
 
       type Needed = { shown: boolean; notices: ReadonlyArray<string> };
       const known = yield* mcp.result<Needed>("browser_sign_in_needed", { site: "Demo", url: "http://localhost:4200/home" });

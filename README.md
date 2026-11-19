@@ -741,7 +741,9 @@ them, whatever its agent, from its next message.
 Live check with the real browser (no model): `WIKI_AGENTS_LIVE_BROWSER=1
 WIKI_AGENTS_BROWSER_MCP=$(nix build --no-link --print-out-paths
 nixpkgs#playwright-mcp)/bin/playwright-mcp nix develop -c npx -w @wiki-agents/server
-vitest run tests/live/browser.live.test.ts`.
+vitest run tests/live/browser.live.test.ts`. The same settings run
+`tests/live/browser-sign-ins.live.test.ts`, which signs in to a fake login page through
+the app's gateway: refused on another site, typed after approval, values never shown.
 
 #### Connections
 
