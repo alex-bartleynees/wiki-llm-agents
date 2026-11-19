@@ -15,6 +15,10 @@ export interface NewThread {
   readonly model: string | null;
   /** Otherwise the first message names it. */
   readonly title?: string | undefined;
+  /** The composer draft it starts with (a handoff); empty otherwise. */
+  readonly draftText?: string | undefined;
+  /** The thread it continues (Continue in a new thread). */
+  readonly continuedFrom?: string | undefined;
   readonly createdAt: number;
 }
 
@@ -37,8 +41,8 @@ export interface ThreadRecovery {
   readonly pendingRequests: ReadonlyArray<PendingRequest>;
 }
 
-/** What started a turn: a message, or a compaction you asked for. */
-export type TurnKind = "message" | "compaction";
+/** What started a turn: a message, or a compaction or handoff you asked for. */
+export type TurnKind = "message" | "compaction" | "handoff";
 
 /** A turn as recorded: its outcome and usage once it has finished. */
 export interface TurnRecord {

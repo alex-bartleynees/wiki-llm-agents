@@ -188,6 +188,52 @@ test("compacts the conversation on request and keeps the outcome after reload", 
   await expect(page.getByText("You asked to compact the conversation")).toBeVisible();
 });
 
+test("hands off to a new thread from a handoff the agent wrote, with nothing sent", async ({ page }, info) => {
+  await openVault(page);
+  await tab(page, info, "Chat");
+  await useReplay(page);
+  await page.getByRole("button", { name: "New thread", exact: true }).click();
+  const handOff = page.getByRole("button", { name: "Hand off", exact: true });
+  // Nothing to hand off before the first turn.
+  await expect(handOff).toBeDisabled();
+
+  const message = page.getByRole("textbox", { name: "Message" });
+  await message.fill("hello");
+  await message.press("Enter");
+  await expect(page.locator(".turn-end").last()).toHaveText(/^Done/);
+  await message.fill("Draft kept in this thread");
+
+  // The dialog starts from the template, and offers to ask the agent instead.
+  await handOff.click();
+  const dialog = page.getByRole("dialog", { name: "Continue in a new thread" });
+  const handoff = dialog.getByRole("textbox", { name: "Handoff" });
+  await expect(handoff).toHaveValue(/^## Objective\n/);
+  await dialog.getByRole("button", { name: /^Ask .* to write it$/ }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByText("You asked the agent to write a handoff for a new thread")).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Writing the handoff…" })).toBeVisible();
+  const ready = page.getByText("The handoff is ready.");
+  await expect(ready).toBeVisible();
+  await expect(message).toHaveValue("Draft kept in this thread");
+
+  await page.getByRole("button", { name: "Continue in a new thread" }).click();
+  await expect(handoff).toHaveValue(/^## Objective\nTry the replay provider in the app\./);
+  await handoff.press("ControlOrMeta+End");
+  await handoff.pressSequentially("\n- And this line I added.");
+  await dialog.getByRole("button", { name: "Start new thread" }).click();
+  await expect(dialog).toBeHidden();
+
+  // The new thread: named after the old one, linked back, the handoff waiting unsent.
+  await expect(page.getByRole("heading", { name: "Continued: hello" })).toBeVisible();
+  await expect(message).toHaveValue(/^## Objective\nTry the replay provider in the app\.[\s\S]*- And this line I added\.$/);
+  await expect(page.locator(".timeline .user")).toHaveCount(0);
+  const links = page.getByRole("navigation", { name: "Continuation" });
+  await links.getByRole("button", { name: "hello" }).click();
+  await expect(page.getByRole("heading", { name: "hello", exact: true })).toBeVisible();
+  await expect(message).toHaveValue("Draft kept in this thread");
+  await expect(links).toContainText("Continued in Continued: hello");
+});
+
 test("shows the model a router ran the turn on, beside the reply, and after reload", async ({ page }, info) => {
   await openVault(page);
   await tab(page, info, "Chat");

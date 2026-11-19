@@ -9,6 +9,7 @@ import { GetFileDiffResponse } from "@wiki-agents/contracts/projects/get-file-di
 import { IgnoreFileResponse } from "@wiki-agents/contracts/projects/ignore-file/response";
 import { ListWorktreesResponse } from "@wiki-agents/contracts/projects/list-worktrees/response";
 import { RegisterProjectResponse } from "@wiki-agents/contracts/projects/register-project/response";
+import { ContinueThreadResponse } from "@wiki-agents/contracts/threads/continue-thread/response";
 import { CreateThreadResponse } from "@wiki-agents/contracts/threads/create-thread/response";
 import { ListThreadsResponse } from "@wiki-agents/contracts/threads/list-threads/response";
 import { RemoveWorktreeResponse } from "@wiki-agents/contracts/threads/remove-worktree/response";
@@ -111,6 +112,9 @@ const worktrees = (projectId: string) => listing(projectId).pipe(Effect.map((res
 const availability = (projectId: string) => listing(projectId).pipe(Effect.map(({ available, unavailableReason }) => ({ available, unavailableReason })));
 const getDiff = (projectId: string) => HttpClient.get(`/api/projects/${projectId}/diff`).pipe(Effect.flatMap(decode(GetDiffResponse)), Effect.map((result) => result.directories));
 const removeWorktree = (threadId: string) => post(`/api/threads/${threadId}/worktree/remove`, {});
+const continueThread = (threadId: string, body: unknown) => post(`/api/threads/${threadId}/continue`, body);
+const continueOk = (threadId: string, body: unknown) =>
+  continueThread(threadId, body).pipe(Effect.flatMap(decode(ContinueThreadResponse)), Effect.map((result) => result.thread));
 
 /** Sends `text` and waits for the turn to finish; returns the finishing event. */
 const turn = (threadId: string, text: string) =>
@@ -272,6 +276,51 @@ layer(makeTestApp({ vaults: [sharedRoot], providers: makeProviderRegistry(Effect
 
       const none = yield* createThread(vault.id, { projectId: project.id });
       expect((yield* removeWorktree(none.id)).status).toBe(404);
+    }));
+
+  test.effect("continues a worktree thread where you choose: sharing its worktree, the main directory, or a new worktree", () =>
+    Effect.gen(function* () {
+      const vault = yield* shared;
+      const repo = repository(join(yield* temp, "repo"), { "app.ts": "one\n" });
+      const project = yield* register({ name: "Continuing", workingDirectories: [repo] });
+      const source = yield* createThread(vault.id, { projectId: project.id, worktree: { branch: "wiki-agents/source" } });
+      const [worktree] = yield* worktrees(project.id);
+      // Uncommitted work the continuation must see when it shares the worktree.
+      yield* turn(source.id, "write app.ts two");
+
+      const sharing = yield* continueOk(source.id, { text: "## Objective\nCarry on." });
+      expect(sharing).toMatchObject({ projectId: project.id, continuedFrom: source.id });
+      yield* turn(sharing.id, "write more.ts three");
+      expect(sessionOf(sharing.id).cwd).toBe(worktree!.directory);
+      expect(sessionOf(sharing.id).setup.instructions.at(-1)!.text).toContain("branch wiki-agents/source");
+      expect(readFileSync(join(worktree!.directory, "app.ts"), "utf8")).toBe("two\n");
+      expect(readFileSync(join(worktree!.directory, "more.ts"), "utf8")).toBe("three\n");
+      // Still one worktree, the source's, which the new thread shares; no new branch.
+      expect(yield* worktrees(project.id)).toEqual([expect.objectContaining({ threadId: source.id, sharedWith: [sharing.id], changedFiles: 2 })]);
+      expect(branches(repo)).toEqual(["main", "wiki-agents/source"]);
+
+      const inMain = yield* continueOk(source.id, { text: "x", workspace: "main" });
+      yield* turn(inMain.id, "write main.ts four");
+      expect(sessionOf(inMain.id).cwd).toBe(repo);
+
+      const fresh = yield* continueOk(source.id, { text: "x", workspace: { worktree: { branch: "wiki-agents/fresh" } } });
+      const own = (yield* worktrees(project.id)).find((each) => each.threadId === fresh.id)!;
+      yield* turn(fresh.id, "write fresh.ts five");
+      expect(sessionOf(fresh.id).cwd).toBe(own.directory);
+      // A clean checkout from HEAD: none of the source's uncommitted work.
+      expect(readFileSync(join(own.directory, "app.ts"), "utf8")).toBe("one\n");
+      expect((yield* getThread(source.id)).thread.continuedIn).toBe(fresh.id);
+
+      // Removing the shared worktree from the new thread removes it for both.
+      git(worktree!.directory, "add", "-A");
+      git(worktree!.directory, "commit", "-q", "-m", "work");
+      const removed = yield* removeWorktree(sharing.id).pipe(Effect.flatMap(decode(RemoveWorktreeResponse)));
+      expect(removed.worktree).toMatchObject({ threadId: source.id, branch: "wiki-agents/source" });
+      const failed = yield* turn(source.id, "write app.ts six");
+      expect(failed._tag === "turn.finished" ? failed.reason : null).toMatch(/worktree \(branch wiki-agents\/source\) was removed/);
+      const refused = yield* continueThread(source.id, { text: "x" });
+      expect(refused.status).toBe(409);
+      expect(yield* refused.text).toMatch(/worktree \(branch wiki-agents\/source\) is gone, so the new thread can't share it/);
     }));
 
   test.effect("fails the turn of a thread whose worktree was deleted outside the app, rather than using the main directory", () =>

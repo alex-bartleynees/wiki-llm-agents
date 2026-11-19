@@ -4,7 +4,9 @@ import { Layer } from "effect";
 import { HttpRouter } from "effect/http";
 import { answerRequestEndpoint } from "./answer-request/endpoint.js";
 import { compactContextEndpoint } from "./compact-context/endpoint.js";
+import { continueThreadEndpoint } from "./continue-thread/endpoint.js";
 import { createThreadEndpoint } from "./create-thread/endpoint.js";
+import { requestHandoffEndpoint } from "./request-handoff/endpoint.js";
 import { getThreadEndpoint } from "./get-thread/endpoint.js";
 import { interruptTurnEndpoint } from "./interrupt-turn/endpoint.js";
 import { listActiveThreadsEndpoint } from "./list-active-threads/endpoint.js";
@@ -30,6 +32,8 @@ export const threadsRouter = Layer.mergeAll(
   HttpRouter.add("POST", "/api/threads/:threadId/messages", sendMessageEndpoint),
   HttpRouter.add("POST", "/api/threads/:threadId/interrupt", interruptTurnEndpoint),
   HttpRouter.add("POST", "/api/threads/:threadId/compact", compactContextEndpoint),
+  HttpRouter.add("POST", "/api/threads/:threadId/handoff", requestHandoffEndpoint),
+  HttpRouter.add("POST", "/api/threads/:threadId/continue", continueThreadEndpoint),
   HttpRouter.add("POST", "/api/threads/:threadId/requests/:requestId", answerRequestEndpoint),
   HttpRouter.add("GET", "/api/threads/:threadId/models", listModelsEndpoint),
   HttpRouter.add("PUT", "/api/threads/:threadId/model", setModelEndpoint),

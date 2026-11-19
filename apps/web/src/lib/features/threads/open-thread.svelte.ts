@@ -5,7 +5,7 @@ import type { RequestAnswer, ThreadSummary } from "@wiki-agents/contracts/thread
 import { ApiError, errorMessage, isAbort } from "#lib/api/client.ts";
 import { listen } from "#lib/api/sse.ts";
 import type { SendMessageRequest } from "@wiki-agents/contracts/threads/send-message/request";
-import { answerRequest, compactContext, getThread, interruptTurn, type MessageFiles, sendMessage, threadTopic } from "./api.ts";
+import { answerRequest, compactContext, getThread, interruptTurn, type MessageFiles, requestHandoff, sendMessage, threadTopic } from "./api.ts";
 import { applyEvent, emptyTimeline, type Timeline } from "./timeline.ts";
 
 /**
@@ -83,6 +83,7 @@ class OpenThreadStore {
     this.error = undefined;
     this.sending = false;
     this.compacting = false;
+    this.handingOff = false;
   }
 
   /** Updates the summary (title, status) from the thread list's stream. */
@@ -134,6 +135,30 @@ class OpenThreadStore {
       this.error = errorMessage(error, "Could not compact the conversation");
     } finally {
       this.compacting = false;
+    }
+  }
+
+  /** Asking for a handoff is on its way; the button waits for it. */
+  handingOff = $state(false);
+  /** As for `compact`: a request that got no answer is sent again with the same id. */
+  #unansweredHandoff: { readonly threadId: string; readonly operationId: string } | undefined;
+
+  /** Asks the agent to write a handoff, as a turn in this thread; the reply arrives on the stream. */
+  async handoff() {
+    const threadId = this.#threadId;
+    if (threadId === null || this.handingOff) return;
+    const operationId = this.#unansweredHandoff?.threadId === threadId ? this.#unansweredHandoff.operationId : crypto.randomUUID();
+    this.#unansweredHandoff = { threadId, operationId };
+    this.handingOff = true;
+    try {
+      await requestHandoff(threadId, operationId);
+      this.#unansweredHandoff = undefined;
+      this.error = undefined;
+    } catch (error) {
+      if (error instanceof ApiError) this.#unansweredHandoff = undefined;
+      this.error = errorMessage(error, "Could not ask for a handoff");
+    } finally {
+      this.handingOff = false;
     }
   }
 

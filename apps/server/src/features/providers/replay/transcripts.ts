@@ -8,6 +8,20 @@ import type { Transcript } from "./transcript.js";
  * review and undo can be tried for free.
  */
 export const TRANSCRIPTS: ReadonlyArray<Transcript> = [
+  // First: the app's handoff prompt mentions changing files, which would pick the approval.
+  {
+    name: "handoff",
+    keywords: ["handoff"],
+    steps: [
+      {
+        type: "text",
+        text:
+          "## Objective\nTry the replay provider in the app.\n\n## Decisions\nNone\n\n## Files changed\n- Replay note.md\n\n" +
+          "## Checks run\nNone\n\n## Unfinished work\nSend a message in the new thread.\n\n## Relevant paths\n- Replay note.md",
+      },
+    ],
+    usage: { inputTokens: 21_480, outputTokens: 74, costUsd: 0.0218 },
+  },
   {
     name: "vault-tools",
     keywords: ["vaulttools"],

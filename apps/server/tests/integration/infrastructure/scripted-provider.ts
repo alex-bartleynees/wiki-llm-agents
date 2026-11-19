@@ -1,5 +1,5 @@
 import { Effect, Stream } from "effect";
-import type { ProviderAdapter, ProviderError, ProviderEvent, SessionSetup, TurnInput } from "../../../src/features/providers/port.js";
+import type { OpenSessionInput, ProviderAdapter, ProviderError, ProviderEvent, SessionSetup, TurnInput } from "../../../src/features/providers/port.js";
 import { makeProviderRegistry } from "../../../src/features/providers/registry-live.js";
 import { ReplayAdapter } from "../../../src/features/providers/replay/adapter.js";
 
@@ -23,11 +23,16 @@ export type Script = (turn: { readonly turnId: string; readonly cwd: string }) =
 export const makeScriptedProvider = (options: { readonly images?: boolean } = {}) => {
   const scripts = new Map<string, Script>();
   const inputs: Array<Omit<TurnInput, "setup"> & { readonly attachmentFolders: ReadonlyArray<string>; readonly protection: SessionSetup["protection"] }> = [];
+  /** Every session opened, with what the app gave it (the thread, its folder, the native session to continue). */
+  const sessions: Array<OpenSessionInput> = [];
   const adapter: ProviderAdapter = {
     kind: "scripted",
     capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: false, images: options.images === true, compact: true },
-    openSession: ({ cwd }) =>
-      Effect.succeed({
+    openSession: (input) =>
+      Effect.sync(() => {
+        sessions.push(input);
+        return input;
+      }).pipe(Effect.map(({ cwd }) => ({
         nativeSessionId: null,
         startTurn: ({ turnId, text, images, setup }) => {
           inputs.push({ turnId, text, images, attachmentFolders: setup.attachmentFolders, protection: setup.protection });
@@ -62,12 +67,12 @@ export const makeScriptedProvider = (options: { readonly images?: boolean } = {}
         interrupt: () => Effect.void,
         answerRequest: () => Effect.void,
         setModel: () => Effect.void,
-      }),
+      }))),
     enforcement: () => ({ autonomy: null, notes: [] }),
     status: Effect.succeed({ _tag: "ready", version: null, account: null }),
     listModels: () => Effect.succeed({ models: [], defaultModel: null }),
   };
   /** Replay first (the default), then the scripted provider (instance id `scripted`). */
   const registry = makeProviderRegistry(Effect.succeed([ReplayAdapter, adapter]));
-  return { scripts, inputs, registry };
+  return { scripts, inputs, sessions, registry };
 };

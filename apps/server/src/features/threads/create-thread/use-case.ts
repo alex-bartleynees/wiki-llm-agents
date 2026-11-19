@@ -5,7 +5,8 @@ import { Clock, Effect } from "effect";
 import { AgentCatalog } from "../../agents/catalog.js";
 import { InvalidProject } from "../../projects/errors.js";
 import { findProject } from "../../projects/find-project.js";
-import { createWorktree, discardWorktree } from "../../projects/worktrees.js";
+import type { Worktree } from "@wiki-agents/contracts/projects/model";
+import { createWorktree, discardWorktree, shareWorktree, unshareWorktree } from "../../projects/worktrees.js";
 import { ProviderRegistry } from "../../providers/registry.js";
 import { findVault } from "../../vaults/find-vault.js";
 import { validateModel } from "../model-selection.js";
@@ -18,10 +19,20 @@ import { ThreadBus } from "../thread-bus.js";
  * names none). A schedule names its thread; others are named by their first message.
  * With `worktree`, git makes the thread's worktree first; if git refuses, there is no
  * thread, and if the thread can't be saved, the worktree is removed again.
+ *
+ * Continue in a new thread also gives the draft it starts with, the thread it
+ * continues, the model to keep as it is (no agent default, not checked again), and a
+ * worktree to share instead of making one.
  */
 export const createThread = Effect.fn("createThread")(function* (
   request: CreateThreadRequest & { readonly vaultId: string },
-  options: { readonly title?: string } = {},
+  options: {
+    readonly title?: string;
+    readonly draftText?: string;
+    readonly continuedFrom?: string;
+    readonly model?: string | null;
+    readonly shareWorktree?: Worktree;
+  } = {},
 ) {
   const vault = yield* findVault(request.vaultId);
   const project = request.projectId === undefined ? null : yield* findProject(request.projectId);
@@ -37,8 +48,12 @@ export const createThread = Effect.fn("createThread")(function* (
     const { adapter } = yield* registry.get(instance.id);
     yield* validateModel(adapter, vault.rootPath, request.model);
   }
+  if (options.shareWorktree !== undefined && (project === null || options.shareWorktree.projectId !== project.id || request.worktree !== undefined)) {
+    return yield* new InvalidProject({ message: "A thread can share a worktree of its own project only, and not make one as well" });
+  }
   const id = randomUUID();
   const worktree = request.worktree === undefined || project === null ? null : yield* createWorktree(project, vault.rootPath, id, request.worktree.branch);
+  if (options.shareWorktree !== undefined) yield* shareWorktree(id, options.shareWorktree);
   const thread = yield* (yield* ThreadRepository)
     .insert({
       id,
@@ -46,11 +61,16 @@ export const createThread = Effect.fn("createThread")(function* (
       projectId: project?.id ?? null,
       providerInstanceId: instance.id,
       agentId: agent?.id ?? null,
-      model: request.model ?? (agentsProvider && instance.capabilities.models ? agent.model : null),
+      model: options.model !== undefined ? options.model : request.model ?? (agentsProvider && instance.capabilities.models ? agent.model : null),
       title: options.title,
+      draftText: options.draftText,
+      continuedFrom: options.continuedFrom,
       createdAt: yield* Clock.currentTimeMillis,
     })
-    .pipe(Effect.tapError(() => (worktree === null ? Effect.void : discardWorktree(worktree))));
+    .pipe(
+      Effect.tapError(() => (worktree === null ? Effect.void : discardWorktree(worktree))),
+      Effect.tapError(() => (options.shareWorktree === undefined ? Effect.void : unshareWorktree(id))),
+    );
   yield* (yield* ThreadBus).publishThread(thread);
   const response: CreateThreadResponse = { thread };
   return response;

@@ -8,6 +8,12 @@ export class ThreadBusy extends Data.TaggedError("ThreadBusy")<{ readonly thread
 /** The thread's conversation can't be compacted: `reason` says why (the provider can't, nothing to compact yet...). */
 export class CompactionUnavailable extends Data.TaggedError("CompactionUnavailable")<{ readonly reason: string }> {}
 
+/** The agent can't be asked for a handoff now: `reason` says why (nothing to hand off yet, the provider is gone...). */
+export class HandoffUnavailable extends Data.TaggedError("HandoffUnavailable")<{ readonly reason: string }> {}
+
+/** The thread can't be continued as asked: `reason` says why (its worktree is gone, say). */
+export class ContinueRefused extends Data.TaggedError("ContinueRefused")<{ readonly reason: string }> {}
+
 export class NoTurnRunning extends Data.TaggedError("NoTurnRunning")<{ readonly threadId: string }> {}
 
 export class RequestNotFound extends Data.TaggedError("RequestNotFound")<{ readonly requestId: string }> {}

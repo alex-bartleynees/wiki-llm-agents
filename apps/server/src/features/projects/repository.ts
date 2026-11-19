@@ -45,7 +45,15 @@ export interface ProjectRepositoryService {
   readonly insertWorktree: (worktree: Worktree) => Effect.Effect<void, DbError>;
   /** The project's worktrees, oldest first, removed ones included. */
   readonly worktrees: (projectId: string) => Effect.Effect<ReadonlyArray<Worktree>, DbError>;
+  /** The thread's own worktree, or the one it shares (see `shareWorktree`). */
   readonly worktreeOfThread: (threadId: string) => Effect.Effect<Option.Option<Worktree>, DbError>;
+  /** The thread works in `ownerThreadId`'s worktree from now on. */
+  readonly shareWorktree: (threadId: string, ownerThreadId: string) => Effect.Effect<void, DbError>;
+  /** Undoes `shareWorktree` for a thread that couldn't be saved. */
+  readonly unshareWorktree: (threadId: string) => Effect.Effect<void, DbError>;
+  /** Threads sharing the project's worktrees, with whose worktree each shares. */
+  readonly worktreeShares: (projectId: string) => Effect.Effect<ReadonlyArray<{ readonly threadId: string; readonly ownerThreadId: string }>, DbError>;
+  /** `threadId` is the worktree's owner. */
   readonly setWorktreeRemoved: (threadId: string, at: number) => Effect.Effect<void, DbError>;
   /** Forgets a worktree undone because its thread couldn't be saved. */
   readonly deleteWorktree: (threadId: string) => Effect.Effect<void, DbError>;

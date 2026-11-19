@@ -23,9 +23,9 @@ class WorktreesStore {
     return this.#byProject[projectId]?.worktrees ?? [];
   }
 
-  /** The thread's worktree, once its project's are loaded. */
+  /** The thread's worktree (its own, or one it shares), once its project's are loaded. */
   forThread(projectId: string | null, threadId: string): ListedWorktree | undefined {
-    return projectId === null ? undefined : this.of(projectId).find((worktree) => worktree.threadId === threadId);
+    return projectId === null ? undefined : this.of(projectId).find((worktree) => worktree.threadId === threadId || worktree.sharedWith.includes(threadId));
   }
 
   /** Loads (or reloads) the project's worktrees; a failure keeps what was shown. */

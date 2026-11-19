@@ -110,3 +110,46 @@ test(`from ${entry}: runs a thread in its own worktree, reviews its diff, and re
 });
 
 }
+
+test("continues a worktree thread in a new thread that shares the worktree", async ({ page }, info) => {
+  const folder = projectFolder(info, "worktree-continue");
+  writeFileSync(join(folder, "Replay note.md"), NOTE);
+  git(folder, "init", "-q");
+  git(folder, "add", "-A");
+  git(folder, "commit", "-qm", "init");
+  const created = await page.request.post("/api/projects", { data: { name: `Continue ${info.project.name}`, workingDirectories: [folder] } });
+  const { project } = (await created.json()) as { project: { id: string; vaultId: string } };
+  const branch = `wiki-agents/e2e-continue-${info.project.name}`;
+  const response = await page.request.post(`/api/vaults/${project.vaultId}/threads`, {
+    data: { projectId: project.id, providerInstanceId: "replay", worktree: { branch } },
+  });
+  expect(response.status()).toBe(201);
+  const { thread } = (await response.json()) as { thread: { id: string } };
+
+  await page.goto(`/vaults/${project.vaultId}?thread=${thread.id}`);
+  const message = page.getByRole("textbox", { name: "Message" });
+  await message.fill("hello");
+  await message.press("Enter");
+  await expect(page.locator(".turn-end").last()).toHaveText(/^Done/);
+
+  // Written by hand: no turn. Where it works is explicit, the worktree by default.
+  await page.getByRole("button", { name: "Hand off", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Continue in a new thread" });
+  await dialog.getByRole("textbox", { name: "Handoff" }).fill("## Objective\nCarry on in the same worktree.");
+  const shared = dialog.getByRole("radio", { name: /This thread's worktree/ });
+  await expect(shared).toBeChecked();
+  await expect(dialog).toContainText("Shared: both threads work in the same files.");
+  await expect(dialog.getByText("Without this worktree's branch or uncommitted changes.")).toBeVisible();
+  await expect(dialog.getByText("A clean checkout: it won't have uncommitted work.")).toBeVisible();
+  await dialog.getByRole("button", { name: "Start new thread" }).click();
+
+  await expect(page.getByRole("heading", { name: "Continued: hello" })).toBeVisible();
+  const bar = page.getByRole("region", { name: "Worktree" });
+  await expect(bar).toContainText(`⎇ ${branch}`);
+  await expect(bar).toContainText("shared");
+  await expect(message).toHaveValue("## Objective\nCarry on in the same worktree.");
+  // Still one worktree: the new thread shares the old one's.
+  const listed = (await (await page.request.get(`/api/projects/${project.id}/worktrees`)).json()) as { worktrees: Array<{ threadId: string; sharedWith: Array<string> }> };
+  expect(listed.worktrees).toHaveLength(1);
+  expect(listed.worktrees[0]).toMatchObject({ threadId: thread.id, sharedWith: [expect.any(String)] });
+});

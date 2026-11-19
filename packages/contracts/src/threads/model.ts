@@ -55,6 +55,16 @@ export const CompactionRequested = Schema.TaggedStruct("compaction.requested", {
   turnId: Schema.String,
 });
 
+/**
+ * You asked the agent to write a handoff, so the work can carry on in a new thread
+ * with a fresh provider session. It starts a turn instead of a message: the app asks
+ * the agent, in this thread's session, for a summary under fixed headings, and the
+ * agent's reply is the handoff you review before continuing.
+ */
+export const HandoffRequested = Schema.TaggedStruct("handoff.requested", {
+  turnId: Schema.String,
+});
+
 export const TurnStarted = Schema.TaggedStruct("turn.started", {
   turnId: Schema.String,
 });
@@ -283,6 +293,7 @@ export const TurnFinished = Schema.TaggedStruct("turn.finished", {
 export const ThreadEvent = Schema.Union([
   UserMessage,
   CompactionRequested,
+  HandoffRequested,
   NoteContext,
   TurnStarted,
   MessageDelta,
@@ -364,6 +375,10 @@ export const ThreadSummary = Schema.Struct({
   lastTurn: Schema.NullOr(LastTurn),
   /** When you marked the thread done; null while it is open. A new message reopens it. */
   doneAt: Schema.NullOr(Schema.Number),
+  /** The thread this one continues (Continue in a new thread); null when it continues none. */
+  continuedFrom: Schema.NullOr(Schema.String),
+  /** The newest thread that continues this one; null when none does. */
+  continuedIn: Schema.NullOr(Schema.String),
   /** The last event's seq; 0 for a new thread. */
   lastSeq: Schema.Number,
   createdAt: Schema.Number,

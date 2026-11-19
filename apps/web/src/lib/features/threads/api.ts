@@ -8,6 +8,10 @@ import { AnswerRequestRequest } from "@wiki-agents/contracts/threads/answer-requ
 import { AnswerRequestResponse } from "@wiki-agents/contracts/threads/answer-request/response";
 import { CompactContextRequest } from "@wiki-agents/contracts/threads/compact-context/request";
 import { CompactContextResponse } from "@wiki-agents/contracts/threads/compact-context/response";
+import { ContinueThreadRequest } from "@wiki-agents/contracts/threads/continue-thread/request";
+import { ContinueThreadResponse } from "@wiki-agents/contracts/threads/continue-thread/response";
+import { RequestHandoffRequest } from "@wiki-agents/contracts/threads/request-handoff/request";
+import { RequestHandoffResponse } from "@wiki-agents/contracts/threads/request-handoff/response";
 import { CreateThreadRequest } from "@wiki-agents/contracts/threads/create-thread/request";
 import { CreateThreadResponse } from "@wiki-agents/contracts/threads/create-thread/response";
 import { GetThreadResponse } from "@wiki-agents/contracts/threads/get-thread/response";
@@ -89,6 +93,18 @@ export const interruptTurn = (threadId: string) => postJson(`${threadPath(thread
  */
 export const compactContext = (threadId: string, operationId: string) =>
   postJson(`${threadPath(threadId)}/compact`, CompactContextRequest, { operationId }, CompactContextResponse);
+
+/**
+ * Asks the thread's agent for a handoff, as a turn of its own in this thread (it uses
+ * some of your usage). The same `operationId` again never asks twice; 409 while busy,
+ * or when there is nothing to hand off yet.
+ */
+export const requestHandoff = (threadId: string, operationId: string) =>
+  postJson(`${threadPath(threadId)}/handoff`, RequestHandoffRequest, { operationId }, RequestHandoffResponse);
+
+/** A new thread continuing this one, with a fresh provider session and `text` as its draft. */
+export const continueThread = (threadId: string, request: ContinueThreadRequest) =>
+  postJson(`${threadPath(threadId)}/continue`, ContinueThreadRequest, request, ContinueThreadResponse);
 
 /** Moves the thread to the Done group; 409 while a turn runs or waits for you. */
 export const markDone = (threadId: string) => postJson(`${threadPath(threadId)}/done`, NoBody, {}, MarkDoneResponse);

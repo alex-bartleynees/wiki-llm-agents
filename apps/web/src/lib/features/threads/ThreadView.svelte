@@ -6,6 +6,8 @@
   import MessageAttachments from "#lib/features/attachments/MessageAttachments.svelte";
   import AgentText from "./AgentText.svelte";
   import Composer from "./Composer.svelte";
+  import ContinuationBar from "./ContinuationBar.svelte";
+  import ContinueThreadDialog from "./ContinueThreadDialog.svelte";
   import ModelPicker from "./ModelPicker.svelte";
   import PlanCard from "./PlanCard.svelte";
   import { providers } from "./providers.svelte.ts";
@@ -16,7 +18,7 @@
   import { openThread } from "./open-thread.svelte.ts";
   import { STATUS_LABEL } from "./status.ts";
   import { threads } from "./threads.svelte.ts";
-  import { hasConversation, isCompacting, pendingRequests, routingLabel, type TimelineItem, usageLabel } from "./timeline.ts";
+  import { hasConversation, isCompacting, isHandingOff, pendingRequests, routingLabel, type TimelineItem, usageLabel } from "./timeline.ts";
   import WorktreeBar from "./WorktreeBar.svelte";
 
   const timeline = $derived(openThread.timeline);
@@ -46,6 +48,18 @@
   });
 
   const compacting = $derived(isCompacting(timeline));
+  const handingOff = $derived(isHandingOff(timeline));
+  /** Why Hand off can't be used now; undefined when it can. */
+  const handoffBlocked = $derived(
+    status !== "idle" ? "Stop the turn or answer it first" : !hasConversation(timeline) ? "There's no conversation to hand off yet" : openThread.handingOff ? "Asking the agent…" : undefined,
+  );
+  /** Continue in a new thread: open, and with which handoff (null: the template). */
+  let continuing = $state(false);
+  let handoffText = $state<string | null>(null);
+  const continueWith = (text: string | null) => {
+    handoffText = text;
+    continuing = true;
+  };
   /** Why Compact conversation can't be used now; undefined when it can. */
   const compactBlocked = $derived(
     status !== "idle" ? "Stop the turn or answer it first" : !hasConversation(timeline) ? "There's no conversation to compact yet" : openThread.compacting ? "Asking the provider…" : undefined,
@@ -76,6 +90,13 @@
         onclick={() => openThread.compact()}>Compact</button
       >
     {/if}
+    <button
+      type="button"
+      class="done-action"
+      disabled={handoffBlocked !== undefined}
+      title={handoffBlocked ?? "Carry on in a new thread with a fresh session, from a handoff you review: the agent can write it, or you can"}
+      onclick={() => continueWith(null)}>Hand off</button
+    >
     {#if thread.doneAt === null}
       <button
         type="button"
@@ -103,6 +124,7 @@
 
 {#if openThread.thread}
   <WorktreeBar thread={openThread.thread} idle={status === "idle"} />
+  <ContinuationBar thread={openThread.thread} />
 {/if}
 
 <div class="timeline" bind:this={scroller} {onscroll} aria-live="polite" aria-busy={status === "running"}>
@@ -137,6 +159,13 @@
       </div>
     {:else if item.kind === "compaction-request"}
       <p class="compaction-request mono">You asked to compact the conversation</p>
+    {:else if item.kind === "handoff-request"}
+      <p class="compaction-request mono">You asked the agent to write a handoff for a new thread</p>
+    {:else if item.kind === "handoff"}
+      <div class="handoff">
+        <span>The handoff is ready. Review it, then carry on in a new thread with a fresh session.</span>
+        <button type="button" onclick={() => continueWith(item.text)}>Continue in a new thread</button>
+      </div>
     {:else if item.kind === "routing"}
       <p class="routing mono" title="The provider chose the model for this answer. The thread stays on {item.selected}.">{routingLabel(item)}</p>
     {:else if item.kind === "agent"}
@@ -169,6 +198,8 @@
 
   {#if status === "running" && compacting}
     <p class="working compacting mono" role="status">Compacting conversation…</p>
+  {:else if status === "running" && handingOff}
+    <p class="working compacting mono" role="status">Writing the handoff…</p>
   {:else if status === "running"}
     <p class="working mono" aria-label="The agent is working">●●●</p>
   {/if}
@@ -182,6 +213,10 @@
   {#key openThread.thread.id}
     <Composer threadId={openThread.thread.id} />
   {/key}
+{/if}
+
+{#if openThread.thread}
+  <ContinueThreadDialog bind:open={continuing} source={openThread.thread} handoff={handoffText} />
 {/if}
 
 <style>
@@ -347,6 +382,37 @@
     align-self: flex-end;
     font-size: 12px;
     color: var(--ink-2);
+  }
+  .handoff {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    background: var(--accent-soft);
+    font-size: 13px;
+  }
+  .handoff span {
+    flex: 1 1 240px;
+  }
+  .handoff button {
+    flex: 0 0 auto;
+    height: 30px;
+    padding: 0 12px;
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    background: var(--accent);
+    color: var(--on-accent);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  @media (max-width: 899px) {
+    .handoff button {
+      height: 40px;
+    }
   }
   .routing {
     align-self: flex-start;

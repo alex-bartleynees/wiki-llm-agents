@@ -28,6 +28,8 @@ const thread = (id: string, overrides: Partial<ThreadSummary> = {}): ThreadSumma
   runningTurn: { startedAt: 1, progress: null },
   lastTurn: null,
   doneAt: null,
+  continuedFrom: null,
+  continuedIn: null,
   lastSeq: 1,
   createdAt: 1,
   updatedAt: 1,

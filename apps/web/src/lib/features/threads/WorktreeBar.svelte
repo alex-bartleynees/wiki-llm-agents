@@ -21,6 +21,8 @@
   });
 
   const worktree = $derived(worktrees.forThread(thread.projectId, thread.id));
+  /** Another thread works in it too (a continued thread that kept the folder). */
+  const shared = $derived(worktree !== undefined && (worktree.threadId !== thread.id || worktree.sharedWith.length > 0));
   let removing = $state(false);
   let error = $state<string | null>(null);
   let copied = $state(false);
@@ -59,6 +61,9 @@
   <section class="worktree" aria-label="Worktree" data-state={worktree.removedAt !== null ? "removed" : worktree.exists ? "live" : "missing"}>
     <div class="line">
       <span class="branch mono" title="This thread works on its own branch">⎇ {worktree.branch}</span>
+      {#if shared}
+        <span class="shared mono" title="Another thread works in this worktree too: you share its files. Removing it removes it for both.">shared</span>
+      {/if}
       {#if worktree.removedAt !== null}
         <span class="state mono">worktree removed · branch kept</span>
       {:else}
@@ -110,6 +115,14 @@
   .branch {
     flex: 0 0 auto;
     color: var(--accent-ink);
+  }
+  .shared {
+    flex: 0 0 auto;
+    padding: 0 6px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    color: var(--ink-2);
+    font-size: 11px;
   }
   .path {
     flex: 1 1 auto;

@@ -53,6 +53,8 @@ const summary = (id: string, projectId: string | null, vaultId = "v1"): ThreadSu
   runningTurn: null,
   lastTurn: null,
   doneAt: null,
+  continuedFrom: null,
+  continuedIn: null,
   lastSeq: 0,
   createdAt: 1,
   updatedAt: 1,

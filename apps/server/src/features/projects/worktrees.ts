@@ -90,7 +90,21 @@ export const discardWorktree = (worktree: Worktree) =>
     yield* (yield* ProjectRepository).deleteWorktree(worktree.threadId);
   }).pipe(Effect.catch((error) => Effect.logError(`couldn't undo the worktree of thread ${worktree.threadId} at ${worktree.path}`, error)));
 
-/** The thread's worktree, removed or not; none for a thread made without one. */
+/**
+ * Has `threadId` work in `worktree` too (a continued thread that kept the same folder):
+ * both threads then work in the same files. Undone with `unshareWorktree` when the
+ * thread couldn't be saved.
+ */
+export const shareWorktree = Effect.fnUntraced(function* (threadId: string, worktree: Worktree) {
+  yield* (yield* ProjectRepository).shareWorktree(threadId, worktree.threadId);
+});
+
+export const unshareWorktree = (threadId: string) =>
+  Effect.gen(function* () {
+    yield* (yield* ProjectRepository).unshareWorktree(threadId);
+  }).pipe(Effect.catch((error) => Effect.logError(`couldn't undo thread ${threadId}'s share of a worktree`, error)));
+
+/** The thread's worktree (its own, or the one it shares), removed or not; none for a thread made without one. */
 export const threadWorktree = Effect.fnUntraced(function* (threadId: string) {
   return yield* (yield* ProjectRepository).worktreeOfThread(threadId);
 });
@@ -127,7 +141,8 @@ export const removeThreadWorktree = Effect.fn("removeThreadWorktree")(function* 
     yield* removeEmptyParents(worktree.path, (yield* WorktreeRoot).directory);
   }
   const removedAt = yield* Clock.currentTimeMillis;
-  yield* repository.setWorktreeRemoved(threadId, removedAt);
+  // A shared worktree is its owner's record, so it is removed for every thread in it.
+  yield* repository.setWorktreeRemoved(worktree.threadId, removedAt);
   return { ...worktree, removedAt } satisfies Worktree;
 });
 

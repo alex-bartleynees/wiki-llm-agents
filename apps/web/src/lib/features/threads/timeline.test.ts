@@ -1,6 +1,6 @@
 import type { ThreadEvent } from "@wiki-agents/contracts/threads/model";
 import { describe, expect, it } from "vitest";
-import { applyEvent, emptyTimeline, hasConversation, isCompacting, routingLabel } from "./timeline.ts";
+import { applyEvent, emptyTimeline, hasConversation, isCompacting, isHandingOff, routingLabel } from "./timeline.ts";
 
 const apply = (events: ReadonlyArray<ThreadEvent>) => {
   const timeline = emptyTimeline();
@@ -119,6 +119,43 @@ describe("a compaction you asked for in the timeline", () => {
       "Requested compaction failed · Not enough messages to compact.",
     ]);
     expect(hasConversation(timeline)).toBe(false);
+  });
+});
+
+describe("a handoff you asked for in the timeline", () => {
+  it("marks the request, knows the agent is writing it, and offers its last message to continue with", () => {
+    const timeline = apply([
+      { _tag: "user.message", turnId: "a", text: "hello" },
+      { _tag: "turn.started", turnId: "a" },
+      { _tag: "message.delta", turnId: "a", messageId: "m0", text: "Hi." },
+      { _tag: "turn.finished", turnId: "a", outcome: "completed", usage: null, reason: null },
+      { _tag: "handoff.requested", turnId: "b" },
+      { _tag: "turn.started", turnId: "b" },
+      { _tag: "message.delta", turnId: "b", messageId: "m1", text: "Let me sum up." },
+      { _tag: "message.delta", turnId: "b", messageId: "m2", text: "## Objective\n" },
+      { _tag: "message.delta", turnId: "b", messageId: "m2", text: "Ship it.\n" },
+    ]);
+    expect(isHandingOff(timeline)).toBe(true);
+    expect(isCompacting(timeline)).toBe(false);
+    applyEvent(timeline, { threadId: "t", seq: 10, at: 0, event: { _tag: "turn.finished", turnId: "b", outcome: "completed", usage: null, reason: null } });
+    expect(isHandingOff(timeline)).toBe(false);
+    expect(timeline.items.map((item) => item.kind)).toEqual(["user", "agent", "turn-end", "handoff-request", "agent", "agent", "turn-end", "handoff"]);
+    expect(timeline.items.at(-1)).toEqual({ kind: "handoff", key: "b:handoff", turnId: "b", text: "## Objective\nShip it." });
+  });
+
+  it("offers nothing to continue with when the handoff stopped, failed, or came back empty", () => {
+    const timeline = apply([
+      { _tag: "handoff.requested", turnId: "b" },
+      { _tag: "message.delta", turnId: "b", messageId: "m1", text: "## Objective" },
+      { _tag: "turn.finished", turnId: "b", outcome: "interrupted", usage: null, reason: null },
+      { _tag: "handoff.requested", turnId: "c" },
+      { _tag: "turn.finished", turnId: "c", outcome: "completed", usage: null, reason: null },
+      // An ordinary turn's reply is never a handoff.
+      { _tag: "user.message", turnId: "d", text: "hello" },
+      { _tag: "message.delta", turnId: "d", messageId: "m3", text: "## Objective" },
+      { _tag: "turn.finished", turnId: "d", outcome: "completed", usage: null, reason: null },
+    ]);
+    expect(timeline.items.some((item) => item.kind === "handoff")).toBe(false);
   });
 });
 

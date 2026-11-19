@@ -36,6 +36,9 @@ const summaryColumns = {
   model: threads.model,
   agentId: threads.agentId,
   doneAt: threads.doneAt,
+  continuedFrom: threads.continuedFromThreadId,
+  continuedIn: sql<string | null>`(SELECT c.id FROM threads c WHERE c.continued_from_thread_id = threads.id AND c.deleted_at IS NULL
+    ORDER BY c.created_at DESC LIMIT 1)`,
   createdAt: threads.createdAt,
   updatedAt: threads.updatedAt,
   status: sql<ThreadSummary["status"]>`CASE
@@ -118,7 +121,10 @@ export const ThreadRepositoryLive = Layer.effect(
       insert: (thread) =>
         query(() => {
           const at = new Date(thread.createdAt);
-          db.insert(threads).values({ ...thread, title: thread.title ?? null, createdAt: at, updatedAt: at }).run();
+          const { draftText, continuedFrom, ...row } = thread;
+          db.insert(threads)
+            .values({ ...row, title: row.title ?? null, draftText: draftText ?? "", continuedFromThreadId: continuedFrom ?? null, createdAt: at, updatedAt: at })
+            .run();
           return Option.getOrThrow(findSync(thread.id));
         }),
 
@@ -231,6 +237,9 @@ export const ThreadRepositoryLive = Layer.effect(
                   break;
                 case "compaction.requested":
                   tx.insert(turns).values({ id: event.turnId, threadId, input: "", kind: "compaction", status: "running", startedAt: when }).run();
+                  break;
+                case "handoff.requested":
+                  tx.insert(turns).values({ id: event.turnId, threadId, input: "", kind: "handoff", status: "running", startedAt: when }).run();
                   break;
                 case "request.opened":
                   tx.insert(runtimeRequests)

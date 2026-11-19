@@ -16,6 +16,10 @@ export type TimelineItem =
     }
   /** You asked the provider to compact the conversation (Compact conversation). */
   | { readonly kind: "compaction-request"; readonly key: string }
+  /** You asked the agent to write a handoff for a new thread. */
+  | { readonly kind: "handoff-request"; readonly key: string }
+  /** The agent finished writing a handoff: its reply, to review and continue in a new thread. */
+  | { readonly kind: "handoff"; readonly key: string; readonly turnId: string; readonly text: string }
   /** The receipt of a schedule the agent saved, with a link to edit it. */
   | { readonly kind: "schedule"; readonly key: string; readonly receipt: Extract<ThreadEvent, { readonly _tag: "schedule.saved" }> }
   /** A page the agent opened wants a sign-in the project doesn't have, with a link to add one. */
@@ -67,12 +71,17 @@ export interface Timeline {
   runningTurn: string | null;
   /** Turns that are compactions you asked for, rather than messages. */
   readonly compactions: Set<string>;
+  /** Turns that are handoffs you asked for, with the id of the agent message last written in each. */
+  readonly handoffs: Map<string, string | null>;
 }
 
-export const emptyTimeline = (): Timeline => ({ items: [], lastSeq: 0, runningTurn: null, compactions: new Set() });
+export const emptyTimeline = (): Timeline => ({ items: [], lastSeq: 0, runningTurn: null, compactions: new Set(), handoffs: new Map() });
 
 /** The running turn is a compaction you asked for. */
 export const isCompacting = (timeline: Timeline) => timeline.runningTurn !== null && timeline.compactions.has(timeline.runningTurn);
+
+/** The running turn is a handoff you asked for: the agent is writing it. */
+export const isHandingOff = (timeline: Timeline) => timeline.runningTurn !== null && timeline.handoffs.has(timeline.runningTurn);
 
 /** A turn has finished, so there is a conversation to compact. */
 export const hasConversation = (timeline: Timeline) => timeline.items.some((item) => item.kind === "turn-end");
@@ -112,10 +121,15 @@ export const applyEvent = (timeline: Timeline, stored: StoredThreadEvent): boole
       timeline.compactions.add(event.turnId);
       timeline.items.push({ kind: "compaction-request", key: event.turnId });
       break;
+    case "handoff.requested":
+      timeline.handoffs.set(event.turnId, null);
+      timeline.items.push({ kind: "handoff-request", key: event.turnId });
+      break;
     case "turn.started":
       timeline.runningTurn = event.turnId;
       break;
     case "message.delta": {
+      if (timeline.handoffs.has(event.turnId)) timeline.handoffs.set(event.turnId, event.messageId);
       const message = find(timeline, "agent", event.messageId);
       if (message) message.text += event.text;
       else timeline.items.push({ kind: "agent", key: event.messageId, text: event.text });
@@ -193,6 +207,12 @@ export const applyEvent = (timeline: Timeline, stored: StoredThreadEvent): boole
     case "turn.finished":
       timeline.items.push({ kind: "turn-end", key: `${event.turnId}:end`, outcome: event.outcome, usage: event.usage, reason: event.reason });
       if (timeline.runningTurn === event.turnId) timeline.runningTurn = null;
+      // A handoff the agent finished writing: its last message is the handoff.
+      if (event.outcome === "completed" && timeline.handoffs.has(event.turnId)) {
+        const messageId = timeline.handoffs.get(event.turnId);
+        const reply = messageId == null ? undefined : find(timeline, "agent", messageId);
+        if (reply !== undefined && reply.text.trim() !== "") timeline.items.push({ kind: "handoff", key: `${event.turnId}:handoff`, turnId: event.turnId, text: reply.text.trim() });
+      }
       // Tools still running when the turn ended never finished.
       for (const item of timeline.items) if (item.kind === "tool" && item.status === "running") item.status = "failed";
       break;

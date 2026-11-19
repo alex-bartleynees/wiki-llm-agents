@@ -68,6 +68,17 @@ export const projectWorktrees = sqliteTable("project_worktrees", {
 });
 
 /**
+ * Threads that work in another thread's worktree: a thread continued in a new thread
+ * that kept the same folder. The worktree stays the owner's record (`project_worktrees`);
+ * removing it, from either thread, removes it for both.
+ */
+export const threadWorktreeShares = sqliteTable("thread_worktree_shares", {
+  threadId: text("thread_id").primaryKey(),
+  /** The thread whose worktree it is (`project_worktrees.thread_id`). */
+  ownerThreadId: text("owner_thread_id").notNull(),
+});
+
+/**
  * One row (`id` "default"): which provider and model write **Suggest message** in the
  * Diff view. Null provider: Claude Code on Haiku when it is ready, else the first
  * provider with its default model.

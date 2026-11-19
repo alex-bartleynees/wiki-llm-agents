@@ -3,7 +3,7 @@ import { Effect, Layer, Option } from "effect";
 import { DbError } from "../../shared/persistence/errors.js";
 import { Sqlite } from "../../shared/persistence/sqlite.js";
 import { type FileVersion, ProjectRepository } from "./repository.js";
-import { commitMessageSettings, projectBrowserSignIns, projectFiles, projectIgnoredFiles, projectMcpServers, projects, projectWorktrees } from "./table.js";
+import { commitMessageSettings, projectBrowserSignIns, projectFiles, projectIgnoredFiles, projectMcpServers, projects, projectWorktrees, threadWorktreeShares } from "./table.js";
 
 const SETTINGS_ROW = "default";
 
@@ -83,7 +83,22 @@ export const ProjectRepositoryLive = Layer.effect(
           db.select().from(projectWorktrees).where(eq(projectWorktrees.projectId, projectId)).orderBy(asc(projectWorktrees.createdAt), asc(sql`rowid`)).all(),
         ),
       worktreeOfThread: (threadId) =>
-        query(() => Option.fromNullishOr(db.select().from(projectWorktrees).where(eq(projectWorktrees.threadId, threadId)).get())),
+        query(() => {
+          const owner = db.select({ ownerThreadId: threadWorktreeShares.ownerThreadId }).from(threadWorktreeShares).where(eq(threadWorktreeShares.threadId, threadId)).get();
+          return Option.fromNullishOr(db.select().from(projectWorktrees).where(eq(projectWorktrees.threadId, owner?.ownerThreadId ?? threadId)).get());
+        }),
+      shareWorktree: (threadId, ownerThreadId) => query(() => void db.insert(threadWorktreeShares).values({ threadId, ownerThreadId }).run()),
+      unshareWorktree: (threadId) => query(() => void db.delete(threadWorktreeShares).where(eq(threadWorktreeShares.threadId, threadId)).run()),
+      worktreeShares: (projectId) =>
+        query(() =>
+          db
+            .select({ threadId: threadWorktreeShares.threadId, ownerThreadId: threadWorktreeShares.ownerThreadId })
+            .from(threadWorktreeShares)
+            .innerJoin(projectWorktrees, eq(projectWorktrees.threadId, threadWorktreeShares.ownerThreadId))
+            .where(eq(projectWorktrees.projectId, projectId))
+            .orderBy(asc(threadWorktreeShares.threadId))
+            .all(),
+        ),
       setWorktreeRemoved: (threadId, at) =>
         query(() => void db.update(projectWorktrees).set({ removedAt: at }).where(eq(projectWorktrees.threadId, threadId)).run()),
       deleteWorktree: (threadId) => query(() => void db.delete(projectWorktrees).where(eq(projectWorktrees.threadId, threadId)).run()),

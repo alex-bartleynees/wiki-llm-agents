@@ -19,13 +19,15 @@ export const threads = sqliteTable(
     agentId: text("agent_id"),
     /** The provider's own session id, for resuming (OpenCode session, Claude session). */
     nativeSessionId: text("native_session_id"),
+    /** The thread this one continues (Continue in a new thread); null when it continues none. */
+    continuedFromThreadId: text("continued_from_thread_id"),
     /** When you marked the thread done; cleared by its next message. */
     doneAt: integer("done_at", { mode: "timestamp_ms" }),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
     deletedAt: integer("deleted_at", { mode: "timestamp_ms" }),
   },
-  (table) => [index("threads_vault_idx").on(table.vaultId, table.updatedAt)],
+  (table) => [index("threads_vault_idx").on(table.vaultId, table.updatedAt), index("threads_continued_from_idx").on(table.continuedFromThreadId)],
 );
 
 /**
@@ -50,13 +52,14 @@ export const turns = sqliteTable(
   {
     id: text("id").primaryKey(),
     threadId: text("thread_id").notNull(),
-    /** The message that started the turn, so a restarted turn can be resumed; empty for a compaction. */
+    /** The message that started the turn, so a restarted turn can be resumed; empty for a compaction or a handoff. */
     input: text("input").notNull(),
     /**
      * `message`: you sent a message. `compaction`: you asked the provider to compact the
-     * conversation; a restart never starts or continues one (it costs usage).
+     * conversation; a restart never starts or continues one (it costs usage). `handoff`:
+     * you asked the agent to write a handoff for a new thread; the same goes for it.
      */
-    kind: text("kind", { enum: ["message", "compaction"] }).notNull().default("message"),
+    kind: text("kind", { enum: ["message", "compaction", "handoff"] }).notNull().default("message"),
     status: text("status", { enum: ["running", "completed", "interrupted", "failed"] }).notNull(),
     /** Sent by a schedule with nobody watching: requests are denied instead of waiting. */
     unattended: integer("unattended", { mode: "boolean" }).notNull().default(false),

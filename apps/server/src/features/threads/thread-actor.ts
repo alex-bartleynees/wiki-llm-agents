@@ -30,7 +30,8 @@ import { worktreeProblem } from "../projects/worktrees.js";
 import { DEFAULT_AUTONOMY } from "@wiki-agents/contracts/agents/model";
 import { effectiveAutonomy } from "../agents/sources.js";
 import type { ToolCallCheck } from "../mcp/gateway.js";
-import { CompactionUnavailable, NoTurnRunning, RequestClosed, RequestNotFound, ThreadBusy, ThreadNotFound, ToolCallRefused, WrongAnswerKind } from "./errors.js";
+import { HANDOFF_PROMPT } from "./handoff-prompt.js";
+import { CompactionUnavailable, HandoffUnavailable, NoTurnRunning, RequestClosed, RequestNotFound, ThreadBusy, ThreadNotFound, ToolCallRefused, WrongAnswerKind } from "./errors.js";
 import { type PendingRequest, ThreadRepository, type TurnKind } from "./repository.js";
 import { ThreadBus } from "./thread-bus.js";
 import { threadWorkspace } from "./workspace.js";
@@ -60,6 +61,7 @@ type Message =
     }
   | { readonly _tag: "Interrupt"; readonly reply: Deferred.Deferred<string, NoTurnRunning | DbError> }
   | { readonly _tag: "Compact"; readonly operationId: string; readonly reply: Deferred.Deferred<CompactStarted, CompactError> }
+  | { readonly _tag: "Handoff"; readonly operationId: string; readonly reply: Deferred.Deferred<HandoffStarted, HandoffError> }
   | {
       readonly _tag: "AnswerRequest";
       readonly requestId: string;
@@ -92,6 +94,14 @@ export type CompactError = ThreadBusy | CompactionUnavailable | DbError;
 export const COMPACTION_NOT_STARTED = "The server stopped before the compaction started, so nothing was compacted.";
 export const COMPACTION_UNSUPPORTED = "This thread's provider can't compact its conversation from the app.";
 export const COMPACTION_CUT_OFF ="The server stopped during the compaction; the provider may or may not have compacted the conversation.";
+
+/** The handoff's turn, and whether this call started it (false: the operation id had already). */
+export type HandoffStarted = CompactStarted;
+export type HandoffError = ThreadBusy | HandoffUnavailable | DbError;
+
+/** Why a handoff turn ends when the server stopped under it: like a compaction, it is never started again or continued. */
+export const HANDOFF_NOT_STARTED = "The server stopped before the agent started the handoff. Ask for it again.";
+export const HANDOFF_CUT_OFF = "The server stopped while the agent was writing the handoff. Ask for it again, or write it yourself.";
 
 /** How a message is sent. */
 export interface SendOptions {
@@ -144,6 +154,12 @@ export interface ThreadActor {
    * returns that turn instead of compacting twice.
    */
   readonly compact: (operationId: string) => Effect.Effect<CompactStarted, CompactError>;
+  /**
+   * Asks the agent, in this thread's session, to write a handoff for a new thread, as
+   * a turn of its own whose id is `operationId`; its reply is the handoff. Refused
+   * while a turn runs or waits for you; the same id again returns that turn.
+   */
+  readonly handoff: (operationId: string) => Effect.Effect<HandoffStarted, HandoffError>;
   readonly answerRequest: (requestId: string, answer: RequestAnswer) => Effect.Effect<void, AnswerError>;
   /** Saves the thread's model and tells an open provider session to use it from the next turn. */
   readonly setModel: (model: string) => Effect.Effect<ThreadSummary, DbError | ProviderError>;
@@ -179,7 +195,7 @@ interface RunningTurn {
 }
 
 /** Events that can change a thread's status, title or progress, so the thread list hears about them. */
-const LIST_EVENTS = new Set<ThreadEvent["_tag"]>(["user.message", "compaction.requested", "request.opened", "request.resolved", "plan.updated", "turn.finished"]);
+const LIST_EVENTS = new Set<ThreadEvent["_tag"]>(["user.message", "compaction.requested", "handoff.requested", "request.opened", "request.resolved", "plan.updated", "turn.finished"]);
 
 export const SERVER_STOPPED = "The server stopped during this turn.";
 /** Why a turn fails in a thread whose provider the app no longer runs (replay outside tests, say). */
@@ -433,6 +449,8 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     turn = current;
     // Compacting costs usage, and nobody may be watching any more: never started or continued after a restart.
     if (open.kind === "compaction") return yield* finish("interrupted", null, open.dispatched ? COMPACTION_CUT_OFF : COMPACTION_NOT_STARTED);
+    // The same for a handoff: it is cheap to ask again, and costly to run unseen.
+    if (open.kind === "handoff") return yield* finish("interrupted", null, open.dispatched ? HANDOFF_CUT_OFF : HANDOFF_NOT_STARTED);
     yield* trackChanges(current.id);
     if (!open.dispatched) return yield* dispatch(current, open.input);
     const resumed = adapter?.capabilities.resume === true
@@ -500,6 +518,24 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     turn = current;
     yield* trackChanges(current.id);
     yield* dispatchCompaction(current);
+    return { turnId: current.id, started: true };
+  });
+
+  const handoff = Effect.fnUntraced(function* (operationId: string) {
+    const earlier = yield* repository.findTurn(operationId);
+    if (Option.isSome(earlier)) {
+      if (earlier.value.threadId === threadId && earlier.value.kind === "handoff") return { turnId: operationId, started: false };
+      return yield* new HandoffUnavailable({ reason: "That operation id is already used by another turn." });
+    }
+    if (turn !== undefined) return yield* new ThreadBusy({ threadId });
+    if (adapter === undefined) return yield* new HandoffUnavailable({ reason: PROVIDER_GONE });
+    const summary = Option.getOrUndefined(yield* repository.find(threadId));
+    if (summary?.lastTurn == null) return yield* new HandoffUnavailable({ reason: "There's no conversation to hand off yet." });
+    const current = yield* newTurn(operationId, "handoff", false);
+    yield* record([{ _tag: "handoff.requested", turnId: current.id }, { _tag: "turn.started", turnId: current.id }], { startTurn: current.id });
+    turn = current;
+    yield* trackChanges(current.id);
+    yield* dispatch(current, HANDOFF_PROMPT);
     return { turnId: current.id, started: true };
   });
 
@@ -689,6 +725,8 @@ export const makeThreadActor = Effect.fnUntraced(function* (
         return Effect.asVoid(Effect.flatMap(Effect.exit(interrupt), (exit) => Deferred.done(message.reply, exit)));
       case "Compact":
         return Effect.asVoid(Effect.flatMap(Effect.exit(compact(message.operationId)), (exit) => Deferred.done(message.reply, exit)));
+      case "Handoff":
+        return Effect.asVoid(Effect.flatMap(Effect.exit(handoff(message.operationId)), (exit) => Deferred.done(message.reply, exit)));
       case "AnswerRequest":
         return Effect.asVoid(
           Effect.flatMap(Effect.exit(answerRequest(message.requestId, message.answer)), (exit) => Deferred.done(message.reply, exit)),
@@ -757,6 +795,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     sendMessage: (text, notes = [], options = {}) => ask((reply) => ({ _tag: "SendMessage", text, notes, options, reply })),
     interrupt: ask((reply) => ({ _tag: "Interrupt", reply })),
     compact: (operationId) => ask((reply) => ({ _tag: "Compact", operationId, reply })),
+    handoff: (operationId) => ask((reply) => ({ _tag: "Handoff", operationId, reply })),
     answerRequest: (requestId, answer) => ask((reply) => ({ _tag: "AnswerRequest", requestId, answer, reply })),
     setModel: (model) => ask((reply) => ({ _tag: "SetModel", model, reply })),
     setAgent: (agentId) => ask((reply) => ({ _tag: "SetAgent", agentId, reply })),

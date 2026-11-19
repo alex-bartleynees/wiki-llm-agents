@@ -17,13 +17,15 @@ export const listWorktrees = Effect.fn("listProjectWorktrees")(function* (projec
   const repository = yield* ProjectRepository;
   const main = mainDirectory(project);
   const ignored = new Set((yield* repository.ignoredFiles(project.id)).filter((file) => file.directory === main).map((file) => file.path));
+  const shares = yield* repository.worktreeShares(project.id);
+  const sharedWith = (ownerThreadId: string) => shares.filter((share) => share.ownerThreadId === ownerThreadId).map((share) => share.threadId);
   const worktrees = yield* Effect.forEach(
     yield* repository.worktrees(project.id),
     (worktree) =>
       Effect.gen(function* () {
         const exists = yield* worktreeExists(worktree);
         const changedFiles = exists ? (yield* changedPaths(worktree.directory)).filter((change) => !ignored.has(change.path)).length : null;
-        return { ...worktree, exists, changedFiles };
+        return { ...worktree, exists, changedFiles, sharedWith: sharedWith(worktree.threadId) };
       }),
     { concurrency: 4 },
   );
