@@ -255,7 +255,7 @@ export const makeSecretStore = (options: SecretStoreOptions) =>
       });
 
       const files = [options.dir, options.keyFile, `${options.keyFile}.cred`, ...options.declared.files.values()];
-      return SecretStore.of({ list, set, delete: remove, resolve, readCredentials, writeCredential, files });
+      return SecretStore.of({ list, set, delete: remove, resolve, readCredentials, writeCredential, files, runDirectory: join(options.dir, "run") });
     }),
   );
 

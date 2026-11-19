@@ -60,6 +60,11 @@ export interface SecretStoreService {
    * its systemd-encrypted copy, and every declared secret's file. Some may not exist yet.
    */
   readonly files: ReadonlyArray<string>;
+  /**
+   * A folder inside the stored secrets' one (so in `files`), for files holding secrets
+   * the app hands a server for a moment: a browser's sign-in secrets as it starts.
+   */
+  readonly runDirectory: string;
 }
 
 export class SecretStore extends Context.Service<SecretStore, SecretStoreService>()("SecretStore") {}

@@ -18,6 +18,8 @@ export type TimelineItem =
   | { readonly kind: "compaction-request"; readonly key: string }
   /** The receipt of a schedule the agent saved, with a link to edit it. */
   | { readonly kind: "schedule"; readonly key: string; readonly receipt: Extract<ThreadEvent, { readonly _tag: "schedule.saved" }> }
+  /** A page the agent opened wants a sign-in the project doesn't have, with a link to add one. */
+  | { readonly kind: "sign-in"; readonly key: string; readonly card: Extract<ThreadEvent, { readonly _tag: "browser.sign_in_needed" }> }
   | { readonly kind: "agent"; readonly key: string; text: string }
   | {
       readonly kind: "tool";
@@ -155,6 +157,9 @@ export const applyEvent = (timeline: Timeline, stored: StoredThreadEvent): boole
     }
     case "schedule.saved":
       timeline.items.push({ kind: "schedule", key: String(stored.seq), receipt: event });
+      break;
+    case "browser.sign_in_needed":
+      timeline.items.push({ kind: "sign-in", key: String(stored.seq), card: event });
       break;
     case "turn.changes":
       timeline.items.push({

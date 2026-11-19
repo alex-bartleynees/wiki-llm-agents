@@ -708,6 +708,36 @@ an agent by listing `playwright` in its **MCP servers**.
   built-in server in Settings, which writes it with this machine's command and
   paths). The file replaces the built-in server completely, even when it doesn't load.
 
+#### Browser sign-ins
+
+For local dev apps with a plain test account (no MFA), a project can list **browser
+sign-ins** (project Overview › browser sign-ins): a name, the sites it may be used on
+(`http://localhost:3000`, plus an identity provider's if the login goes there), and
+credentials: the name the agent types (`APP_PASSWORD`) and the secret in
+Settings › Secrets whose value the browser types. Every thread in the project gets
+them, whatever its agent, from its next message.
+
+- **How:** the app writes the values to a dotenv file (mode 0600, in the stored
+  secrets' folder, `secrets/run`) and starts the browser with Playwright's
+  `--secrets <file>`. Playwright reads it once as it starts, and the app deletes it
+  straight after. When the agent types a credential's name with `browser_type` or
+  `browser_fill_form`, the browser types the value. Changing the credentials restarts
+  the thread's browser.
+- **Guards:** Playwright calls `--secrets` a convenience, not a security feature, so the
+  gateway refuses a credential's name typed on a page outside the sign-in's sites (the
+  page as the browser last reported it), and always asks first, even when the agent's
+  `tools` is `allow`. The card shows the names, never a value. The values are redacted
+  from every result, as Playwright also does, and `browser_evaluate` stays left out, so
+  the page can't be read back by script.
+- **Agents are told** the names in the project's instructions, and never to ask for a
+  password in the conversation. A page wanting a sign-in the project lacks:
+  `browser_sign_in_needed` shows a card in the thread linking to the project, with a
+  new sign-in for the site ready to fill in.
+- A server file sets `browserSignIns: true` (stdio only) for a browser to get them; the
+  built-in browser has it, and keeps it when saved as `mcp/playwright.yaml`.
+- Use test accounts with the fewest permissions, never a production admin. A value
+  holding a single quote, a backtick and a double quote can't be written to the file.
+
 Live check with the real browser (no model): `WIKI_AGENTS_LIVE_BROWSER=1
 WIKI_AGENTS_BROWSER_MCP=$(nix build --no-link --print-out-paths
 nixpkgs#playwright-mcp)/bin/playwright-mcp nix develop -c npx -w @wiki-agents/server

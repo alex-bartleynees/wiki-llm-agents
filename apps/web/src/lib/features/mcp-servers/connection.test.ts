@@ -13,6 +13,7 @@ const server = (transport: McpServerSummary["transport"]): McpServerSummary => (
   access: null,
   oauth: null,
   excludeTools: [],
+  browserSignIns: false,
   builtIn: false,
 });
 

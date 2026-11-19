@@ -49,6 +49,7 @@ const http = (url: string, extra: Partial<McpServerInput> = {}): McpServerInput 
   access: null,
   oauth: null,
   excludeTools: [],
+  browserSignIns: false,
   ...extra,
 });
 

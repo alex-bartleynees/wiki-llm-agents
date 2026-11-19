@@ -20,7 +20,7 @@ const transportOf = ({ transport }: McpServerInput) =>
  * A server file with `input`'s settings. When `existing` (the file as it is on disk)
  * is a YAML map, its settings are replaced in place, so comments above them and
  * their order stay. `access` is left out when it follows the agent, `excludeTools`
- * when it is empty.
+ * when it is empty, `browserSignIns` when false.
  *
  * The result isn't checked here; the caller parses it as the loader would.
  */
@@ -42,5 +42,7 @@ export const mcpServerFileText = (input: McpServerInput, existing: string | null
   const excluded = [...new Set(input.excludeTools.map((name) => name.trim()).filter((name) => name !== ""))];
   if (excluded.length === 0) doc.delete("excludeTools");
   else doc.set("excludeTools", doc.createNode(excluded));
+  if (input.browserSignIns && input.transport.type === "stdio") doc.set("browserSignIns", true);
+  else doc.delete("browserSignIns");
   return `${doc.toString({ lineWidth: 0 }).trimEnd()}\n`;
 };

@@ -1,6 +1,9 @@
 import { ArchiveProjectResponse } from "@wiki-agents/contracts/projects/archive-project/response";
 import { CommitChangesRequest } from "@wiki-agents/contracts/projects/commit-changes/request";
 import { CommitChangesResponse } from "@wiki-agents/contracts/projects/commit-changes/response";
+import { GetBrowserSignInsResponse } from "@wiki-agents/contracts/projects/get-browser-sign-ins/response";
+import { SaveBrowserSignInsRequest } from "@wiki-agents/contracts/projects/save-browser-sign-ins/request";
+import { SaveBrowserSignInsResponse } from "@wiki-agents/contracts/projects/save-browser-sign-ins/response";
 import { GetCommitMessageSettingsResponse } from "@wiki-agents/contracts/projects/get-commit-message-settings/response";
 import { GetDiffResponse } from "@wiki-agents/contracts/projects/get-diff/response";
 import { GetGitStatusResponse } from "@wiki-agents/contracts/projects/get-git-status/response";
@@ -86,3 +89,10 @@ export const getCommitMessageSettings = (signal?: AbortSignal) => getJson("/api/
 
 export const saveCommitMessageSettings = (body: SaveCommitMessageSettingsRequest) =>
   putJson("/api/commit-messages/settings", SaveCommitMessageSettingsRequest, body, SaveCommitMessageSettingsResponse);
+
+/** The project's browser sign-ins: names, sites and secret names, never a value. */
+export const getBrowserSignIns = (projectId: string, signal?: AbortSignal) => getJson(`${projectPath(projectId)}/browser-sign-ins`, GetBrowserSignInsResponse, signal);
+
+/** Replaces the project's browser sign-ins; 400 lists what to fix. */
+export const saveBrowserSignIns = (projectId: string, body: SaveBrowserSignInsRequest) =>
+  putJson(`${projectPath(projectId)}/browser-sign-ins`, SaveBrowserSignInsRequest, body, SaveBrowserSignInsResponse);

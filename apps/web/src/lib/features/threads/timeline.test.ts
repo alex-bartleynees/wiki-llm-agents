@@ -121,3 +121,19 @@ describe("a compaction you asked for in the timeline", () => {
     expect(hasConversation(timeline)).toBe(false);
   });
 });
+
+describe("browser sign-ins in the timeline", () => {
+  it("shows a card to add a sign-in the agent needs, with where to add it", () => {
+    const card = {
+      _tag: "browser.sign_in_needed",
+      turnId: "a",
+      projectId: "p",
+      site: "Demo local",
+      origin: "http://localhost:4200",
+      reason: null,
+      href: "/projects/p?add-sign-in=Demo+local&origin=http%3A%2F%2Flocalhost%3A4200#browser-sign-ins",
+    } as const;
+    const timeline = apply([{ _tag: "user.message", turnId: "a", text: "check the login" }, { _tag: "turn.started", turnId: "a" }, card]);
+    expect(timeline.items.at(-1)).toEqual({ kind: "sign-in", key: "3", card });
+  });
+});

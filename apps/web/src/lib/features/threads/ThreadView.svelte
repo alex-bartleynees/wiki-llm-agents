@@ -11,6 +11,7 @@
   import { providers } from "./providers.svelte.ts";
   import RequestCard from "./RequestCard.svelte";
   import ScheduleReceipt from "./ScheduleReceipt.svelte";
+  import SignInNeededCard from "./SignInNeededCard.svelte";
   import TurnChanges from "#lib/features/changes/TurnChanges.svelte";
   import { openThread } from "./open-thread.svelte.ts";
   import { STATUS_LABEL } from "./status.ts";
@@ -155,6 +156,8 @@
       <PlanCard steps={item.steps} live={timeline.runningTurn === item.turnId} />
     {:else if item.kind === "schedule"}
       <ScheduleReceipt receipt={item.receipt} />
+    {:else if item.kind === "sign-in"}
+      <SignInNeededCard card={item.card} />
     {:else if item.kind === "changes"}
       {#if openThread.thread}
         <TurnChanges vaultId={openThread.thread.vaultId} changes={item.changes} />

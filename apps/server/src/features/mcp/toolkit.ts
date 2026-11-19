@@ -14,6 +14,7 @@ import type { ThreadRepository } from "../threads/repository.js";
 import type { ThreadActors } from "../threads/thread-actors.js";
 import type { ThreadBus } from "../threads/thread-bus.js";
 import type { VaultRepository } from "../vaults/repository.js";
+import { BrowserSignInNeeded, browserSignInNeeded } from "./tools/browser-sign-in-needed/tool.js";
 import { ProjectIgnoredFiles, projectIgnoredFiles } from "./tools/project-ignored-files/tool.js";
 import { VaultBacklinks, vaultBacklinks } from "./tools/vault-backlinks/tool.js";
 import { VaultCreateNote, vaultCreateNote } from "./tools/vault-create-note/tool.js";
@@ -49,6 +50,7 @@ export const VaultToolkit = Toolkit.make(
   VaultCreateNote,
   VaultEditNote,
   ProjectIgnoredFiles,
+  BrowserSignInNeeded,
   ScheduleCreate,
   ScheduleList,
   ScheduleUpdate,
@@ -95,6 +97,7 @@ export const VaultToolkitLive = VaultToolkit.toLayer(
       vault_recent_changes: (params) => withServices(vaultRecentChanges(params)),
       vault_status: () => withServices(vaultStatus(VAULT_TOOL_NAMES)),
       project_ignored_files: () => withServices(projectIgnoredFiles()),
+      browser_sign_in_needed: (params) => withServices(browserSignInNeeded(params)),
       schedule_create: (params) => withServices(scheduleCreate(params)),
       schedule_list: () => withServices(scheduleList()),
       schedule_update: (params) => withServices(scheduleUpdate(params)),

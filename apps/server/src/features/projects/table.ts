@@ -1,3 +1,4 @@
+import type { BrowserSignIn } from "@wiki-agents/contracts/projects/model";
 import { integer, primaryKey, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 /** A project: its working directories (main directory first) and the shared vault it uses. */
@@ -76,4 +77,13 @@ export const commitMessageSettings = sqliteTable("commit_message_settings", {
   providerInstanceId: text("provider_instance_id"),
   /** Null for the provider's default (or Haiku, for the default Claude Code). */
   model: text("model"),
+});
+
+/**
+ * Each project's browser sign-ins (`BrowserSignIn`), as one list in the order you gave
+ * them: test accounts for local apps, by secret name, never a value.
+ */
+export const projectBrowserSignIns = sqliteTable("project_browser_sign_ins", {
+  projectId: text("project_id").primaryKey(),
+  signIns: text("sign_ins", { mode: "json" }).$type<ReadonlyArray<BrowserSignIn>>().notNull(),
 });

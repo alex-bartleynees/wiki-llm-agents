@@ -94,6 +94,7 @@ layer(makeTestApp())("tools a server's file leaves out", (it) => {
         access: null,
         oauth: null,
         excludeTools: ["echo", "exit"],
+        browserSignIns: false,
       };
       expect((yield* save("stand-in", server, null)).status).toBe(200);
       const { status } = yield* testServer("stand-in");

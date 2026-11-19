@@ -113,6 +113,7 @@ layer(TestApp)("vault MCP server", (it) => {
         "vault_create_note",
         "vault_edit_note",
         "project_ignored_files",
+        "browser_sign_in_needed",
         "schedule_create",
         "schedule_list",
         "schedule_update",

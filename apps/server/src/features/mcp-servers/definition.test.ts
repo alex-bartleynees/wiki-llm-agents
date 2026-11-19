@@ -21,8 +21,16 @@ describe("parseMcpServer", () => {
       access: null,
       oauth: null,
       excludeTools: [],
+      browserSignIns: false,
       builtIn: false,
     });
+  });
+
+  it("gives a stdio browser the project's sign-ins only when its file says so", () => {
+    const stdio = "transport:\n  type: stdio\n  command: playwright-mcp\n";
+    expect(Result.getOrThrow(parse(`${stdio}browserSignIns: true\n`)).browserSignIns).toBe(true);
+    expect(Result.getOrThrow(parse(stdio)).browserSignIns).toBe(false);
+    expect(problems("transport:\n  type: http\n  url: https://example.com/mcp\nbrowserSignIns: true\n")).toEqual(["browserSignIns: Only a browser the app runs (`type: stdio`) gets sign-ins."]);
   });
 
   it("reads a stdio server with every setting", () => {

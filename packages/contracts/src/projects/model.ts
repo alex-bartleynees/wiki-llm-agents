@@ -184,3 +184,80 @@ export const CommitMessageProvider = Schema.Struct({
   model: Schema.NullOr(Schema.String),
 });
 export type CommitMessageProvider = typeof CommitMessageProvider.Type;
+
+/**
+ * A name the agent types in place of a credential (`APP_PASSWORD`): capitals, digits
+ * and `_`, at least four characters, so ordinary text an agent types is never one.
+ */
+export const SIGN_IN_VARIABLE = /^[A-Z][A-Z0-9_]{3,63}$/;
+
+/** A secret's name in Settings › Secrets: lowercase letters, digits and hyphens. */
+export const SECRET_NAME = /^[a-z0-9][a-z0-9-]*$/;
+
+/** One credential of a sign-in: the name the agent types, and the secret whose value the browser types instead. */
+export const BrowserCredential = Schema.Struct({
+  /** What the agent types, e.g. `APP_PASSWORD`; unique across the project's sign-ins. */
+  variable: Schema.String,
+  /** The secret's name in Settings › Secrets, e.g. `demo-password`. */
+  secret: Schema.String,
+});
+export type BrowserCredential = typeof BrowserCredential.Type;
+
+/**
+ * A test account the built-in browser signs in to a local app with, for every thread in
+ * the project. The agent is told the variables' names only; the browser types the
+ * secrets' values, and only on a page at one of `origins`.
+ */
+export const BrowserSignIn = Schema.Struct({
+  /** What you and the agent call it, e.g. "My app (local)". */
+  name: Schema.String,
+  /** Where its credentials may be typed: `http://localhost:3000`, and the identity provider's if the login goes there. */
+  origins: Schema.Array(Schema.String),
+  credentials: Schema.Array(BrowserCredential),
+});
+export type BrowserSignIn = typeof BrowserSignIn.Type;
+
+/** The WHATWG `URL` every runtime here has; contracts are built without DOM or Node types. */
+declare const URL: new (input: string) => { readonly protocol: string; readonly origin: string };
+
+/** `http://localhost:3000/login` → `http://localhost:3000`; null for anything that isn't an http(s) address. */
+export const originOf = (address: string): string | null => {
+  try {
+    const url = new URL(address.trim());
+    return url.protocol === "http:" || url.protocol === "https:" ? url.origin : null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * What is wrong with a project's sign-ins, each problem naming the sign-in, for you to
+ * fix; empty when they can be saved. Origins are compared as `originOf` gives them.
+ */
+export const browserSignInProblems = (signIns: ReadonlyArray<BrowserSignIn>): ReadonlyArray<string> => {
+  const problems: Array<string> = [];
+  const names = new Set<string>();
+  const variables = new Set<string>();
+  signIns.forEach((signIn, index) => {
+    const name = signIn.name.trim();
+    const label = name === "" ? `Sign-in ${index + 1}` : `"${name}"`;
+    if (name === "") problems.push(`${label}: give it a name.`);
+    else if (names.has(name.toLowerCase())) problems.push(`${label}: another sign-in has this name.`);
+    names.add(name.toLowerCase());
+    if (signIn.origins.length === 0) problems.push(`${label}: add the site it signs in to, e.g. http://localhost:3000.`);
+    for (const origin of signIn.origins) {
+      if (originOf(origin) === null) problems.push(`${label}: "${origin}" isn't an http:// or https:// address.`);
+    }
+    if (signIn.credentials.length === 0) problems.push(`${label}: add at least one credential.`);
+    for (const credential of signIn.credentials) {
+      if (!SIGN_IN_VARIABLE.test(credential.variable)) {
+        problems.push(`${label}: "${credential.variable}" must be 4 to 64 capital letters, digits and _, starting with a letter (e.g. APP_PASSWORD).`);
+      } else if (variables.has(credential.variable)) {
+        problems.push(`${label}: ${credential.variable} is used twice; each name may stand for one secret.`);
+      }
+      variables.add(credential.variable);
+      if (!SECRET_NAME.test(credential.secret)) problems.push(`${label}: choose a secret for ${credential.variable || "each credential"}.`);
+    }
+  });
+  return problems;
+};

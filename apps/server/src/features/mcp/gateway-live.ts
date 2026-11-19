@@ -16,6 +16,7 @@ import {
   toolsOf,
   truncateResult,
 } from "./gateway.js";
+import { askingLevel, pageUrlOf, signInDetail, signInRefusal, typedCredentials } from "./sign-in-guard.js";
 
 /** How long a turn waits for a server's tool list before starting without its tools. */
 export const PREPARE_TIMEOUT = "15 seconds" satisfies Duration.Input;
@@ -51,6 +52,9 @@ export const McpGatewayLive = Layer.effect(
     const snapshots = new Map<string, ThreadSnapshot>();
     /** Kept after a thread is released, so its next entry never reuses a revision with other tools. */
     const revisions = new Map<string, { readonly fingerprint: string; readonly revision: number }>();
+    /** Each thread's browser page, as its last result said: `<thread>|<server>` → URL. */
+    const pages = new Map<string, string>();
+    const pageKey = (threadId: string, serverId: string) => `${threadId}|${serverId}`;
 
     const callerSnapshot = Effect.map(Effect.serviceOption(VaultCaller), (caller) =>
       Option.isNone(caller) ? undefined : snapshots.get(caller.value.threadId),
@@ -63,15 +67,36 @@ export const McpGatewayLive = Layer.effect(
         // Hidden from the thread's list too; only a stale client gets here.
         if (snapshot === undefined || tool === undefined) return yield* failed(`${name} isn't one of this thread's tools now.`);
         if (approvals === undefined) return yield* failed("The app isn't ready to run other servers' tools yet.");
+        const page = pages.get(pageKey(snapshot.context.threadId, tool.serverId)) ?? null;
+        const typed = tool.browserSignIns ? typedCredentials(tool.tool.name, args, snapshot.context.signIns ?? []) : [];
+        if (typed.length > 0) {
+          const refusal = signInRefusal(typed, page);
+          if (refusal !== null) return yield* failed(refusal);
+        }
+        const prompt = approvalPrompt(tool, args);
         const approved = yield* approvals
-          .approve(snapshot.context.threadId, { level: (autonomy) => toolCallLevel(autonomy, tool), prompt: approvalPrompt(tool, args) })
+          .approve(
+            snapshot.context.threadId,
+            typed.length === 0
+              ? { level: (autonomy) => toolCallLevel(autonomy, tool), prompt }
+              : { level: (autonomy) => askingLevel(toolCallLevel(autonomy, tool)), prompt: { ...prompt, detail: `${signInDetail(typed, page)}\n${prompt.detail}` } },
+          )
           .pipe(Effect.result);
         if (approved._tag === "Failure") return yield* failed(approved.failure.message);
+        // Another call may have moved the page while you were asked.
+        if (typed.length > 0) {
+          const refusal = signInRefusal(typed, pages.get(pageKey(snapshot.context.threadId, tool.serverId)) ?? null);
+          if (refusal !== null) return yield* failed(refusal);
+        }
         const forwarded = pool.callTool(tool.serverId, snapshot.context, tool.tool.name, (args ?? {}) as Record<string, unknown>, { timeout: CALL_TIMEOUT });
         // Stop ends the turn: the call is cancelled with it rather than left running upstream.
         const raced = yield* Effect.raceFirst(Effect.map(Effect.result(forwarded), Option.some), Effect.as(approved.success, Option.none()));
         if (Option.isNone(raced)) return yield* failed(`The turn ended, so the call to ${tool.serverTitle} was cancelled.`);
         const result = raced.value;
+        if (result._tag === "Success" && tool.browserSignIns) {
+          const now = pageUrlOf(result.success);
+          if (now !== null) pages.set(pageKey(snapshot.context.threadId, tool.serverId), now);
+        }
         if (result._tag === "Success") {
           return yield* decodeResult(result.success).pipe(
             Effect.flatMap((decoded) => {
@@ -139,7 +164,11 @@ export const McpGatewayLive = Layer.effect(
           return { names: tools.map((tool) => tool.name).sort(), revision, notices };
         }),
 
-      release: (threadId) => Effect.sync(() => void snapshots.delete(threadId)),
+      release: (threadId) =>
+        Effect.sync(() => {
+          snapshots.delete(threadId);
+          for (const key of [...pages.keys()]) if (key.startsWith(`${threadId}|`)) pages.delete(key);
+        }),
 
       attach: (mcp, checks) =>
         Effect.gen(function* () {

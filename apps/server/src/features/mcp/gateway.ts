@@ -54,6 +54,8 @@ export interface GatewayTool {
   readonly serverTitle: string;
   /** The server's `access` when the tool list was read: overrides the agent's autonomy for its tools. */
   readonly access: AutonomyLevel | null;
+  /** The server is a browser given the project's sign-ins: typing a credential's name is checked (`sign-in-guard.ts`). */
+  readonly browserSignIns: boolean;
   /** The server's own description of it, with its own name. */
   readonly tool: McpSchema.Tool;
 }
@@ -130,12 +132,12 @@ export const serversFor = (servers: ReadonlyArray<McpServerSummary>, agentServer
 });
 
 /** A server's tools split into those threads get and those held back, with why. */
-export const toolsOf = (server: Pick<McpServerSummary, "id" | "title" | "access">, tools: ReadonlyArray<McpSchema.Tool>) => {
+export const toolsOf = (server: Pick<McpServerSummary, "id" | "title" | "access" | "browserSignIns">, tools: ReadonlyArray<McpSchema.Tool>) => {
   const given: Array<GatewayTool> = [];
   const heldBack: Array<{ readonly name: string; readonly problem: string }> = [];
   for (const tool of tools) {
     const problem = gatewayToolProblem(server.id, { name: tool.name });
-    if (problem === null) given.push({ name: gatewayToolName(server.id, tool.name), serverId: server.id, serverTitle: server.title, access: server.access, tool });
+    if (problem === null) given.push({ name: gatewayToolName(server.id, tool.name), serverId: server.id, serverTitle: server.title, access: server.access, browserSignIns: server.browserSignIns, tool });
     else heldBack.push({ name: tool.name, problem });
   }
   return { given, heldBack };

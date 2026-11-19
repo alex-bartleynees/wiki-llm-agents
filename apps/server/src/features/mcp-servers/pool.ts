@@ -1,4 +1,5 @@
 import type { McpServerStatus } from "@wiki-agents/contracts/mcp-servers/model";
+import type { BrowserSignIn } from "@wiki-agents/contracts/projects/model";
 import { Context, Data, type Duration, type Effect } from "effect";
 import type { McpSchema } from "effect/ai";
 import type { McpServerNotFound } from "./catalog.js";
@@ -14,6 +15,11 @@ export interface McpScopeContext {
   readonly projectId: string | null;
   /** Where a `stdio` server runs when its file gives no `cwd`: the project's main working directory. */
   readonly cwd: string | null;
+  /**
+   * The project's browser sign-ins, as of the thread's last turn start; a server with
+   * `browserSignIns` gets their secrets (`sign-ins.ts`). Left out: none.
+   */
+  readonly signIns?: ReadonlyArray<BrowserSignIn>;
 }
 
 /** The server can't be reached or used now; `reason` is for the user and holds no secret. */

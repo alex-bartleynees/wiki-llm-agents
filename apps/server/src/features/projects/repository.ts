@@ -1,4 +1,4 @@
-import type { Project, Worktree } from "@wiki-agents/contracts/projects/model";
+import type { BrowserSignIn, Project, Worktree } from "@wiki-agents/contracts/projects/model";
 import { Context, type Effect, type Option } from "effect";
 import type { DbError } from "../../shared/persistence/errors.js";
 
@@ -52,6 +52,10 @@ export interface ProjectRepositoryService {
   /** Both null until saved. */
   readonly commitMessageSettings: Effect.Effect<CommitMessageSettings, DbError>;
   readonly saveCommitMessageSettings: (settings: CommitMessageSettings) => Effect.Effect<void, DbError>;
+  /** The project's browser sign-ins; empty until saved. */
+  readonly browserSignIns: (projectId: string) => Effect.Effect<ReadonlyArray<BrowserSignIn>, DbError>;
+  /** Replaces the project's list. */
+  readonly saveBrowserSignIns: (projectId: string, signIns: ReadonlyArray<BrowserSignIn>) => Effect.Effect<void, DbError>;
 }
 
 export class ProjectRepository extends Context.Service<ProjectRepository, ProjectRepositoryService>()("ProjectRepository") {}

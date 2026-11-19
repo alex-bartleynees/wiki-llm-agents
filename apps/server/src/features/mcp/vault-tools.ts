@@ -1,3 +1,4 @@
+import type { BrowserSignIn } from "@wiki-agents/contracts/projects/model";
 import { Context, type Effect, type Scope } from "effect";
 
 /**
@@ -29,9 +30,10 @@ export interface VaultToolsAccess {
   /**
    * The entry for the next turn, with the tools of the servers every thread gets and
    * of `agentServers`: the same token until it nears expiry or the tools change, then
-   * a new one.
+   * a new one. `signIns` are the project's browser sign-ins as they are now (none when
+   * left out): a browser that takes them is restarted with them when they change.
    */
-  readonly current: (agentServers: ReadonlyArray<string>) => Effect.Effect<VaultToolsTurn>;
+  readonly current: (agentServers: ReadonlyArray<string>, signIns?: ReadonlyArray<BrowserSignIn>) => Effect.Effect<VaultToolsTurn>;
 }
 
 /** The thread whose tools these are, and where its upstream connections run (see `McpScopeContext`). */

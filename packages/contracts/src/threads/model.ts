@@ -152,6 +152,24 @@ export const NoteOpened = Schema.TaggedStruct("note.opened", {
 });
 
 /**
+ * The agent reached a page that wants a sign-in the project doesn't have
+ * (`browser_sign_in_needed`): a card with a link to add one. You add it in the
+ * project, never in the conversation; the browser has it from the next turn.
+ */
+export const SignInNeeded = Schema.TaggedStruct("browser.sign_in_needed", {
+  turnId: Schema.String,
+  projectId: Schema.String,
+  /** What the agent calls the site, e.g. "My app (local)". */
+  site: Schema.String,
+  /** The page's origin, e.g. `http://localhost:3000`. */
+  origin: Schema.String,
+  /** Why it needs one, in the agent's words; null when it gave none. */
+  reason: Schema.NullOr(Schema.String),
+  /** Where you add it: the project's browser sign-ins. */
+  href: Schema.String,
+});
+
+/**
  * What the turn changed in the vault's notes, recorded as it finishes (only when it
  * changed something), before `turn.finished`.
  */
@@ -273,6 +291,7 @@ export const ThreadEvent = Schema.Union([
   RequestOpened,
   RequestResolved,
   NoteOpened,
+  SignInNeeded,
   TurnNotice,
   TurnChanges,
   ChangeUndone,

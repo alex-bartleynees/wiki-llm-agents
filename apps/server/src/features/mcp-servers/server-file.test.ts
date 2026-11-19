@@ -12,6 +12,7 @@ const GITHUB: McpServerInput = {
   access: null,
   oauth: null,
   excludeTools: [],
+  browserSignIns: false,
 };
 
 describe("mcpServerFileText", () => {
@@ -35,6 +36,7 @@ describe("mcpServerFileText", () => {
       access: "deny",
       oauth: null,
       excludeTools: [],
+      browserSignIns: false,
     };
     const parsed = parseMcpServer("browser", "/config/mcp/browser.yaml", mcpServerFileText(input, null));
     expect(Result.getOrThrow(parsed)).toEqual({ id: "browser", path: "/config/mcp/browser.yaml", builtIn: false, ...input });

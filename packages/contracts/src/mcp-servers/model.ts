@@ -72,6 +72,12 @@ export const McpServerInput = Schema.Struct({
    * (an open tab after an upgrade) still saves.
    */
   excludeTools: Schema.Array(Schema.String).pipe(Schema.withDecodingDefaultKey(Effect.succeed([]))),
+  /**
+   * A browser (Playwright MCP, stdio) that gets the thread's project's browser sign-ins:
+   * their secrets in a `--secrets` file, typed only when the agent types a credential's
+   * name on one of the sign-in's sites. False when left out.
+   */
+  browserSignIns: Schema.Boolean.pipe(Schema.withDecodingDefaultKey(Effect.succeed(false))),
 });
 export type McpServerInput = typeof McpServerInput.Type;
 

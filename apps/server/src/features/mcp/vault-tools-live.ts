@@ -1,3 +1,4 @@
+import type { BrowserSignIn } from "@wiki-agents/contracts/projects/model";
 import { Clock, Duration, Effect, Layer } from "effect";
 import { HttpServer } from "effect/http";
 import { McpGateway } from "./gateway.js";
@@ -34,9 +35,9 @@ export const VaultToolsLive = Layer.effect(
           let issuedFor = -1;
           let lastNotices = "[]";
           yield* Effect.addFinalizer(() => Effect.andThen(gateway.release(caller.threadId), issued === undefined ? Effect.void : tokens.revoke(issued.token)));
-          const current = (agentServers: ReadonlyArray<string>) =>
+          const current = (agentServers: ReadonlyArray<string>, signIns: ReadonlyArray<BrowserSignIn> = []) =>
             Effect.gen(function* () {
-              const tools = yield* gateway.prepare(context, agentServers);
+              const tools = yield* gateway.prepare({ ...context, signIns }, agentServers);
               const now = yield* Clock.currentTimeMillis;
               // A new token makes every provider register the entry again, and so list its tools again.
               if (issued === undefined || issued.expiresAt - now <= RENEW_BEFORE || issuedFor !== tools.revision) {

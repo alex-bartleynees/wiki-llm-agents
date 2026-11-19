@@ -8,7 +8,7 @@ import { approvalPrompt, MAX_APPROVAL_ARGUMENTS, MAX_RESULT_TEXT, toolCallLevel,
 const tool = (name: string, annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean }) =>
   Schema.decodeUnknownSync(McpSchema.Tool)({ name, inputSchema: { type: "object" }, ...(annotations === undefined ? {} : { annotations }) });
 
-const server = { id: "github", title: "GitHub", access: null };
+const server = { id: "github", title: "GitHub", access: null, browserSignIns: false };
 
 describe("toolCallLevel", () => {
   const autonomy = { ...DEFAULT_AUTONOMY, read: "allow" as const, tools: "deny" as const };

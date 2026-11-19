@@ -71,6 +71,7 @@ type Message =
   | { readonly _tag: "SetDone"; readonly done: boolean; readonly reply: Deferred.Deferred<ThreadSummary, ThreadBusy | DbError> }
   | { readonly _tag: "OpenNote"; readonly note: OpenedNote; readonly reply: Deferred.Deferred<void, NoTurnRunning | DbError> }
   | { readonly _tag: "ScheduleSaved"; readonly receipt: ScheduleReceipt; readonly reply: Deferred.Deferred<void, NoTurnRunning | DbError> }
+  | { readonly _tag: "SignInNeeded"; readonly card: SignInCard; readonly reply: Deferred.Deferred<void, NoTurnRunning | DbError> }
   | { readonly _tag: "ChangeUndone"; readonly turnId: string; readonly changeId: string; readonly reply: Deferred.Deferred<void, DbError> }
   /** `run` when no turn is running or waiting, else `busy`; each completes the caller's reply. */
   | { readonly _tag: "WhileIdle"; readonly run: Effect.Effect<void>; readonly busy: Effect.Effect<void> }
@@ -109,6 +110,8 @@ export interface SendOptions {
 
 /** A schedule the agent saved with the schedule tools, shown as a receipt in the turn. */
 export type ScheduleReceipt = Omit<Extract<ThreadEvent, { readonly _tag: "schedule.saved" }>, "_tag" | "turnId">;
+/** The "needs a sign-in" card `browser_sign_in_needed` shows in the conversation. */
+export type SignInCard = Omit<Extract<ThreadEvent, { readonly _tag: "browser.sign_in_needed" }>, "_tag" | "turnId">;
 
 /** What an unattended turn gets instead of your answer. */
 export const UNATTENDED_ANSWER =
@@ -152,6 +155,7 @@ export interface ThreadActor {
   readonly openNote: (note: OpenedNote) => Effect.Effect<void, NoTurnRunning | DbError>;
   /** Records the receipt of a schedule the agent saved, in the running turn. */
   readonly scheduleSaved: (receipt: ScheduleReceipt) => Effect.Effect<void, NoTurnRunning | DbError>;
+  readonly signInNeeded: (card: SignInCard) => Effect.Effect<void, NoTurnRunning | DbError>;
   /** Records that a change the thread's turn made was undone. */
   readonly changeUndone: (turnId: string, changeId: string) => Effect.Effect<void, DbError>;
   /**
@@ -271,11 +275,13 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     // Read before the tools, so MCP servers started for this turn already go without them.
     const { paths, names } = yield* secretMaterial.current;
     const agentServers = agentId === null ? [] : yield* catalog.get(agentId).pipe(Effect.map((found) => found.mcp), Effect.orElseSucceed(() => []));
-    const tools = yield* vaultTools.current(agentServers);
+    // Read every turn, so a sign-in added in the project reaches the browser on the next one.
+    const signIns = project === null ? [] : yield* projects.browserSignIns(project.id).pipe(Effect.orElseSucceed(() => []));
+    const tools = yield* vaultTools.current(agentServers, signIns);
     if (tools.notices.length > 0) yield* record(tools.notices.map((text): ThreadEvent => ({ _tag: "notice", turnId, text })));
     const setup: SessionSetup = {
       ...agent,
-      instructions: project === null ? agent.instructions : [...agent.instructions, projectInstruction(project, directories, vault.rootPath, worktree)],
+      instructions: project === null ? agent.instructions : [...agent.instructions, projectInstruction(project, directories, vault.rootPath, worktree, signIns)],
       projectRoots: project === null ? null : projectRoots(directories, vault.rootPath),
       attachmentFolders: yield* ownAttachmentFolders,
       protection: { paths, names },
@@ -706,6 +712,11 @@ export const makeThreadActor = Effect.fnUntraced(function* (
           if (turn === undefined) return yield* new NoTurnRunning({ threadId });
           yield* record([{ _tag: "schedule.saved", turnId: turn.id, ...message.receipt }]);
         })), (exit) => Deferred.done(message.reply, exit)));
+      case "SignInNeeded":
+        return Effect.asVoid(Effect.flatMap(Effect.exit(Effect.gen(function* () {
+          if (turn === undefined) return yield* new NoTurnRunning({ threadId });
+          yield* record([{ _tag: "browser.sign_in_needed", turnId: turn.id, ...message.card }]);
+        })), (exit) => Deferred.done(message.reply, exit)));
       case "ChangeUndone":
         return Effect.asVoid(
           Effect.flatMap(Effect.exit(record([{ _tag: "change.undone", turnId: message.turnId, changeId: message.changeId }])), (exit) =>
@@ -751,6 +762,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     setDone: (done) => ask((reply) => ({ _tag: "SetDone", done, reply })),
     openNote: (note) => ask((reply) => ({ _tag: "OpenNote", note, reply })),
     scheduleSaved: (receipt) => ask((reply) => ({ _tag: "ScheduleSaved", receipt, reply })),
+    signInNeeded: (card) => ask((reply) => ({ _tag: "SignInNeeded", card, reply })),
     changeUndone: (turnId, changeId) => ask((reply) => ({ _tag: "ChangeUndone", turnId, changeId, reply })),
     whileIdle: <A, E>(effect: Effect.Effect<A, E>) =>
       ask<A, E | ThreadBusy>((reply) => ({

@@ -25,6 +25,8 @@ export interface ServerForm {
   access: AutonomyLevel | "";
   /** Tools no agent gets, by the server's own names, one per line. */
   excludeTools: string;
+  /** Not edited here: kept as the server has it (the built-in browser's). */
+  browserSignIns: boolean;
 }
 
 export const BLANK_FORM: ServerForm = {
@@ -42,6 +44,7 @@ export const BLANK_FORM: ServerForm = {
   everyThread: false,
   access: "",
   excludeTools: "",
+  browserSignIns: false,
 };
 
 export const formFromServer = (server: McpServerInput): ServerForm => ({
@@ -51,6 +54,7 @@ export const formFromServer = (server: McpServerInput): ServerForm => ({
   everyThread: server.default,
   access: server.access ?? "",
   excludeTools: server.excludeTools.join("\n"),
+  browserSignIns: server.browserSignIns,
   ...(server.transport.type === "stdio"
     ? {
         type: "stdio" as const,
@@ -87,7 +91,7 @@ const lines = (text: string) => [...new Set(text.split("\n").map((line) => line.
 
 /** What the form saves, or what to fix in it first. */
 export const inputFromForm = (form: ServerForm): { readonly input: McpServerInput } | { readonly problems: ReadonlyArray<string> } => {
-  const shared = { title: form.title.trim(), scope: form.scope, default: form.everyThread, access: form.access === "" ? null : form.access, oauth: null, excludeTools: lines(form.excludeTools) };
+  const shared = { title: form.title.trim(), scope: form.scope, default: form.everyThread, access: form.access === "" ? null : form.access, oauth: null, excludeTools: lines(form.excludeTools), browserSignIns: form.type === "stdio" && form.browserSignIns };
   if (form.type === "stdio") {
     const env = pairs(form.env, "=", "the environment");
     if (env.problems.length > 0) return { problems: env.problems };

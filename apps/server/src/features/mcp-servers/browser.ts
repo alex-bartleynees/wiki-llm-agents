@@ -20,7 +20,8 @@ import { MCP_EXTENSION } from "./definition.js";
  *   origin blocking is a guardrail: it doesn't stop a redirect;
  * - no tools that run code outside the page or read files (`excludeTools`);
  * - `access` unset: the read-only tools (screenshots, snapshots, console) follow the
- *   agent's `read`, navigation and clicks its `tools`.
+ *   agent's `read`, navigation and clicks its `tools`;
+ * - the project's browser sign-ins (`browserSignIns`, see `sign-ins.ts`).
  */
 export const BROWSER_SERVER_ID = "playwright";
 
@@ -84,4 +85,5 @@ export const browserServer = (settings: BrowserSettings, folder: string): McpSer
   access: null,
   oauth: null,
   excludeTools: BROWSER_EXCLUDED_TOOLS,
+  browserSignIns: true,
 });

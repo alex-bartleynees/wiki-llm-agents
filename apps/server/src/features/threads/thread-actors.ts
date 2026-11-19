@@ -5,7 +5,7 @@ import { Context, Effect, Layer, RcMap } from "effect";
 import type { ToolCallCheck } from "../mcp/gateway.js";
 import type { AgentNoteWrite } from "../notes/agent-write/use-case.js";
 import type { ThreadBusy } from "./errors.js";
-import { type CompactStarted, makeThreadActor, type OpenedNote, type ScheduleReceipt, type SendOptions, type ThreadActor } from "./thread-actor.js";
+import { type CompactStarted, makeThreadActor, type OpenedNote, type ScheduleReceipt, type SendOptions, type SignInCard, type ThreadActor } from "./thread-actor.js";
 
 /** How long a ThreadActor with nothing running stays in memory after its last use. */
 export const ACTOR_IDLE_TIME = "5 minutes";
@@ -33,6 +33,8 @@ export interface ThreadActorsService {
   readonly recordContext:(threadId: string, note: ContextNote) => Effect.Effect<void, StartError | Effect.Error<ReturnType<ThreadActor["recordContext"]>>>;
   readonly openNote: (threadId: string, note: OpenedNote) => Effect.Effect<void, StartError | Effect.Error<ReturnType<ThreadActor["openNote"]>>>;
   readonly scheduleSaved: (threadId: string, receipt: ScheduleReceipt) => Effect.Effect<void, StartError | Effect.Error<ReturnType<ThreadActor["scheduleSaved"]>>>;
+  /** Shows the "needs a sign-in" card in the thread's running turn. */
+  readonly signInNeeded: (threadId: string, card: SignInCard) => Effect.Effect<void, StartError | Effect.Error<ReturnType<ThreadActor["signInNeeded"]>>>;
   readonly changeUndone: (threadId: string, turnId: string, changeId: string) => Effect.Effect<void, StartError | Effect.Error<ReturnType<ThreadActor["changeUndone"]>>>;
   /** Runs `effect` while the thread has no turn running or waiting (see `ThreadActor.whileIdle`). */
   readonly whileIdle: <A, E>(threadId: string, effect: Effect.Effect<A, E>) => Effect.Effect<A, StartError | E | ThreadBusy>;
@@ -64,6 +66,7 @@ export const ThreadActorsLive = Layer.effect(
       recordContext: (threadId, note) => withActor(threadId, (actor) => actor.recordContext(note)),
       openNote: (threadId, note) => withActor(threadId, (actor) => actor.openNote(note)),
       scheduleSaved: (threadId, receipt) => withActor(threadId, (actor) => actor.scheduleSaved(receipt)),
+      signInNeeded: (threadId, card) => withActor(threadId, (actor) => actor.signInNeeded(card)),
       changeUndone: (threadId, turnId, changeId) => withActor(threadId, (actor) => actor.changeUndone(turnId, changeId)),
       whileIdle: (threadId, effect) => withActor(threadId, (actor) => actor.whileIdle(effect)),
       wake: (threadId) => withActor(threadId, (actor) => actor.resumed),

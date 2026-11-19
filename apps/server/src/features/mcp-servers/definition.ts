@@ -38,6 +38,7 @@ const common = {
 /** Unknown keys are errors, so a typo (`comand: npx`) can't quietly start nothing. */
 const StdioFile = Schema.Struct({
   ...common,
+  browserSignIns: Schema.optionalKey(Schema.Boolean),
   transport: Schema.Struct({
     type: Schema.Literal("stdio"),
     command: NonEmpty,
@@ -146,6 +147,7 @@ export const parseMcpServer = (id: string, path: string, text: string): Result.R
   if (!isRecord(raw.transport)) return Result.fail(["transport: Say how to reach the server: `type: stdio` with a `command`, or `type: http` with a `url`."]);
   const type = raw.transport.type;
   if (type !== "stdio" && type !== "http") return Result.fail(["transport.type: Set it to `stdio` (a command the app runs) or `http` (a URL)."]);
+  if (type === "http" && "browserSignIns" in raw) return Result.fail(["browserSignIns: Only a browser the app runs (`type: stdio`) gets sign-ins."]);
   if (type === "stdio" && "oauth" in raw) return Result.fail(["oauth: Only a server reached by URL (`type: http`) signs in."]);
 
   const decoded: Result.Result<typeof StdioFile.Type | typeof HttpFile.Type, Schema.SchemaError> = type === "stdio" ? decodeStdio(raw) : decodeHttp(raw);
@@ -170,6 +172,7 @@ export const parseMcpServer = (id: string, path: string, text: string): Result.R
     access: file.access ?? null,
     oauth: "oauth" in file && file.oauth !== undefined ? { clientId: file.oauth.clientId ?? null, scopes: file.oauth.scopes ?? [] } : null,
     excludeTools: [...new Set(file.excludeTools ?? [])],
+    browserSignIns: "browserSignIns" in file && file.browserSignIns === true,
     builtIn: false,
   });
 };

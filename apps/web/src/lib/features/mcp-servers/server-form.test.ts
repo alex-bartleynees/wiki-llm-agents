@@ -10,6 +10,7 @@ const HTTP: McpServerInput = {
   access: null,
   oauth: null,
   excludeTools: [],
+  browserSignIns: false,
 };
 
 const COFFEE: McpServerInput = {
@@ -20,6 +21,7 @@ const COFFEE: McpServerInput = {
   access: null,
   oauth: { clientId: "coffee-journal-ai-agent", scopes: ["coffee-journal:read"] },
   excludeTools: [],
+  browserSignIns: false,
 };
 
 const STDIO: McpServerInput = {
@@ -30,6 +32,7 @@ const STDIO: McpServerInput = {
   access: "ask",
   oauth: null,
   excludeTools: ["browser_evaluate", "browser_file_upload"],
+  browserSignIns: false,
 };
 
 describe("the server form", () => {
@@ -53,7 +56,7 @@ describe("the server form", () => {
   it("trims what was typed and skips blank lines", () => {
     const form = { ...BLANK_FORM, type: "stdio" as const, title: " Notes ", command: " notes-mcp ", args: "\n serve \n\n", env: "\nA = 1\n", cwd: "  " };
     expect(inputFromForm(form)).toEqual({
-      input: { title: "Notes", transport: { type: "stdio", command: "notes-mcp", args: ["serve"], env: { A: "1" }, cwd: null }, scope: "app", default: false, access: null, oauth: null, excludeTools: [] },
+      input: { title: "Notes", transport: { type: "stdio", command: "notes-mcp", args: ["serve"], env: { A: "1" }, cwd: null }, scope: "app", default: false, access: null, oauth: null, excludeTools: [], browserSignIns: false },
     });
   });
 

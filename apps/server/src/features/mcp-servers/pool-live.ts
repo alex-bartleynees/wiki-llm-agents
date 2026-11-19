@@ -1,4 +1,7 @@
+import { randomUUID } from "node:crypto";
 import { homedir } from "node:os";
+import { join } from "node:path";
+import type { BrowserSignIn } from "@wiki-agents/contracts/projects/model";
 import type { McpServerStatus, McpToolInfo } from "@wiki-agents/contracts/mcp-servers/model";
 import { Cause, type Duration, Effect, Exit, FileSystem, Layer, Option, RcMap, Schema, Scope } from "effect";
 import { McpClient, type McpClientError, McpProtocol, McpSchema } from "effect/ai";
@@ -15,6 +18,7 @@ import { type McpServerDefinition, signsIn } from "./definition.js";
 import { McpCallFailed, McpPool, type McpScopeContext, McpServerUnavailable, McpToolNotFound, type McpToolResult } from "./pool.js";
 import { makeRedactor, redactJson } from "./redaction.js";
 import { resolveReferences } from "./references.js";
+import { credentialsOf, dotenvLine, SECRETS_FLAG, signInsFingerprint } from "./sign-ins.js";
 
 /** How the app introduces itself to servers. */
 const CLIENT_INFO = { name: "wiki-agents", version: "0.1.0" } as const;
@@ -93,7 +97,12 @@ export const connectionKey = (server: McpServerDefinition, context: McpScopeCont
   }
 };
 
-const fingerprintOf = (server: McpServerDefinition) => JSON.stringify([server.transport, server.scope, server.oauth, server.excludeTools]);
+/** A browser with sign-ins gets them from the thread's project; any other server none. */
+const signInsFor = (server: McpServerDefinition, context: Pick<McpScopeContext, "signIns">): ReadonlyArray<BrowserSignIn> =>
+  server.browserSignIns && server.transport.type === "stdio" ? (context.signIns ?? []) : [];
+
+const fingerprintOf = (server: McpServerDefinition, context: Pick<McpScopeContext, "signIns">) =>
+  JSON.stringify([server.transport, server.scope, server.oauth, server.excludeTools, signInsFingerprint(signInsFor(server, context))]);
 
 /** The server's tools without those its settings leave out. */
 export const withoutExcluded = (server: Pick<McpServerDefinition, "excludeTools">, tools: ReadonlyArray<McpSchema.Tool>) =>
@@ -142,7 +151,7 @@ export const makeMcpPool = (options: McpPoolOptions) =>
     const current = new Map<string, Entry>();
     const open = new Set<Entry>();
     /** What the next lookup of a key connects to; set just before `RcMap.get`. */
-    const requests = new Map<string, { readonly server: McpServerDefinition; readonly cwd: string | null }>();
+    const requests = new Map<string, { readonly server: McpServerDefinition; readonly cwd: string | null; readonly signIns: ReadonlyArray<BrowserSignIn> }>();
     /** The version each server spoke last, tried first next time. */
     const versions = new Map<string, Protocol>();
     /** Sign-in headers by server, reused for a short while; tokens remembered for redaction. */
@@ -206,6 +215,33 @@ export const makeMcpPool = (options: McpPoolOptions) =>
       }
     };
 
+    /**
+     * The sign-ins' secrets in a file only the owner can read, removed when `scope`
+     * closes (the caller also removes it once the browser has started and read it).
+     * Fails with a reason naming the sign-in and secret, never a value.
+     */
+    const writeSecretsFile = (signIns: ReadonlyArray<BrowserSignIn>) =>
+      Effect.gen(function* () {
+        const lines: Array<string> = [];
+        const values: Array<string> = [];
+        for (const credential of credentialsOf(signIns)) {
+          const field = `Browser sign-in "${credential.signIn}", ${credential.variable}`;
+          const value = yield* secrets.resolve(credential.secret).pipe(Effect.mapError((error) => `${field}: ${error.reason}`));
+          const line = dotenvLine(credential.variable, value);
+          if (line === null) return yield* Effect.fail(`${field}: the secret ${credential.secret} has a single quote, a backtick and a double quote (or \\n) in it, which Playwright's secrets file can't hold. Change the password, or the secret.`);
+          lines.push(line);
+          values.push(value);
+        }
+        // In the stored secrets' folder, which no agent may reach.
+        const path = join(secrets.runDirectory, `browser-${randomUUID()}.env`);
+        const write = Effect.gen(function* () {
+          yield* fs.makeDirectory(secrets.runDirectory, { recursive: true, mode: 0o700 });
+          yield* fs.writeFileString(path, `${lines.join("\n")}\n`, { mode: 0o600, flag: "wx" });
+        }).pipe(Effect.mapError(() => "The browser's sign-in secrets couldn't be written for it."));
+        yield* Effect.acquireRelease(write, () => fs.remove(path).pipe(Effect.ignore));
+        return { path, values, remove: fs.remove(path).pipe(Effect.ignore) };
+      });
+
     /** Opens the transport and client with one MCP version and lists the tools. */
     const openWith = (server: McpServerDefinition, protocol: Protocol, values: Readonly<Record<string, string>>, cwd: string | null) =>
       Effect.gen(function* () {
@@ -235,13 +271,21 @@ export const makeMcpPool = (options: McpPoolOptions) =>
         return { client, tools, protocolVersion: protocol.protocolVersion };
       });
 
-    /** A connection in the caller's scope: references filled in, then each MCP version in turn until one works. */
-    const connect = (server: McpServerDefinition, cwd: string | null) =>
+    /**
+     * A connection in the caller's scope: references filled in, then each MCP version in
+     * turn until one works. A browser with `signIns` gets their secrets file.
+     */
+    const connect = (definition: McpServerDefinition, cwd: string | null, signIns: ReadonlyArray<BrowserSignIn>) =>
       Effect.gen(function* () {
-        const unavailable = (reason: string) => new McpServerUnavailable({ serverId: server.id, reason });
-        const fields = server.transport.type === "stdio" ? (["transport.env", server.transport.env] as const) : (["transport.headers", server.transport.headers] as const);
+        const unavailable = (reason: string) => new McpServerUnavailable({ serverId: definition.id, reason });
+        const fields = definition.transport.type === "stdio" ? (["transport.env", definition.transport.env] as const) : (["transport.headers", definition.transport.headers] as const);
         const resolved = yield* resolveReferences(sources, fields[0], fields[1]).pipe(Effect.mapError((error) => unavailable(error.reason)));
-        const redact = redactorFor(server.id, resolved.used);
+        const secretsFile = definition.transport.type === "stdio" && signIns.length > 0 ? yield* writeSecretsFile(signIns).pipe(Effect.mapError(unavailable)) : null;
+        const server: McpServerDefinition =
+          secretsFile === null || definition.transport.type !== "stdio"
+            ? definition
+            : { ...definition, transport: { ...definition.transport, args: [...definition.transport.args, SECRETS_FLAG, secretsFile.path] } };
+        const redact = redactorFor(server.id, [...resolved.used, ...(secretsFile?.values ?? [])]);
         const preferred = versions.get(server.id);
         const order = preferred === undefined ? PROTOCOLS : [preferred, ...PROTOCOLS.filter((protocol) => protocol !== preferred)];
         const scope = yield* Effect.scope;
@@ -249,6 +293,8 @@ export const makeMcpPool = (options: McpPoolOptions) =>
         for (const protocol of order) {
           const attempt = yield* Scope.fork(scope, "sequential");
           const exit = yield* Effect.exit(Scope.provide(openWith(server, protocol, resolved.values, cwd), attempt));
+          // Playwright reads it once, as it starts: past this, it only waits to leak.
+          if (secretsFile !== null) yield* secretsFile.remove;
           if (Exit.isSuccess(exit)) {
             versions.set(server.id, protocol);
             const connection: Connection = { ...exit.value, redact };
@@ -273,7 +319,7 @@ export const makeMcpPool = (options: McpPoolOptions) =>
           if (request === undefined) return yield* Effect.die(new Error(`No request for MCP connection ${key}`));
           const { server } = request;
           const now = yield* clock.now;
-          const connection = yield* connect(server, request.cwd).pipe(
+          const connection = yield* connect(server, request.cwd, request.signIns).pipe(
             Effect.tapError((error) =>
               Effect.sync(() => {
                 const failures = (backoffs.get(key)?.failures ?? 0) + 1;
@@ -284,7 +330,7 @@ export const makeMcpPool = (options: McpPoolOptions) =>
           );
           backoffs.delete(key);
           remember(server.id, { tools: connection.tools, listedAt: now, protocolVersion: connection.protocolVersion, problem: null });
-          const entry: Entry = { serverId: server.id, fingerprint: fingerprintOf(server) };
+          const entry: Entry = { serverId: server.id, fingerprint: fingerprintOf(server, request) };
           current.set(key, entry);
           open.add(entry);
           yield* Effect.addFinalizer(() =>
@@ -309,14 +355,14 @@ export const makeMcpPool = (options: McpPoolOptions) =>
       Effect.gen(function* () {
         const key = connectionKey(server, context);
         const live = current.get(key);
-        if (live !== undefined && live.fingerprint !== fingerprintOf(server)) yield* invalidate(key);
+        if (live !== undefined && live.fingerprint !== fingerprintOf(server, context)) yield* invalidate(key);
         const backoff = backoffs.get(key);
         const now = yield* clock.now;
         if (backoff !== undefined && now < backoff.retryAt) {
           const problem = known.get(server.id)?.problem ?? `${server.title} can't be reached.`;
           return yield* new McpServerUnavailable({ serverId: server.id, reason: `${problem} Trying again in ${seconds(backoff.retryAt - now)}.` });
         }
-        requests.set(key, { server, cwd: context.cwd });
+        requests.set(key, { server, cwd: context.cwd, signIns: signInsFor(server, context) });
         // RcMap keeps a failed lookup until it idles out; the backoff above decides when to try again instead.
         const connection = RcMap.get(map, key).pipe(Effect.tapError(() => RcMap.invalidate(map, key)));
         return yield* Effect.scoped(Effect.flatMap(connection, (opened) => use(opened, key)));
@@ -366,7 +412,7 @@ export const makeMcpPool = (options: McpPoolOptions) =>
         Effect.gen(function* () {
           const server = yield* serverOf(serverId);
           authorizations.delete(serverId);
-          const tested = yield* Effect.scoped(connect(server, null)).pipe(Effect.result);
+          const tested = yield* Effect.scoped(connect(server, null, [])).pipe(Effect.result);
           const now = yield* clock.now;
           if (tested._tag === "Success") {
             remember(serverId, { tools: tested.success.tools, listedAt: now, protocolVersion: tested.success.protocolVersion, problem: null });
