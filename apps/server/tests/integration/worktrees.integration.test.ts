@@ -311,9 +311,19 @@ layer(makeTestApp({ vaults: [sharedRoot], providers: makeProviderRegistry(Effect
       expect(readFileSync(join(own.directory, "app.ts"), "utf8")).toBe("one\n");
       expect((yield* getThread(source.id)).thread.continuedIn).toBe(fresh.id);
 
-      // Removing the shared worktree from the new thread removes it for both.
       git(worktree!.directory, "add", "-A");
       git(worktree!.directory, "commit", "-q", "-m", "work");
+      // Not while the other thread in it has a turn waiting: its folder would go from under it.
+      const waiting = yield* watch(sharing.id);
+      yield* sendOk(sharing.id, "wait");
+      yield* waiting.until(isTag("request.opened"), "1 minute");
+      const inUse = yield* removeWorktree(source.id);
+      expect(inUse.status).toBe(409);
+      expect(yield* inUse.text).toMatch(/Another thread works in this worktree and has a turn running or waiting/);
+      expect(existsSync(worktree!.directory)).toBe(true);
+      yield* interrupt(sharing.id);
+
+      // Removing the shared worktree from the new thread removes it for both.
       const removed = yield* removeWorktree(sharing.id).pipe(Effect.flatMap(decode(RemoveWorktreeResponse)));
       expect(removed.worktree).toMatchObject({ threadId: source.id, branch: "wiki-agents/source" });
       const failed = yield* turn(source.id, "write app.ts six");

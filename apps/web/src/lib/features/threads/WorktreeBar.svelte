@@ -75,15 +75,19 @@
       <div class="line">
         {#if !worktree.exists}
           <span class="note">Its folder is missing (deleted outside the app), so turns here fail.</span>
+        {:else if shared}
+          <span class="note">Shared with another thread: removing it removes it there too.</span>
         {:else if thread.doneAt !== null}
           <span class="note">This thread is done. Remove its worktree? git refuses while it has uncommitted or untracked files; the branch stays.</span>
         {/if}
         <button
           type="button"
           class="remove"
-          class:offered={thread.doneAt !== null || !worktree.exists}
+          class:offered={(thread.doneAt !== null && !shared) || !worktree.exists}
           disabled={!idle || removing}
-          title={idle ? "git worktree remove (without --force); the branch stays" : "Stop the turn or answer it first"}
+          title={idle
+            ? `git worktree remove (without --force); the branch stays${shared ? ". The other thread in this worktree loses it too" : ""}`
+            : "Stop the turn or answer it first"}
           onclick={remove}>{removing ? "Removing…" : "Remove worktree"}</button
         >
       </div>

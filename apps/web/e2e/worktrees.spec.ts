@@ -152,4 +152,12 @@ test("continues a worktree thread in a new thread that shares the worktree", asy
   const listed = (await (await page.request.get(`/api/projects/${project.id}/worktrees`)).json()) as { worktrees: Array<{ threadId: string; sharedWith: Array<string> }> };
   expect(listed.worktrees).toHaveLength(1);
   expect(listed.worktrees[0]).toMatchObject({ threadId: thread.id, sharedWith: [expect.any(String)] });
+
+  // Done with the old thread: it doesn't offer to remove the worktree the new one works in.
+  await page.getByRole("navigation", { name: "Continuation" }).getByRole("button", { name: "hello" }).click();
+  await expect(page.getByRole("heading", { name: "hello", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Mark done" }).click();
+  await expect(bar).toContainText("Shared with another thread: removing it removes it there too.");
+  await expect(bar).not.toContainText("This thread is done. Remove its worktree?");
+  await expect(bar.getByRole("button", { name: "Remove worktree" })).not.toHaveClass(/offered/);
 });

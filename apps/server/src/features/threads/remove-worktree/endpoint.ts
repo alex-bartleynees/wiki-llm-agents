@@ -15,6 +15,7 @@ export const removeWorktreeEndpoint = Effect.gen(function* () {
     ThreadNotFound: () => Effect.succeed(notFound("Thread not found")),
     WorktreeNotFound: () => Effect.succeed(notFound("This thread has no worktree")),
     ThreadBusy: () => Effect.succeed(conflict("Stop the turn or answer it before removing the worktree")),
+    WorktreeInUse: () => Effect.succeed(conflict("Another thread works in this worktree and has a turn running or waiting. Stop it or answer it first")),
     WorktreeRefused: (error) => Effect.succeed(conflict(error.message)),
   }),
   Effect.catch(internalError("remove worktree")),

@@ -14,6 +14,9 @@ export class HandoffUnavailable extends Data.TaggedError("HandoffUnavailable")<{
 /** The thread can't be continued as asked: `reason` says why (its worktree is gone, say). */
 export class ContinueRefused extends Data.TaggedError("ContinueRefused")<{ readonly reason: string }> {}
 
+/** Another thread sharing the worktree has a turn running or waiting, so it can't be removed now. */
+export class WorktreeInUse extends Data.TaggedError("WorktreeInUse")<{ readonly threadId: string }> {}
+
 export class NoTurnRunning extends Data.TaggedError("NoTurnRunning")<{ readonly threadId: string }> {}
 
 export class RequestNotFound extends Data.TaggedError("RequestNotFound")<{ readonly requestId: string }> {}

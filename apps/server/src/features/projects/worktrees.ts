@@ -104,6 +104,19 @@ export const unshareWorktree = (threadId: string) =>
     yield* (yield* ProjectRepository).unshareWorktree(threadId);
   }).pipe(Effect.catch((error) => Effect.logError(`couldn't undo thread ${threadId}'s share of a worktree`, error)));
 
+/**
+ * Every thread working in the thread's worktree: its owner first, then the threads
+ * sharing it. Just the thread itself when it has no worktree.
+ */
+export const threadsInWorktree = Effect.fnUntraced(function* (threadId: string) {
+  const repository = yield* ProjectRepository;
+  const found = yield* repository.worktreeOfThread(threadId);
+  if (Option.isNone(found)) return [threadId];
+  const owner = found.value.threadId;
+  const shares = yield* repository.worktreeShares(found.value.projectId);
+  return [owner, ...shares.filter((share) => share.ownerThreadId === owner).map((share) => share.threadId)];
+});
+
 /** The thread's worktree (its own, or the one it shares), removed or not; none for a thread made without one. */
 export const threadWorktree = Effect.fnUntraced(function* (threadId: string) {
   return yield* (yield* ProjectRepository).worktreeOfThread(threadId);
