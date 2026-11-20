@@ -101,12 +101,27 @@ test(`from ${entry}: runs a thread in its own worktree, reviews its diff, and re
   await bar.getByRole("button", { name: "Remove worktree" }).click();
   await expect(bar.getByRole("alert")).toContainText("contains modified or untracked files. Commit or discard them first");
 
+  await page.goto(`/projects/${project.id}`);
+  const doneWorktrees = overview.getByText("done · 1", { exact: true });
+  const branchLabel = overview.getByText(`⎇ ${branch}`, { exact: true });
+  await expect(doneWorktrees).toBeVisible();
+  await expect(branchLabel).toBeHidden();
+  await doneWorktrees.click();
+  await expect(branchLabel).toBeVisible();
+  await overview.getByRole("button", { name: "Open" }).click();
+  await expect(bar).toContainText("This thread is done. Remove its worktree?");
+
   // Committed (as you'd ask the agent to), it goes; the branch stays.
   git(worktree, "commit", "-qam", "agent's edit");
   await bar.getByRole("button", { name: "Remove worktree" }).click();
   await expect(bar).toContainText("worktree removed · branch kept");
   expect(git(folder, "branch", "--list", branch).trim()).toBe(branch);
   expect(readFileSync(join(folder, "Replay note.md"), "utf8")).toBe(NOTE);
+  await page.goto(`/projects/${project.id}`);
+  await expect(doneWorktrees).toBeVisible();
+  await expect(branchLabel).toBeHidden();
+  await doneWorktrees.click();
+  await expect(overview.getByText(/removed .* · branch kept/)).toBeVisible();
 });
 
 }

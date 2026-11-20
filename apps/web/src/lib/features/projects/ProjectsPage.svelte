@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Project } from "@wiki-agents/contracts/projects/model";
+  import type { ListedWorktree } from "@wiki-agents/contracts/projects/list-worktrees/response";
   import type { ThreadSummary } from "@wiki-agents/contracts/threads/model";
   import { tick, untrack } from "svelte";
   import { goto } from "$app/navigation";
@@ -104,6 +105,11 @@
     if (id !== undefined) untrack(() => void worktrees.load(id));
   });
   const selectedWorktrees = $derived(selected === null ? [] : worktrees.of(selected.id));
+  const doneThreadIds = $derived(new Set(selectedDone.map((thread) => thread.id)));
+  const isDoneWorktree = (worktree: ListedWorktree) =>
+    doneThreadIds.has(worktree.threadId) && worktree.sharedWith.every((id) => doneThreadIds.has(id));
+  const openWorktrees = $derived(selectedWorktrees.filter((worktree) => !isDoneWorktree(worktree)));
+  const doneWorktrees = $derived(selectedWorktrees.filter(isDoneWorktree));
   /** Where a thread works: its worktree's branch, or the main directory's folder. */
   const cwdLabel = (project: Project, thread: ThreadSummary) => {
     const worktree = worktrees.forThread(project.id, thread.id);
@@ -273,18 +279,17 @@
       {#if selectedWorktrees.length > 0}
         <section aria-label="Worktrees">
           <h2 class="mono">worktrees · {selectedWorktrees.filter((worktree) => worktree.exists).length} in use</h2>
-          {#each selectedWorktrees as worktree (worktree.threadId)}
-            <div class="entry">
-              <span class="worktree-head">
-                <span class="mono main">⎇ {worktree.branch}</span>
-                <span class="thread-title">{titleOf(worktree.threadId)}</span>
-                <button type="button" class="link" onclick={() => openThreadOf(selected, worktree.threadId)}>Open</button>
-              </span>
-              <span class="meta mono">
-                {#if worktree.removedAt !== null}removed {timeAgo(worktree.removedAt)} · branch kept{:else if !worktree.exists}missing: deleted outside the app{:else}{worktree.changedFiles} {worktree.changedFiles === 1 ? "file" : "files"} changed · {worktree.directory}{/if}
-              </span>
-            </div>
+          {#each openWorktrees as worktree (worktree.threadId)}
+            {@render worktreeRow(selected, worktree)}
           {/each}
+          {#if doneWorktrees.length > 0}
+            <details class="done">
+              <summary class="mono">done · {doneWorktrees.length}</summary>
+              {#each doneWorktrees as worktree (worktree.threadId)}
+                {@render worktreeRow(selected, worktree)}
+              {/each}
+            </details>
+          {/if}
           <p class="note">Each worktree is its thread's own checkout on its own branch. Review it in <a href="/projects/{selected.id}/diff">Diff</a>; commit and merge with lazygit.</p>
         </section>
       {/if}
@@ -340,6 +345,19 @@
       {thread.status === "running" ? "● running" : thread.status === "waiting" ? "▲ needs you" : thread.doneAt !== null ? `✓ done ${timeAgo(thread.doneAt)}` : timeAgo(thread.updatedAt)}
     </span>
     <button type="button" class="link" onclick={() => openThreadOf(project, thread.id)}>Open</button>
+  </div>
+{/snippet}
+
+{#snippet worktreeRow(project: Project, worktree: ListedWorktree)}
+  <div class="entry">
+    <span class="worktree-head">
+      <span class="mono main">⎇ {worktree.branch}</span>
+      <span class="thread-title">{titleOf(worktree.threadId)}</span>
+      <button type="button" class="link" onclick={() => openThreadOf(project, worktree.threadId)}>Open</button>
+    </span>
+    <span class="meta mono">
+      {#if worktree.removedAt !== null}removed {timeAgo(worktree.removedAt)} · branch kept{:else if !worktree.exists}missing: deleted outside the app{:else}{worktree.changedFiles} {worktree.changedFiles === 1 ? "file" : "files"} changed · {worktree.directory}{/if}
+    </span>
   </div>
 {/snippet}
 
