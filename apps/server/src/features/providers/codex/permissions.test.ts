@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { NodeFileSystem } from "@effect/platform-node";
@@ -6,7 +6,7 @@ import { type Autonomy, DEFAULT_AUTONOMY } from "@wiki-agents/contracts/agents/m
 import { Effect } from "effect";
 import { afterAll, describe, expect, it } from "vitest";
 import { NO_PROTECTION, type Protection } from "../../../shared/secret-paths.js";
-import { autonomyConfig, codexNameGlobs, decideCommand, decideFileChange, enforcedAutonomy, PERMISSION_PROFILE, permissionsReachProtected } from "./permissions.js";
+import { autonomyConfig, codexNameGlobs, decideCommand, decideFileChange, enforcedAutonomy, existingProtection, PERMISSION_PROFILE, permissionsReachProtected } from "./permissions.js";
 import type { FileUpdateChange } from "./protocol.js";
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), "wiki-agents-codex-permissions-")));
@@ -96,6 +96,12 @@ describe("files holding secrets", () => {
       [`permissions.${PERMISSION_PROFILE}.filesystem`]: { ":root": "read", [secrets]: "none", [keyFile]: "none" },
     });
     expect(autonomyConfig(TRUSTED, NO_PROTECTION, [vault])).not.toHaveProperty("default_permissions");
+  });
+
+  it("gives Codex's sandbox only the paths that exist, keeping the names", () => {
+    const existing = join(root, "existing-secrets");
+    mkdirSync(existing);
+    expect(existingProtection({ paths: [existing, keyFile, `${keyFile}.cred`], names: ENV_NAMES }, existsSync)).toEqual({ paths: [existing], names: ENV_NAMES });
   });
 });
 

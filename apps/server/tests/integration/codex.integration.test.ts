@@ -1,4 +1,4 @@
-import { realpathSync, writeFileSync } from "node:fs";
+import { existsSync, realpathSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, layer } from "@effect/vitest";
 import { GetProviderStatusResponse } from "@wiki-agents/contracts/providers/get-provider-status/response";
@@ -20,6 +20,7 @@ import { type FakeAppServer, loadFixture, makeFakeAppServer, type PlayOptions } 
 import { VAULT_FILES } from "../fixtures/codex/fixture.js";
 import { CSV_PROMPT, SALES_CSV, SALES_TOTAL } from "../fixtures/csv.js";
 import { RED_SQUARE, sha256 } from "../fixtures/image.js";
+import { setSecret } from "./infrastructure/browser-sign-ins.js";
 import { mcpSession } from "./infrastructure/mcp.js";
 import { makeTestApp } from "./infrastructure/test-app.js";
 import { answer, compactOk, decode, getThread, interrupt, isTag, newThread, newVaultWith, sendOk, sendWithOk, setAgent, status, uploadOk } from "./infrastructure/threads.js";
@@ -182,8 +183,12 @@ layer(App)("Codex provider", (it) => {
 
       const [started] = fake.requests("thread/start");
       // Read-only, as a permission profile that also denies the secret store's files and .env files (it replaces the sandbox mode).
-      const { paths, names } = yield* (yield* SecretMaterial).current;
+      // Only those that exist: no secret is saved yet, so the store's folder is there but not its key.
+      const material = yield* (yield* SecretMaterial).current;
+      const paths = material.paths.filter((path) => existsSync(path));
+      const names = material.names;
       expect(paths.length).toBeGreaterThan(0);
+      expect(material.paths.some((path) => path.endsWith("secrets.key") && !paths.includes(path))).toBe(true);
       expect(started).not.toHaveProperty("sandbox");
       expect(started).toMatchObject({
         approvalPolicy: "on-request",
@@ -509,4 +514,27 @@ layer(App)("Codex provider", (it) => {
       }),
     );
   });
+});
+
+// Its own app, so no other test has saved a secret yet.
+layer(App)("Codex provider, before any secret is saved", (it) => {
+  it.effect("leaves the missing key out of the sandbox, and denies it from the turn after you save a secret", () =>
+    Effect.gen(function* () {
+      const { thread, fake, prompts } = yield* setUp("multi-turn");
+      const keyFile = (yield* (yield* SecretMaterial).current).paths.find((path) => path.endsWith("secrets.key"));
+      expect(keyFile).toBeDefined();
+      const denied = (params: Record<string, unknown> | undefined) => Object.keys((params?.config as Record<string, Record<string, string>>)[`permissions.${PERMISSION_PROFILE}.filesystem`] ?? {});
+
+      completes(yield* playTurn(thread.id, prompts[0]!));
+      expect(existsSync(keyFile!)).toBe(false);
+      expect(denied(fake.requests("thread/start")[0])).not.toContain(keyFile);
+
+      yield* setSecret("some-token", "s3cret");
+      expect(existsSync(keyFile!)).toBe(true);
+      completes(yield* playTurn(thread.id, prompts[1]!));
+      // The profile changed, so the next turn starts a new app-server that resumes the thread with the key denied.
+      expect(fake.launches()).toHaveLength(2);
+      expect(denied(fake.requests("thread/resume")[0])).toContain(keyFile);
+    }),
+  );
 });

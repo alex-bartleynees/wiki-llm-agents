@@ -40,6 +40,9 @@ export const makeSecretStore = (options: SecretStoreOptions) =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+      // Made now, so the folder exists for Codex's sandbox to deny before the first secret
+      // is saved (it leaves out missing paths); writing makes it again if this failed.
+      yield* fs.makeDirectory(options.dir, { recursive: true, mode: 0o700 }).pipe(Effect.ignore);
       const path = join(options.dir, FILE_NAME);
       const writing = yield* Semaphore.make(1);
       /**

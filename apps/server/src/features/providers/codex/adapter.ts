@@ -31,7 +31,7 @@ import {
   VAULT_SERVER,
 } from "./events.js";
 import { developerInstructions, findGitRoot } from "./instructions.js";
-import { APPROVAL_POLICY, autonomyConfig, decideCommand, decideFileChange, enforcedAutonomy, permissionsReachProtected, SANDBOX } from "./permissions.js";
+import { APPROVAL_POLICY, autonomyConfig, decideCommand, decideFileChange, enforcedAutonomy, existingProtection, permissionsReachProtected, SANDBOX } from "./permissions.js";
 import { isUnprotected } from "../../../shared/secret-paths.js";
 import type {
   CommandApprovalParams,
@@ -259,8 +259,10 @@ export const makeCodexAdapter = (options: CodexAdapterOptions) =>
             Effect.gen(function* () {
               const instructions = developerInstructions(setup.instructions, realCwd, gitRoot);
               const tools = setup.vaultTools;
+              // Codex's sandbox gets what exists now; the app's own checks keep every protected path.
+              const sandboxed = existingProtection(setup.protection, existsSync);
               const config = {
-                ...autonomyConfig(setup.autonomy, setup.protection, [cwd, realCwd, ...(setup.projectRoots ?? [])]),
+                ...autonomyConfig(setup.autonomy, sandboxed, [cwd, realCwd, ...(setup.projectRoots ?? [])]),
                 ...(tools === null ? {} : { [`mcp_servers.${VAULT_SERVER}`]: { url: tools.url, bearer_token_env_var: TOKEN_ENV } }),
               };
               const key = JSON.stringify([instructions, config, tools?.token ?? null, tools?.revision ?? null]);
@@ -283,7 +285,7 @@ export const makeCodexAdapter = (options: CodexAdapterOptions) =>
                 ...(model === null ? {} : { model }),
                 approvalPolicy: APPROVAL_POLICY,
                 // The permission profile replaces the sandbox mode; sent together, the mode wins (Codex 0.167.1).
-                ...(isUnprotected(setup.protection) ? { sandbox: SANDBOX } : {}),
+                ...(isUnprotected(sandboxed) ? { sandbox: SANDBOX } : {}),
                 config,
                 developerInstructions: instructions,
               };

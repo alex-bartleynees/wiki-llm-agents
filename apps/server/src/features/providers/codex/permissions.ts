@@ -68,13 +68,29 @@ export const protectedEntries = (protection: Protection, roots: ReadonlyArray<st
 };
 
 /**
+ * `protection` without the paths that don't exist. Codex can't deny a missing path in
+ * a command you let out of the read-only sandbox: bwrap mounts an empty file over the
+ * first missing folder, that mount fails ("Can't bind mount tmpfile on …: No such file
+ * or directory"), and so does every such command (Codex 0.169.0). A missing file can't
+ * be read; the adapter checks again when each turn starts, so one made later (the key,
+ * when you save the first secret) is denied from the next turn on. `exists` is
+ * synchronous so a turn's start takes no extra tick: a Stop sent straight after Send
+ * must find the turn.
+ */
+export const existingProtection = (protection: Protection, exists: (path: string) => boolean): Protection => ({
+  ...protection,
+  paths: protection.paths.filter(exists),
+});
+
+/**
  * `config.toml` overrides for the thread: Codex's web search can't ask first, so it is
  * on only when the web is allowed. With anything protected, the thread runs under a
  * permission profile like the read-only sandbox (read everything, write nothing) that
  * also denies reading it, so the sandbox itself stops every command reaching it,
  * however it names it. Checked with Codex 0.167.1: the profile wins over
- * `sandbox_mode`, a folder denies what is inside, a path that doesn't exist is fine,
- * and absolute globs (`<root>/**\/.env`) deny every match below the root.
+ * `sandbox_mode`, a folder denies what is inside, and absolute globs
+ * (`<root>/**\/.env`) deny every match below the root. Give it only paths that exist
+ * (`existingProtection`).
  */
 export const autonomyConfig = (autonomy: Autonomy, protection: Protection, roots: ReadonlyArray<string>): Record<string, unknown> => ({
   web_search: autonomy.web === "allow" ? "live" : "disabled",
