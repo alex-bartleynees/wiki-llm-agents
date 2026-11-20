@@ -98,6 +98,16 @@ describe("files holding secrets", () => {
     expect(autonomyConfig(TRUSTED, NO_PROTECTION, [vault])).not.toHaveProperty("default_permissions");
   });
 
+  it("gives the profile the network only when commands are allowed, and says so otherwise", () => {
+    const network = `permissions.${PERMISSION_PROFILE}.network`;
+    expect(autonomyConfig(TRUSTED, only([secrets]), [vault])).toMatchObject({ [network]: { enabled: true } });
+    expect(autonomyConfig(DEFAULT_AUTONOMY, only([secrets]), [vault])).not.toHaveProperty(network);
+    expect(autonomyConfig(RESEARCHER, only([secrets]), [vault])).not.toHaveProperty(network);
+    expect(autonomyConfig(TRUSTED, NO_PROTECTION, [vault])).not.toHaveProperty(network);
+    expect(enforcedAutonomy(DEFAULT_AUTONOMY).notes.join("\n")).toMatch(/commands you approve still can't use the network/);
+    expect(enforcedAutonomy(TRUSTED).notes.join("\n")).not.toMatch(/network or local sockets/);
+  });
+
   it("gives Codex's sandbox only the paths that exist, keeping the names", () => {
     const existing = join(root, "existing-secrets");
     mkdirSync(existing);

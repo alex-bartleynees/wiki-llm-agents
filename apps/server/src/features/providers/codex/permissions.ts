@@ -91,6 +91,13 @@ export const existingProtection = (protection: Protection, exists: (path: string
  * `sandbox_mode`, a folder denies what is inside, and absolute globs
  * (`<root>/**\/.env`) deny every match below the root. Give it only paths that exist
  * (`existingProtection`).
+ *
+ * A command you let out of the sandbox still runs under the profile (its denials can't
+ * be lifted), with the profile's network: none by default, not even a local socket such
+ * as the Nix daemon's (`allow_unix_sockets` alone didn't open it; checked with Codex
+ * 0.169.0). So with commands allowed the profile has the network, as an approved
+ * command had outside the sandbox; asking or denied, it stays off, or commands in the
+ * sandbox would reach it without asking.
  */
 export const autonomyConfig = (autonomy: Autonomy, protection: Protection, roots: ReadonlyArray<string>): Record<string, unknown> => ({
   web_search: autonomy.web === "allow" ? "live" : "disabled",
@@ -100,6 +107,7 @@ export const autonomyConfig = (autonomy: Autonomy, protection: Protection, roots
     : {
         default_permissions: PERMISSION_PROFILE,
         [`permissions.${PERMISSION_PROFILE}.filesystem`]: Object.fromEntries([[":root", "read"], ...protectedEntries(protection, roots)]),
+        ...(autonomy.commands === "allow" ? { [`permissions.${PERMISSION_PROFILE}.network`]: { enabled: true } } : {}),
       }),
 });
 
@@ -162,6 +170,9 @@ export const enforcedAutonomy = (autonomy: Autonomy) => {
   const notes = ["Changes to files outside the working folder ask first, whatever the autonomy says."];
   if (autonomy.read !== "allow" || autonomy.commands !== "allow") {
     notes.push("Codex reads files and runs commands in its read-only sandbox without asking, so reading is always allowed; commands that write or use the network follow commands.");
+  }
+  if (autonomy.commands !== "allow") {
+    notes.push("While files are protected, commands you approve still can't use the network or local sockets (such as Nix's daemon, so no nix develop); allow commands for that.");
   }
   if (autonomy.web === "ask") notes.push("Codex can't ask before it searches the web, so its web search is off; fetching with a command follows commands.");
   // Checked with Codex 0.169.0: `spawn_agent` never asks, and turning off the
