@@ -489,10 +489,17 @@ that machine's fresh defaults would win over your edits. A Syncthing conflict co
 
 - An agent file's body is its instructions; its frontmatter holds `name`,
   `description`, `provider` and `model` (defaults for new threads), `sources`,
-  and `autonomy` per action (`read`, `create`, `edit`, `commands`, `web`, and
-  `tools` for other MCP servers' tools: `allow`, `ask`, or `deny`; `always` and
-  `never` work too). Anything left out
-  reads freely and asks for the rest. Unknown keys are errors, so typos can't pass.
+  and `autonomy` per action (`read`, `create`, `edit`, `commands`, `web`,
+  `tools` for other MCP servers' tools, and `subagents` for starting the provider's
+  own subagents: `allow`, `ask`, or `deny`; `always` and `never` work too). Anything
+  left out reads freely and asks for the rest. Unknown keys are errors, so typos can't pass.
+- `subagents` covers OpenCode's `subagent` tool and Claude Code's `Agent`; what a
+  subagent then does follows the rest of the autonomy. A scheduled run denies every
+  ask, so it can start subagents only when `subagents` is `allow`; its inbox result is
+  the reply of the turn that started them, and their reports go on in the thread.
+  Codex starts its subagents without asking and can't be stopped from starting them
+  (checked with 0.169.0), so for Codex they are always allowed, and the agent screen
+  says so.
   `concurrency`, from before the task queue was dropped, is still accepted and ignored.
 - A file that doesn't load is listed on the Agents screen with the reason; the other
   agents still work. A thread whose agent is missing or broken fails its next turn

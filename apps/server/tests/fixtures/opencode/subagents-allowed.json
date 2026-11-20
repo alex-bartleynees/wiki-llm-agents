@@ -1,0 +1,928 @@
+{
+  "scenario": "subagents-allowed",
+  "opencodeVersion": "2.3.0",
+  "model": "opencode/tidepool-alpha-free",
+  "sessionId": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+  "turns": [
+    {
+      "prompt": "Use the subagent tool once, with the general agent, to report the first line of Notes/Coffee.md. Then reply 'launched' without waiting.",
+      "steps": [
+        {
+          "event": {
+            "id": "evt_1faa1b33d00121Mcjh1rP234iC",
+            "created": 1795206263613,
+            "type": "session.created",
+            "durable": {
+              "aggregateID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+              "seq": 0,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+              "projectID": "93f303046a3b283425d4229cf05c8d1209af3233",
+              "location": {
+                "directory": "/__vault__"
+              },
+              "subpath": "",
+              "slug": "happy-circuit",
+              "permissions": [
+                {
+                  "action": "*",
+                  "resource": "*",
+                  "effect": "ask"
+                },
+                {
+                  "action": "question",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "todowrite",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "todo",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "skill",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "read",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "glob",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "grep",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "list",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "lsp",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "subagent",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "task",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "wiki-agents-*",
+                  "resource": "*",
+                  "effect": "deny"
+                }
+              ],
+              "version": "2.3.0"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1faa1b4da0019J18CAdLQJPQCo",
+            "created": 1795206264026,
+            "type": "session.inbox.enqueued",
+            "durable": {
+              "aggregateID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+              "seq": 1,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+              "inboxID": "msg_1faa1b36b001rK3fWB0DNm0gRc",
+              "item": {
+                "type": "user",
+                "payload": {
+                  "text": "Use the subagent tool once, with the general agent, to report the first line of Notes/Coffee.md. Then reply 'launched' without waiting."
+                },
+                "delivery": "steer"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1faa1b4dc001LocLfIemDln50d",
+            "created": 1795206264028,
+            "type": "session.execution.started",
+            "durable": {
+              "aggregateID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+              "seq": 2,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1faa1b4ec001UK5ZWzqQt1XnEf",
+            "created": 1795206264044,
+            "type": "session.inbox.delivered",
+            "durable": {
+              "aggregateID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+              "seq": 4,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+              "inboxID": "msg_1faa1b36b001rK3fWB0DNm0gRc"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1faa1be450010AE9X5B7WJWPuP",
+            "created": 1795206266437,
+            "type": "session.step.started",
+            "durable": {
+              "aggregateID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+              "seq": 5,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+              "assistantMessageID": "msg_1faa1b4f5001GC3jhto4jNbfSX",
+              "agent": "build",
+              "model": {
+                "id": "tidepool-alpha-free",
+                "providerID": "opencode"
+              },
+              "started": 1795206264056
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1faa1c6ef001GXRQQ1dFaLWABe",
+            "created": 1795206268655,
+            "type": "session.tool.input.started",
+            "durable": {
+              "aggregateID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+              "seq": 8,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+              "assistantMessageID": "msg_1faa1b4f5001GC3jhto4jNbfSX",
+              "id": "call_51fc3d2be7324a9e92a8726a",
+              "name": "subagent"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1faa1c6f6001G9NFUX1AaNyIPD",
+            "created": 1795206268662,
+            "type": "session.tool.called",
+            "durable": {
+              "aggregateID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+              "seq": 11,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+              "assistantMessageID": "msg_1faa1b4f5001GC3jhto4jNbfSX",
+              "id": "call_51fc3d2be7324a9e92a8726a",
+              "input": {
+                "agent": "general",
+                "description": "Read first line of Notes/Coffee.md",
+                "prompt": "Find the file Notes/Coffee.md in the working directory and report only its first line (the first line of the file content). If the file doesn't exist, report that it was not found. Be brief."
+              },
+              "executed": false
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1faa1c6fd001pCGG1fnluawFpL",
+            "created": 1795206268669,
+            "type": "session.created",
+            "durable": {
+              "aggregateID": "ses_e055e3904ffeIj9oB7Z8pEZ6v1",
+              "seq": 0,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e055e3904ffeIj9oB7Z8pEZ6v1",
+              "projectID": "93f303046a3b283425d4229cf05c8d1209af3233",
+              "location": {
+                "directory": "/__vault__"
+              },
+              "subpath": "",
+              "parentID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+              "slug": "eager-pixel",
+              "title": "Read first line of Notes/Coffee.md",
+              "agent": "general",
+              "permissions": [
+                {
+                  "action": "*",
+                  "resource": "*",
+                  "effect": "ask"
+                },
+                {
+                  "action": "question",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "todowrite",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "todo",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "skill",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "read",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "glob",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "grep",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "list",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "lsp",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "subagent",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "task",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "wiki-agents-*",
+                  "resource": "*",
+                  "effect": "deny"
+                }
+              ],
+              "version": "2.3.0"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1faa1c700001TX0hfXvGJghjlm",
+            "created": 1795206268672,
+            "type": "session.inbox.enqueued",
+            "durable": {
+              "aggregateID": "ses_e055e3904ffeIj9oB7Z8pEZ6v1",
+              "seq": 1,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e055e3904ffeIj9oB7Z8pEZ6v1",
+              "inboxID": "msg_1faa1c6ff002Qv601eI6vtF9JZ",
+              "item": {
+                "type": "user",
+                "payload": {
+                  "text": "You are a subagent spawned by another session.\nFind the file Notes/Coffee.md in the working directory and report only its first line (the first line of the file content). If the file doesn't exist, report that it was not found. Be brief."
+                },
+                "delivery": "steer"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1faa1c701002e6lXwNutJ9aOw7",
+            "created": 1795206268673,
+            "type": "session.tool.success",
+            "durable": {
+              "aggregateID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+              "seq": 13,
+              "version": 2
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+              "assistantMessageID": "msg_1faa1b4f5001GC3jhto4jNbfSX",
+              "id": "call_51fc3d2be7324a9e92a8726a",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "The subagent is working in the background (sessionID: ses_e055e3904ffeIj9oB7Z8pEZ6v1). You will receive a <subagent> message when it goes idle, and again after each later round of work.\nDO NOT sleep, poll, proactively check on its progress, or duplicate this subagent's work.\nWork on non-overlapping tasks, or briefly tell the user what you launched and end your response.\nTo send it follow-ups or change its instructions while it runs, call subagent again with this sessionID."
+                }
+              ],
+              "metadata": {
+                "sessionID": "ses_e055e3904ffeIj9oB7Z8pEZ6v1",
+                "status": "running",
+                "truncated": false
+              },
+              "executed": false
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1faa1c703001ZT3EfUksllpDYp",
+            "created": 1795206268675,
+            "type": "session.step.ended",
+            "durable": {
+              "aggregateID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+              "seq": 14,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+              "assistantMessageID": "msg_1faa1b4f5001GC3jhto4jNbfSX",
+              "finish": "tool-calls",
+              "rawFinish": "tool_calls",
+              "cost": 0,
+              "tokens": {
+                "input": 16370,
+                "output": 79,
+                "reasoning": 96,
+                "cache": {
+                  "read": 1968,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1faa1c711001KMnzrW12hnI3lz",
+            "created": 1795206268689,
+            "type": "session.execution.started",
+            "durable": {
+              "aggregateID": "ses_e055e3904ffeIj9oB7Z8pEZ6v1",
+              "seq": 2,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e055e3904ffeIj9oB7Z8pEZ6v1"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1faa1c7170017qcv9ZgFTa82Id",
+            "created": 1795206268695,
+            "type": "session.inbox.delivered",
+            "durable": {
+              "aggregateID": "ses_e055e3904ffeIj9oB7Z8pEZ6v1",
+              "seq": 4,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e055e3904ffeIj9oB7Z8pEZ6v1",
+              "inboxID": "msg_1faa1c6ff002Qv601eI6vtF9JZ"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1faa1cae7001J3GCyd0Mk4KDyi",
+            "created": 1795206269671,
+            "type": "session.step.started",
+            "durable": {
+              "aggregateID": "ses_e055e3904ffeIj9oB7Z8pEZ6v1",
+              "seq": 5,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e055e3904ffeIj9oB7Z8pEZ6v1",
+              "assistantMessageID": "msg_1faa1c71a001iSlPo6AOKUJmvT",
+              "agent": "general",
+              "model": {
+                "id": "tidepool-alpha-free",
+                "providerID": "opencode"
+              },
+              "started": 1795206268701
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1faa1cd88001AfxcNgbny22657",
+            "created": 1795206270344,
+            "type": "session.step.started",
+            "durable": {
+              "aggregateID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+              "seq": 17,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+              "assistantMessageID": "msg_1faa1c70b001CWUlGda1TnoTBz",
+              "agent": "build",
+              "model": {
+                "id": "tidepool-alpha-free",
+                "providerID": "opencode"
+              },
+              "started": 1795206268687
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1faa1cdf1001LYubPt4mi74D3T",
+            "created": 1795206270449,
+            "type": "session.text.delta",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+              "assistantMessageID": "msg_1faa1c70b001CWUlGda1TnoTBz",
+              "ordinal": 0,
+              "delta": "launched"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1faa1cdfa001Kis9IpW5uZKiqr",
+            "created": 1795206270458,
+            "type": "session.step.ended",
+            "durable": {
+              "aggregateID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+              "seq": 22,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+              "assistantMessageID": "msg_1faa1c70b001CWUlGda1TnoTBz",
+              "finish": "stop",
+              "rawFinish": "stop",
+              "cost": 0,
+              "tokens": {
+                "input": 133,
+                "output": 3,
+                "reasoning": 1,
+                "cache": {
+                  "read": 18512,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1faa1cdfc00108OLHIY1MjQYXE",
+            "created": 1795206270460,
+            "type": "session.execution.succeeded",
+            "durable": {
+              "aggregateID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+              "seq": 23,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1faa1da36002xGFQHyQTWpDCk1",
+            "created": 1795206273590,
+            "type": "session.tool.input.started",
+            "durable": {
+              "aggregateID": "ses_e055e3904ffeIj9oB7Z8pEZ6v1",
+              "seq": 8,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e055e3904ffeIj9oB7Z8pEZ6v1",
+              "assistantMessageID": "msg_1faa1c71a001iSlPo6AOKUJmvT",
+              "id": "call_bcecbe0fb77841fdac3aebca",
+              "name": "read"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1faa1da3b001XtzcCK3Lbl7BtB",
+            "created": 1795206273595,
+            "type": "session.tool.called",
+            "durable": {
+              "aggregateID": "ses_e055e3904ffeIj9oB7Z8pEZ6v1",
+              "seq": 11,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e055e3904ffeIj9oB7Z8pEZ6v1",
+              "assistantMessageID": "msg_1faa1c71a001iSlPo6AOKUJmvT",
+              "id": "call_bcecbe0fb77841fdac3aebca",
+              "input": {
+                "path": "Notes/Coffee.md",
+                "limit": 1
+              },
+              "executed": false
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1faa1da42001cATKyyqfJe2Kql",
+            "created": 1795206273602,
+            "type": "session.tool.success",
+            "durable": {
+              "aggregateID": "ses_e055e3904ffeIj9oB7Z8pEZ6v1",
+              "seq": 13,
+              "version": 2
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e055e3904ffeIj9oB7Z8pEZ6v1",
+              "assistantMessageID": "msg_1faa1c71a001iSlPo6AOKUJmvT",
+              "id": "call_bcecbe0fb77841fdac3aebca",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Read file Notes/Coffee.md, lines 1-1\n1: # Coffee\n[Output truncated. Continue reading with offset: 2]"
+                }
+              ],
+              "metadata": {
+                "truncated": true
+              },
+              "executed": false
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1faa1da43001r2371FQmIAbrfs",
+            "created": 1795206273603,
+            "type": "session.step.ended",
+            "durable": {
+              "aggregateID": "ses_e055e3904ffeIj9oB7Z8pEZ6v1",
+              "seq": 14,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e055e3904ffeIj9oB7Z8pEZ6v1",
+              "assistantMessageID": "msg_1faa1c71a001iSlPo6AOKUJmvT",
+              "finish": "tool-calls",
+              "rawFinish": "tool_calls",
+              "cost": 0,
+              "tokens": {
+                "input": 16239,
+                "output": 22,
+                "reasoning": 381,
+                "cache": {
+                  "read": 1968,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1faa1e56e001AnZqMbsHVJn09k",
+            "created": 1795206276462,
+            "type": "session.step.started",
+            "durable": {
+              "aggregateID": "ses_e055e3904ffeIj9oB7Z8pEZ6v1",
+              "seq": 15,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e055e3904ffeIj9oB7Z8pEZ6v1",
+              "assistantMessageID": "msg_1faa1da4a001urtE283kXNVcak",
+              "agent": "general",
+              "model": {
+                "id": "tidepool-alpha-free",
+                "providerID": "opencode"
+              },
+              "started": 1795206273614
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1faa1e5da001QVen4yIYmi4TKk",
+            "created": 1795206276570,
+            "type": "session.text.delta",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e055e3904ffeIj9oB7Z8pEZ6v1",
+              "assistantMessageID": "msg_1faa1da4a001urtE283kXNVcak",
+              "ordinal": 0,
+              "delta": "The first line of Notes/Coffee.md is:\n\n```\n# Coffee\n```"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1faa1e63d001uYeSJnPc4wbYAf",
+            "created": 1795206276669,
+            "type": "session.step.ended",
+            "durable": {
+              "aggregateID": "ses_e055e3904ffeIj9oB7Z8pEZ6v1",
+              "seq": 22,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e055e3904ffeIj9oB7Z8pEZ6v1",
+              "assistantMessageID": "msg_1faa1da4a001urtE283kXNVcak",
+              "finish": "stop",
+              "rawFinish": "stop",
+              "cost": 0,
+              "tokens": {
+                "input": 38,
+                "output": 24,
+                "reasoning": 32,
+                "cache": {
+                  "read": 18608,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1faa1e6400011iuCuW17pYr9ob",
+            "created": 1795206276672,
+            "type": "session.execution.succeeded",
+            "durable": {
+              "aggregateID": "ses_e055e3904ffeIj9oB7Z8pEZ6v1",
+              "seq": 23,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e055e3904ffeIj9oB7Z8pEZ6v1"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1faa1e642001KELxxau2gNbkD6",
+            "created": 1795206276674,
+            "type": "session.inbox.enqueued",
+            "durable": {
+              "aggregateID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+              "seq": 24,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+              "inboxID": "msg_1faa1c701001EWZxu0J12c7jDz",
+              "item": {
+                "type": "synthetic",
+                "payload": {
+                  "text": "<subagent sessionID=\"ses_e055e3904ffeIj9oB7Z8pEZ6v1\" state=\"completed\" description=\"Read first line of Notes/Coffee.md\">\nThe first line of Notes/Coffee.md is:\n\n```\n# Coffee\n```\n</subagent>",
+                  "description": "Read first line of Notes/Coffee.md",
+                  "metadata": {
+                    "source": "subagent",
+                    "childID": "ses_e055e3904ffeIj9oB7Z8pEZ6v1",
+                    "agent": "General",
+                    "state": "completed"
+                  }
+                },
+                "delivery": "steer"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1faa1e644001eFNIe7injqITYd",
+            "created": 1795206276676,
+            "type": "session.execution.started",
+            "durable": {
+              "aggregateID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+              "seq": 25,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1faa1e647001cP1VvgfTGonyB8",
+            "created": 1795206276679,
+            "type": "session.inbox.delivered",
+            "durable": {
+              "aggregateID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+              "seq": 26,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+              "inboxID": "msg_1faa1c701001EWZxu0J12c7jDz"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1faa1f6180018Eg9PQltA34Q4M",
+            "created": 1795206280728,
+            "type": "session.step.started",
+            "durable": {
+              "aggregateID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+              "seq": 27,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+              "assistantMessageID": "msg_1faa1e64b001t9VXRovJa1zGLi",
+              "agent": "build",
+              "model": {
+                "id": "tidepool-alpha-free",
+                "providerID": "opencode"
+              },
+              "started": 1795206276686
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1faa23634001QT7GGLMYPtTE62",
+            "created": 1795206297140,
+            "type": "session.text.delta",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+              "assistantMessageID": "msg_1faa1e64b001t9VXRovJa1zGLi",
+              "ordinal": 0,
+              "delta": "The first line of Notes/C"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1faa2369d001RTQnyOKOuDfp2d",
+            "created": 1795206297245,
+            "type": "session.text.delta",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+              "assistantMessageID": "msg_1faa1e64b001t9VXRovJa1zGLi",
+              "ordinal": 0,
+              "delta": "offee.md is `# Coffee`."
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1faa2372f001TlefvAcPbT2gLi",
+            "created": 1795206297391,
+            "type": "session.step.ended",
+            "durable": {
+              "aggregateID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+              "seq": 34,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+              "assistantMessageID": "msg_1faa1e64b001t9VXRovJa1zGLi",
+              "finish": "stop",
+              "rawFinish": "stop",
+              "cost": 0,
+              "tokens": {
+                "input": 108,
+                "output": 17,
+                "reasoning": 1198,
+                "cache": {
+                  "read": 18648,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1faa23731001mRG9djRVYobYNz",
+            "created": 1795206297393,
+            "type": "session.execution.succeeded",
+            "durable": {
+              "aggregateID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw",
+              "seq": 35,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e055e4cc4ffeQxfcmX3hgT2HCw"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

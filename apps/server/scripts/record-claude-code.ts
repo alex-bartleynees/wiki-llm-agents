@@ -54,7 +54,7 @@ const approve: RequestAnswer = { _tag: "approval", decision: "approve" };
 const deny: RequestAnswer = { _tag: "approval", decision: "deny" };
 
 /** The researcher's autonomy: creating notes is allowed, editing asks, commands are denied. */
-const RESEARCHER: Autonomy = { read: "allow", create: "allow", edit: "ask", commands: "deny", web: "allow", tools: "allow" };
+const RESEARCHER: Autonomy = { read: "allow", create: "allow", edit: "ask", commands: "deny", web: "allow", tools: "allow", subagents: "allow" };
 
 const SCENARIOS: Readonly<Record<string, Scenario>> = {
   simple: { turns: [{ prompt: "Which notes are in this vault? List the file names in one short sentence." }] },

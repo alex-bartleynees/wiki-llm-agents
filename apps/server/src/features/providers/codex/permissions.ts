@@ -148,8 +148,11 @@ export const enforcedAutonomy = (autonomy: Autonomy) => {
     notes.push("Codex reads files and runs commands in its read-only sandbox without asking, so reading is always allowed; commands that write or use the network follow commands.");
   }
   if (autonomy.web === "ask") notes.push("Codex can't ask before it searches the web, so its web search is off; fetching with a command follows commands.");
+  // Checked with Codex 0.169.0: `spawn_agent` never asks, and turning off the
+  // `multi_agent` and `multi_agent_v2` features doesn't take it away.
+  if (autonomy.subagents !== "allow") notes.push("Codex starts its subagents without asking and can't be stopped from starting them, so subagents are always allowed; what they do follows the rest of the autonomy.");
   return {
-    autonomy: { ...autonomy, read: "allow" as const, web: autonomy.web === "ask" ? ("deny" as const) : autonomy.web },
+    autonomy: { ...autonomy, read: "allow" as const, web: autonomy.web === "ask" ? ("deny" as const) : autonomy.web, subagents: "allow" as const },
     notes,
   };
 };

@@ -8,6 +8,7 @@ export const ACTION_LABEL: Readonly<Record<AutonomyAction, string>> = {
   commands: "Run commands",
   web: "Use the web",
   tools: "Use other MCP servers' tools",
+  subagents: "Start subagents",
 };
 
 export const LEVEL_LABEL: Readonly<Record<AutonomyLevel, string>> = { allow: "Allowed", ask: "Asks first", deny: "Never" };
@@ -20,6 +21,7 @@ const PHRASES: Readonly<Record<AutonomyAction, readonly [string, string, string]
   commands: ["runs commands", "running commands", "run commands"],
   web: ["uses the web", "using the web", "use the web"],
   tools: ["uses other MCP servers' tools", "using other MCP servers' tools", "use other MCP servers' tools"],
+  subagents: ["starts subagents", "starting subagents", "start subagents"],
 };
 
 const list = (items: ReadonlyArray<string>, conjunction = "and") =>

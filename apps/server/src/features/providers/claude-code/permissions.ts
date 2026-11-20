@@ -17,6 +17,8 @@ export const TOOLS = {
   write: ["Write", "Edit", "MultiEdit", "NotebookEdit"],
   commands: ["Bash", "PowerShell", "Monitor"],
   web: ["WebFetch", "WebSearch"],
+  /** Starting a subagent (`Agent`, `Task` in older versions); its own tool calls come through the same hook. */
+  subagents: ["Agent", "Task"],
 } as const;
 
 /** Tools that change nothing and only plan, track work, or load instructions: always allowed. */
@@ -108,6 +110,7 @@ export const decide = Effect.fnUntraced(function* (input: DecisionInput): Effect
   if (has(TOOLS.commands, toolName) && commandNamesProtected(input.protection, field(toolInput, "command") ?? "")) return "secret" as const;
   if (has(TOOLS.commands, toolName)) return autonomy.commands === "ask" && autonomy.read === "allow" ? "defer" : autonomy.commands;
   if (has(TOOLS.web, toolName)) return autonomy.web;
+  if (has(TOOLS.subagents, toolName)) return autonomy.subagents;
   const reads = has(TOOLS.read, toolName);
   const target = writeTarget(toolName, toolInput, cwd);
   const reached = reads ? toolPaths(toolName, toolInput, cwd) : target === undefined ? [] : [target];

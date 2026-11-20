@@ -88,7 +88,7 @@ layer(TestApp)("MCP gateway", (it) => {
 const agentWith = (id: string, servers: ReadonlyArray<string>, autonomy: Partial<Autonomy>) => Effect.gen(function* () {
   const agent: AgentInput = {
     name: id, description: "", provider: null, model: null, sources: [], mcp: [...servers],
-    autonomy: { read: "allow", create: "ask", edit: "ask", commands: "deny", web: "deny", tools: "ask", ...autonomy },
+    autonomy: { read: "allow", create: "ask", edit: "ask", commands: "deny", web: "deny", tools: "ask", subagents: "ask", ...autonomy },
     instructions: "Use the tools.",
   };
   const current = yield* HttpClient.get(`/api/agents/${id}`);
@@ -126,7 +126,7 @@ const textOf = (result: { readonly content: ReadonlyArray<{ readonly text: strin
 layer(TestApp)("MCP gateway approvals", (it) => {
   it.effect("runs read-only tools on read autonomy and asks before the others, with server, tool and arguments", () => Effect.gen(function* () {
     yield* save("asking");
-    const { thread, events, mcp } = yield* inTurn(["asking"], { tools: "ask" });
+    const { thread, events, mcp } = yield* inTurn(["asking"], { tools: "ask", subagents: "ask" });
     expect(yield* mcp.call("asking__echo", { text: "no question" })).toMatchObject({ isError: false, content: [{ text: "no question" }] });
 
     const approved = yield* Effect.forkChild(mcp.call("asking__whoami", { reason: "check" }));
@@ -153,10 +153,10 @@ layer(TestApp)("MCP gateway approvals", (it) => {
     yield* save("plain");
     yield* save("locked", false, upstream.url, "deny");
     yield* save("trusted", false, upstream.url, "allow");
-    const { thread, agentId, mcp } = yield* inTurn(["plain", "locked", "trusted"], { tools: "allow" });
+    const { thread, agentId, mcp } = yield* inTurn(["plain", "locked", "trusted"], { tools: "allow", subagents: "allow" });
     expect(textOf(yield* mcp.call("plain__whoami"))).toBe("You sent nothing");
     // Changed during the turn: the next call follows it.
-    yield* agentWith(agentId, ["plain", "locked", "trusted"], { tools: "deny" });
+    yield* agentWith(agentId, ["plain", "locked", "trusted"], { tools: "deny", subagents: "deny" });
     const sent = callsUpstream();
     const denied = yield* mcp.call("plain__whoami");
     expect(denied.isError).toBe(true);
@@ -171,14 +171,14 @@ layer(TestApp)("MCP gateway approvals", (it) => {
 
   it.effect("Stop refuses a call waiting for approval and cancels one already running", () => Effect.gen(function* () {
     yield* save("stopping");
-    const first = yield* inTurn(["stopping"], { tools: "ask" });
+    const first = yield* inTurn(["stopping"], { tools: "ask", subagents: "ask" });
     const pending = yield* Effect.forkChild(first.mcp.call("stopping__wait"));
     toolRequest(yield* first.events.until(isToolRequest, "0 seconds"));
     yield* interrupt(first.thread.id);
     expect(textOf(yield* Fiber.join(pending))).toMatch(/turn ended before the call was approved/);
     expect((yield* getThread(first.thread.id)).events.some(({ event }) => event._tag === "request.resolved" && event.answer === null)).toBe(true);
 
-    const second = yield* inTurn(["stopping"], { tools: "allow" });
+    const second = yield* inTurn(["stopping"], { tools: "allow", subagents: "allow" });
     const arrived = upstream.nextWait();
     const running = yield* Effect.forkChild(second.mcp.call("stopping__wait"));
     yield* Effect.promise(() => arrived);
@@ -194,7 +194,7 @@ layer(TestApp)("MCP gateway approvals", (it) => {
     const vault = yield* newVaultWith({ "index.md": "# Home" });
     const thread = yield* newThread(vault.id);
     const agentId = `tools-${thread.id.slice(0, 8).toLowerCase()}`;
-    yield* agentWith(agentId, ["unattended"], { tools: "ask" });
+    yield* agentWith(agentId, ["unattended"], { tools: "ask", subagents: "ask" });
     yield* setAgent(thread.id, agentId);
     yield* (yield* ThreadActors).sendMessage(thread.id, "long", [], { unattended: true });
     const mcp = yield* mcpSession((yield* tokenFor(thread.id, vault.id)).token);

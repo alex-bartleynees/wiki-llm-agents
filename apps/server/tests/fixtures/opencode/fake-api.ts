@@ -88,7 +88,10 @@ interface Session {
   running: boolean;
   outcome: OpenCodeOutcome | null;
   playback: Fiber.Fiber<void> | undefined;
+  /** Done at the next Stop the adapter makes; a new one after each. */
   stopPressed: Deferred.Deferred<void> | undefined;
+  /** Stops the adapter made (interrupts that stopped something) in the turn being played. */
+  stops: number;
   startGate: Deferred.Deferred<void> | undefined;
   /** Done once the adapter has sent this session's next prompt. */
   prompted: Deferred.Deferred<void>;
@@ -104,7 +107,8 @@ interface Session {
  * An OpenCode server that plays recorded fixtures, one per session: each prompt
  * plays the session's next recorded turn, pausing at a request until the adapter
  * answers it (with the answer that was recorded) and at a recorded Stop until the
- * adapter presses it. A recorded ask to reach a folder outside the session's
+ * adapter presses it (the nth recorded Stop, of the agent or a subagent, waits for
+ * the adapter's nth). A recorded ask to reach a folder outside the session's
  * (`external_directory`) is skipped when the session's rules allow it, as OpenCode
  * does, so recordings made with the default rules play under narrower ones. `load` starts over with one fixture between tests, `add`
  * plays another at the same time; `createSession` hands them out in that order.
@@ -206,10 +210,15 @@ export const makeFakeOpenCode = Effect.gen(function* () {
   const play = (session: Session, steps: ReadonlyArray<FixtureStep>) =>
     Effect.gen(function* () {
       let published = 0;
+      /** Recorded stops reached so far: the nth waits for the adapter's nth. */
+      let recordedStops = 0;
       const skipped = new Set<string>();
       for (const [index, step] of steps.entries()) {
         if ("call" in step) {
-          if (step.call === "interrupt") yield* Deferred.await(session.stopPressed ?? (yield* Deferred.make<void>()));
+          if (step.call === "interrupt") {
+            recordedStops++;
+            while (session.stops < recordedStops) yield* Deferred.await(session.stopPressed ?? (yield* Deferred.make<void>()));
+          }
           continue;
         }
         const event = toEvent(session, step.event);
@@ -248,6 +257,7 @@ export const makeFakeOpenCode = Effect.gen(function* () {
   const startPlaying = (session: Session, steps: ReadonlyArray<FixtureStep>) =>
     Effect.gen(function* () {
       session.stopPressed = yield* Deferred.make<void>();
+      session.stops = 0;
       session.startGate = session.options.holdStart === true ? yield* Deferred.make<void>() : undefined;
       session.running = session.options.holdStart !== true;
       session.playback = yield* play(session, steps).pipe(Effect.forkIn(scope));
@@ -330,7 +340,10 @@ export const makeFakeOpenCode = Effect.gen(function* () {
         const session = sessionFor(sessionId);
         // Stopping a subagent is a recorded Stop too, whether or not the agent itself runs.
         if (session.stopPressed === undefined || (!session.running && !isChild(session, sessionId))) return false;
-        yield* Deferred.succeed(session.stopPressed, undefined);
+        const pressed = session.stopPressed;
+        session.stops++;
+        session.stopPressed = yield* Deferred.make<void>();
+        yield* Deferred.succeed(pressed, undefined);
         return true;
       }),
     isRunning: (sessionId) => Effect.sync(() => find(sessionId)?.running ?? false),
@@ -394,6 +407,7 @@ export const makeFakeOpenCode = Effect.gen(function* () {
         outcome: null,
         playback: undefined,
         stopPressed: undefined,
+        stops: 0,
         startGate: undefined,
         prompted: yield* Deferred.make<void>(),
         rules: [],

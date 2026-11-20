@@ -24,7 +24,7 @@ const agentWith = (id: string, sources: ReadonlyArray<KnowledgeSource>) =>
       model: null,
       sources,
       mcp: [],
-      autonomy: { read: "allow", create: "ask", edit: "ask", commands: "deny", web: "deny", tools: "deny" },
+      autonomy: { read: "allow", create: "ask", edit: "ask", commands: "deny", web: "deny", tools: "deny", subagents: "deny" },
       instructions: "Look things up.",
     };
     const current = yield* HttpClient.get(`/api/agents/${id}`);

@@ -12,7 +12,7 @@ const INPUT: AgentInput = {
   model: null,
   sources: [],
   mcp: [],
-  autonomy: { read: "allow", create: "ask", edit: "ask", commands: "deny", web: "deny", tools: "deny" },
+  autonomy: { read: "allow", create: "ask", edit: "ask", commands: "deny", web: "deny", tools: "deny", subagents: "deny" },
   instructions: "# Scout\n\nLook around.",
 };
 
@@ -35,6 +35,7 @@ autonomy:
   commands: deny
   web: deny
   tools: deny
+  subagents: deny
 ---
 
 # Scout

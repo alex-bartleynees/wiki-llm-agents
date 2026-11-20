@@ -14,6 +14,8 @@ export const ACTIONS = {
   edit: ["edit", "write", "patch"],
   commands: ["shell"],
   web: ["webfetch", "websearch", "browser"],
+  /** Launching a subagent: `subagent` in OpenCode 2.3 (asked on the launching session), `task` before. */
+  subagents: ["subagent", "task"],
 } as const;
 
 /** Actions that read or write files: their resources are paths. */
@@ -42,7 +44,9 @@ export const mcpToolsAction = (server: string) => mcpToolAction(server, "*");
 /**
  * Autonomy as OpenCode session rules. OpenCode applies the last rule that matches,
  * so the catch-all `ask` comes first: anything not listed (files outside the
- * working directory, subagents, MCP tools, tools this list doesn't know) asks.
+ * working directory, MCP tools, tools this list doesn't know) asks. Subagents
+ * get the session's rules when OpenCode creates them (the adapter sets them
+ * again when they change), so what they do follows the same autonomy.
  * Only `allow` and `deny` need rules of their own.
  *
  * The thread's own attachment folders may be reached without asking (OpenCode asks
@@ -72,6 +76,7 @@ export const permissionRules = (
     [ACTIONS.edit, fileWrites(autonomy)],
     [ACTIONS.commands, autonomy.commands],
     [ACTIONS.web, autonomy.web],
+    [ACTIONS.subagents, autonomy.subagents],
   ];
   return [
     { action: "*", resource: "*", effect: "ask" },

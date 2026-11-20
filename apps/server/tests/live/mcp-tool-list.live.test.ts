@@ -105,7 +105,7 @@ const startFakeMcp = (state: { tools: ReadonlyArray<string>; readonly seen: Arra
     (server) => Effect.sync(() => void server.closeAllConnections()).pipe(Effect.andThen(Effect.promise(() => new Promise((done) => server.close(done))))),
   );
 
-const AUTONOMY: Autonomy = { read: "allow", create: "deny", edit: "deny", commands: "deny", web: "deny", tools: "deny" };
+const AUTONOMY: Autonomy = { read: "allow", create: "deny", edit: "deny", commands: "deny", web: "deny", tools: "deny", subagents: "deny" };
 
 interface Case {
   readonly name: string;

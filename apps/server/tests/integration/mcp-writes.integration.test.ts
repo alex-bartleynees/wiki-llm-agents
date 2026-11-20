@@ -11,7 +11,7 @@ import { answer, getThread, interrupt, isTag, newThread, newVaultWith, requestId
 
 const source = "---\ntags: [test]\n---\n# Plan\n\n## Work\nOriginal.\n";
 const agentWith = (id: string, permission: AutonomyLevel, sources: ReadonlyArray<KnowledgeSource> = []) => Effect.gen(function* () {
-  const agent: AgentInput = { name: id, description: "", provider: null, model: null, sources, mcp: [], autonomy: { read: "allow", create: permission, edit: permission, commands: "deny", web: "deny", tools: "deny" }, instructions: "Maintain notes." };
+  const agent: AgentInput = { name: id, description: "", provider: null, model: null, sources, mcp: [], autonomy: { read: "allow", create: permission, edit: permission, commands: "deny", web: "deny", tools: "deny", subagents: "deny" }, instructions: "Maintain notes." };
   const current = yield* HttpClient.get(`/api/agents/${id}`);
   const baseHash = current.status === 200 ? ((yield* current.json) as { hash: string }).hash : null;
   yield* HttpClient.execute(HttpClientRequest.put(`/api/agents/${id}`).pipe(HttpClientRequest.bodyJsonUnsafe({ agent, baseHash }))).pipe(Effect.flatMap(HttpClientResponse.filterStatusOk));

@@ -28,22 +28,22 @@ describe("autonomy → OpenCode permission rules", () => {
     ],
     [
       "researcher: create allowed but edit asks, so both ask",
-      { read: "allow", create: "allow", edit: "ask", commands: "deny", web: "allow", tools: "allow" },
+      { read: "allow", create: "allow", edit: "ask", commands: "deny", web: "allow", tools: "allow", subagents: "allow" },
       { read: "allow", edit: "ask", write: "ask", shell: "deny", webfetch: "allow", websearch: "allow" },
     ],
     [
       "reviewer: no writes or commands, web asks",
-      { read: "allow", create: "deny", edit: "deny", commands: "deny", web: "ask", tools: "ask" },
+      { read: "allow", create: "deny", edit: "deny", commands: "deny", web: "ask", tools: "ask", subagents: "ask" },
       { read: "allow", edit: "deny", write: "deny", shell: "deny", webfetch: "ask" },
     ],
     [
       "trusted: everything allowed",
-      { read: "allow", create: "allow", edit: "allow", commands: "allow", web: "allow", tools: "allow" },
+      { read: "allow", create: "allow", edit: "allow", commands: "allow", web: "allow", tools: "allow", subagents: "allow" },
       { read: "allow", edit: "allow", shell: "allow", webfetch: "allow" },
     ],
     [
       "edit denied but create allowed: both denied",
-      { read: "ask", create: "allow", edit: "deny", commands: "ask", web: "deny", tools: "deny" },
+      { read: "ask", create: "allow", edit: "deny", commands: "ask", web: "deny", tools: "deny", subagents: "deny" },
       { read: "ask", grep: "ask", edit: "deny", write: "deny", shell: "ask", webfetch: "deny", websearch: "deny" },
     ],
   ])("%s", (_name, autonomy, expected) => {
@@ -52,22 +52,30 @@ describe("autonomy → OpenCode permission rules", () => {
 
   it("reaches the thread's own attachment folders, where reading follows read and writing still asks", () => {
     const own = "/data/attachments/a1";
-    const trusted = permissionRules({ read: "allow", create: "allow", edit: "allow", commands: "allow", web: "allow", tools: "allow" }, null, [own]);
+    const trusted = permissionRules({ read: "allow", create: "allow", edit: "allow", commands: "allow", web: "allow", tools: "allow", subagents: "allow" }, null, [own]);
     expect(ruleEffect(trusted, "external_directory", `${own}/*`)).toBe("allow");
     expect(ruleEffect(trusted, "read", `${own}/sales.csv`)).toBe("allow");
     expect(ruleEffect(trusted, "edit", `${own}/sales.csv`)).toBe("ask");
     expect(ruleEffect(trusted, "write", `${own}/result.csv`)).toBe("ask");
     expect(ruleEffect(trusted, "edit", "Notes/Tea.md")).toBe("allow");
     expect(ruleEffect(trusted, "external_directory", "/data/attachments/b2/*")).toBe("ask");
-    const reviewer = permissionRules({ read: "allow", create: "deny", edit: "deny", commands: "deny", web: "ask", tools: "ask" }, null, [own]);
+    const reviewer = permissionRules({ read: "allow", create: "deny", edit: "deny", commands: "deny", web: "ask", tools: "ask", subagents: "ask" }, null, [own]);
     expect(ruleEffect(reviewer, "edit", `${own}/sales.csv`)).toBe("deny");
   });
 
-  it("always allows talking to you and planning, and always asks outside the folder, for subagents and unknown tools", () => {
-    const strict = decisions({ read: "deny", create: "deny", edit: "deny", commands: "deny", web: "deny", tools: "deny" });
-    const open = decisions({ read: "allow", create: "allow", edit: "allow", commands: "allow", web: "allow", tools: "allow" });
+  it("always allows talking to you and planning, and always asks outside the folder and for unknown tools", () => {
+    const strict = decisions({ read: "deny", create: "deny", edit: "deny", commands: "deny", web: "deny", tools: "deny", subagents: "deny" });
+    const open = decisions({ read: "allow", create: "allow", edit: "allow", commands: "allow", web: "allow", tools: "allow", subagents: "allow" });
     for (const decided of [strict, open]) {
-      expect(decided).toMatchObject({ question: "allow", todowrite: "allow", external_directory: "ask", subagent: "ask", some_mcp_tool: "ask" });
+      expect(decided).toMatchObject({ question: "allow", todowrite: "allow", external_directory: "ask", some_mcp_tool: "ask" });
+    }
+  });
+
+  it("launches subagents as the subagents autonomy says (`subagent` in OpenCode 2.3, `task` before)", () => {
+    for (const level of ["allow", "ask", "deny"] as const) {
+      const rules = permissionRules({ ...DEFAULT_AUTONOMY, subagents: level });
+      expect(ruleEffect(rules, "subagent", "general")).toBe(level);
+      expect(ruleEffect(rules, "task", "general")).toBe(level);
     }
   });
 });
@@ -88,8 +96,8 @@ describe("vault write transport", () => {
 
 describe("enforcedAutonomy", () => {
   it("says when create and edit differ, and gives both the stricter level", () => {
-    const enforced = enforcedAutonomy({ read: "allow", create: "allow", edit: "ask", commands: "deny", web: "allow", tools: "allow" });
-    expect(enforced.autonomy).toEqual({ read: "allow", create: "ask", edit: "ask", commands: "deny", web: "allow", tools: "allow" });
+    const enforced = enforcedAutonomy({ read: "allow", create: "allow", edit: "ask", commands: "deny", web: "allow", tools: "allow", subagents: "allow" });
+    expect(enforced.autonomy).toEqual({ read: "allow", create: "ask", edit: "ask", commands: "deny", web: "allow", tools: "allow", subagents: "allow" });
     expect(enforced.notes[0]).toMatch(/can't tell creating a file from editing one, so both ask first/);
   });
 
@@ -101,7 +109,7 @@ describe("enforcedAutonomy", () => {
 });
 
 describe("files holding secrets", () => {
-  const TRUSTED: Autonomy = { read: "allow", create: "allow", edit: "allow", commands: "allow", web: "allow", tools: "allow" };
+  const TRUSTED: Autonomy = { read: "allow", create: "allow", edit: "allow", commands: "allow", web: "allow", tools: "allow", subagents: "allow" };
   const home = "/home/me";
   const secrets = "/home/me/.local/share/wiki-agents/secrets";
   const keyFile = "/home/me/.local/state/wiki-agents/secrets.key";
@@ -126,7 +134,7 @@ describe("files holding secrets", () => {
 
 describe("protected names (.env)", () => {
   const protection = { paths: [], names: [".env", ".env.*", "!.env.example"] };
-  const RESEARCHER: Autonomy = { read: "allow", create: "deny", edit: "deny", commands: "ask", web: "allow", tools: "allow" };
+  const RESEARCHER: Autonomy = { read: "allow", create: "deny", edit: "deny", commands: "ask", web: "allow", tools: "allow", subagents: "allow" };
   const rules = permissionRules(RESEARCHER, null, ["/data/attachments/a1"], protection, "/home/me");
 
   it("makes OpenCode ask for anything that might reach one, so the app decides", () => {

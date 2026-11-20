@@ -115,7 +115,7 @@ layer(makeTestApp({ browser, vaults: [sharedRoot] }))("browser sign-ins", (it) =
       yield* setSecret("demo-password", PASSWORD);
       const project = yield* register("Typing");
       yield* saveSignIns(project.id, [DEMO]).pipe(Effect.flatMap(HttpClientResponse.filterStatusOk));
-      const { thread, events, mcp } = yield* browserThreadInTurn(project.id, project.vaultId, { tools: "allow" });
+      const { thread, events, mcp } = yield* browserThreadInTurn(project.id, project.vaultId, { tools: "allow", subagents: "allow" });
 
       // No page yet, then a page on another site: refused before the browser is asked.
       expect(textOf(yield* mcp.call("playwright__browser_type", { ref: "e1", text: "DEMO_PASSWORD" }))).toMatch(/hasn't reported a page yet/);

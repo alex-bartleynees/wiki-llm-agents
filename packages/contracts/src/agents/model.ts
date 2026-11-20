@@ -11,7 +11,7 @@ export const AutonomyLevel = Schema.Literals(["allow", "ask", "deny"]);
 export type AutonomyLevel = typeof AutonomyLevel.Type;
 
 /** The actions autonomy is set for. */
-export const AUTONOMY_ACTIONS = ["read", "create", "edit", "commands", "web", "tools"] as const;
+export const AUTONOMY_ACTIONS = ["read", "create", "edit", "commands", "web", "tools", "subagents"] as const;
 export type AutonomyAction = (typeof AUTONOMY_ACTIONS)[number];
 
 /**
@@ -23,6 +23,9 @@ export type AutonomyAction = (typeof AUTONOMY_ACTIONS)[number];
  * - `web`: fetch pages and search the web
  * - `tools`: call other MCP servers' tools (Settings › MCP servers) that the server
  *   doesn't mark read-only; read-only ones follow `read`
+ * - `subagents`: start the provider's own subagents (OpenCode's `subagent` tool,
+ *   Claude Code's `Agent`); what they then do follows the rest of the autonomy.
+ *   With `allow`, a scheduled run may start them too.
  */
 export const Autonomy = Schema.Struct({
   read: AutonomyLevel,
@@ -31,11 +34,12 @@ export const Autonomy = Schema.Struct({
   commands: AutonomyLevel,
   web: AutonomyLevel,
   tools: AutonomyLevel,
+  subagents: AutonomyLevel,
 });
 export type Autonomy = typeof Autonomy.Type;
 
 /** Without an agent, or for actions an agent's file leaves out: read freely, ask for the rest. */
-export const DEFAULT_AUTONOMY: Autonomy = { read: "allow", create: "ask", edit: "ask", commands: "ask", web: "ask", tools: "ask" };
+export const DEFAULT_AUTONOMY: Autonomy = { read: "allow", create: "ask", edit: "ask", commands: "ask", web: "ask", tools: "ask", subagents: "ask" };
 
 /** How a provider enforces an agent's autonomy; it may be stricter than the file asks. */
 export const AutonomyEnforcement = Schema.Struct({

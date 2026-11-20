@@ -28,7 +28,7 @@ const agentWith = (id: string, autonomy: Partial<Autonomy>) =>
   Effect.gen(function* () {
     const agent: AgentInput = {
       name: id, description: "", provider: null, model: null, sources: [], mcp: ["playwright"],
-      autonomy: { read: "allow", create: "ask", edit: "ask", commands: "deny", web: "deny", tools: "ask", ...autonomy },
+      autonomy: { read: "allow", create: "ask", edit: "ask", commands: "deny", web: "deny", tools: "ask", subagents: "ask", ...autonomy },
       instructions: "Use the browser.",
     };
     yield* HttpClient.execute(HttpClientRequest.put(`/api/agents/${id}`).pipe(HttpClientRequest.bodyJsonUnsafe({ agent, baseHash: null }))).pipe(

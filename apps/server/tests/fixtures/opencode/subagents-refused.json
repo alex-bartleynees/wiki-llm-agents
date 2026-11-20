@@ -1,0 +1,432 @@
+{
+  "scenario": "subagents-refused",
+  "opencodeVersion": "2.3.0",
+  "model": "opencode/tidepool-alpha-free",
+  "sessionId": "ses_e057531d6ffeyR4fLm9V3LkP7B",
+  "turns": [
+    {
+      "prompt": "Use the subagent tool once, with the general agent, to report the first line of Notes/Coffee.md. If you can't, say so in one sentence.",
+      "steps": [
+        {
+          "event": {
+            "id": "evt_1fa8ace2b0011JucO3cpsdf7ww",
+            "created": 1795204763179,
+            "type": "session.created",
+            "durable": {
+              "aggregateID": "ses_e057531d6ffeyR4fLm9V3LkP7B",
+              "seq": 0,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e057531d6ffeyR4fLm9V3LkP7B",
+              "projectID": "72fd8921af2f3a31db808c4112508eabd657f9e8",
+              "location": {
+                "directory": "/__vault__"
+              },
+              "subpath": "",
+              "slug": "mighty-cabin",
+              "permissions": [
+                {
+                  "action": "*",
+                  "resource": "*",
+                  "effect": "ask"
+                },
+                {
+                  "action": "question",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "todowrite",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "todo",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "skill",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "read",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "glob",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "grep",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "list",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "lsp",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "wiki-agents-*",
+                  "resource": "*",
+                  "effect": "deny"
+                }
+              ],
+              "version": "2.3.0"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1fa8acfce001feiciYxZCRpFyG",
+            "created": 1795204763598,
+            "type": "session.inbox.enqueued",
+            "durable": {
+              "aggregateID": "ses_e057531d6ffeyR4fLm9V3LkP7B",
+              "seq": 1,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e057531d6ffeyR4fLm9V3LkP7B",
+              "inboxID": "msg_1fa8ace52001Zzd4Q1PWG4EMbZ",
+              "item": {
+                "type": "user",
+                "payload": {
+                  "text": "Use the subagent tool once, with the general agent, to report the first line of Notes/Coffee.md. If you can't, say so in one sentence."
+                },
+                "delivery": "steer"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1fa8acfd0001yKk41pNiTU7tlJ",
+            "created": 1795204763600,
+            "type": "session.execution.started",
+            "durable": {
+              "aggregateID": "ses_e057531d6ffeyR4fLm9V3LkP7B",
+              "seq": 2,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e057531d6ffeyR4fLm9V3LkP7B"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1fa8acfdf001ocZKxhtiLLULHs",
+            "created": 1795204763615,
+            "type": "session.inbox.delivered",
+            "durable": {
+              "aggregateID": "ses_e057531d6ffeyR4fLm9V3LkP7B",
+              "seq": 4,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e057531d6ffeyR4fLm9V3LkP7B",
+              "inboxID": "msg_1fa8ace52001Zzd4Q1PWG4EMbZ"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1fa8ae120001Exdsxcp4pZ5dKH",
+            "created": 1795204768032,
+            "type": "session.step.started",
+            "durable": {
+              "aggregateID": "ses_e057531d6ffeyR4fLm9V3LkP7B",
+              "seq": 5,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e057531d6ffeyR4fLm9V3LkP7B",
+              "assistantMessageID": "msg_1fa8acfe9001GzWuluGV9hc5NZ",
+              "agent": "build",
+              "model": {
+                "id": "tidepool-alpha-free",
+                "providerID": "opencode"
+              },
+              "started": 1795204763628
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1fa8ae51b001rVOPHUEqG2ggmJ",
+            "created": 1795204769051,
+            "type": "session.tool.input.started",
+            "durable": {
+              "aggregateID": "ses_e057531d6ffeyR4fLm9V3LkP7B",
+              "seq": 8,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e057531d6ffeyR4fLm9V3LkP7B",
+              "assistantMessageID": "msg_1fa8acfe9001GzWuluGV9hc5NZ",
+              "id": "call_32fd0f6684f8478f9aa497ad",
+              "name": "subagent"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1fa8ae522001xDFfry5GMb6tcj",
+            "created": 1795204769058,
+            "type": "session.tool.called",
+            "durable": {
+              "aggregateID": "ses_e057531d6ffeyR4fLm9V3LkP7B",
+              "seq": 11,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e057531d6ffeyR4fLm9V3LkP7B",
+              "assistantMessageID": "msg_1fa8acfe9001GzWuluGV9hc5NZ",
+              "id": "call_32fd0f6684f8478f9aa497ad",
+              "input": {
+                "agent": "general",
+                "description": "Read first line of Notes/Coffee.md",
+                "prompt": "Read the file Notes/Coffee.md in the current working directory. Report only the first line of the file, verbatim. If the file does not exist or cannot be read, report that."
+              },
+              "executed": false
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1fa8ae52c002c2tHvQkOEbhsZy",
+            "created": 1795204769068,
+            "type": "permission.asked",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "id": "per_1fa8ae52c001TqfYQtWDGrMu9d",
+              "sessionID": "ses_e057531d6ffeyR4fLm9V3LkP7B",
+              "action": "subagent",
+              "resources": [
+                "general"
+              ],
+              "save": [
+                "general"
+              ],
+              "source": {
+                "type": "tool",
+                "messageID": "msg_1fa8acfe9001GzWuluGV9hc5NZ",
+                "id": "call_32fd0f6684f8478f9aa497ad"
+              }
+            }
+          }
+        },
+        {
+          "call": "reply",
+          "requestId": "per_1fa8ae52c001TqfYQtWDGrMu9d",
+          "reply": "reject"
+        },
+        {
+          "event": {
+            "id": "evt_1fa8ae5320010eDEJJzqlM2LOx",
+            "created": 1795204769074,
+            "type": "permission.replied",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e057531d6ffeyR4fLm9V3LkP7B",
+              "requestID": "per_1fa8ae52c001TqfYQtWDGrMu9d",
+              "reply": "reject"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1fa8ae533001fr2BTS0sBc9vTD",
+            "created": 1795204769075,
+            "type": "session.tool.failed",
+            "durable": {
+              "aggregateID": "ses_e057531d6ffeyR4fLm9V3LkP7B",
+              "seq": 15,
+              "version": 2
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e057531d6ffeyR4fLm9V3LkP7B",
+              "assistantMessageID": "msg_1fa8acfe9001GzWuluGV9hc5NZ",
+              "id": "call_32fd0f6684f8478f9aa497ad",
+              "error": {
+                "type": "permission.rejected",
+                "message": "The user denied this. Don't try it another way; say what you would have done."
+              },
+              "executed": false
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1fa8ae535001GUy4mVvvs5CrA9",
+            "created": 1795204769077,
+            "type": "session.step.ended",
+            "durable": {
+              "aggregateID": "ses_e057531d6ffeyR4fLm9V3LkP7B",
+              "seq": 16,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e057531d6ffeyR4fLm9V3LkP7B",
+              "assistantMessageID": "msg_1fa8acfe9001GzWuluGV9hc5NZ",
+              "finish": "tool-calls",
+              "rawFinish": "tool_calls",
+              "cost": 0,
+              "tokens": {
+                "input": 16384,
+                "output": 76,
+                "reasoning": 276,
+                "cache": {
+                  "read": 1960,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1fa8aeb9b001SW7kM1Iiq40uaE",
+            "created": 1795204770715,
+            "type": "session.step.started",
+            "durable": {
+              "aggregateID": "ses_e057531d6ffeyR4fLm9V3LkP7B",
+              "seq": 17,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e057531d6ffeyR4fLm9V3LkP7B",
+              "assistantMessageID": "msg_1fa8ae53c001g6Zc1VmMR70tQZ",
+              "agent": "build",
+              "model": {
+                "id": "tidepool-alpha-free",
+                "providerID": "opencode"
+              },
+              "started": 1795204769088
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1fa8af078001mIj7u0fy8rAEWw",
+            "created": 1795204771960,
+            "type": "session.text.delta",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e057531d6ffeyR4fLm9V3LkP7B",
+              "assistantMessageID": "msg_1fa8ae53c001g6Zc1VmMR70tQZ",
+              "ordinal": 0,
+              "delta": "I can't use the subagent tool in this session, but I can read"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1fa8af1460010SBKzWR640XSdu",
+            "created": 1795204772166,
+            "type": "session.text.delta",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e057531d6ffeyR4fLm9V3LkP7B",
+              "assistantMessageID": "msg_1fa8ae53c001g6Zc1VmMR70tQZ",
+              "ordinal": 0,
+              "delta": " Notes/Coffee.md directly if you'd like."
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1fa8af20f001W65hnOmpZZ2z1H",
+            "created": 1795204772367,
+            "type": "session.step.ended",
+            "durable": {
+              "aggregateID": "ses_e057531d6ffeyR4fLm9V3LkP7B",
+              "seq": 24,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e057531d6ffeyR4fLm9V3LkP7B",
+              "assistantMessageID": "msg_1fa8ae53c001g6Zc1VmMR70tQZ",
+              "finish": "stop",
+              "rawFinish": "stop",
+              "cost": 0,
+              "tokens": {
+                "input": 40,
+                "output": 30,
+                "reasoning": 271,
+                "cache": {
+                  "read": 18696,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1fa8af212001pdRg5CKujWPzvA",
+            "created": 1795204772370,
+            "type": "session.execution.succeeded",
+            "durable": {
+              "aggregateID": "ses_e057531d6ffeyR4fLm9V3LkP7B",
+              "seq": 25,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e057531d6ffeyR4fLm9V3LkP7B"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

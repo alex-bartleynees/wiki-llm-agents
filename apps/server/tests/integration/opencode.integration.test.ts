@@ -293,7 +293,7 @@ layer(App)("OpenCode provider", (it) => {
       yield* sendOk(thread.id, prompts[0]!);
       expect(finishedOf(yield* events.until(isTag("turn.finished"))).outcome).toBe("completed");
 
-      const researcher = { read: "allow", create: "allow", edit: "ask", commands: "deny", web: "allow", tools: "allow" } as const;
+      const researcher = { read: "allow", create: "allow", edit: "ask", commands: "deny", web: "allow", tools: "allow", subagents: "ask" } as const;
       expect(fake.calls[0]).toEqual({ call: "createSession", model: null, permissions: permissionRules(researcher, entryName(thread.id), [], yield* secretPaths) });
       const instructions = fake.calls.find((call) => call.call === "setInstructions");
       if (instructions?.call !== "setInstructions" || instructions.text === null) throw new Error("no instructions were set");
@@ -319,7 +319,7 @@ layer(App)("OpenCode provider", (it) => {
       yield* sendOk(thread.id, prompts[1]!);
       yield* again.until(isTag("turn.finished"));
       const second = fake.calls.slice(afterFirst);
-      const reviewer = { read: "allow", create: "deny", edit: "deny", commands: "deny", web: "ask", tools: "ask" } as const;
+      const reviewer = { read: "allow", create: "deny", edit: "deny", commands: "deny", web: "ask", tools: "ask", subagents: "ask" } as const;
       expect(second.map((call) => call.call)).toEqual(["setPermissions", "setInstructions", "prompt"]);
       expect(second[0]).toEqual({ call: "setPermissions", permissions: permissionRules(reviewer, entryName(thread.id), [], yield* secretPaths) });
       expect(second[1]).toMatchObject({ call: "setInstructions", text: expect.stringContaining("You are the Reviewer agent") });

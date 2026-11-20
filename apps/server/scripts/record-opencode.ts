@@ -17,6 +17,8 @@ import { parseArgs } from "node:util";
 import { OpenCodeEvent } from "@opencode/protocol/groups/event";
 import { Effect, Option, PubSub, Schema } from "effect";
 import { DENIED, imageFile, ROUTE_BACKOFF, SESSION_PERMISSIONS } from "../src/features/providers/opencode/adapter.js";
+import { permissionRules } from "../src/features/providers/opencode/permissions.js";
+import { DEFAULT_AUTONOMY } from "@wiki-agents/contracts/agents/model";
 import type { OpenCodeApi, OpenCodeSignal } from "../src/features/providers/opencode/api.js";
 import { childCreated, childReport, sessionOf } from "../src/features/providers/opencode/events.js";
 import { startServer } from "../src/features/providers/opencode/server.js";
@@ -58,9 +60,10 @@ interface TurnScript {
    * recording goes on after the agent's turn until they and the turns their reports
    * start have ended. `stop-when-idle` presses Stop once only the subagents run, as
    * the adapter does: every subagent, their reports withdrawn, and any turn they
-   * start stopped.
+   * start stopped. `stop-while-running` presses it once two subagents run and the
+   * agent's own turn still does: every subagent, then the agent.
    */
-  readonly subagents?: "wait" | "stop-when-idle";
+  readonly subagents?: "wait" | "stop-when-idle" | "stop-while-running";
 }
 
 const SCENARIOS: Readonly<Record<string, ReadonlyArray<TurnScript>>> = {
@@ -115,10 +118,41 @@ const SCENARIOS: Readonly<Record<string, ReadonlyArray<TurnScript>>> = {
       subagents: "stop-when-idle",
     },
   ],
+  // A launch refused, as in a scheduled run (nobody there to approve it): the agent carries on without it.
+  "subagents-refused": [
+    {
+      prompt:
+        "Use the subagent tool once, with the general agent, to report the first line of Notes/Coffee.md. If you can't, say so in one sentence.",
+      answer: { reply: "reject" },
+      subagents: "wait",
+    },
+  ],
+  // The same launch under an agent whose subagents autonomy is `allow` (`SCENARIO_RULES`): OpenCode doesn't ask.
+  "subagents-allowed": [
+    {
+      prompt:
+        "Use the subagent tool once, with the general agent, to report the first line of Notes/Coffee.md. Then reply 'launched' without waiting.",
+      subagents: "wait",
+    },
+  ],
+  // Stop pressed while the agent's own turn (busy writing after the launch) and both subagents run.
+  "subagents-stop-running": [
+    {
+      prompt:
+        "Use the subagent tool twice, in parallel in one response, with the general agent. Each subagent runs the shell command 'sleep 20' and then reports the first line of Notes/Coffee.md (A) or Notes/Tea.md (B). After launching them, write a 400-word story about a lighthouse without waiting for them.",
+      answer: { reply: "once" },
+      subagents: "stop-while-running",
+    },
+  ],
 };
 
 /** Scenarios that need a model other than the default when `--model` isn't given: the default free model doesn't take images, and Copilot Auto is the subject of its own. */
 const SCENARIO_MODELS: Readonly<Record<string, string>> = { image: "opencode/nemotron-3.5-super-vl-free", "copilot-auto": "github-copilot/auto", "copilot-auto-cold": "github-copilot/auto" };
+
+/** Scenarios recorded under an agent's rules other than the defaults, as the adapter would set them. */
+const SCENARIO_RULES: Readonly<Record<string, ReturnType<typeof permissionRules>>> = {
+  "subagents-allowed": permissionRules({ ...DEFAULT_AUTONOMY, subagents: "allow" }),
+};
 
 const END = new Set(["session.execution.succeeded", "session.execution.failed", "session.execution.interrupted"]);
 const COMPACTION_END = new Set(["session.compaction.ended", "session.compaction.failed"]);
@@ -207,6 +241,13 @@ const recordTurn = (api: OpenCodeApi, sessionId: string, root: string, attachmen
             else parentIdle = false;
           }
           if (END.has(event.type) && child) working.delete(from);
+          if (script.subagents === "stop-while-running" && !stopping && !parentIdle && child && working.size === 2) {
+            // Stop while the agent's own turn still runs, as the adapter does: every subagent, then the agent.
+            stopping = true;
+            for (const id of working) steps.push({ call: "interrupt", withdrawn: false, interrupted: yield* api.interrupt(id) });
+            steps.push({ call: "interrupt", withdrawn: false, interrupted: yield* api.interrupt(sessionId) });
+            continue;
+          }
           if (stopping && !child && event.type === "session.execution.started") {
             steps.push({ call: "interrupt", withdrawn: false, interrupted: yield* api.interrupt(sessionId) });
           }
@@ -301,7 +342,7 @@ const record = (name: string, turns: ReadonlyArray<TurnScript>, model: string | 
         yield* api.listModels(root);
         yield* Effect.sleep(ROUTER_WARM_UP);
       }
-      const sessionId = yield* api.createSession({ directory: root, model, permissions: SESSION_PERMISSIONS });
+      const sessionId = yield* api.createSession({ directory: root, model, permissions: SCENARIO_RULES[name] ?? SESSION_PERMISSIONS });
       const recorded = [];
       for (const script of turns) {
         // An unrouted turn is sent again: each attempt is a turn of the fixture.

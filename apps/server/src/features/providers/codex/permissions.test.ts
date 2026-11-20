@@ -18,8 +18,8 @@ writeFileSync(join(vault, "Notes/Tea.md"), "# Tea\n");
 symlinkSync(outside, join(vault, "escape"));
 afterAll(() => rmSync(root, { recursive: true, force: true }));
 
-const RESEARCHER: Autonomy = { read: "allow", create: "allow", edit: "ask", commands: "deny", web: "allow", tools: "allow" };
-const TRUSTED: Autonomy = { read: "allow", create: "allow", edit: "allow", commands: "allow", web: "allow", tools: "allow" };
+const RESEARCHER: Autonomy = { read: "allow", create: "allow", edit: "ask", commands: "deny", web: "allow", tools: "allow", subagents: "ask" };
+const TRUSTED: Autonomy = { read: "allow", create: "allow", edit: "allow", commands: "allow", web: "allow", tools: "allow", subagents: "allow" };
 
 const add = (path: string): FileUpdateChange => ({ path, kind: { type: "add" }, diff: "x\n" });
 const update = (path: string, movePath: string | null = null): FileUpdateChange => ({ path, kind: { type: "update", move_path: movePath }, diff: "@@ -1 +1 @@\n-a\n+b\n" });
@@ -69,9 +69,10 @@ describe("autonomy → Codex patch decisions", () => {
     expect(autonomyConfig(RESEARCHER, NO_PROTECTION, [vault])).toMatchObject({ web_search: "live" });
     expect(autonomyConfig(DEFAULT_AUTONOMY, NO_PROTECTION, [vault])).toMatchObject({ web_search: "disabled" });
     const enforced = enforcedAutonomy({ ...DEFAULT_AUTONOMY, read: "ask" });
-    expect(enforced.autonomy).toEqual({ ...DEFAULT_AUTONOMY, read: "allow", web: "deny" });
+    expect(enforced.autonomy).toEqual({ ...DEFAULT_AUTONOMY, read: "allow", web: "deny", subagents: "allow" });
     expect(enforced.notes.join("\n")).toMatch(/reading is always allowed/);
     expect(enforced.notes.join("\n")).toMatch(/can't ask before it searches the web/);
+    expect(enforced.notes.join("\n")).toMatch(/starts its subagents without asking/);
     expect(enforcedAutonomy(TRUSTED).autonomy).toEqual(TRUSTED);
   });
 });

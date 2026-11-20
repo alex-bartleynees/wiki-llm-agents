@@ -49,7 +49,7 @@ Dig deep.
       model: "opencode/big-pickle",
       sources: ["vault", "web"],
       mcp: ["coffee-journal", "github"],
-      autonomy: { read: "allow", create: "allow", edit: "ask", commands: "deny", web: "allow", tools: "ask" },
+      autonomy: { read: "allow", create: "allow", edit: "ask", commands: "deny", web: "allow", tools: "ask", subagents: "ask" },
       path: PATH,
       instructions: "# Role\n\nDig deep.",
     });

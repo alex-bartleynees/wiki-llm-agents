@@ -9,7 +9,7 @@ import { type Completion, type CompletionInput, type ProviderAdapter, ProviderEr
 export const COMPLETION_TIMEOUT = Duration.minutes(2);
 
 /** Nothing the model asks to do is allowed: a one-shot call only answers. */
-const NOTHING: Autonomy = { read: "deny", create: "deny", edit: "deny", commands: "deny", web: "deny", tools: "deny" };
+const NOTHING: Autonomy = { read: "deny", create: "deny", edit: "deny", commands: "deny", web: "deny", tools: "deny", subagents: "deny" };
 
 /**
  * One turn in a throwaway session, for a provider without its own `complete`: every

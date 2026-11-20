@@ -11,7 +11,7 @@ const tool = (name: string, annotations?: { readOnlyHint?: boolean; destructiveH
 const server = { id: "github", title: "GitHub", access: null, browserSignIns: false };
 
 describe("toolCallLevel", () => {
-  const autonomy = { ...DEFAULT_AUTONOMY, read: "allow" as const, tools: "deny" as const };
+  const autonomy = { ...DEFAULT_AUTONOMY, read: "allow" as const, tools: "deny" as const, subagents: "deny" as const };
 
   it("reads read-only tools on `read` and everything else on `tools`", () => {
     expect(toolCallLevel(autonomy, { access: null, tool: tool("list_issues", { readOnlyHint: true }) })).toBe("allow");

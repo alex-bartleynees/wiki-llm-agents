@@ -25,7 +25,7 @@ import type { ProviderAdapter, ProviderEvent, SessionSetup } from "../../src/fea
 const providers = (process.env.WIKI_AGENTS_LIVE_SECRETS ?? "").split(",");
 const binary = process.env.WIKI_AGENTS_CODEX ?? "codex";
 
-const TRUSTED: Autonomy = { read: "allow", create: "allow", edit: "allow", commands: "allow", web: "deny", tools: "allow" };
+const TRUSTED: Autonomy = { read: "allow", create: "allow", edit: "allow", commands: "allow", web: "deny", tools: "allow", subagents: "allow" };
 
 /** Everything the turn showed: tool calls and output, and the reply joined up (it streams in pieces). */
 const text = (events: ReadonlyArray<ProviderEvent>) =>

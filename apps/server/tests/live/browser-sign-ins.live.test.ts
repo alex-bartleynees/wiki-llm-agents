@@ -124,7 +124,7 @@ describe.skipIf(!live)("a browser sign-in with Playwright MCP", () => {
         yield* setSecret("fake-password", PASSWORD);
         const project = yield* registerProject("Fake app", appDir);
         yield* saveSignIns(project.id, [SIGN_IN]).pipe(Effect.flatMap(HttpClientResponse.filterStatusOk));
-        const { thread, events, mcp } = yield* browserThreadInTurn(project.id, project.vaultId, { tools: "allow" });
+        const { thread, events, mcp } = yield* browserThreadInTurn(project.id, project.vaultId, { tools: "allow", subagents: "allow" });
 
         // The same form on another site: refused from the page Playwright reports, before the browser types anything.
         // (A navigation's answer links its snapshot as a file; `browser_snapshot` gives it inline.)
