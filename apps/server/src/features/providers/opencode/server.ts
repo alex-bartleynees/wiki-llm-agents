@@ -58,6 +58,11 @@ const eventTypes = [
 const STARTUP_TIMEOUT = Duration.seconds(30);
 const CALL_TIMEOUT = Duration.seconds(30);
 const RECONNECT_DELAY = Duration.seconds(1);
+/**
+ * How many of a session's subagents `listChildren` reads, newest first: the ones of
+ * this run of the app are the newest, and a thread rarely launches this many.
+ */
+const CHILDREN_LISTED = 100;
 
 export interface ServerOptions {
   /** The `opencode` executable: a path, or a name looked up on `PATH`. */
@@ -289,6 +294,24 @@ const makeApi = (client: OpenCodeClient, version: string, hub: PubSub.PubSub<Ope
         const idle = page.data[0];
         return idle !== undefined && idle.type === "idle" ? idle.outcome : null;
       }),
+    ),
+  listChildren: (parentId) =>
+    Effect.all(
+      [
+        call("listing the subagents", client.session.list({ parentID: parentId as never, order: "desc", limit: CHILDREN_LISTED })),
+        call("checking the session", client.session.active()),
+      ],
+      { concurrency: 2 },
+    ).pipe(
+      Effect.map(([page, active]) =>
+        page.data.map((session) => ({
+          id: session.id as string,
+          title: session.title ?? null,
+          agent: (session.agent as string | undefined) ?? null,
+          running: session.id in active,
+          outcome: session.outcome ?? null,
+        })),
+      ),
     ),
   replyPermission: (sessionId, requestId, reply, message) =>
     call(

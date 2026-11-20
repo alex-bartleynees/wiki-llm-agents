@@ -19,7 +19,8 @@ import { makeProviderRegistry } from "../../src/features/providers/registry-live
 import { ReplayAdapter } from "../../src/features/providers/replay/adapter.js";
 import { ThreadBus } from "../../src/features/threads/thread-bus.js";
 import { makeSqlite, Sqlite } from "../../src/shared/persistence/sqlite.js";
-import { type FakeOpenCode, loadFixture, makeFakeOpenCode } from "../fixtures/opencode/fake-api.js";
+import { childReport } from "../../src/features/providers/opencode/events.js";
+import { type FakeOpenCode, loadFixture, makeFakeOpenCode, type PlayOptions } from "../fixtures/opencode/fake-api.js";
 import { VAULT_FILES } from "../fixtures/opencode/fixture.js";
 import { answer, decode, getThread, interrupt, newThread, newVaultWith, sendOk } from "./infrastructure/threads.js";
 import { makeTestApp, TestAgents, TestAttachments, TestSecrets, TestWorktrees } from "./infrastructure/test-app.js";
@@ -77,12 +78,12 @@ const approveLaunches = (threadId: string, events: Effect.Success<ReturnType<typ
     }
   });
 
-const setUp = (scenario: string) =>
+const setUp = (scenario: string, options?: PlayOptions) =>
   Effect.gen(function* () {
     const vault = yield* newVaultWith(VAULT_FILES);
     const fixture = loadFixture(scenario);
     const fake = yield* Fake;
-    yield* fake.load(fixture, vault.rootPath);
+    yield* fake.load(fixture, vault.rootPath, options);
     const thread = yield* newThread(vault.id, "opencode");
     return { thread, fake, prompt: fixture.turns[0]!.prompt };
   });
@@ -124,6 +125,43 @@ layer(App)("OpenCode subagents", (it) => {
       expect(fake.calls).toContainEqual({ call: "reply", requestId: asked.requestId, reply: "once" });
       // The answered request stays answered: the turns that ended around it didn't cancel it.
       expect(stored.map((item) => item.event)).toContainEqual({ _tag: "request.resolved", turnId: launched, requestId: asked.requestId, answer: { _tag: "approval", decision: "approve" } });
+    }),
+  );
+
+  it.effect("checks the subagents with OpenCode when its event stream reconnects, so one whose report was lost doesn't stay running", () =>
+    Effect.gen(function* () {
+      // The stream loses the report of the subagent reading Coffee.md: the only sign it finished.
+      const { thread, fake, prompt } = yield* setUp("subagents", {
+        lose: (event) => childReport(event)?.childId.startsWith("ses_e08a2c678ffdsL9cNtIn3QVNvy") === true,
+      });
+      const events = yield* watch(thread.id);
+      const launched = yield* sendOk(thread.id, prompt);
+      yield* approveLaunches(thread.id, events);
+      yield* launchedBoth(events, launched);
+      const byLabel = (label: string) => [...latest(events.seen).values()].find((subagent) => subagent.label === label)!.subagentId;
+      const [quick, editing] = [byLabel("Report first line of Coffee.md"), byLabel("Append Oolong too. to Tea.md")];
+
+      // The other asks to edit, reports, and the turn its report wakes ends.
+      const asked = (yield* events.until((event) => opened(event) && event.subagentId === editing)).at(-1);
+      if (asked === undefined || !opened(asked)) throw new Error("the subagent didn't ask");
+      expect((yield* answer(thread.id, asked.requestId, { _tag: "approval", decision: "approve" })).status).toBe(200);
+      yield* events.until(
+        () =>
+          latest(events.seen).get(editing)?.status === "done" &&
+          events.seen.some((event) => event._tag === "turn.finished" && event.turnId !== launched),
+      );
+      yield* fake.played;
+      // Without its report, the app still shows the first one at work.
+      expect((yield* getThread(thread.id)).thread).toMatchObject({ status: "idle", subagentsActive: 1 });
+      expect(latest(events.seen).get(quick)?.status).toBe("running");
+
+      // The stream comes back: OpenCode's session list says it finished.
+      yield* fake.reconnect;
+      yield* events.until((event) => event._tag === "subagent.updated" && event.subagentId === quick && event.status === "done");
+      expect(fake.calls.some((call) => call.call === "listChildren")).toBe(true);
+      const { thread: summary, events: stored } = yield* getThread(thread.id);
+      expect(summary).toMatchObject({ status: "idle", subagentsActive: 0 });
+      expect([...latest(stored.map((item) => item.event)).values()].map((subagent) => subagent.status)).toEqual(["done", "done"]);
     }),
   );
 

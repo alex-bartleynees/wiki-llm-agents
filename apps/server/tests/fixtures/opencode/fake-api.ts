@@ -4,6 +4,7 @@ import { OpenCodeEvent } from "@opencode/protocol/groups/event";
 import { Deferred, Effect, Fiber, PubSub, Schema } from "effect";
 import type {
   OpenCodeApi,
+  OpenCodeChildSession,
   OpenCodeFile,
   OpenCodeMcpStatus,
   OpenCodeModel,
@@ -16,6 +17,7 @@ import { attachmentsRootIn } from "../csv.js";
 import { ATTACHMENTS, type FixtureImage, sha256 } from "../image.js";
 import { type Fixture, type FixtureStep, VAULT } from "./fixture.js";
 import { ruleEffect } from "../../../src/features/providers/opencode/permissions.js";
+import { sessionOf } from "../../../src/features/providers/opencode/events.js";
 
 const decodeEvent = Schema.decodeUnknownSync(OpenCodeEvent);
 
@@ -47,6 +49,8 @@ export interface PlayOptions {
   readonly holdStart?: boolean;
   /** Stop publishing after this many events, as if the stream lost the rest; the turn still runs to its end. */
   readonly loseAfter?: number;
+  /** Events the stream loses (it reconnects with `reconnect`); they still happen, and `listChildren` tells of them. */
+  readonly lose?: (event: OpenCodeEvent) => boolean;
   /**
    * The thread's session from the last load goes on with this recording (a restart, a
    * crash): it keeps that session's id. Otherwise each load is a new session, with an
@@ -61,7 +65,7 @@ export interface PlayOptions {
 export type FakeCall =
   | { readonly call: "createSession"; readonly model: string | null; readonly permissions: ReadonlyArray<OpenCodePermissionRule> }
   | { readonly call: "prompt"; readonly text: string; readonly files?: ReadonlyArray<OpenCodeFile> }
-  | { readonly call: "cancelPrompt" | "interrupt" | "compact" }
+  | { readonly call: "cancelPrompt" | "interrupt" | "compact" | "listChildren" }
   | { readonly call: "removeMessage"; readonly messageId: string }
   | { readonly call: "setPermissions"; readonly permissions: ReadonlyArray<OpenCodePermissionRule> }
   | { readonly call: "setInstructions"; readonly text: string | null }
@@ -92,6 +96,8 @@ interface Session {
   rules: ReadonlyArray<OpenCodePermissionRule>;
   /** Where the turn being played keeps its attachments (recorded as `ATTACHMENTS`). */
   attachments: string | undefined;
+  /** The subagents played so far, by live id, with their parents, as `listChildren` lists them. */
+  readonly children: Map<string, OpenCodeChildSession & { readonly parentId: string }>;
 }
 
 /**
@@ -174,6 +180,29 @@ export const makeFakeOpenCode = Effect.gen(function* () {
     event.data.action === "external_directory" &&
     event.data.resources.every((resource) => ruleEffect(session.rules, "external_directory", resource) === "allow");
 
+  /** Keeps what `listChildren` says of the session's subagents up to date with a played event. */
+  const trackChild = (session: Session, event: ReturnType<typeof decodeEvent>) => {
+    if (event.type === "session.created" && event.data.parentID !== undefined) {
+      session.children.set(event.data.sessionID, {
+        id: event.data.sessionID,
+        parentId: event.data.parentID,
+        title: event.data.title ?? null,
+        agent: event.data.agent ?? null,
+        running: false,
+        outcome: null,
+      });
+      return;
+    }
+    const from = sessionOf(event);
+    const child = from === undefined ? undefined : session.children.get(from);
+    if (child === undefined) return;
+    if (event.type === "session.execution.started") session.children.set(child.id, { ...child, running: true });
+    if (event.type === "session.execution.succeeded" || event.type === "session.execution.failed" || event.type === "session.execution.interrupted") {
+      const outcome = event.type === "session.execution.succeeded" ? "succeeded" : event.type === "session.execution.failed" ? "failed" : "interrupted";
+      session.children.set(child.id, { ...child, running: false, outcome });
+    }
+  };
+
   const play = (session: Session, steps: ReadonlyArray<FixtureStep>) =>
     Effect.gen(function* () {
       let published = 0;
@@ -190,13 +219,15 @@ export const makeFakeOpenCode = Effect.gen(function* () {
         }
         if (event.type === "permission.replied" && skipped.has(event.data.requestID)) continue;
         if (event.type === "session.execution.started" && session.startGate !== undefined) yield* Deferred.await(session.startGate);
+        trackChild(session, event);
         if (event.type === "session.execution.started") session.running = true;
         if (event.type === "session.execution.succeeded" || event.type === "session.execution.failed" || event.type === "session.execution.interrupted") {
           session.running = false;
           session.outcome =
             event.type === "session.execution.succeeded" ? "succeeded" : event.type === "session.execution.failed" ? "failed" : "interrupted";
         }
-        if (session.options.loseAfter === undefined || published < session.options.loseAfter) {
+        const lost = session.options.lose?.(event) === true || (session.options.loseAfter !== undefined && published >= session.options.loseAfter);
+        if (!lost) {
           yield* PubSub.publish(hub, { _tag: "event", event });
           published++;
         }
@@ -304,6 +335,17 @@ export const makeFakeOpenCode = Effect.gen(function* () {
       }),
     isRunning: (sessionId) => Effect.sync(() => find(sessionId)?.running ?? false),
     lastOutcome: (sessionId) => Effect.sync(() => find(sessionId)?.outcome ?? null),
+    listChildren: (parentId) =>
+      Effect.sync(() => {
+        note({ call: "listChildren" });
+        const session = find(parentId);
+        if (session === undefined) return [];
+        // Newest first, as OpenCode lists them.
+        return [...session.children.values()]
+          .filter((child) => child.parentId === parentId)
+          .reverse()
+          .map(({ parentId: _, ...child }) => child);
+      }),
     replyPermission: (_sessionId, requestId, reply, message) =>
       Effect.gen(function* () {
         note({ call: "reply", requestId, reply, ...(message === undefined ? {} : { message }) });
@@ -356,6 +398,7 @@ export const makeFakeOpenCode = Effect.gen(function* () {
         prompted: yield* Deferred.make<void>(),
         rules: [],
         attachments: undefined,
+        children: new Map(),
       });
     });
 

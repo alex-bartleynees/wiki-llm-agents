@@ -32,6 +32,17 @@ export interface OpenCodeModel {
 /** How a session's last turn ended, from its newest `idle` message. */
 export type OpenCodeOutcome = "succeeded" | "failed" | "interrupted";
 
+/** A session another launched (a subagent), as OpenCode lists it now. */
+export interface OpenCodeChildSession {
+  readonly id: string;
+  readonly title: string | null;
+  readonly agent: string | null;
+  /** It is running an execution now. */
+  readonly running: boolean;
+  /** How its last execution ended; null before its first ended. */
+  readonly outcome: OpenCodeOutcome | null;
+}
+
 /** A rule OpenCode applies to the session's tool calls (`edit`, `bash`...). */
 export interface OpenCodePermissionRule {
   readonly action: string;
@@ -98,6 +109,12 @@ export interface OpenCodeApi {
   readonly interrupt: (sessionId: string) => Effect.Effect<boolean, OpenCodeError>;
   readonly isRunning: (sessionId: string) => Effect.Effect<boolean, OpenCodeError>;
   readonly lastOutcome: (sessionId: string) => Effect.Effect<OpenCodeOutcome | null, OpenCodeError>;
+  /**
+   * The sessions `parentId` launched (its subagents, from every run of the app),
+   * newest first, with whether each runs now: to check them after the event stream
+   * reconnects, as events sent while it was down are lost.
+   */
+  readonly listChildren: (parentId: string) => Effect.Effect<ReadonlyArray<OpenCodeChildSession>, OpenCodeError>;
   /**
    * Answers an approval. A rejection without a message ends the whole turn; with one,
    * the agent is told why and carries on.

@@ -718,6 +718,40 @@ const makeSession = (
       if (current?.feed !== undefined) yield* Queue.offer(current.feed, { _tag: "event", event });
     });
 
+  /**
+   * The event stream reconnected: what it missed while down is lost, so ask OpenCode
+   * how the session's subagents stand. A subagent shown at work that has since gone
+   * idle gets the state its last run ended with (its report is lost, so its result
+   * stays as last seen), and its requests close; one shown idle that runs again is
+   * at work; one launched while the stream was down and still at work is added.
+   * Idle subagents the app doesn't know are from earlier runs and are left out.
+   */
+  const reconcile = (api: OpenCodeApi) =>
+    Effect.gen(function* () {
+      const parents = [sessionId];
+      for (let parentId = parents.shift(); parentId !== undefined; parentId = parents.shift()) {
+        for (const listed of yield* api.listChildren(parentId)) {
+          let child = children.get(listed.id);
+          if (child === undefined) {
+            const launcher = children.get(parentId)?.turnId ?? turn?.id ?? lastTurnId;
+            if (!listed.running || launcher === undefined) continue;
+            child = { turnId: launcher, subagentId: listed.id, label: listed.title ?? "Subagent", agent: listed.agent, status: "running", result: null };
+            children.set(child.subagentId, child);
+            yield* report(child);
+          } else if (listed.running && !isSubagentActive(child.status)) {
+            child.status = "running";
+            yield* report(child);
+          } else if (!listed.running && isSubagentActive(child.status) && listed.outcome !== null) {
+            child.status = listed.outcome === "succeeded" ? "done" : listed.outcome === "interrupted" ? "cancelled" : "failed";
+            yield* closeRequestsOf(child);
+            yield* report(child);
+          }
+          if (listed.running && stopping) yield* bestEffort("stopping a subagent")(api.interrupt(child.subagentId));
+          parents.push(child.subagentId);
+        }
+      }
+    });
+
   /** Follows the session's subagents on `api`, and the turns OpenCode starts itself, until the scope closes. */
   const watch = (api: OpenCodeApi) =>
     Effect.gen(function* () {
@@ -764,6 +798,11 @@ const makeSession = (
           continue;
         }
         if (turn?.feed !== undefined) yield* Queue.offer(turn.feed, signal);
+        if (signal._tag === "reconnected") {
+          // Events that arrive meanwhile wait in the subscription, so none is handled out of turn.
+          yield* reconcile(api).pipe(Effect.catchCause((cause) => Effect.logWarning("OpenCode: checking subagents after a reconnect", cause)));
+          continue;
+        }
         if (signal._tag === "stopped") {
           // The subagents ran in that server: what they were doing is unknown now.
           for (const child of children.values()) {
