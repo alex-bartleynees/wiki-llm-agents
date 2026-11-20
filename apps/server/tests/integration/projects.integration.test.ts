@@ -93,6 +93,22 @@ layer(makeTestApp({ providers, vaults: [sharedRoot] }))("projects", (test) => {
     expect(projects).toContainEqual(project);
   }));
 
+  test.effect("lists projects by thread activity, with projects without threads last", () => Effect.gen(function* () {
+    const vault = yield* shared;
+    const dir = yield* temp;
+    const [alphaRepo, zuluRepo] = folders(dir, "alpha", "zulu");
+    const alpha = yield* register({ name: "Alpha", workingDirectories: [alphaRepo] });
+    const zulu = yield* register({ name: "Zulu", workingDirectories: [zuluRepo] });
+    const order = HttpClient.get("/api/projects").pipe(
+      Effect.flatMap(decode(ListProjectsResponse)),
+      Effect.map(({ projects }) => projects.map(({ id }) => id).filter((id) => id === alpha.id || id === zulu.id)),
+    );
+
+    expect(yield* order).toEqual([alpha.id, zulu.id]);
+    yield* createThread(vault.id, { projectId: zulu.id });
+    expect(yield* order).toEqual([zulu.id, alpha.id]);
+  }));
+
   test.effect("creates missing folders only when asked, and only once the whole request is valid", () => Effect.gen(function* () {
     const dir = yield* temp;
     const [repo] = folders(dir, "repo");

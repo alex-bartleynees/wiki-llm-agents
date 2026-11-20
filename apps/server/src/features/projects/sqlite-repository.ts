@@ -1,7 +1,8 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, isNull, max, sql } from "drizzle-orm";
 import { Effect, Layer, Option } from "effect";
 import { DbError } from "../../shared/persistence/errors.js";
 import { Sqlite } from "../../shared/persistence/sqlite.js";
+import { threads } from "../threads/table.js";
 import { type FileVersion, ProjectRepository } from "./repository.js";
 import { commitMessageSettings, projectBrowserSignIns, projectFiles, projectIgnoredFiles, projectMcpServers, projects, projectWorktrees, threadWorktreeShares } from "./table.js";
 
@@ -33,7 +34,21 @@ export const ProjectRepositoryLive = Layer.effect(
     };
 
     return ProjectRepository.of({
-      list: query(() => db.select(columns).from(projects).orderBy(asc(projects.name), asc(projects.id)).all()),
+      list: query(() => {
+        const activity = db
+          .select({ projectId: threads.projectId, lastActivity: max(threads.updatedAt).as("last_activity") })
+          .from(threads)
+          .where(and(isNotNull(threads.projectId), isNull(threads.deletedAt)))
+          .groupBy(threads.projectId)
+          .as("project_activity");
+
+        return db
+          .select(columns)
+          .from(projects)
+          .leftJoin(activity, eq(projects.id, activity.projectId))
+          .orderBy(desc(activity.lastActivity), asc(projects.name), asc(projects.id))
+          .all();
+      }),
       find: (id) => query(() => Option.fromNullishOr(db.select(columns).from(projects).where(eq(projects.id, id)).get())),
       insert: (project, baseline, at) =>
         query(() =>
