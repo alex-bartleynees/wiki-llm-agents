@@ -1,0 +1,1673 @@
+{
+  "scenario": "subagents-stop",
+  "claudeCodeVersion": "2.1.325",
+  "model": "haiku",
+  "autonomy": {
+    "read": "allow",
+    "create": "ask",
+    "edit": "ask",
+    "commands": "allow",
+    "web": "ask",
+    "tools": "ask",
+    "subagents": "allow"
+  },
+  "turns": [
+    {
+      "prompt": "Use the Agent tool twice in one message, both with run_in_background true. Each subagent must use the Bash tool to run exactly `for i in 1 2 3 4 5 6; do sleep 5; done; echo done` and then report its output. Then reply 'launched' and stop; don't wait for them.",
+      "steps": [
+        {
+          "message": {
+            "type": "system",
+            "subtype": "init",
+            "session_id": "__session__",
+            "apiKeySource": "none",
+            "claude_code_version": "2.1.325",
+            "cwd": "/__vault__",
+            "model": "claude-haiku-5-5",
+            "permissionMode": "default",
+            "mcp_servers": [],
+            "uuid": "19ab58d7-6dea-4a82-b228-8507bc4031a2"
+          }
+        },
+        {
+          "message": {
+            "type": "system",
+            "subtype": "status",
+            "status": "requesting",
+            "session_id": "__session__",
+            "uuid": "5648492a-1c86-4a04-a76d-3e7822510044"
+          }
+        },
+        {
+          "message": {
+            "type": "user",
+            "message": {
+              "role": "user",
+              "content": "Use the Agent tool twice in one message, both with run_in_background true. Each subagent must use the Bash tool to run exactly `for i in 1 2 3 4 5 6; do sleep 5; done; echo done` and then report its output. Then reply 'launched' and stop; don't wait for them."
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "8c715783-9f5a-4db6-ac16-a72a59f4e016",
+            "timestamp": "2026-11-20T21:07:25.787Z",
+            "isReplay": true
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "message_start",
+              "message": {
+                "model": "claude-haiku-5-5",
+                "id": "msg_011ChEryc61yfqCwsoLDDcrt",
+                "type": "message",
+                "role": "assistant",
+                "content": [],
+                "container": null,
+                "stop_reason": null,
+                "stop_sequence": null,
+                "stop_details": null,
+                "usage": {
+                  "input_tokens": 2,
+                  "cache_creation_input_tokens": 12012,
+                  "cache_read_input_tokens": 10614,
+                  "cache_creation": {
+                    "ephemeral_5m_input_tokens": 0,
+                    "ephemeral_1h_input_tokens": 12012
+                  },
+                  "output_tokens": 16,
+                  "service_tier": "standard",
+                  "inference_geo": "global",
+                  "speed": "standard"
+                },
+                "input_transformations": [],
+                "diagnostics": null,
+                "context_management": null
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "f7fbce3a-ee1a-468d-9987-d88aff4f6bb8",
+            "ttft_ms": 594,
+            "thinking_display": "updates",
+            "api_message_id": "msg_011ChEryc61yfqCwsoLDDcrt"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_start",
+              "index": 0,
+              "content_block": {
+                "type": "tool_use",
+                "id": "toolu_01WYhh49rcsKa7DzU56MUG46",
+                "name": "Agent",
+                "input": {},
+                "caller": {
+                  "type": "direct"
+                }
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "c8722cfc-ac69-4fb0-b110-328ed1ef4ce1",
+            "api_message_id": "msg_011ChEryc61yfqCwsoLDDcrt"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": ""
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "423a76f3-f383-4207-87c6-213316cf732e",
+            "api_message_id": "msg_011ChEryc61yfqCwsoLDDcrt"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "{\"description\": \"Run"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "4285d869-6bbb-4f98-b7e4-398b43e76de2",
+            "api_message_id": "msg_011ChEryc61yfqCwsoLDDcrt"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": " sleep loop,"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "0aaf9d9d-095c-46f3-9d07-f0894e0b2ec5",
+            "api_message_id": "msg_011ChEryc61yfqCwsoLDDcrt"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": " report"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "ac35c1ef-8924-4b1f-98fd-7610743e7c4c",
+            "api_message_id": "msg_011ChEryc61yfqCwsoLDDcrt"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "\", \"prompt\": \"Use the Bash tool to"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "2fdc68ca-43d4-4aa6-8682-f44405f9008a",
+            "api_message_id": "msg_011ChEryc61yfqCwsoLDDcrt"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": " run exactly this"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "98a3b922-0fe7-4ba8-8137-df05db60d3ef",
+            "api_message_id": "msg_011ChEryc61yfqCwsoLDDcrt"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": " command: for"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "91c0d2c5-3a05-4075-80ba-55516ed69650",
+            "api_message_id": "msg_011ChEryc61yfqCwsoLDDcrt"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": " i in 1 2 3"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "f2b828d9-1246-4fca-a7d2-96d6e03d74fd",
+            "api_message_id": "msg_011ChEryc61yfqCwsoLDDcrt"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": " 4 5 6; do"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "416a07e5-da22-4133-88b7-0248a4f920a8",
+            "api_message_id": "msg_011ChEryc61yfqCwsoLDDcrt"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": " sleep 5; done;"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "9e9818ea-7906-4887-9b66-c25dc2701bb1",
+            "api_message_id": "msg_011ChEryc61yfqCwsoLDDcrt"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": " echo done\\n\\nThen report its"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "85ca9a1d-b87b-43c6-b48e-9de02e5b573e",
+            "api_message_id": "msg_011ChEryc61yfqCwsoLDDcrt"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": " output."
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "04e32d9d-e55a-4e7e-a929-71a2b7d27060",
+            "api_message_id": "msg_011ChEryc61yfqCwsoLDDcrt"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "\", \"run_in_background\": true"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "3d811519-58d9-4ea3-9389-ce31a0de6193",
+            "api_message_id": "msg_011ChEryc61yfqCwsoLDDcrt"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "}"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "b2a59ae7-6f5d-4839-bfaf-8e0c04a7f835",
+            "api_message_id": "msg_011ChEryc61yfqCwsoLDDcrt"
+          }
+        },
+        {
+          "message": {
+            "type": "assistant",
+            "message": {
+              "model": "claude-haiku-5-5",
+              "id": "msg_011ChEryc61yfqCwsoLDDcrt",
+              "type": "message",
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "tool_use",
+                  "id": "toolu_01WYhh49rcsKa7DzU56MUG46",
+                  "name": "Agent",
+                  "input": {
+                    "description": "Run sleep loop, report",
+                    "prompt": "Use the Bash tool to run exactly this command: for i in 1 2 3 4 5 6; do sleep 5; done; echo done\n\nThen report its output.",
+                    "run_in_background": true
+                  },
+                  "caller": {
+                    "type": "direct"
+                  }
+                }
+              ],
+              "container": null,
+              "stop_reason": null,
+              "stop_sequence": null,
+              "stop_details": null,
+              "usage": {
+                "input_tokens": 2,
+                "cache_creation_input_tokens": 12012,
+                "cache_read_input_tokens": 10614,
+                "cache_creation": {
+                  "ephemeral_5m_input_tokens": 0,
+                  "ephemeral_1h_input_tokens": 12012
+                },
+                "output_tokens": 16,
+                "service_tier": "standard",
+                "inference_geo": "global",
+                "speed": "standard"
+              },
+              "input_transformations": [],
+              "diagnostics": null,
+              "context_management": null
+            },
+            "parent_tool_use_id": null,
+            "session_id": "__session__",
+            "uuid": "62d7f182-2aa5-4103-af1f-fce7ec8a39e5",
+            "timestamp": "2026-11-20T21:07:27.038Z",
+            "request_id": "req_011ChErybsMm9uozsHox9ZgE",
+            "wire_tool_inputs": {
+              "toolu_01WYhh49rcsKa7DzU56MUG46": {
+                "description": "Run sleep loop, report",
+                "prompt": "Use the Bash tool to run exactly this command: for i in 1 2 3 4 5 6; do sleep 5; done; echo done\n\nThen report its output.",
+                "run_in_background": true
+              }
+            }
+          }
+        },
+        {
+          "hook": {
+            "toolName": "Agent",
+            "toolInput": {
+              "description": "Run sleep loop, report",
+              "prompt": "Use the Bash tool to run exactly this command: for i in 1 2 3 4 5 6; do sleep 5; done; echo done\n\nThen report its output.",
+              "run_in_background": true
+            },
+            "toolUseId": "toolu_01WYhh49rcsKa7DzU56MUG46"
+          },
+          "decision": "allow"
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_stop",
+              "index": 0
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "7539f631-e52d-4930-a0b6-79fa7516e9a1",
+            "api_message_id": "msg_011ChEryc61yfqCwsoLDDcrt"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_start",
+              "index": 1,
+              "content_block": {
+                "type": "tool_use",
+                "id": "toolu_01PG3Y132L3GDXBxoDTHuF5p",
+                "name": "Agent",
+                "input": {},
+                "caller": {
+                  "type": "direct"
+                }
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "0135a5b7-14a9-475b-8af3-fbad22d20259",
+            "api_message_id": "msg_011ChEryc61yfqCwsoLDDcrt"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": ""
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "8c49af61-37e3-4ed3-9fad-3767f8c241d0",
+            "api_message_id": "msg_011ChEryc61yfqCwsoLDDcrt"
+          }
+        },
+        {
+          "message": {
+            "type": "system",
+            "subtype": "task_started",
+            "task_id": "a2e40d0455b5c28b6",
+            "run_id": "0mwpgzvm7-7fb3383b",
+            "tool_use_id": "toolu_01WYhh49rcsKa7DzU56MUG46",
+            "description": "Run sleep loop, report",
+            "subagent_type": "general-purpose",
+            "is_backgrounded": true,
+            "spawn_depth": 1,
+            "task_type": "local_agent",
+            "prompt": "Use the Bash tool to run exactly this command: for i in 1 2 3 4 5 6; do sleep 5; done; echo done\n\nThen report its output.",
+            "uuid": "fc77905b-b594-41ac-beab-4e37158e8444",
+            "session_id": "__session__"
+          }
+        },
+        {
+          "message": {
+            "type": "user",
+            "message": {
+              "role": "user",
+              "content": [
+                {
+                  "tool_use_id": "toolu_01WYhh49rcsKa7DzU56MUG46",
+                  "type": "tool_result",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Async agent launched successfully. (This tool result is internal metadata — never quote or paste any part of it, including the agentId below, into a user-facing reply.)\nagentId: a2e40d0455b5c28b6 (internal ID - do not mention to user. Use SendMessage with to: 'a2e40d0455b5c28b6', summary: '<5-10 word recap>' to continue this agent.)\nThe agent is working in the background. You will be notified automatically when it completes. You know nothing about its results until that notification arrives — do not report, assume, or predict them; continue other work or respond to the user in the meantime.\nDo not duplicate this agent's work — avoid working with the same files or topics it is using.\noutput_file: /__tmp__/claude-1000/-tmp-nix-shell-pyVAXH-wiki-agents-record-wc5lTp/__session__/tasks/a2e40d0455b5c28b6.output\nDo NOT Read or tail this file via the shell tool — it is the full subagent JSONL transcript and reading it will overflow your context. If the user asks for progress, say the agent is still running; you'll get a completion notification."
+                    }
+                  ]
+                }
+              ]
+            },
+            "parent_tool_use_id": null,
+            "session_id": "__session__",
+            "uuid": "0576d9e8-c5d6-46ce-8cdd-f0fe0e22b4b3",
+            "timestamp": "2026-11-20T21:07:27.060Z",
+            "tool_use_result": {
+              "isAsync": true,
+              "status": "async_launched",
+              "agentId": "a2e40d0455b5c28b6",
+              "description": "Run sleep loop, report",
+              "resolvedModel": "claude-haiku-5-5",
+              "prompt": "Use the Bash tool to run exactly this command: for i in 1 2 3 4 5 6; do sleep 5; done; echo done\n\nThen report its output.",
+              "outputFile": "/__tmp__/claude-1000/-tmp-nix-shell-pyVAXH-wiki-agents-record-wc5lTp/__session__/tasks/a2e40d0455b5c28b6.output",
+              "canReadOutputFile": true,
+              "canContinueAgent": true
+            },
+            "tool_result_meta": [
+              {
+                "id": "toolu_01WYhh49rcsKa7DzU56MUG46",
+                "permission_decision": {
+                  "decision": "accept",
+                  "source": "hook",
+                  "reason_type": "hook"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "{\"description\": \"Run sleep loop"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "a6541044-faab-4c02-9bc0-143d81873b12",
+            "api_message_id": "msg_011ChEryc61yfqCwsoLDDcrt"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": ", report"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "8964d1a8-96b8-401d-b883-6115920860aa",
+            "api_message_id": "msg_011ChEryc61yfqCwsoLDDcrt"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "\", \"prompt\": \"Use the Bash tool"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "fbc09c01-4579-4a38-9928-34b181ae9847",
+            "api_message_id": "msg_011ChEryc61yfqCwsoLDDcrt"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": " to run exactly this command:"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "e093f11b-e7c1-4fde-8962-357f11c39e75",
+            "api_message_id": "msg_011ChEryc61yfqCwsoLDDcrt"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": " for i in 1 2 "
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "623ee9f1-9997-4c8a-8ed4-09b63e9837b0",
+            "api_message_id": "msg_011ChEryc61yfqCwsoLDDcrt"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "3 4 5 6;"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "39a6841d-a310-44c1-a136-74b8e6d48c7c",
+            "api_message_id": "msg_011ChEryc61yfqCwsoLDDcrt"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": " do sleep 5; done"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "aaec094b-f61f-4d70-aaca-2e950f80652d",
+            "api_message_id": "msg_011ChEryc61yfqCwsoLDDcrt"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "; echo done\\n\\nThen report"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "7f76da9f-5dd3-49ee-8ace-e2c31330fb04",
+            "api_message_id": "msg_011ChEryc61yfqCwsoLDDcrt"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": " its output."
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "00b0fde6-5392-4530-828e-689428739da3",
+            "api_message_id": "msg_011ChEryc61yfqCwsoLDDcrt"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "\", \"run_in_background\": true"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "8ae3b549-87a3-4d47-8063-75638c394c3c",
+            "api_message_id": "msg_011ChEryc61yfqCwsoLDDcrt"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "input_json_delta",
+                "partial_json": "}"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "83f02632-4cd7-4bf1-ae07-5413ad17f1e7",
+            "api_message_id": "msg_011ChEryc61yfqCwsoLDDcrt"
+          }
+        },
+        {
+          "message": {
+            "type": "assistant",
+            "message": {
+              "model": "claude-haiku-5-5",
+              "id": "msg_011ChEryc61yfqCwsoLDDcrt",
+              "type": "message",
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "tool_use",
+                  "id": "toolu_01PG3Y132L3GDXBxoDTHuF5p",
+                  "name": "Agent",
+                  "input": {
+                    "description": "Run sleep loop, report",
+                    "prompt": "Use the Bash tool to run exactly this command: for i in 1 2 3 4 5 6; do sleep 5; done; echo done\n\nThen report its output.",
+                    "run_in_background": true
+                  },
+                  "caller": {
+                    "type": "direct"
+                  }
+                }
+              ],
+              "container": null,
+              "stop_reason": null,
+              "stop_sequence": null,
+              "stop_details": null,
+              "usage": {
+                "input_tokens": 2,
+                "cache_creation_input_tokens": 12012,
+                "cache_read_input_tokens": 10614,
+                "cache_creation": {
+                  "ephemeral_5m_input_tokens": 0,
+                  "ephemeral_1h_input_tokens": 12012
+                },
+                "output_tokens": 16,
+                "service_tier": "standard",
+                "inference_geo": "global",
+                "speed": "standard"
+              },
+              "input_transformations": [],
+              "diagnostics": null,
+              "context_management": null
+            },
+            "parent_tool_use_id": null,
+            "session_id": "__session__",
+            "uuid": "02b53901-f6fe-48c7-89f8-27b377641495",
+            "timestamp": "2026-11-20T21:07:27.367Z",
+            "request_id": "req_011ChErybsMm9uozsHox9ZgE",
+            "wire_tool_inputs": {
+              "toolu_01PG3Y132L3GDXBxoDTHuF5p": {
+                "description": "Run sleep loop, report",
+                "prompt": "Use the Bash tool to run exactly this command: for i in 1 2 3 4 5 6; do sleep 5; done; echo done\n\nThen report its output.",
+                "run_in_background": true
+              }
+            }
+          }
+        },
+        {
+          "hook": {
+            "toolName": "Agent",
+            "toolInput": {
+              "description": "Run sleep loop, report",
+              "prompt": "Use the Bash tool to run exactly this command: for i in 1 2 3 4 5 6; do sleep 5; done; echo done\n\nThen report its output.",
+              "run_in_background": true
+            },
+            "toolUseId": "toolu_01PG3Y132L3GDXBxoDTHuF5p"
+          },
+          "decision": "allow"
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_stop",
+              "index": 1
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "1193a331-af99-469a-ac66-c90b28b1b1d5",
+            "api_message_id": "msg_011ChEryc61yfqCwsoLDDcrt"
+          }
+        },
+        {
+          "message": {
+            "type": "system",
+            "subtype": "task_started",
+            "task_id": "ac2d6a2896f1c0383",
+            "run_id": "0mwpgzvv2-9e8ad00b",
+            "tool_use_id": "toolu_01PG3Y132L3GDXBxoDTHuF5p",
+            "description": "Run sleep loop, report",
+            "subagent_type": "general-purpose",
+            "is_backgrounded": true,
+            "spawn_depth": 1,
+            "task_type": "local_agent",
+            "prompt": "Use the Bash tool to run exactly this command: for i in 1 2 3 4 5 6; do sleep 5; done; echo done\n\nThen report its output.",
+            "uuid": "195665bf-a4ad-4a49-9450-fcbec158d828",
+            "session_id": "__session__"
+          }
+        },
+        {
+          "message": {
+            "type": "user",
+            "message": {
+              "role": "user",
+              "content": [
+                {
+                  "tool_use_id": "toolu_01PG3Y132L3GDXBxoDTHuF5p",
+                  "type": "tool_result",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Async agent launched successfully. (This tool result is internal metadata — never quote or paste any part of it, including the agentId below, into a user-facing reply.)\nagentId: ac2d6a2896f1c0383 (internal ID - do not mention to user. Use SendMessage with to: 'ac2d6a2896f1c0383', summary: '<5-10 word recap>' to continue this agent.)\nThe agent is working in the background. You will be notified automatically when it completes. You know nothing about its results until that notification arrives — do not report, assume, or predict them; continue other work or respond to the user in the meantime.\nDo not duplicate this agent's work — avoid working with the same files or topics it is using.\noutput_file: /__tmp__/claude-1000/-tmp-nix-shell-pyVAXH-wiki-agents-record-wc5lTp/__session__/tasks/ac2d6a2896f1c0383.output\nDo NOT Read or tail this file via the shell tool — it is the full subagent JSONL transcript and reading it will overflow your context. If the user asks for progress, say the agent is still running; you'll get a completion notification."
+                    }
+                  ]
+                }
+              ]
+            },
+            "parent_tool_use_id": null,
+            "session_id": "__session__",
+            "uuid": "c96a6de7-291a-4d46-8990-1674d748831e",
+            "timestamp": "2026-11-20T21:07:27.376Z",
+            "tool_use_result": {
+              "isAsync": true,
+              "status": "async_launched",
+              "agentId": "ac2d6a2896f1c0383",
+              "description": "Run sleep loop, report",
+              "resolvedModel": "claude-haiku-5-5",
+              "prompt": "Use the Bash tool to run exactly this command: for i in 1 2 3 4 5 6; do sleep 5; done; echo done\n\nThen report its output.",
+              "outputFile": "/__tmp__/claude-1000/-tmp-nix-shell-pyVAXH-wiki-agents-record-wc5lTp/__session__/tasks/ac2d6a2896f1c0383.output",
+              "canReadOutputFile": true,
+              "canContinueAgent": true
+            },
+            "tool_result_meta": [
+              {
+                "id": "toolu_01PG3Y132L3GDXBxoDTHuF5p",
+                "permission_decision": {
+                  "decision": "accept",
+                  "source": "hook",
+                  "reason_type": "hook"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "message_delta",
+              "delta": {
+                "stop_reason": "tool_use",
+                "stop_sequence": null,
+                "stop_details": null,
+                "container": null
+              },
+              "usage": {
+                "input_tokens": 2,
+                "cache_creation_input_tokens": 12012,
+                "cache_read_input_tokens": 10614,
+                "output_tokens": 303,
+                "output_tokens_details": {
+                  "thinking_tokens": 0
+                },
+                "iterations": [
+                  {
+                    "input_tokens": 2,
+                    "output_tokens": 303,
+                    "cache_read_input_tokens": 10614,
+                    "cache_creation_input_tokens": 12012,
+                    "cache_creation": {
+                      "ephemeral_5m_input_tokens": 0,
+                      "ephemeral_1h_input_tokens": 12012
+                    },
+                    "type": "message"
+                  }
+                ]
+              },
+              "context_management": {
+                "applied_edits": []
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "765c0d5b-45c5-41dc-be3e-094dfb56cb94",
+            "api_message_id": "msg_011ChEryc61yfqCwsoLDDcrt"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "message_stop"
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "f61b862b-fd80-459a-b010-a5489685f24e",
+            "api_message_id": "msg_011ChEryc61yfqCwsoLDDcrt"
+          }
+        },
+        {
+          "message": {
+            "type": "system",
+            "subtype": "status",
+            "status": "requesting",
+            "session_id": "__session__",
+            "uuid": "44c1309d-08dc-4f00-b7d8-a60205b5103b"
+          }
+        },
+        {
+          "message": {
+            "type": "assistant",
+            "message": {
+              "model": "claude-haiku-5-5",
+              "id": "msg_011ChErygSwnRAatCyw1Vsis",
+              "type": "message",
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "tool_use",
+                  "id": "toolu_01VyXr6DkiuaPCbRHrpSNDeG",
+                  "name": "Bash",
+                  "input": {
+                    "command": "for i in 1 2 3 4 5 6; do sleep 5; done; echo done",
+                    "description": "Loop six 5-second sleeps then echo done"
+                  },
+                  "caller": {
+                    "type": "direct"
+                  }
+                }
+              ],
+              "container": null,
+              "stop_reason": null,
+              "stop_sequence": null,
+              "stop_details": null,
+              "usage": {
+                "input_tokens": 2,
+                "cache_creation_input_tokens": 8885,
+                "cache_read_input_tokens": 6458,
+                "cache_creation": {
+                  "ephemeral_5m_input_tokens": 8885,
+                  "ephemeral_1h_input_tokens": 0
+                },
+                "output_tokens": 16,
+                "service_tier": "standard",
+                "inference_geo": "global",
+                "speed": "standard"
+              },
+              "input_transformations": [],
+              "diagnostics": null,
+              "context_management": null
+            },
+            "parent_tool_use_id": "toolu_01WYhh49rcsKa7DzU56MUG46",
+            "agent_id": "a2e40d0455b5c28b6",
+            "session_id": "__session__",
+            "uuid": "9f4a588a-04cf-4aed-b33f-377a990e4154",
+            "timestamp": "2026-11-20T21:07:28.006Z",
+            "request_id": "req_011ChErygMEfoEVCwb1pTi9z",
+            "subagent_type": "general-purpose",
+            "task_description": "Run sleep loop, report"
+          }
+        },
+        {
+          "hook": {
+            "toolName": "Bash",
+            "toolInput": {
+              "command": "for i in 1 2 3 4 5 6; do sleep 5; done; echo done",
+              "description": "Loop six 5-second sleeps then echo done"
+            },
+            "toolUseId": "toolu_01VyXr6DkiuaPCbRHrpSNDeG",
+            "agentId": "a2e40d0455b5c28b6"
+          },
+          "decision": "allow"
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "message_start",
+              "message": {
+                "model": "claude-haiku-5-5",
+                "id": "msg_011ChEryhkKrQvkyX1ohvja3",
+                "type": "message",
+                "role": "assistant",
+                "content": [],
+                "container": null,
+                "stop_reason": null,
+                "stop_sequence": null,
+                "stop_details": null,
+                "usage": {
+                  "input_tokens": 2,
+                  "cache_creation_input_tokens": 3251,
+                  "cache_read_input_tokens": 22626,
+                  "cache_creation": {
+                    "ephemeral_5m_input_tokens": 0,
+                    "ephemeral_1h_input_tokens": 3251
+                  },
+                  "output_tokens": 3,
+                  "service_tier": "standard",
+                  "inference_geo": "global",
+                  "speed": "standard"
+                },
+                "input_transformations": [],
+                "diagnostics": null,
+                "context_management": null
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "84774a3c-336d-4a37-bf7a-e53c5190b53a",
+            "ttft_ms": 608,
+            "thinking_display": "updates",
+            "api_message_id": "msg_011ChEryhkKrQvkyX1ohvja3"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_start",
+              "index": 0,
+              "content_block": {
+                "type": "thinking",
+                "thinking": "",
+                "signature": ""
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "47589abc-eb9a-4609-8c4f-7cff0ec02683",
+            "thinking_display": "updates",
+            "api_message_id": "msg_011ChEryhkKrQvkyX1ohvja3"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "thinking_delta",
+                "thinking": "",
+                "estimated_tokens": 50
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "cab196a9-8f64-4fd2-9b3d-69ca354d910b",
+            "thinking_display": "updates",
+            "api_message_id": "msg_011ChEryhkKrQvkyX1ohvja3"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "thinking_delta",
+                "thinking": "",
+                "estimated_tokens": null
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "c4a52e1e-e8d2-4613-8daa-01865ce409fb",
+            "thinking_display": "updates",
+            "api_message_id": "msg_011ChEryhkKrQvkyX1ohvja3"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 0,
+              "delta": {
+                "type": "signature_delta",
+                "signature": "CAQSxAUKEAgUGAI4AUIIdGhpbmtpbmcSDLVptnt+TAYcOETcWxoMCG/EE4MEt9IKhBwpIjCzYyMC3vc3cc2pRrnmGeiC0V1ihvVbQqfphOk50fQ+p1+2H/CsWSSmRkU7xnXXDmQq4QRnXbdZvDQmXnuLYHeOg+4FT1Xi+J0fPke+PMG7boce1QM5Phdvp0Nv1gfcAp5OGl+Fzs1OUaUI+hzQbR+VtUX4TEKlMV5i9KLWufLQ/Wa6vT1rrC3+AOByrKXam0ofaoL1X3bQY7U+PxfyPvLnJlQydK2j/eUXisLNO+ewNH2f9dUwSPG0wOvScLZyRQUODT4XjP8Slvx3KUorbTUDE7aQ1Vkl7fYYJuIS/bMSb6Q7pUoq3OiWDEVU7vqT49Oss9X+vrMiLzzFadeIlHAxMAyIGBLGW1PvHlCCblJTgoaSVGblTT6mU7z0S1ynon/FD9OdWhN8ZasNe+OdvIbxjV8a1T6BIgTADQimZ+P/gQpF9AkhnaJ1IxqpM13cUQoaXe1bn5/r2+MEXPzi4bKeaE0TUnEJTTGzU9yGpM6skpLFKDWMT+1vCjqjZXhrdHsclawdsdv/kpOyC949gQUXQ9IMoGL5bto4l7moSxmCBwD7NvMdiyWjVkh92MV9EYO8SSIC2zRsV/9vZDNYDW9lxBDXrkQIFCVWkcXuA5qUPJCGilI5pJkeMYt7xiWeMGsCH26k1V3om/41u1MUx3QhWRILHs6dz00o1sIANaDuDdeeu9JpcXsRxX6EycTYC33on3h12zmd/nRqMolzUWQtacw3cvaRhpOuPRuh+WuuhGbieFI/Mewv7jn7Dww9OvwHWVrv8+KFQBDx5eme3saTqlNK6ynyVCNMg1FzAIBwErrzuf+w20fbc2zAiEFin8dM3LiQrV5TJJZ/QS93jB54+L3ORNS00g6FC2GnSLivMLX8vfoYAQ=="
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "71774e90-229f-47a5-bb32-a8b5543ef331",
+            "api_message_id": "msg_011ChEryhkKrQvkyX1ohvja3"
+          }
+        },
+        {
+          "message": {
+            "type": "assistant",
+            "message": {
+              "model": "claude-haiku-5-5",
+              "id": "msg_011ChEryhkKrQvkyX1ohvja3",
+              "type": "message",
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "thinking",
+                  "thinking": "",
+                  "signature": "CAQSxAUKEAgUGAI4AUIIdGhpbmtpbmcSDLVptnt+TAYcOETcWxoMCG/EE4MEt9IKhBwpIjCzYyMC3vc3cc2pRrnmGeiC0V1ihvVbQqfphOk50fQ+p1+2H/CsWSSmRkU7xnXXDmQq4QRnXbdZvDQmXnuLYHeOg+4FT1Xi+J0fPke+PMG7boce1QM5Phdvp0Nv1gfcAp5OGl+Fzs1OUaUI+hzQbR+VtUX4TEKlMV5i9KLWufLQ/Wa6vT1rrC3+AOByrKXam0ofaoL1X3bQY7U+PxfyPvLnJlQydK2j/eUXisLNO+ewNH2f9dUwSPG0wOvScLZyRQUODT4XjP8Slvx3KUorbTUDE7aQ1Vkl7fYYJuIS/bMSb6Q7pUoq3OiWDEVU7vqT49Oss9X+vrMiLzzFadeIlHAxMAyIGBLGW1PvHlCCblJTgoaSVGblTT6mU7z0S1ynon/FD9OdWhN8ZasNe+OdvIbxjV8a1T6BIgTADQimZ+P/gQpF9AkhnaJ1IxqpM13cUQoaXe1bn5/r2+MEXPzi4bKeaE0TUnEJTTGzU9yGpM6skpLFKDWMT+1vCjqjZXhrdHsclawdsdv/kpOyC949gQUXQ9IMoGL5bto4l7moSxmCBwD7NvMdiyWjVkh92MV9EYO8SSIC2zRsV/9vZDNYDW9lxBDXrkQIFCVWkcXuA5qUPJCGilI5pJkeMYt7xiWeMGsCH26k1V3om/41u1MUx3QhWRILHs6dz00o1sIANaDuDdeeu9JpcXsRxX6EycTYC33on3h12zmd/nRqMolzUWQtacw3cvaRhpOuPRuh+WuuhGbieFI/Mewv7jn7Dww9OvwHWVrv8+KFQBDx5eme3saTqlNK6ynyVCNMg1FzAIBwErrzuf+w20fbc2zAiEFin8dM3LiQrV5TJJZ/QS93jB54+L3ORNS00g6FC2GnSLivMLX8vfoYAQ=="
+                }
+              ],
+              "container": null,
+              "stop_reason": null,
+              "stop_sequence": null,
+              "stop_details": null,
+              "usage": {
+                "input_tokens": 2,
+                "cache_creation_input_tokens": 3251,
+                "cache_read_input_tokens": 22626,
+                "cache_creation": {
+                  "ephemeral_5m_input_tokens": 0,
+                  "ephemeral_1h_input_tokens": 3251
+                },
+                "output_tokens": 3,
+                "service_tier": "standard",
+                "inference_geo": "global",
+                "speed": "standard"
+              },
+              "input_transformations": [],
+              "diagnostics": null,
+              "context_management": null
+            },
+            "parent_tool_use_id": null,
+            "session_id": "__session__",
+            "uuid": "32fea691-2f81-4bc6-bb00-b9ca60467a2e",
+            "timestamp": "2026-11-20T21:07:28.109Z",
+            "request_id": "req_011ChEryhddQRayFmu96bhTn",
+            "thinking_duration_ms": 94,
+            "thinking_display": "updates"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_stop",
+              "index": 0
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "9691f0b7-e16a-428a-9ea9-b7ebc54ffaa2",
+            "api_message_id": "msg_011ChEryhkKrQvkyX1ohvja3"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_start",
+              "index": 1,
+              "content_block": {
+                "type": "text",
+                "text": ""
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "b7185c83-1f06-4cd9-b002-7718c00b1f77",
+            "api_message_id": "msg_011ChEryhkKrQvkyX1ohvja3"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "text_delta",
+                "text": "laun"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "46b408ae-70ff-4623-85d0-e30eec20a0fc",
+            "api_message_id": "msg_011ChEryhkKrQvkyX1ohvja3"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_delta",
+              "index": 1,
+              "delta": {
+                "type": "text_delta",
+                "text": "ched"
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "3ba99511-09d4-41f7-a723-2067a73c2c09",
+            "api_message_id": "msg_011ChEryhkKrQvkyX1ohvja3"
+          }
+        },
+        {
+          "message": {
+            "type": "assistant",
+            "message": {
+              "model": "claude-haiku-5-5",
+              "id": "msg_011ChEryhkKrQvkyX1ohvja3",
+              "type": "message",
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "launched"
+                }
+              ],
+              "container": null,
+              "stop_reason": null,
+              "stop_sequence": null,
+              "stop_details": null,
+              "usage": {
+                "input_tokens": 2,
+                "cache_creation_input_tokens": 3251,
+                "cache_read_input_tokens": 22626,
+                "cache_creation": {
+                  "ephemeral_5m_input_tokens": 0,
+                  "ephemeral_1h_input_tokens": 3251
+                },
+                "output_tokens": 3,
+                "service_tier": "standard",
+                "inference_geo": "global",
+                "speed": "standard"
+              },
+              "input_transformations": [],
+              "diagnostics": null,
+              "context_management": null
+            },
+            "parent_tool_use_id": null,
+            "session_id": "__session__",
+            "uuid": "4c9c44a9-a3f6-4ff8-9ed2-db8de27bed4f",
+            "timestamp": "2026-11-20T21:07:28.120Z",
+            "request_id": "req_011ChEryhddQRayFmu96bhTn"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "content_block_stop",
+              "index": 1
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "76f4e9d3-726e-4992-a75f-2faabedca07d",
+            "api_message_id": "msg_011ChEryhkKrQvkyX1ohvja3"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "message_delta",
+              "delta": {
+                "stop_reason": "end_turn",
+                "stop_sequence": null,
+                "stop_details": null,
+                "container": null
+              },
+              "usage": {
+                "input_tokens": 2,
+                "cache_creation_input_tokens": 3251,
+                "cache_read_input_tokens": 22626,
+                "output_tokens": 56,
+                "output_tokens_details": {
+                  "thinking_tokens": 52
+                },
+                "iterations": [
+                  {
+                    "input_tokens": 2,
+                    "output_tokens": 56,
+                    "cache_read_input_tokens": 22626,
+                    "cache_creation_input_tokens": 3251,
+                    "cache_creation": {
+                      "ephemeral_5m_input_tokens": 0,
+                      "ephemeral_1h_input_tokens": 3251
+                    },
+                    "type": "message"
+                  }
+                ]
+              },
+              "context_management": {
+                "applied_edits": []
+              }
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "ea5416bf-b190-49ed-8091-d5f2f947d6d0",
+            "api_message_id": "msg_011ChEryhkKrQvkyX1ohvja3"
+          }
+        },
+        {
+          "message": {
+            "type": "stream_event",
+            "event": {
+              "type": "message_stop"
+            },
+            "session_id": "__session__",
+            "parent_tool_use_id": null,
+            "uuid": "ced5a157-9039-4746-b62e-15eb94ab88f4",
+            "api_message_id": "msg_011ChEryhkKrQvkyX1ohvja3"
+          }
+        },
+        {
+          "message": {
+            "duration_api_ms": 4601,
+            "stop_reason": "end_turn",
+            "session_id": "__session__",
+            "total_cost_usd": 0.0049304050000000006,
+            "usage": {
+              "input_tokens": 4,
+              "cache_creation_input_tokens": 15263,
+              "cache_read_input_tokens": 33240,
+              "output_tokens": 359,
+              "output_tokens_details": {
+                "thinking_tokens": 52
+              },
+              "server_tool_use": {
+                "web_search_requests": 0,
+                "web_fetch_requests": 0
+              },
+              "service_tier": "standard",
+              "cache_creation": {
+                "ephemeral_1h_input_tokens": 15263,
+                "ephemeral_5m_input_tokens": 0
+              },
+              "inference_geo": "global",
+              "iterations": [
+                {
+                  "input_tokens": 2,
+                  "output_tokens": 56,
+                  "cache_read_input_tokens": 22626,
+                  "cache_creation_input_tokens": 3251,
+                  "cache_creation": {
+                    "ephemeral_5m_input_tokens": 0,
+                    "ephemeral_1h_input_tokens": 3251
+                  },
+                  "type": "message"
+                }
+              ],
+              "speed": "standard",
+              "fallback_credit": null
+            },
+            "modelUsage": {
+              "claude-haiku-5-5": {
+                "inputTokens": 1267,
+                "outputTokens": 487,
+                "cacheReadInputTokens": 39698,
+                "cacheCreationInputTokens": 24148,
+                "webSearchRequests": 0,
+                "costUSD": 0.0049304050000000006,
+                "contextWindow": 1000000,
+                "maxOutputTokens": 128000,
+                "thinkingTokens": 52,
+                "cacheCreationEphemeral5mInputTokens": 8885,
+                "cacheCreationEphemeral1hInputTokens": 15263,
+                "canonicalModel": "claude-haiku-5-5",
+                "provider": "firstParty",
+                "costBasis": "list"
+              }
+            },
+            "permission_denials": [],
+            "terminal_reason": "completed",
+            "fast_mode_state": "off",
+            "fast_mode_disabled_reason": "sdk_opt_in_required",
+            "subagent_stats": {
+              "spawned": 2,
+              "requested": {
+                "background": 2,
+                "foreground": 0,
+                "unset": 0
+              },
+              "started_in_background": 2,
+              "max_depth": 1,
+              "spawned_by_subagents": 0,
+              "completed": 0,
+              "failed": 0,
+              "killed": {
+                "parent": 0,
+                "user": 0,
+                "system": 0
+              },
+              "refused": {
+                "depth_limit": 0,
+                "concurrency_limit": 0,
+                "budget": 0
+              },
+              "by_type": {
+                "general-purpose": 2
+              }
+            },
+            "safety_stops": 0,
+            "is_error": false,
+            "num_turns": 3,
+            "subtype": "success",
+            "api_error_status": null,
+            "result": "launched",
+            "ttft_ms": 1271,
+            "type": "result",
+            "duration_ms": 2367,
+            "uuid": "164a4e87-9618-4eeb-96b5-0cf689fad094",
+            "ttft_stream_ms": 879,
+            "time_to_request_ms": 287,
+            "first_content_frame_ms": 880,
+            "queued_turn_count": 0,
+            "result_index": 0,
+            "model_usage_since_last_result": {
+              "claude-haiku-5-5": {
+                "inputTokens": 1267,
+                "outputTokens": 487,
+                "cacheReadInputTokens": 39698,
+                "cacheCreationInputTokens": 24148,
+                "webSearchRequests": 0,
+                "costUSD": 0.0049304050000000006,
+                "contextWindow": 1000000,
+                "maxOutputTokens": 128000,
+                "thinkingTokens": 52,
+                "cacheCreationEphemeral5mInputTokens": 8885,
+                "cacheCreationEphemeral1hInputTokens": 15263,
+                "canonicalModel": "claude-haiku-5-5",
+                "provider": "firstParty",
+                "costBasis": "list"
+              }
+            }
+          }
+        },
+        {
+          "interrupt": true
+        },
+        {
+          "message": {
+            "type": "assistant",
+            "message": {
+              "model": "claude-haiku-5-5",
+              "id": "msg_011ChEryhbeSe2BRSbNTdjCw",
+              "type": "message",
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "tool_use",
+                  "id": "toolu_01XrEoBv6URbAaLVDeuNcnwd",
+                  "name": "Bash",
+                  "input": {
+                    "command": "for i in 1 2 3 4 5 6; do sleep 5; done; echo done",
+                    "description": "Loop six 5-second sleeps then echo done"
+                  },
+                  "caller": {
+                    "type": "direct"
+                  }
+                }
+              ],
+              "container": null,
+              "stop_reason": null,
+              "stop_sequence": null,
+              "stop_details": null,
+              "usage": {
+                "input_tokens": 2,
+                "cache_creation_input_tokens": 0,
+                "cache_read_input_tokens": 15343,
+                "cache_creation": {
+                  "ephemeral_5m_input_tokens": 0,
+                  "ephemeral_1h_input_tokens": 0
+                },
+                "output_tokens": 16,
+                "service_tier": "standard",
+                "inference_geo": "global",
+                "speed": "standard"
+              },
+              "input_transformations": [],
+              "diagnostics": null,
+              "context_management": null
+            },
+            "parent_tool_use_id": "toolu_01PG3Y132L3GDXBxoDTHuF5p",
+            "agent_id": "ac2d6a2896f1c0383",
+            "session_id": "__session__",
+            "uuid": "35896c4c-08c6-4394-8383-bf52215d0ffd",
+            "timestamp": "2026-11-20T21:07:28.137Z",
+            "request_id": "req_011ChEryhVT2gWsWfPRs2hRL",
+            "subagent_type": "general-purpose",
+            "task_description": "Run sleep loop, report"
+          }
+        },
+        {
+          "hook": {
+            "toolName": "Bash",
+            "toolInput": {
+              "command": "for i in 1 2 3 4 5 6; do sleep 5; done; echo done",
+              "description": "Loop six 5-second sleeps then echo done"
+            },
+            "toolUseId": "toolu_01XrEoBv6URbAaLVDeuNcnwd",
+            "agentId": "ac2d6a2896f1c0383"
+          },
+          "decision": "allow"
+        },
+        {
+          "message": {
+            "type": "system",
+            "subtype": "task_updated",
+            "task_id": "a2e40d0455b5c28b6",
+            "run_id": "0mwpgzvm7-7fb3383b",
+            "patch": {
+              "status": "killed",
+              "end_time": 1795208848149
+            },
+            "uuid": "dca6cbce-8e2c-499b-b5b0-c24616e909f9",
+            "session_id": "__session__"
+          }
+        },
+        {
+          "message": {
+            "type": "system",
+            "subtype": "task_notification",
+            "task_id": "a2e40d0455b5c28b6",
+            "run_id": "0mwpgzvm7-7fb3383b",
+            "tool_use_id": "toolu_01WYhh49rcsKa7DzU56MUG46",
+            "status": "stopped",
+            "summary": "Run sleep loop, report",
+            "uuid": "441ba26d-0673-4eb4-bec6-fba7afbfee61",
+            "session_id": "__session__"
+          }
+        },
+        {
+          "message": {
+            "type": "system",
+            "subtype": "task_updated",
+            "task_id": "ac2d6a2896f1c0383",
+            "run_id": "0mwpgzvv2-9e8ad00b",
+            "patch": {
+              "status": "killed",
+              "end_time": 1795208848151
+            },
+            "uuid": "ecc61116-4e4d-4413-91be-11b72f3584e3",
+            "session_id": "__session__"
+          }
+        },
+        {
+          "message": {
+            "type": "system",
+            "subtype": "task_notification",
+            "task_id": "ac2d6a2896f1c0383",
+            "run_id": "0mwpgzvv2-9e8ad00b",
+            "tool_use_id": "toolu_01PG3Y132L3GDXBxoDTHuF5p",
+            "status": "stopped",
+            "summary": "Run sleep loop, report",
+            "uuid": "15d78e8d-7a64-4462-950c-a29d12fc3aec",
+            "session_id": "__session__"
+          }
+        },
+        {
+          "message": {
+            "type": "user",
+            "message": {
+              "role": "user",
+              "content": [
+                {
+                  "type": "tool_result",
+                  "content": "The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you are doing and wait for the user to tell you how to proceed.",
+                  "is_error": true,
+                  "tool_use_id": "toolu_01XrEoBv6URbAaLVDeuNcnwd"
+                }
+              ]
+            },
+            "parent_tool_use_id": "toolu_01PG3Y132L3GDXBxoDTHuF5p",
+            "agent_id": "ac2d6a2896f1c0383",
+            "session_id": "__session__",
+            "uuid": "d35ac006-048f-413f-be81-0f106b5cc104",
+            "timestamp": "2026-11-20T21:07:28.158Z",
+            "tool_use_result": "User rejected tool use",
+            "subagent_type": "general-purpose",
+            "task_description": "Run sleep loop, report"
+          }
+        },
+        {
+          "message": {
+            "type": "user",
+            "message": {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "[Request interrupted by user]"
+                }
+              ]
+            },
+            "parent_tool_use_id": "toolu_01PG3Y132L3GDXBxoDTHuF5p",
+            "agent_id": "ac2d6a2896f1c0383",
+            "session_id": "__session__",
+            "uuid": "feecf124-00ac-4bf0-93fc-7fc344121111",
+            "timestamp": "2026-11-20T21:07:28.158Z",
+            "subagent_type": "general-purpose",
+            "task_description": "Run sleep loop, report"
+          }
+        },
+        {
+          "message": {
+            "type": "user",
+            "message": {
+              "role": "user",
+              "content": [
+                {
+                  "type": "tool_result",
+                  "content": "The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you are doing and wait for the user to tell you how to proceed.",
+                  "is_error": true,
+                  "tool_use_id": "toolu_01VyXr6DkiuaPCbRHrpSNDeG"
+                }
+              ]
+            },
+            "parent_tool_use_id": "toolu_01WYhh49rcsKa7DzU56MUG46",
+            "agent_id": "a2e40d0455b5c28b6",
+            "session_id": "__session__",
+            "uuid": "9d958715-e408-41d1-a01a-719feeebbc9f",
+            "timestamp": "2026-11-20T21:07:28.167Z",
+            "tool_use_result": "User rejected tool use",
+            "subagent_type": "general-purpose",
+            "task_description": "Run sleep loop, report"
+          }
+        },
+        {
+          "message": {
+            "type": "user",
+            "message": {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "[Request interrupted by user for tool use]"
+                }
+              ]
+            },
+            "parent_tool_use_id": "toolu_01WYhh49rcsKa7DzU56MUG46",
+            "agent_id": "a2e40d0455b5c28b6",
+            "session_id": "__session__",
+            "uuid": "042e8398-93d6-410b-b681-176d025f71cc",
+            "timestamp": "2026-11-20T21:07:28.168Z",
+            "subagent_type": "general-purpose",
+            "task_description": "Run sleep loop, report"
+          }
+        }
+      ]
+    }
+  ]
+}

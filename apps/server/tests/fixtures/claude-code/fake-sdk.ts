@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import type { HookInput, McpServerConfig, ModelInfo, Options, PermissionResult, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+import { Effect } from "effect";
 import type { ClaudeCodeSdk, ClaudeQuery } from "../../../src/features/providers/claude-code/sdk.js";
 import { attachmentsRootIn } from "../csv.js";
 import { ATTACHMENTS, sha256 } from "../image.js";
@@ -76,6 +77,14 @@ export const makeFakeSdk = () => {
   let crashes = 0;
   /** The attachments folder the turn being played sent its files from (recorded as `ATTACHMENTS`). */
   let attachments: string | undefined;
+  /** Resolves once the loaded fixture's last step has played. */
+  let finished: () => void = () => {};
+  let played = Promise.resolve();
+  const resetPlayed = () => {
+    played = new Promise<void>((resolve) => {
+      finished = resolve;
+    });
+  };
 
   const restore = (value: unknown, sessionId: string): unknown => {
     const text = JSON.stringify(value).replaceAll(VAULT, root).replaceAll(SESSION, sessionId).replaceAll(HOME, homedir());
@@ -133,6 +142,7 @@ export const makeFakeSdk = () => {
               tool_name: step.hook.toolName,
               tool_input: restore(step.hook.toolInput, sessionId),
               tool_use_id: step.hook.toolUseId,
+              ...(step.hook.agentId === undefined ? {} : { agent_id: step.hook.agentId }),
             } as unknown as HookInput;
             const decision = decisionOf(await hook(input, step.hook.toolUseId, { signal: new AbortController().signal }));
             calls.push({ call: "hook", toolName: step.hook.toolName, decision });
@@ -144,6 +154,7 @@ export const makeFakeSdk = () => {
               toolUseID: step.permission.toolUseId,
               requestId: step.permission.toolUseId,
               ...(step.permission.blockedPath === undefined ? {} : { blockedPath: restore(step.permission.blockedPath, sessionId) as string }),
+              ...(step.permission.agentId === undefined ? {} : { agentID: step.permission.agentId }),
             });
             if (closed) return;
             if (result === null) throw new Error("canUseTool answered nothing");
@@ -153,6 +164,7 @@ export const makeFakeSdk = () => {
             await waitForStop();
           }
         }
+        if (turn === fixture.turns.length) finished();
       }
     }
 
@@ -206,7 +218,10 @@ export const makeFakeSdk = () => {
       calls.length = 0;
       turn = 0;
       crashes = 0;
+      resetPlayed();
     },
+    /** Waits until every step of the loaded fixture has played, background work included. */
+    played: Effect.promise(() => played),
     /** The `query` calls' options, in order. */
     queries: () => calls.flatMap((call) => (call.call === "query" ? [call.options] : [])),
   };

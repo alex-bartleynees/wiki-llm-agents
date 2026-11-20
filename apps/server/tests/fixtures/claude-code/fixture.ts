@@ -19,15 +19,23 @@ export type FixtureStep =
   /** A message from Claude Code (an `SDKMessage`, cut down to what the adapter reads). */
   | { readonly message: unknown }
   /** Claude Code ran the adapter's `PreToolUse` hook, which decided this (`defer`: left it to Claude Code). */
-  | { readonly hook: { readonly toolName: string; readonly toolInput: unknown; readonly toolUseId: string }; readonly decision: AutonomyLevel | "defer" }
-  /** Claude Code asked the adapter's `canUseTool`, which answered this (after the recorder answered the request). */
+  /** `agentId`: a subagent's tool call (its task id). */
   | {
-      readonly permission: { readonly toolName: string; readonly toolInput: unknown; readonly toolUseId: string; readonly blockedPath?: string };
+      readonly hook: { readonly toolName: string; readonly toolInput: unknown; readonly toolUseId: string; readonly agentId?: string };
+      readonly decision: AutonomyLevel | "defer";
+    }
+  /** Claude Code asked the adapter's `canUseTool`, which answered this (after the recorder answered the request). `agentId`: a subagent asked. */
+  | {
+      readonly permission: { readonly toolName: string; readonly toolInput: unknown; readonly toolUseId: string; readonly blockedPath?: string; readonly agentId?: string };
       readonly behavior: "allow" | "deny";
     }
   /** The recorder pressed Stop. */
   | { readonly interrupt: true };
 
+/**
+ * One message sent and everything up to the next: with background subagents, that
+ * includes their work, their reports, and the turns Claude Code started for them.
+ */
 export interface FixtureTurn {
   readonly prompt: string;
   /** Images sent with the prompt (`tests/fixtures/image.ts`). */

@@ -19,7 +19,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import type { HookCallback, Options, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import { type Autonomy, DEFAULT_AUTONOMY } from "@wiki-agents/contracts/agents/model";
-import type { RequestAnswer } from "@wiki-agents/contracts/threads/model";
+import { isSubagentActive, type RequestAnswer, type SubagentStatus } from "@wiki-agents/contracts/threads/model";
 import { Deferred, Effect, Fiber, Stream } from "effect";
 import { makeClaudeCodeAdapter } from "../src/features/providers/claude-code/adapter.js";
 import { authStatus, binaryVersion } from "../src/features/providers/claude-code/cli.js";
@@ -30,6 +30,12 @@ import { CSV_PROMPT, csvMessage, csvPath, SALES_CSV } from "../tests/fixtures/cs
 import { ATTACHMENTS, fixtureImage, IMAGE_PROMPT, RED_SQUARE } from "../tests/fixtures/image.js";
 
 const outDir = fileURLToPath(new URL("../tests/fixtures/claude-code/", import.meta.url));
+
+/** How long background work must be silent before a recording with subagents moves on. */
+const QUIET_MS = 8000;
+
+/** The temp folder in recorded messages. */
+const TMP = "/__tmp__";
 
 interface TurnScript {
   readonly prompt: string;
@@ -43,6 +49,13 @@ interface TurnScript {
   readonly csv?: true;
   /** Instead of a prompt, compact the conversation (the session's `compact`, which sends `/compact`). */
   readonly compact?: true;
+  /**
+   * The agent starts background subagents: record until they and the turns their
+   * reports start are done (`wait`), press Stop once the turn has ended with them
+   * running (`stop-when-idle`), or once two run while the turn still does
+   * (`stop-while-running`).
+   */
+  readonly subagents?: "wait" | "stop-when-idle" | "stop-while-running";
 }
 
 interface Scenario {
@@ -56,7 +69,32 @@ const deny: RequestAnswer = { _tag: "approval", decision: "deny" };
 /** The researcher's autonomy: creating notes is allowed, editing asks, commands are denied. */
 const RESEARCHER: Autonomy = { read: "allow", create: "allow", edit: "ask", commands: "deny", web: "allow", tools: "allow", subagents: "allow" };
 
+/** Subagents start without asking and may run commands (the slow subagents of the Stop scenarios wait with one). */
+const DELEGATOR: Autonomy = { ...DEFAULT_AUTONOMY, commands: "allow", subagents: "allow" };
+
+/** Two subagents that keep running for a while, so Stop finds them at work. */
+const SLOW_SUBAGENTS =
+  "Use the Agent tool twice in one message, both with run_in_background true. Each subagent must use the Bash tool to run exactly `for i in 1 2 3 4 5 6; do sleep 5; done; echo done` and then report its output.";
+
 const SCENARIOS: Readonly<Record<string, Scenario>> = {
+  subagents: {
+    turns: [
+      {
+        prompt:
+          "Use the Agent tool twice in one message, both with run_in_background true: the first subagent must use the Edit tool to add the line 'Oolong too.' at the end of Notes/Tea.md; the second reads Notes/Coffee.md and reports its first line. Then reply 'launched' and stop; don't wait for them.",
+        answer: approve,
+        subagents: "wait",
+      },
+    ],
+  },
+  "subagents-stop": {
+    autonomy: DELEGATOR,
+    turns: [{ prompt: `${SLOW_SUBAGENTS} Then reply 'launched' and stop; don't wait for them.`, subagents: "stop-when-idle" }],
+  },
+  "subagents-stop-running": {
+    autonomy: DELEGATOR,
+    turns: [{ prompt: `${SLOW_SUBAGENTS} After launching them, write a 300-word poem about tea, then reply 'launched'.`, subagents: "stop-while-running" }],
+  },
   simple: { turns: [{ prompt: "Which notes are in this vault? List the file names in one short sentence." }] },
   "multi-turn": {
     turns: [{ prompt: "Remember the word 'kiwi'. Reply with just OK." }, { prompt: "Which word did I ask you to remember? Reply with just the word." }],
@@ -113,6 +151,12 @@ const kept = (message: SDKMessage): unknown => {
   switch (message.type) {
     case "system":
       if (message.subtype === "compact_boundary" || message.subtype === "status") return message;
+      if (message.subtype === "task_started" || message.subtype === "task_updated") return message;
+      if (message.subtype === "task_notification") {
+        // Where Claude Code keeps the task's output: a path of this machine the adapter doesn't read.
+        const { output_file: _, ...rest } = message;
+        return rest;
+      }
       if (message.subtype !== "init") return undefined;
       return {
         type: message.type,
@@ -151,7 +195,10 @@ const recordingSdk = (log: { steps: Array<FixtureStep>; sent: () => void }): Cla
       if (input.hook_event_name === "PreToolUse") {
         const specific = "hookSpecificOutput" in output && output.hookSpecificOutput?.hookEventName === "PreToolUse" ? output.hookSpecificOutput.permissionDecision : undefined;
         const decision = specific === "allow" || specific === "ask" || specific === "deny" ? specific : "defer";
-        log.steps.push({ hook: { toolName: input.tool_name, toolInput: input.tool_input, toolUseId: input.tool_use_id }, decision });
+        log.steps.push({
+          hook: { toolName: input.tool_name, toolInput: input.tool_input, toolUseId: input.tool_use_id, ...(input.agent_id === undefined ? {} : { agentId: input.agent_id }) },
+          decision,
+        });
       }
       return output;
     };
@@ -161,7 +208,13 @@ const recordingSdk = (log: { steps: Array<FixtureStep>; sent: () => void }): Cla
       canUseTool: async (toolName, toolInput, context) => {
         const result = await canUseTool(toolName, toolInput, context);
         log.steps.push({
-          permission: { toolName, toolInput, toolUseId: context.toolUseID, ...(context.blockedPath === undefined ? {} : { blockedPath: context.blockedPath }) },
+          permission: {
+            toolName,
+            toolInput,
+            toolUseId: context.toolUseID,
+            ...(context.blockedPath === undefined ? {} : { blockedPath: context.blockedPath }),
+            ...(context.agentID === undefined ? {} : { agentId: context.agentID }),
+          },
           behavior: result?.behavior ?? "deny",
         });
         return result;
@@ -200,7 +253,8 @@ const recordingSdk = (log: { steps: Array<FixtureStep>; sent: () => void }): Cla
 const normalise = (value: unknown, roots: ReadonlyArray<string>, attachments: string, sessionId: string): unknown => {
   let text = JSON.stringify(value).replaceAll(attachments, ATTACHMENTS);
   for (const root of roots) text = text.replaceAll(root, VAULT);
-  return JSON.parse(text.replaceAll(sessionId, SESSION).replaceAll(homedir(), HOME));
+  // Claude Code keeps background tasks' output under the temp folder, and names it in their launch results.
+  return JSON.parse(text.replaceAll(sessionId, SESSION).replaceAll(tmpdir(), TMP).replaceAll(homedir(), HOME));
 };
 
 const record = (name: string, scenario: Scenario, model: string) =>
@@ -224,9 +278,63 @@ const record = (name: string, scenario: Scenario, model: string) =>
       const autonomy = scenario.autonomy ?? DEFAULT_AUTONOMY;
       const setup: SessionSetup = { instructions: [], autonomy, projectRoots: null, attachmentFolders: [], protection: { paths: [], names: [] }, vaultTools: null };
       const session = yield* adapter.openSession({ threadId: "record", cwd: root, nativeSessionId: null, model, setup });
+
+      // Background work: subagents, their requests, and the turns Claude Code starts for their reports.
+      let current: { readonly script: TurnScript; readonly turnId: string } | undefined;
+      const subagents = new Map<string, SubagentStatus>();
+      let started = 0;
+      let stoppedRunning = false;
+      let ownTurns = 0;
+      let lastBackground = Date.now();
+      const answerFor = (requestId: string) => Effect.forkChild(session.answerRequest(requestId, current?.script.answer ?? deny).pipe(Effect.ignore));
+      if (session.background !== undefined) {
+        yield* session.background.pipe(
+          Stream.runForEach((event) =>
+            Effect.gen(function* () {
+              lastBackground = Date.now();
+              if (event._tag === "subagent") {
+                if (!subagents.has(event.state.subagentId)) started += 1;
+                subagents.set(event.state.subagentId, event.state.status);
+                yield* Effect.log(`${name}: subagent ${event.state.label}: ${event.state.status}`);
+                if (current?.script.subagents === "stop-while-running" && started === 2 && !stoppedRunning) {
+                  stoppedRunning = true;
+                  yield* Effect.forkChild(session.interrupt(current.turnId));
+                }
+              }
+              if (event._tag === "request.opened") yield* answerFor(event.requestId);
+              if (event._tag === "turn") {
+                ownTurns += 1;
+                yield* Effect.log(`${name}: Claude Code started a turn (${event.reports.map((report) => report.label).join(", ") || "no report"})`);
+                yield* event.events.pipe(
+                  Stream.runForEach((turnEvent) =>
+                    Effect.gen(function* () {
+                      if (turnEvent._tag === "request.opened") yield* answerFor(turnEvent.requestId);
+                      if (turnEvent._tag === "turn.finished") yield* Effect.log(`${name}: its turn ${turnEvent.outcome}`);
+                    }),
+                  ),
+                  Effect.ensuring(Effect.sync(() => {
+                    ownTurns -= 1;
+                    lastBackground = Date.now();
+                  })),
+                  Effect.ignore,
+                  Effect.forkChild,
+                );
+              }
+            }),
+          ),
+          Effect.forkChild,
+        );
+      }
+      const active = () => [...subagents.values()].some(isSubagentActive);
+      /** The subagents and the turns their reports start are done, and nothing came for a few seconds. */
+      const quiet = Effect.gen(function* () {
+        while (active() || ownTurns > 0 || Date.now() - lastBackground < QUIET_MS) yield* Effect.sleep("500 millis");
+      });
+
       const turns = [];
       for (const script of scenario.turns) {
         const turnId = randomUUID();
+        current = { script, turnId };
         const steps: Array<FixtureStep> = [];
         log.steps = steps;
         const sent = yield* Deferred.make<void>();
@@ -268,6 +376,12 @@ const record = (name: string, scenario: Scenario, model: string) =>
           yield* stop;
         }
         yield* Fiber.join(fiber);
+        if (script.subagents === "stop-when-idle") {
+          while (!active()) yield* Effect.sleep("200 millis");
+          yield* Effect.log(`${name}: Stop with only subagents running`);
+          yield* session.stopBackground ?? Effect.void;
+        }
+        if (script.subagents !== undefined) yield* quiet;
         turns.push({ prompt: text, ...(script.images === undefined ? {} : { images: script.images.map(fixtureImage) }), steps });
       }
       const fixture: Fixture = {
