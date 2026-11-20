@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { OpenCodeEvent } from "./api.js";
-import { approvalPrompt, formAnswer, makeTurnMapper, questionPrompt, sessionOf, summariseInput } from "./events.js";
+import { approvalPrompt, childCreated, childReport, formAnswer, makeTurnMapper, questionPrompt, sessionOf, summariseInput } from "./events.js";
 
 type EventOf<T extends OpenCodeEvent["type"]> = Extract<OpenCodeEvent, { readonly type: T }>;
 
@@ -189,5 +189,44 @@ describe("makeTurnMapper", () => {
       { _tag: "plan.updated", turnId: "turn-1", steps: [{ text: "Read", status: "in_progress" }] },
     ]);
     expect(mapper.map(event("session.tool.success", { sessionID: "ses_1", id: "call_1", content: [{ type: "text", text: "1 todo" }] }))).toEqual([]);
+  });
+});
+
+describe("subagents (OpenCode 2.3)", () => {
+  it("reads a child session from its creation, and ignores a session without a parent", () => {
+    expect(childCreated(event("session.created", { sessionID: "ses_c", parentID: "ses_p", title: "Read Tea.md", agent: "explore" }))).toEqual({
+      childId: "ses_c",
+      parentId: "ses_p",
+      label: "Read Tea.md",
+      agent: "explore",
+    });
+    expect(childCreated(event("session.created", { sessionID: "ses_p" }))).toBeUndefined();
+    expect(childCreated(event("session.created", { sessionID: "ses_c", parentID: "ses_p" }))).toMatchObject({ label: "Subagent", agent: null });
+  });
+
+  const enqueued = (text: string, metadata: Record<string, unknown> | undefined, type = "synthetic") =>
+    event("session.inbox.enqueued", { inboxID: "msg_1", sessionID: "ses_p", item: { type, payload: { text, ...(metadata === undefined ? {} : { metadata }) }, delivery: "queue" } });
+
+  it("reads a subagent's report, without OpenCode's wrapper", () => {
+    const text = '<subagent sessionID="ses_c" state="completed" description="Read Tea.md">\nThe first line is:\n\n# Tea\n</subagent>';
+    expect(childReport(enqueued(text, { source: "subagent", childID: "ses_c", agent: "Explore", state: "completed" }))).toEqual({
+      inboxId: "msg_1",
+      childId: "ses_c",
+      status: "done",
+      result: "The first line is:\n\n# Tea",
+    });
+  });
+
+  it.each([
+    ["cancelled", "cancelled"],
+    ["failed", "failed"],
+    ["something new", "done"],
+  ])("takes the state %s as %s", (state, status) => {
+    expect(childReport(enqueued("<subagent>x</subagent>", { source: "subagent", childID: "ses_c", state }))?.status).toBe(status);
+  });
+
+  it("ignores other inbox items", () => {
+    expect(childReport(enqueued("hello", undefined, "user"))).toBeUndefined();
+    expect(childReport(enqueued("note", { source: "something else" }))).toBeUndefined();
   });
 });

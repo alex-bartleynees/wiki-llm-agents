@@ -1,0 +1,1182 @@
+{
+  "scenario": "subagents-stop",
+  "opencodeVersion": "2.3.0",
+  "model": "opencode/tidepool-alpha-free",
+  "sessionId": "ses_e08a25061ffexua82fasZICB6a",
+  "turns": [
+    {
+      "prompt": "Use the subagent tool twice, in parallel in one response, with the general agent. Each subagent runs the shell command 'sleep 20' and then reports the first line of Notes/Coffee.md (A) or Notes/Tea.md (B). Then reply 'launched' without waiting.",
+      "steps": [
+        {
+          "event": {
+            "id": "evt_1f75dafa100184h52uhWH3N29p",
+            "created": 1795151474593,
+            "type": "session.created",
+            "durable": {
+              "aggregateID": "ses_e08a25061ffexua82fasZICB6a",
+              "seq": 0,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e08a25061ffexua82fasZICB6a",
+              "projectID": "80c60d3dedea6a428da623cde537b3b5ab3c7ba1",
+              "location": {
+                "directory": "/__vault__"
+              },
+              "subpath": "",
+              "slug": "eager-orchid",
+              "permissions": [
+                {
+                  "action": "*",
+                  "resource": "*",
+                  "effect": "ask"
+                },
+                {
+                  "action": "question",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "todowrite",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "todo",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "skill",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "read",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "glob",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "grep",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "list",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "lsp",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "wiki-agents-*",
+                  "resource": "*",
+                  "effect": "deny"
+                }
+              ],
+              "version": "2.3.0"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f75db135001B8kToFqUJcOTHE",
+            "created": 1795151474997,
+            "type": "session.inbox.enqueued",
+            "durable": {
+              "aggregateID": "ses_e08a25061ffexua82fasZICB6a",
+              "seq": 1,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e08a25061ffexua82fasZICB6a",
+              "inboxID": "msg_1f75dafcd00117JVnCFwC8ef1W",
+              "item": {
+                "type": "user",
+                "payload": {
+                  "text": "Use the subagent tool twice, in parallel in one response, with the general agent. Each subagent runs the shell command 'sleep 20' and then reports the first line of Notes/Coffee.md (A) or Notes/Tea.md (B). Then reply 'launched' without waiting."
+                },
+                "delivery": "steer"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f75db137001C1iZYLGyeSNhp3",
+            "created": 1795151474999,
+            "type": "session.execution.started",
+            "durable": {
+              "aggregateID": "ses_e08a25061ffexua82fasZICB6a",
+              "seq": 2,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e08a25061ffexua82fasZICB6a"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f75db1450018QUvXGr971ovvE",
+            "created": 1795151475013,
+            "type": "session.inbox.delivered",
+            "durable": {
+              "aggregateID": "ses_e08a25061ffexua82fasZICB6a",
+              "seq": 4,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e08a25061ffexua82fasZICB6a",
+              "inboxID": "msg_1f75dafcd00117JVnCFwC8ef1W"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f75db636001sqm9nAseMxL1g0",
+            "created": 1795151476278,
+            "type": "session.step.started",
+            "durable": {
+              "aggregateID": "ses_e08a25061ffexua82fasZICB6a",
+              "seq": 5,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e08a25061ffexua82fasZICB6a",
+              "assistantMessageID": "msg_1f75db14e001N0nofcWMkuVpGJ",
+              "agent": "build",
+              "model": {
+                "id": "tidepool-alpha-free",
+                "providerID": "opencode"
+              },
+              "started": 1795151475025
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f75dbfc00016aQGV1LoS7m0uT",
+            "created": 1795151478720,
+            "type": "session.text.delta",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e08a25061ffexua82fasZICB6a",
+              "assistantMessageID": "msg_1f75db14e001N0nofcWMkuVpGJ",
+              "ordinal": 0,
+              "delta": "I'll launch both subagents now, then reply 'launched'."
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f75dc02f001VpvEr1EPImjBTD",
+            "created": 1795151478831,
+            "type": "session.tool.input.started",
+            "durable": {
+              "aggregateID": "ses_e08a25061ffexua82fasZICB6a",
+              "seq": 9,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e08a25061ffexua82fasZICB6a",
+              "assistantMessageID": "msg_1f75db14e001N0nofcWMkuVpGJ",
+              "id": "call_2d494081481643cfa3d399ab",
+              "name": "subagent"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f75dd496001E5GEoU0dQv4kP5",
+            "created": 1795151484054,
+            "type": "session.tool.input.started",
+            "durable": {
+              "aggregateID": "ses_e08a25061ffexua82fasZICB6a",
+              "seq": 12,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e08a25061ffexua82fasZICB6a",
+              "assistantMessageID": "msg_1f75db14e001N0nofcWMkuVpGJ",
+              "id": "call_913f9f2ade264ee0b2559a9f",
+              "name": "subagent"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f75dd49d001AGxYGQCgF9BFEj",
+            "created": 1795151484061,
+            "type": "session.tool.called",
+            "durable": {
+              "aggregateID": "ses_e08a25061ffexua82fasZICB6a",
+              "seq": 15,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e08a25061ffexua82fasZICB6a",
+              "assistantMessageID": "msg_1f75db14e001N0nofcWMkuVpGJ",
+              "id": "call_2d494081481643cfa3d399ab",
+              "input": {
+                "agent": "general",
+                "description": "Read first line of Notes/Coffee.md after sleep",
+                "prompt": "Run the shell command `sleep 20` and then read and report the first line of the file `Notes/Coffee.md`. Just report the first line of the file, nothing else. If the file doesn't exist or can't be read, say so."
+              },
+              "executed": false
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f75dd49f001P3ltrjYIIUZfL5",
+            "created": 1795151484063,
+            "type": "session.tool.called",
+            "durable": {
+              "aggregateID": "ses_e08a25061ffexua82fasZICB6a",
+              "seq": 17,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e08a25061ffexua82fasZICB6a",
+              "assistantMessageID": "msg_1f75db14e001N0nofcWMkuVpGJ",
+              "id": "call_913f9f2ade264ee0b2559a9f",
+              "input": {
+                "agent": "general",
+                "description": "Read first line of Notes/Tea.md after sleep",
+                "prompt": "Run the shell command `sleep 20` and then read and report the first line of the file `Notes/Tea.md`. Just report the first line of the file, nothing else. If the file doesn't exist or can't be read, say so."
+              },
+              "executed": false
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f75dd4a6002xvP492IIqgppd7",
+            "created": 1795151484070,
+            "type": "permission.asked",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "id": "per_1f75dd4a6001XOGV1WVPWr8SLN",
+              "sessionID": "ses_e08a25061ffexua82fasZICB6a",
+              "action": "subagent",
+              "resources": [
+                "general"
+              ],
+              "save": [
+                "general"
+              ],
+              "source": {
+                "type": "tool",
+                "messageID": "msg_1f75db14e001N0nofcWMkuVpGJ",
+                "id": "call_2d494081481643cfa3d399ab"
+              }
+            }
+          }
+        },
+        {
+          "call": "reply",
+          "requestId": "per_1f75dd4a6001XOGV1WVPWr8SLN",
+          "reply": "once"
+        },
+        {
+          "event": {
+            "id": "evt_1f75dd4a6004bCD4KXDELC6kmr",
+            "created": 1795151484070,
+            "type": "permission.asked",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "id": "per_1f75dd4a6003G9L70RaZfp6unK",
+              "sessionID": "ses_e08a25061ffexua82fasZICB6a",
+              "action": "subagent",
+              "resources": [
+                "general"
+              ],
+              "save": [
+                "general"
+              ],
+              "source": {
+                "type": "tool",
+                "messageID": "msg_1f75db14e001N0nofcWMkuVpGJ",
+                "id": "call_913f9f2ade264ee0b2559a9f"
+              }
+            }
+          }
+        },
+        {
+          "call": "reply",
+          "requestId": "per_1f75dd4a6003G9L70RaZfp6unK",
+          "reply": "once"
+        },
+        {
+          "event": {
+            "id": "evt_1f75dd4aa001J6lzZ1EejCSNIZ",
+            "created": 1795151484074,
+            "type": "permission.replied",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e08a25061ffexua82fasZICB6a",
+              "requestID": "per_1f75dd4a6001XOGV1WVPWr8SLN",
+              "reply": "once"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f75dd4ac001u3OqaRD37SJmFO",
+            "created": 1795151484076,
+            "type": "session.created",
+            "durable": {
+              "aggregateID": "ses_e08a22b55ffdBf22Zkmr42K3Qt",
+              "seq": 0,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e08a22b55ffdBf22Zkmr42K3Qt",
+              "projectID": "80c60d3dedea6a428da623cde537b3b5ab3c7ba1",
+              "location": {
+                "directory": "/__vault__"
+              },
+              "subpath": "",
+              "parentID": "ses_e08a25061ffexua82fasZICB6a",
+              "slug": "witty-canyon",
+              "title": "Read first line of Notes/Coffee.md after sleep",
+              "agent": "general",
+              "permissions": [
+                {
+                  "action": "*",
+                  "resource": "*",
+                  "effect": "ask"
+                },
+                {
+                  "action": "question",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "todowrite",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "todo",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "skill",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "read",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "glob",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "grep",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "list",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "lsp",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "wiki-agents-*",
+                  "resource": "*",
+                  "effect": "deny"
+                }
+              ],
+              "version": "2.3.0"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f75dd4ae001rvZcSMKZZT3ePq",
+            "created": 1795151484078,
+            "type": "session.inbox.enqueued",
+            "durable": {
+              "aggregateID": "ses_e08a22b55ffdBf22Zkmr42K3Qt",
+              "seq": 1,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e08a22b55ffdBf22Zkmr42K3Qt",
+              "inboxID": "msg_1f75dd4ad0025aCDW6Dzb7rjDJ",
+              "item": {
+                "type": "user",
+                "payload": {
+                  "text": "You are a subagent spawned by another session.\nRun the shell command `sleep 20` and then read and report the first line of the file `Notes/Coffee.md`. Just report the first line of the file, nothing else. If the file doesn't exist or can't be read, say so."
+                },
+                "delivery": "steer"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f75dd4af002cAdEuRtHCVLCqt",
+            "created": 1795151484079,
+            "type": "session.tool.success",
+            "durable": {
+              "aggregateID": "ses_e08a25061ffexua82fasZICB6a",
+              "seq": 20,
+              "version": 2
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e08a25061ffexua82fasZICB6a",
+              "assistantMessageID": "msg_1f75db14e001N0nofcWMkuVpGJ",
+              "id": "call_2d494081481643cfa3d399ab",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "The subagent is working in the background (sessionID: ses_e08a22b55ffdBf22Zkmr42K3Qt). You will receive a <subagent> message when it goes idle, and again after each later round of work.\nDO NOT sleep, poll, proactively check on its progress, or duplicate this subagent's work.\nWork on non-overlapping tasks, or briefly tell the user what you launched and end your response.\nTo send it follow-ups or change its instructions while it runs, call subagent again with this sessionID."
+                }
+              ],
+              "metadata": {
+                "sessionID": "ses_e08a22b55ffdBf22Zkmr42K3Qt",
+                "status": "running",
+                "truncated": false
+              },
+              "executed": false
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f75dd4b1001JHHxkt03nUsQLT",
+            "created": 1795151484081,
+            "type": "session.execution.started",
+            "durable": {
+              "aggregateID": "ses_e08a22b55ffdBf22Zkmr42K3Qt",
+              "seq": 2,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e08a22b55ffdBf22Zkmr42K3Qt"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f75dd4b5001Oz6A5XzcdfAgcm",
+            "created": 1795151484085,
+            "type": "session.inbox.delivered",
+            "durable": {
+              "aggregateID": "ses_e08a22b55ffdBf22Zkmr42K3Qt",
+              "seq": 4,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e08a22b55ffdBf22Zkmr42K3Qt",
+              "inboxID": "msg_1f75dd4ad0025aCDW6Dzb7rjDJ"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f75dd4c2001P5jcLxzCOS6dlT",
+            "created": 1795151484098,
+            "type": "permission.replied",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e08a25061ffexua82fasZICB6a",
+              "requestID": "per_1f75dd4a6003G9L70RaZfp6unK",
+              "reply": "once"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f75dd4c4001ILVecybOfpL0my",
+            "created": 1795151484100,
+            "type": "session.created",
+            "durable": {
+              "aggregateID": "ses_e08a22b3dffd9Bw73ftRJU2D4A",
+              "seq": 0,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e08a22b3dffd9Bw73ftRJU2D4A",
+              "projectID": "80c60d3dedea6a428da623cde537b3b5ab3c7ba1",
+              "location": {
+                "directory": "/__vault__"
+              },
+              "subpath": "",
+              "parentID": "ses_e08a25061ffexua82fasZICB6a",
+              "slug": "nimble-harbor",
+              "title": "Read first line of Notes/Tea.md after sleep",
+              "agent": "general",
+              "permissions": [
+                {
+                  "action": "*",
+                  "resource": "*",
+                  "effect": "ask"
+                },
+                {
+                  "action": "question",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "todowrite",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "todo",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "skill",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "read",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "glob",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "grep",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "list",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "lsp",
+                  "resource": "*",
+                  "effect": "allow"
+                },
+                {
+                  "action": "wiki-agents-*",
+                  "resource": "*",
+                  "effect": "deny"
+                }
+              ],
+              "version": "2.3.0"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f75dd4c5003pNa8W5nvFtD9ph",
+            "created": 1795151484101,
+            "type": "session.inbox.enqueued",
+            "durable": {
+              "aggregateID": "ses_e08a22b3dffd9Bw73ftRJU2D4A",
+              "seq": 1,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e08a22b3dffd9Bw73ftRJU2D4A",
+              "inboxID": "msg_1f75dd4c5002qGezymyv7A6L6R",
+              "item": {
+                "type": "user",
+                "payload": {
+                  "text": "You are a subagent spawned by another session.\nRun the shell command `sleep 20` and then read and report the first line of the file `Notes/Tea.md`. Just report the first line of the file, nothing else. If the file doesn't exist or can't be read, say so."
+                },
+                "delivery": "steer"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f75dd4c7001Zb176rZ3af2LCk",
+            "created": 1795151484103,
+            "type": "session.tool.success",
+            "durable": {
+              "aggregateID": "ses_e08a25061ffexua82fasZICB6a",
+              "seq": 21,
+              "version": 2
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e08a25061ffexua82fasZICB6a",
+              "assistantMessageID": "msg_1f75db14e001N0nofcWMkuVpGJ",
+              "id": "call_913f9f2ade264ee0b2559a9f",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "The subagent is working in the background (sessionID: ses_e08a22b3dffd9Bw73ftRJU2D4A). You will receive a <subagent> message when it goes idle, and again after each later round of work.\nDO NOT sleep, poll, proactively check on its progress, or duplicate this subagent's work.\nWork on non-overlapping tasks, or briefly tell the user what you launched and end your response.\nTo send it follow-ups or change its instructions while it runs, call subagent again with this sessionID."
+                }
+              ],
+              "metadata": {
+                "sessionID": "ses_e08a22b3dffd9Bw73ftRJU2D4A",
+                "status": "running",
+                "truncated": false
+              },
+              "executed": false
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f75dd4c8001nMxIeWPBD9FuyR",
+            "created": 1795151484104,
+            "type": "session.step.ended",
+            "durable": {
+              "aggregateID": "ses_e08a25061ffexua82fasZICB6a",
+              "seq": 22,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e08a25061ffexua82fasZICB6a",
+              "assistantMessageID": "msg_1f75db14e001N0nofcWMkuVpGJ",
+              "finish": "tool-calls",
+              "rawFinish": "tool_calls",
+              "cost": 0,
+              "tokens": {
+                "input": 250,
+                "output": 189,
+                "reasoning": 121,
+                "cache": {
+                  "read": 18120,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f75dd4d4001MibXoSV2PMrY05",
+            "created": 1795151484116,
+            "type": "session.execution.started",
+            "durable": {
+              "aggregateID": "ses_e08a22b3dffd9Bw73ftRJU2D4A",
+              "seq": 2,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e08a22b3dffd9Bw73ftRJU2D4A"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f75dd4d8001VQ0gJs2pjVy663",
+            "created": 1795151484120,
+            "type": "session.inbox.delivered",
+            "durable": {
+              "aggregateID": "ses_e08a22b3dffd9Bw73ftRJU2D4A",
+              "seq": 4,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e08a22b3dffd9Bw73ftRJU2D4A",
+              "inboxID": "msg_1f75dd4c5002qGezymyv7A6L6R"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f75dd831001GQlkVqf38dXnLl",
+            "created": 1795151484977,
+            "type": "session.step.started",
+            "durable": {
+              "aggregateID": "ses_e08a25061ffexua82fasZICB6a",
+              "seq": 23,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e08a25061ffexua82fasZICB6a",
+              "assistantMessageID": "msg_1f75dd4cf001w4nQtTKqhGI7Br",
+              "agent": "build",
+              "model": {
+                "id": "tidepool-alpha-free",
+                "providerID": "opencode"
+              },
+              "started": 1795151484114
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f75dd836001Xswd25ZX5t4kdB",
+            "created": 1795151484982,
+            "type": "session.step.started",
+            "durable": {
+              "aggregateID": "ses_e08a22b55ffdBf22Zkmr42K3Qt",
+              "seq": 5,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e08a22b55ffdBf22Zkmr42K3Qt",
+              "assistantMessageID": "msg_1f75dd4b9001tkiw0nYTJh8MHX",
+              "agent": "general",
+              "model": {
+                "id": "tidepool-alpha-free",
+                "providerID": "opencode"
+              },
+              "started": 1795151484094
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f75ddbcd001WN6kTleOvTwTBq",
+            "created": 1795151485901,
+            "type": "session.text.delta",
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e08a25061ffexua82fasZICB6a",
+              "assistantMessageID": "msg_1f75dd4cf001w4nQtTKqhGI7Br",
+              "ordinal": 0,
+              "delta": "launched"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f75ddbcf001Lyu7O9h3WmT1Q8",
+            "created": 1795151485903,
+            "type": "session.step.ended",
+            "durable": {
+              "aggregateID": "ses_e08a25061ffexua82fasZICB6a",
+              "seq": 30,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e08a25061ffexua82fasZICB6a",
+              "assistantMessageID": "msg_1f75dd4cf001w4nQtTKqhGI7Br",
+              "finish": "stop",
+              "rawFinish": "stop",
+              "cost": 0,
+              "tokens": {
+                "input": 261,
+                "output": 3,
+                "reasoning": 73,
+                "cache": {
+                  "read": 18680,
+                  "write": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f75ddbd10010dm8pbcvHHtM1w",
+            "created": 1795151485905,
+            "type": "session.execution.succeeded",
+            "durable": {
+              "aggregateID": "ses_e08a25061ffexua82fasZICB6a",
+              "seq": 31,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e08a25061ffexua82fasZICB6a"
+            }
+          }
+        },
+        {
+          "call": "interrupt",
+          "withdrawn": false,
+          "interrupted": true
+        },
+        {
+          "call": "interrupt",
+          "withdrawn": false,
+          "interrupted": true
+        },
+        {
+          "event": {
+            "id": "evt_1f75ddbda0012pdjI1cOqK3gup",
+            "created": 1795151485914,
+            "type": "session.step.failed",
+            "durable": {
+              "aggregateID": "ses_e08a22b55ffdBf22Zkmr42K3Qt",
+              "seq": 10,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e08a22b55ffdBf22Zkmr42K3Qt",
+              "assistantMessageID": "msg_1f75dd4b9001tkiw0nYTJh8MHX",
+              "error": {
+                "type": "aborted",
+                "message": "Step interrupted"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f75ddbdc001V0h4FSfiKvVhkl",
+            "created": 1795151485916,
+            "type": "session.execution.interrupted",
+            "durable": {
+              "aggregateID": "ses_e08a22b55ffdBf22Zkmr42K3Qt",
+              "seq": 11,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e08a22b55ffdBf22Zkmr42K3Qt",
+              "reason": "user"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f75ddbde001SXY9qstW2H02ak",
+            "created": 1795151485918,
+            "type": "session.inbox.enqueued",
+            "durable": {
+              "aggregateID": "ses_e08a25061ffexua82fasZICB6a",
+              "seq": 32,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e08a25061ffexua82fasZICB6a",
+              "inboxID": "msg_1f75dd4af001sqoOiQ8sAiLZpr",
+              "item": {
+                "type": "synthetic",
+                "payload": {
+                  "text": "<subagent sessionID=\"ses_e08a22b55ffdBf22Zkmr42K3Qt\" state=\"cancelled\" description=\"Read first line of Notes/Coffee.md after sleep\">\nSubagent cancelled\n</subagent>",
+                  "description": "Read first line of Notes/Coffee.md after sleep",
+                  "metadata": {
+                    "source": "subagent",
+                    "childID": "ses_e08a22b55ffdBf22Zkmr42K3Qt",
+                    "agent": "General",
+                    "state": "cancelled"
+                  }
+                },
+                "delivery": "steer"
+              }
+            }
+          }
+        },
+        {
+          "call": "cancelPrompt",
+          "inboxId": "msg_1f75dd4af001sqoOiQ8sAiLZpr"
+        },
+        {
+          "event": {
+            "id": "evt_1f75ddbe00017IJR2vpsKbMy8G",
+            "created": 1795151485920,
+            "type": "session.step.started",
+            "durable": {
+              "aggregateID": "ses_e08a22b3dffd9Bw73ftRJU2D4A",
+              "seq": 5,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e08a22b3dffd9Bw73ftRJU2D4A",
+              "assistantMessageID": "msg_1f75dd4db001CRHD6AS5lAqTCC",
+              "agent": "general",
+              "model": {
+                "id": "tidepool-alpha-free",
+                "providerID": "opencode"
+              },
+              "started": 1795151484126
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f75ddbe1001p9MIR6Ula0oII2",
+            "created": 1795151485921,
+            "type": "session.step.failed",
+            "durable": {
+              "aggregateID": "ses_e08a22b3dffd9Bw73ftRJU2D4A",
+              "seq": 6,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e08a22b3dffd9Bw73ftRJU2D4A",
+              "assistantMessageID": "msg_1f75dd4db001CRHD6AS5lAqTCC",
+              "error": {
+                "type": "aborted",
+                "message": "Step interrupted"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f75ddbe3001cYmTSm37v6VZN6",
+            "created": 1795151485923,
+            "type": "session.execution.interrupted",
+            "durable": {
+              "aggregateID": "ses_e08a22b3dffd9Bw73ftRJU2D4A",
+              "seq": 7,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e08a22b3dffd9Bw73ftRJU2D4A",
+              "reason": "user"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f75ddbe4001vGVGGjRXiCYfJX",
+            "created": 1795151485924,
+            "type": "session.inbox.enqueued",
+            "durable": {
+              "aggregateID": "ses_e08a25061ffexua82fasZICB6a",
+              "seq": 33,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e08a25061ffexua82fasZICB6a",
+              "inboxID": "msg_1f75dd4c6001MMt04tUvKQZAVc",
+              "item": {
+                "type": "synthetic",
+                "payload": {
+                  "text": "<subagent sessionID=\"ses_e08a22b3dffd9Bw73ftRJU2D4A\" state=\"cancelled\" description=\"Read first line of Notes/Tea.md after sleep\">\nSubagent cancelled\n</subagent>",
+                  "description": "Read first line of Notes/Tea.md after sleep",
+                  "metadata": {
+                    "source": "subagent",
+                    "childID": "ses_e08a22b3dffd9Bw73ftRJU2D4A",
+                    "agent": "General",
+                    "state": "cancelled"
+                  }
+                },
+                "delivery": "steer"
+              }
+            }
+          }
+        },
+        {
+          "call": "cancelPrompt",
+          "inboxId": "msg_1f75dd4c6001MMt04tUvKQZAVc"
+        },
+        {
+          "event": {
+            "id": "evt_1f75ddbe6001kmzFVD8sm4fNdu",
+            "created": 1795151485926,
+            "type": "session.execution.started",
+            "durable": {
+              "aggregateID": "ses_e08a25061ffexua82fasZICB6a",
+              "seq": 34,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e08a25061ffexua82fasZICB6a"
+            }
+          }
+        },
+        {
+          "call": "interrupt",
+          "withdrawn": false,
+          "interrupted": true
+        },
+        {
+          "event": {
+            "id": "evt_1f75ddbe9001D44w98eznz3GLe",
+            "created": 1795151485929,
+            "type": "session.inbox.delivered",
+            "durable": {
+              "aggregateID": "ses_e08a25061ffexua82fasZICB6a",
+              "seq": 35,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e08a25061ffexua82fasZICB6a",
+              "inboxID": "msg_1f75dd4af001sqoOiQ8sAiLZpr"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f75ddbea0011NaNGzLIpDflVo",
+            "created": 1795151485930,
+            "type": "session.inbox.delivered",
+            "durable": {
+              "aggregateID": "ses_e08a25061ffexua82fasZICB6a",
+              "seq": 36,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e08a25061ffexua82fasZICB6a",
+              "inboxID": "msg_1f75dd4c6001MMt04tUvKQZAVc"
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f75ddbf9001yF2i0jNnwTw4Np",
+            "created": 1795151485945,
+            "type": "session.step.started",
+            "durable": {
+              "aggregateID": "ses_e08a25061ffexua82fasZICB6a",
+              "seq": 37,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e08a25061ffexua82fasZICB6a",
+              "assistantMessageID": "msg_1f75ddbee001zZwNGQAtV6xJld",
+              "agent": "build",
+              "model": {
+                "id": "tidepool-alpha-free",
+                "providerID": "opencode"
+              },
+              "started": 1795151485937
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f75ddbfa001j985wR0Py4g6AT",
+            "created": 1795151485946,
+            "type": "session.step.failed",
+            "durable": {
+              "aggregateID": "ses_e08a25061ffexua82fasZICB6a",
+              "seq": 38,
+              "version": 1
+            },
+            "location": {
+              "directory": "/__vault__"
+            },
+            "data": {
+              "sessionID": "ses_e08a25061ffexua82fasZICB6a",
+              "assistantMessageID": "msg_1f75ddbee001zZwNGQAtV6xJld",
+              "error": {
+                "type": "aborted",
+                "message": "Step interrupted"
+              }
+            }
+          }
+        },
+        {
+          "event": {
+            "id": "evt_1f75ddbfb001WUEzH75xZOoSMt",
+            "created": 1795151485947,
+            "type": "session.execution.interrupted",
+            "durable": {
+              "aggregateID": "ses_e08a25061ffexua82fasZICB6a",
+              "seq": 39,
+              "version": 1
+            },
+            "data": {
+              "sessionID": "ses_e08a25061ffexua82fasZICB6a",
+              "reason": "user"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

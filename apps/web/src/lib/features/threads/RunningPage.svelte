@@ -9,7 +9,7 @@
   import { vaults } from "#lib/features/vaults/vaults.svelte.ts";
   import { markDone } from "./api.ts";
   import { running } from "./running.svelte.ts";
-  import { progressLabel } from "./status.ts";
+  import { progressLabel, subagentsLabel } from "./status.ts";
   import { threadHref } from "./thread-link.ts";
 
   // The layout keeps `running` live on every page.
@@ -82,6 +82,7 @@
               "Needs you",
               ...(turn?.progress ? [progressLabel(turn.progress)] : []),
               ...(turn ? [`started ${timeAgo(turn.startedAt)}`] : []),
+              ...(thread.subagentsActive > 0 ? [subagentsLabel(thread.subagentsActive)] : []),
             ].join(" · "),
             null,
           )}
@@ -102,6 +103,7 @@
               "Working",
               ...(turn?.progress ? [progressLabel(turn.progress), ...(turn.progress.current ? [turn.progress.current] : [])] : []),
               ...(turn ? [`started ${timeAgo(turn.startedAt)}`] : []),
+              ...(thread.subagentsActive > 0 ? [subagentsLabel(thread.subagentsActive)] : []),
             ].join(" · "),
             null,
           )}

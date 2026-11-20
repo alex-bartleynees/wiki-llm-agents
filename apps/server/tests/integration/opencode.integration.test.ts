@@ -716,7 +716,7 @@ layer(App)("OpenCode provider", (it) => {
       expect(yield* status(thread.id)).toBe("idle");
 
       // The same thread carries on: a new OpenCode, the same session.
-      yield* fake.load(fixture, vault.rootPath);
+      yield* fake.load(fixture, vault.rootPath, { continues: true });
       const turnId = yield* sendOk(thread.id, prompts[0]!);
       const opened = (yield* events.until((event) => event._tag === "request.opened" && event.turnId === turnId)).at(-1);
       if (opened?._tag !== "request.opened") throw new Error("no question");
@@ -975,7 +975,7 @@ describe("OpenCode across a restart", () => {
           expect(before.at(-1)?.event).toMatchObject({ _tag: "turn.finished", outcome: "interrupted", reason: SERVER_STOPPED });
 
           // The next message goes to the session the thread already has.
-          yield* fake.load(fixture, root);
+          yield* fake.load(fixture, root, { continues: true });
           const turnId = yield* sendOk(thread.id, fixture.turns[0]!.prompt);
           const seen = yield* events.until((event) => event._tag === "turn.finished" && event.turnId === turnId);
           expect(finishedOf(seen).outcome).toBe("completed");

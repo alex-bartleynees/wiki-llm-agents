@@ -46,10 +46,29 @@ export type Step =
   | { readonly type: "compaction"; readonly observation: Omit<Extract<ThreadEvent, { readonly _tag: "context.compaction" }>, "_tag" | "turnId"> }
   /** The provider ran the turn on another model than the one chosen (a router such as Copilot Auto). */
   | { readonly type: "routed"; readonly routing: Omit<Extract<ThreadEvent, { readonly _tag: "model.routed" }>, "_tag" | "turnId"> }
+  /**
+   * The agent delegates to subagents that run in the background (as OpenCode 2.3's
+   * `subagent` tool does): the turn goes on without them, and once they have all
+   * reported, the provider starts a turn of its own that plays `then`. Stop stops them.
+   */
+  | { readonly type: "subagents"; readonly subagents: ReadonlyArray<ReplaySubagent>; readonly then: ReadonlyArray<Step> }
   /** The provider fails the turn. */
   | { readonly type: "fail"; readonly reason: string }
   /** Nothing happens for a while (milliseconds, before the speed factor). */
   | { readonly type: "pause"; readonly ms: number };
+
+/** A subagent in a `subagents` step. */
+export interface ReplaySubagent {
+  /** Unique within the step; part of the subagent's id. */
+  readonly id: string;
+  readonly label: string;
+  readonly agent: string;
+  /** How long it works before asking or reporting (milliseconds, before the speed factor). */
+  readonly ms: number;
+  /** An approval it asks for first; approved or denied, it then reports. */
+  readonly asks?: { readonly title: string; readonly detail: string };
+  readonly result: string;
+}
 
 export interface Transcript {
   readonly name: string;

@@ -47,6 +47,12 @@ export interface PlayOptions {
   readonly holdStart?: boolean;
   /** Stop publishing after this many events, as if the stream lost the rest; the turn still runs to its end. */
   readonly loseAfter?: number;
+  /**
+   * The thread's session from the last load goes on with this recording (a restart, a
+   * crash): it keeps that session's id. Otherwise each load is a new session, with an
+   * id of its own.
+   */
+  readonly continues?: boolean;
   /** What `listModels` answers instead of `FAKE_MODELS`. */
   readonly models?: ReadonlyArray<OpenCodeModel>;
 }
@@ -69,8 +75,10 @@ interface Session {
   readonly fixture: Fixture;
   readonly directory: string;
   readonly options: PlayOptions;
-  /** Request ids get this suffix, as a real OpenCode never repeats one. */
+  /** Request ids get this suffix, as a real OpenCode never repeats one; new with every load. */
   readonly suffix: string;
+  /** Session ids get this one: new with every load, unless it continues the last (`continues`). */
+  readonly sessionSuffix: string;
   created: boolean;
   turn: number;
   running: boolean;
@@ -100,17 +108,47 @@ export const makeFakeOpenCode = Effect.gen(function* () {
   const scope = yield* Effect.scope;
   const hub = yield* PubSub.unbounded<OpenCodeSignal>();
   const calls: Array<FakeCall> = [];
+  /** Tests waiting for the adapter to have made a call so many times (`made`). */
+  const waiters: Array<{ readonly call: FakeCall["call"]; readonly times: number; readonly done: Deferred.Deferred<void> }> = [];
+  const note = (call: FakeCall) => {
+    calls.push(call);
+    const made = (name: FakeCall["call"]) => calls.filter((each) => each.call === name).length;
+    for (const waiter of waiters) if (made(waiter.call) >= waiter.times) Deferred.doneUnsafe(waiter.done, Effect.void);
+  };
   const sessions = new Map<string, Session>();
   /** The server crashed (`crash`) and hasn't been started again. */
   let stopped = false;
   let starts = 0;
   let loads = 0;
+  /** The suffix each recorded session id last had, for `continues`. */
+  const suffixes = new Map<string, string>();
   const replies = new Map<string, Deferred.Deferred<string>>();
   /** What adding an MCP server reports; `failMcp` makes OpenCode refuse it. */
   let mcp: OpenCodeMcpStatus | "refused" = { _tag: "connected" };
 
+  /**
+   * The session's id as the adapter sees it: the recorded one with the session's
+   * suffix, so a thread left from an earlier load never takes this one's events as its own.
+   */
+  const liveId = (session: Session) => `${session.fixture.sessionId}${session.sessionSuffix}`;
+  /** The live ids of the session's subagents (child sessions) in its recording. */
+  const childIds = (session: Session) =>
+    session.fixture.turns.flatMap((turn) =>
+      turn.steps.flatMap((step) => {
+        const event = "event" in step ? (step.event as { readonly type?: string; readonly data?: { readonly sessionID?: string; readonly parentID?: string } }) : undefined;
+        return event?.type === "session.created" && event.data?.parentID !== undefined && event.data.sessionID !== undefined ? [`${event.data.sessionID}${session.sessionSuffix}`] : [];
+      }),
+    );
+  /** A session by its live id, by its recorded id (tests ask by that), or by one of its subagents' ids. */
+  const find = (sessionId: string) =>
+    sessions.get(sessionId) ??
+    [...sessions.values()].find((session) => liveId(session) === sessionId) ??
+    [...sessions.values()].find((session) => childIds(session).includes(sessionId));
+  /** `sessionId` is one of a session's subagents, not the session itself. */
+  const isChild = (session: Session, sessionId: string) => sessionId !== liveId(session) && sessionId !== session.fixture.sessionId;
+
   const sessionFor = (sessionId: string) => {
-    const session = sessions.get(sessionId);
+    const session = find(sessionId);
     if (session === undefined) throw new Error(`no fixture loaded for session ${sessionId}`);
     return session;
   };
@@ -123,7 +161,8 @@ export const makeFakeOpenCode = Effect.gen(function* () {
     return created;
   });
 
-  const requestIds = (session: Session, text: string) => text.replace(/\b(per|frm)_[A-Za-z0-9]+/g, (id) => `${id}${session.suffix}`);
+  const requestIds = (session: Session, text: string) =>
+    text.replace(/\b(per|frm)_[A-Za-z0-9]+/g, (id) => `${id}${session.suffix}`).replace(/\bses_[A-Za-z0-9]+/g, (id) => `${id}${session.sessionSuffix}`);
   const toEvent = (session: Session, raw: unknown) => {
     const text = requestIds(session, JSON.stringify(raw)).replaceAll(VAULT, session.directory);
     return decodeEvent(JSON.parse(session.attachments === undefined ? text : text.replaceAll(ATTACHMENTS, session.attachments)));
@@ -200,27 +239,27 @@ export const makeFakeOpenCode = Effect.gen(function* () {
     subscribe: PubSub.subscribe(hub),
     createSession: ({ model, permissions }) =>
       Effect.sync(() => {
-        calls.push({ call: "createSession", model, permissions });
+        note({ call: "createSession", model, permissions });
         const next = [...sessions.values()].find((session) => !session.created);
         if (next === undefined) throw new Error("no fixture left for a new session");
         next.created = true;
         next.rules = permissions;
-        return next.fixture.sessionId;
+        return liveId(next);
       }),
     setPermissions: (sessionId, permissions) =>
       Effect.sync(() => {
-        calls.push({ call: "setPermissions", permissions });
-        const session = sessions.get(sessionId);
+        note({ call: "setPermissions", permissions });
+        const session = find(sessionId);
         if (session !== undefined) session.rules = permissions;
       }),
     setInstructions: (_sessionId, text) =>
       Effect.sync(() => {
-        calls.push({ call: "setInstructions", text });
+        note({ call: "setInstructions", text });
       }),
-    sessionExists: (sessionId) => Effect.sync(() => sessions.has(sessionId)),
+    sessionExists: (sessionId) => Effect.sync(() => find(sessionId) !== undefined),
     compact: (sessionId) =>
       Effect.gen(function* () {
-        calls.push({ call: "compact" });
+        note({ call: "compact" });
         const session = sessionFor(sessionId);
         const turn = session.fixture.turns[session.turn++];
         if (turn === undefined) return yield* Effect.die(new Error(`fixture ${session.fixture.scenario} has no turn ${session.turn}`));
@@ -229,7 +268,7 @@ export const makeFakeOpenCode = Effect.gen(function* () {
       }),
     prompt: (sessionId, text, files = []) =>
       Effect.gen(function* () {
-        calls.push({ call: "prompt", text, ...(files.length === 0 ? {} : { files }) });
+        note({ call: "prompt", text, ...(files.length === 0 ? {} : { files }) });
         const session = sessionFor(sessionId);
         const turn = session.fixture.turns[session.turn++];
         if (turn === undefined) return yield* Effect.die(new Error(`fixture ${session.fixture.scenario} has no turn ${session.turn}`));
@@ -244,51 +283,52 @@ export const makeFakeOpenCode = Effect.gen(function* () {
       }),
     removeMessage: (_sessionId, messageId) =>
       Effect.sync(() => {
-        calls.push({ call: "removeMessage", messageId });
+        note({ call: "removeMessage", messageId });
       }),
     // Withdrawing works while the turn is held before it starts; once OpenCode has
     // taken the message it still says yes, and the turn runs anyway (as recorded).
     cancelPrompt: (sessionId) =>
       Effect.gen(function* () {
-        calls.push({ call: "cancelPrompt" });
+        note({ call: "cancelPrompt" });
         const session = sessionFor(sessionId);
         if (session.startGate !== undefined && !(yield* Deferred.isDone(session.startGate))) yield* stopPlayback(session);
       }),
     interrupt: (sessionId) =>
       Effect.gen(function* () {
-        calls.push({ call: "interrupt" });
+        note({ call: "interrupt" });
         const session = sessionFor(sessionId);
-        if (session.stopPressed === undefined || !session.running) return false;
+        // Stopping a subagent is a recorded Stop too, whether or not the agent itself runs.
+        if (session.stopPressed === undefined || (!session.running && !isChild(session, sessionId))) return false;
         yield* Deferred.succeed(session.stopPressed, undefined);
         return true;
       }),
-    isRunning: (sessionId) => Effect.sync(() => sessions.get(sessionId)?.running ?? false),
-    lastOutcome: (sessionId) => Effect.sync(() => sessions.get(sessionId)?.outcome ?? null),
+    isRunning: (sessionId) => Effect.sync(() => find(sessionId)?.running ?? false),
+    lastOutcome: (sessionId) => Effect.sync(() => find(sessionId)?.outcome ?? null),
     replyPermission: (_sessionId, requestId, reply, message) =>
       Effect.gen(function* () {
-        calls.push({ call: "reply", requestId, reply, ...(message === undefined ? {} : { message }) });
+        note({ call: "reply", requestId, reply, ...(message === undefined ? {} : { message }) });
         yield* Deferred.succeed(yield* replyFor(requestId), reply);
       }),
     replyForm: (_sessionId, formId, answer) =>
       Effect.gen(function* () {
         const text = Object.values(answer)[0] ?? "";
-        calls.push({ call: "reply", requestId: formId, reply: text });
+        note({ call: "reply", requestId: formId, reply: text });
         yield* Deferred.succeed(yield* replyFor(formId), text);
       }),
     listModels: () => Effect.sync(() => [...sessions.values()][0]?.options.models ?? FAKE_MODELS),
     defaultModel: () => Effect.sync(() => [...sessions.values()][0]?.fixture.model ?? null),
     switchModel: (_sessionId, model) =>
       Effect.sync(() => {
-        calls.push({ call: "switchModel", model });
+        note({ call: "switchModel", model });
       }),
     addMcpServer: (directory, server) =>
       Effect.suspend(() => {
-        calls.push({ call: "addMcpServer", directory, name: server.name, url: server.url, token: server.token });
+        note({ call: "addMcpServer", directory, name: server.name, url: server.url, token: server.token });
         return mcp === "refused" ? Effect.fail(new OpenCodeError({ message: "OpenCode didn't take the vault tools (InvalidRequestError)." })) : Effect.succeed(mcp);
       }),
     removeMcpServer: (directory, name) =>
       Effect.sync(() => {
-        calls.push({ call: "removeMcpServer", directory, name });
+        note({ call: "removeMcpServer", directory, name });
       }),
   };
 
@@ -296,11 +336,16 @@ export const makeFakeOpenCode = Effect.gen(function* () {
     Effect.gen(function* () {
       const existing = sessions.get(fixture.sessionId);
       if (existing !== undefined) yield* stopPlayback(existing);
+      const suffix = `x${++loads}`;
+      // Replacing a session's recording, or continuing it, keeps its id.
+      const sessionSuffix = existing?.sessionSuffix ?? (options.continues === true ? suffixes.get(fixture.sessionId) : undefined) ?? suffix;
+      suffixes.set(fixture.sessionId, sessionSuffix);
       sessions.set(fixture.sessionId, {
         fixture,
         directory,
         options,
-        suffix: `x${++loads}`,
+        suffix,
+        sessionSuffix,
         created: false,
         turn: 0,
         running: false,
@@ -369,6 +414,14 @@ export const makeFakeOpenCode = Effect.gen(function* () {
     setMcp: (status: OpenCodeMcpStatus | "refused") =>
       Effect.sync(() => {
         mcp = status;
+      }),
+    /** Done once the adapter has made `call` at least `times` times (since the last load). */
+    made: (call: FakeCall["call"], times: number) =>
+      Effect.gen(function* () {
+        const done = yield* Deferred.make<void>();
+        waiters.push({ call, times, done });
+        if (calls.filter((each) => each.call === call).length >= times) yield* Deferred.succeed(done, undefined);
+        yield* Deferred.await(done);
       }),
     /** As if the event stream dropped and came back. */
     reconnect: PubSub.publish(hub, { _tag: "reconnected" }),

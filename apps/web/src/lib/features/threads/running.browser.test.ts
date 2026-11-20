@@ -30,6 +30,7 @@ const thread = (id: string, overrides: Partial<ThreadSummary> = {}): ThreadSumma
   doneAt: null,
   continuedFrom: null,
   continuedIn: null,
+  subagentsActive: 0,
   lastSeq: 1,
   createdAt: 1,
   updatedAt: 1,

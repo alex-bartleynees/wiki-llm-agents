@@ -38,6 +38,8 @@
   const vaultId = $derived(openThread.thread?.vaultId);
   const openPath = $derived(page.url.searchParams.get("note"));
   const running = $derived(openThread.running);
+  /** Subagents still at work while the agent itself is idle: you can send, and Stop stops them. */
+  const subagentsOnly = $derived(!running && openThread.subagentsWorking > 0);
   const selectionLines = $derived(selection === "" ? 0 : selection.split("\n").length);
 
   /** Files for the next message, uploaded as they are added. */
@@ -347,6 +349,9 @@
     {#if running}
       <button type="button" class="stop" onclick={() => openThread.stop()}>Stop</button>
     {:else}
+      {#if subagentsOnly}
+        <button type="button" class="stop" onclick={() => openThread.stop()} aria-label="Stop the subagents" title="Stop every subagent still working">Stop</button>
+      {/if}
       <button type="submit" class="send" disabled={!canSend}>Send</button>
     {/if}
   </form>

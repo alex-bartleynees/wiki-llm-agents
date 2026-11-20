@@ -1,6 +1,6 @@
 import type { ThreadEvent } from "@wiki-agents/contracts/threads/model";
 import { describe, expect, it } from "vitest";
-import { applyEvent, emptyTimeline, hasConversation, isCompacting, isHandingOff, routingLabel } from "./timeline.ts";
+import { applyEvent, emptyTimeline, hasConversation, isCompacting, isHandingOff, reportLabel, routingLabel, subagentsWorking } from "./timeline.ts";
 
 const apply = (events: ReadonlyArray<ThreadEvent>) => {
   const timeline = emptyTimeline();
@@ -172,5 +172,53 @@ describe("browser sign-ins in the timeline", () => {
     } as const;
     const timeline = apply([{ _tag: "user.message", turnId: "a", text: "check the login" }, { _tag: "turn.started", turnId: "a" }, card]);
     expect(timeline.items.at(-1)).toEqual({ kind: "sign-in", key: "3", card });
+  });
+});
+
+describe("subagents in the timeline", () => {
+  const updated = (subagentId: string, status: "running" | "waiting" | "done" | "cancelled", result: string | null = null): ThreadEvent => ({
+    _tag: "subagent.updated",
+    turnId: "a",
+    subagentId,
+    label: `Label ${subagentId}`,
+    agent: "general",
+    status,
+    result,
+  });
+
+  it("shows a turn's subagents in one card before its end, even when they arrive after it, and updates them in place", () => {
+    const timeline = apply([
+      { _tag: "user.message", turnId: "a", text: "delegate" },
+      { _tag: "turn.started", turnId: "a" },
+      { _tag: "turn.finished", turnId: "a", outcome: "completed", usage: null, reason: null },
+      updated("s1", "running"),
+      updated("s2", "running"),
+      { _tag: "request.opened", turnId: "a", requestId: "r1", prompt: { _tag: "question", question: "Which tea?", options: [] }, subagentId: "s1" },
+      updated("s1", "waiting"),
+    ]);
+    expect(timeline.items.map((item) => item.kind)).toEqual(["user", "subagents", "turn-end", "request"]);
+    expect(subagentsWorking(timeline)).toBe(2);
+    const request = timeline.items[3];
+    expect(request?.kind === "request" ? request.subagent : undefined).toBe("Label s1");
+
+    applyEvent(timeline, { threadId: "t", seq: 8, at: 0, event: updated("s1", "done", "Sencha") });
+    applyEvent(timeline, { threadId: "t", seq: 9, at: 0, event: updated("s2", "cancelled") });
+    const card = timeline.items[1];
+    expect(card?.kind === "subagents" ? card.subagents.map((item) => [item.id, item.status, item.result]) : []).toEqual([
+      ["s1", "done", "Sencha"],
+      ["s2", "cancelled", null],
+    ]);
+    expect(subagentsWorking(timeline)).toBe(0);
+  });
+
+  it("starts a turn the provider began under a divider naming who reported", () => {
+    const timeline = apply([
+      { _tag: "subagent.reported", turnId: "b", reports: [{ subagentId: "s1", label: "Read Tea.md", status: "done" }, { subagentId: "s2", label: "Read Coffee.md", status: "done" }] },
+      { _tag: "turn.started", turnId: "b" },
+    ]);
+    const divider = timeline.items[0];
+    expect(divider?.kind).toBe("subagent-report");
+    expect(divider?.kind === "subagent-report" ? reportLabel(divider) : "").toBe("2 subagents reported · Read Tea.md, Read Coffee.md");
+    expect(timeline.runningTurn).toBe("b");
   });
 });

@@ -69,6 +69,54 @@ export const TurnStarted = Schema.TaggedStruct("turn.started", {
   turnId: Schema.String,
 });
 
+/**
+ * Where a subagent is: `running`; `waiting` for your answer to its request; `done`
+ * (it went idle and reported, and may be given more work); `failed`; `cancelled`
+ * (stopped, by Stop or by its agent); `interrupted` (the server or the provider
+ * stopped under it, so whatever it was doing is unknown).
+ */
+export const SubagentStatus = Schema.Literals(["running", "waiting", "done", "failed", "cancelled", "interrupted"]);
+export type SubagentStatus = typeof SubagentStatus.Type;
+
+/** A subagent still at work: running, or waiting for you. */
+export const isSubagentActive = (status: SubagentStatus) => status === "running" || status === "waiting";
+
+/**
+ * A subagent (a child the agent delegated to, with the provider's own delegation)
+ * as it is now: the whole state each time it changes, so the latest wins.
+ * `turnId` is the turn that launched it, where the conversation shows it.
+ */
+export const SubagentUpdated = Schema.TaggedStruct("subagent.updated", {
+  turnId: Schema.String,
+  /** The provider's id for the child (an OpenCode session id). */
+  subagentId: Schema.String,
+  /** What the agent called the work, e.g. "Read first line of Tea.md". */
+  label: Schema.String,
+  /** The provider's agent it runs as, e.g. `explore`; null when it doesn't say. */
+  agent: Schema.NullOr(Schema.String),
+  status: SubagentStatus,
+  /** Its latest report, as the parent agent was given it; null before any. */
+  result: Schema.NullOr(Schema.String),
+});
+
+/** A subagent's report that started a turn. */
+export const SubagentReport = Schema.Struct({
+  subagentId: Schema.String,
+  label: Schema.String,
+  status: SubagentStatus,
+});
+export type SubagentReport = typeof SubagentReport.Type;
+
+/**
+ * Subagents reported to the agent, and the provider started a turn on it by itself:
+ * like a message, it starts a turn, but nobody sent one. Shown as a "Subagent
+ * reported" divider.
+ */
+export const SubagentReported = Schema.TaggedStruct("subagent.reported", {
+  turnId: Schema.String,
+  reports: Schema.Array(SubagentReport),
+});
+
 /** More text of the agent's reply. Deltas with the same `messageId` are one message. */
 export const MessageDelta = Schema.TaggedStruct("message.delta", {
   turnId: Schema.String,
@@ -130,6 +178,12 @@ export const RequestOpened = Schema.TaggedStruct("request.opened", {
   turnId: Schema.String,
   requestId: Schema.String,
   prompt: RequestPrompt,
+  /**
+   * A subagent asked, not the agent itself (`turnId` is the turn that launched it).
+   * Its request stays open after that turn ends, until it is answered or the
+   * subagent stops.
+   */
+  subagentId: Schema.optionalKey(Schema.String),
 });
 
 /** A request was answered, or cancelled (`answer` null) because its turn ended. */
@@ -294,8 +348,10 @@ export const ThreadEvent = Schema.Union([
   UserMessage,
   CompactionRequested,
   HandoffRequested,
+  SubagentReported,
   NoteContext,
   TurnStarted,
+  SubagentUpdated,
   MessageDelta,
   ToolCalled,
   ToolFinished,
@@ -379,6 +435,11 @@ export const ThreadSummary = Schema.Struct({
   continuedFrom: Schema.NullOr(Schema.String),
   /** The newest thread that continues this one; null when none does. */
   continuedIn: Schema.NullOr(Schema.String),
+  /**
+   * Subagents still at work (running, or waiting for you). They can run while the
+   * agent itself is idle; Stop stops them with the turn.
+   */
+  subagentsActive: Schema.Number,
   /** The last event's seq; 0 for a new thread. */
   lastSeq: Schema.Number,
   createdAt: Schema.Number,
@@ -398,7 +459,7 @@ export const STOPPED_SHOWN_FOR = 7 * 24 * 60 * 60 * 1000;
 
 export const threadActivity = (thread: ThreadSummary, now: number): ThreadActivity | null => {
   if (thread.status === "waiting") return "waiting";
-  if (thread.status === "running") return "working";
+  if (thread.status === "running" || thread.subagentsActive > 0) return "working";
   const last = thread.lastTurn;
   if (thread.doneAt !== null || last === null) return null;
   const stopped = last.outcome === "failed" || (last.outcome === "interrupted" && last.reason !== null);

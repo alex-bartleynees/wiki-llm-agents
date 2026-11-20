@@ -1,6 +1,6 @@
 import type { Autonomy } from "@wiki-agents/contracts/agents/model";
 import type { ProviderCapabilities, ProviderModel, ProviderStatus } from "@wiki-agents/contracts/providers/model";
-import type { RequestAnswer, ThreadEvent, TurnUsage } from "@wiki-agents/contracts/threads/model";
+import type { RequestAnswer, RequestPrompt, SubagentReport, ThreadEvent, TurnUsage } from "@wiki-agents/contracts/threads/model";
 import { Data, type Effect, type Option, type Scope, type Stream } from "effect";
 import type { Protection } from "../../shared/secret-paths.js";
 import type { VaultToolsEntry } from "../mcp/vault-tools.js";
@@ -14,6 +14,37 @@ export type ProviderEvent = Extract<
   ThreadEvent,
   { readonly _tag: "message.delta" | "tool.called" | "tool.finished" | "request.opened" | "notice" | "plan.updated" | "context.compaction" | "model.routed" | "turn.finished" }
 >;
+
+/** A subagent as the provider reports it now (see `subagent.updated`); `turnId` launched it. */
+export type SubagentState = Omit<Extract<ThreadEvent, { readonly _tag: "subagent.updated" }>, "_tag">;
+
+/**
+ * What a provider does outside the turns the app starts, for a session whose agent
+ * delegates to subagents in the background (OpenCode 2.3):
+ * - `subagent`: a subagent started, or its status or report changed;
+ * - `request.opened`: a subagent asks for an approval or an answer, routed back
+ *   through `answerRequest`; `request.closed`: the provider no longer waits for one
+ *   (the subagent stopped);
+ * - `turn`: subagents reported and the provider started a turn on the agent by
+ *   itself. `events` is that turn, under `turnId`, from its start: read it like a
+ *   turn from `startTurn` (Stop is `interrupt(turnId)`).
+ */
+export type BackgroundEvent =
+  | { readonly _tag: "subagent"; readonly state: SubagentState }
+  | {
+      readonly _tag: "request.opened";
+      readonly turnId: string;
+      readonly subagentId: string;
+      readonly requestId: string;
+      readonly prompt: RequestPrompt;
+    }
+  | { readonly _tag: "request.closed"; readonly requestId: string }
+  | {
+      readonly _tag: "turn";
+      readonly turnId: string;
+      readonly reports: ReadonlyArray<SubagentReport>;
+      readonly events: Stream.Stream<ProviderEvent, ProviderError>;
+    };
 
 export class ProviderError extends Data.TaggedError("ProviderError")<{
   readonly message: string;
@@ -119,8 +150,19 @@ export interface ProviderSession {
    * like a turn. Present only when the adapter's `capabilities.compact` is true.
    */
   readonly compact?: (input: CompactInput) => Stream.Stream<ProviderEvent, ProviderError>;
-  /** Asks the provider to stop the turn; the actor stops reading its stream either way. */
+  /**
+   * Asks the provider to stop the turn, and every subagent with it (Stop stops
+   * everything: decided by Alex, 2026-11-20); the actor stops reading its stream
+   * either way.
+   */
   readonly interrupt: (turnId: string) => Effect.Effect<void>;
+  /**
+   * The session's background work (see `BackgroundEvent`), for as long as the
+   * session is open; read once. Absent for a provider without background subagents.
+   */
+  readonly background?: Stream.Stream<BackgroundEvent>;
+  /** Stops every subagent while no turn runs, without the agent being woken by their reports. */
+  readonly stopBackground?: Effect.Effect<void>;
   readonly answerRequest: (requestId: string, answer: RequestAnswer) => Effect.Effect<void, ProviderError>;
   /** Uses `model` from the next turn on. */
   readonly setModel: (model: string) => Effect.Effect<void, ProviderError>;

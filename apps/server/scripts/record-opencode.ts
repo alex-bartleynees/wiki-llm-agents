@@ -18,7 +18,7 @@ import { OpenCodeEvent } from "@opencode/protocol/groups/event";
 import { Effect, Option, PubSub, Schema } from "effect";
 import { DENIED, imageFile, ROUTE_BACKOFF, SESSION_PERMISSIONS } from "../src/features/providers/opencode/adapter.js";
 import type { OpenCodeApi, OpenCodeSignal } from "../src/features/providers/opencode/api.js";
-import { sessionOf } from "../src/features/providers/opencode/events.js";
+import { childCreated, childReport, sessionOf } from "../src/features/providers/opencode/events.js";
 import { startServer } from "../src/features/providers/opencode/server.js";
 import { CSV_PROMPT, csvMessage, csvPath, SALES_CSV } from "../tests/fixtures/csv.js";
 import { ATTACHMENTS, fixtureImage, IMAGE_PROMPT, RED_SQUARE } from "../tests/fixtures/image.js";
@@ -52,6 +52,15 @@ interface TurnScript {
    * Each attempt is a turn of the fixture.
    */
   readonly unrouted?: true;
+  /**
+   * The agent delegates to subagents (OpenCode 2.3's background `subagent` tool):
+   * their events are recorded too, approvals approved and questions answered, and
+   * recording goes on after the agent's turn until they and the turns their reports
+   * start have ended. `stop-when-idle` presses Stop once only the subagents run, as
+   * the adapter does: every subagent, their reports withdrawn, and any turn they
+   * start stopped.
+   */
+  readonly subagents?: "wait" | "stop-when-idle";
 }
 
 const SCENARIOS: Readonly<Record<string, ReadonlyArray<TurnScript>>> = {
@@ -88,6 +97,24 @@ const SCENARIOS: Readonly<Record<string, ReadonlyArray<TurnScript>>> = {
   "copilot-auto": [{ prompt: "Reply with just OK." }],
   // The same, straight after OpenCode starts: no route at first, then sent again (a turn per attempt).
   "copilot-auto-cold": [{ prompt: "Reply with just OK.", unrouted: true }],
+  // Two subagents at once, one asking to edit; their reports wake the agent by itself (OpenCode 2.3).
+  subagents: [
+    {
+      prompt:
+        "Use the subagent tool twice, in parallel in one response, with the general agent. Subagent A: use the edit tool to add the line 'Oolong too.' at the end of Notes/Tea.md. Subagent B: report the first line of Notes/Coffee.md. Then reply 'launched' without waiting.",
+      answer: { reply: "once" },
+      subagents: "wait",
+    },
+  ],
+  // Two subagents still running when Stop is pressed, with the agent idle.
+  "subagents-stop": [
+    {
+      prompt:
+        "Use the subagent tool twice, in parallel in one response, with the general agent. Each subagent runs the shell command 'sleep 20' and then reports the first line of Notes/Coffee.md (A) or Notes/Tea.md (B). Then reply 'launched' without waiting.",
+      answer: { reply: "once" },
+      subagents: "stop-when-idle",
+    },
+  ],
 };
 
 /** Scenarios that need a model other than the default when `--model` isn't given: the default free model doesn't take images, and Copilot Auto is the subject of its own. */
@@ -99,6 +126,8 @@ const COMPACTION_END = new Set(["session.compaction.ended", "session.compaction.
 const ROUTER_WARM_UP = "6 seconds";
 /** After a compaction's end, how long to wait for an execution end that may not come. */
 const AFTER_COMPACTION = "5 seconds";
+/** With subagents, how long to keep recording once they and the agent are idle, for a turn a late report starts. */
+const AFTER_SUBAGENTS = "8 seconds";
 
 /** The temp paths in recorded events become `VAULT` and `ATTACHMENTS`, so fixtures don't depend on where they were made. */
 const normalise = (value: unknown, root: string, attachments: string): unknown =>
@@ -147,14 +176,69 @@ const recordTurn = (api: OpenCodeApi, sessionId: string, root: string, attachmen
         if (withdrawn && !interrupted) return { ...recorded, steps };
       }
       let interrupted = false;
+      /** The session and its subagents (child sessions, and theirs). */
+      const family = new Set([sessionId]);
+      /** Subagents running now. */
+      const working = new Set<string>();
+      /** The agent's own turn has ended (with `subagents`, recording goes on until they have too). */
+      let parentIdle = false;
+      /** Stop pressed with `stopSubagents`: as the adapter does, reports are withdrawn and turns they start stopped. */
+      let stopping = false;
       while (true) {
+        const done = script.subagents !== undefined && parentIdle && working.size === 0;
         const signal: OpenCodeSignal | undefined = Option.getOrUndefined(
-          yield* PubSub.take(subscription).pipe(Effect.timeoutOption("3 minutes")),
+          yield* PubSub.take(subscription).pipe(Effect.timeoutOption(done ? AFTER_SUBAGENTS : "3 minutes")),
         );
-        if (signal === undefined) throw new Error("no events for 3 minutes");
-        if (signal._tag !== "event" || sessionOf(signal.event) !== sessionId) continue;
+        if (signal === undefined) {
+          if (done) return { ...recorded, steps };
+          throw new Error("no events for 3 minutes");
+        }
+        if (signal._tag !== "event") continue;
+        const created = childCreated(signal.event);
+        if (created !== undefined && family.has(created.parentId)) family.add(created.childId);
+        const from = sessionOf(signal.event);
+        if (from === undefined || !(script.subagents === undefined ? from === sessionId : family.has(from))) continue;
         const event = signal.event;
         steps.push({ event: normalise(encode(event), root, attachments) });
+        if (script.subagents !== undefined) {
+          const child = from !== sessionId;
+          if (event.type === "session.execution.started") {
+            if (child) working.add(from);
+            else parentIdle = false;
+          }
+          if (END.has(event.type) && child) working.delete(from);
+          if (stopping && !child && event.type === "session.execution.started") {
+            steps.push({ call: "interrupt", withdrawn: false, interrupted: yield* api.interrupt(sessionId) });
+          }
+          const report = childReport(event);
+          if (stopping && !child && report !== undefined) {
+            yield* api.cancelPrompt(sessionId, report.inboxId);
+            steps.push({ call: "cancelPrompt", inboxId: report.inboxId });
+          }
+          if (END.has(event.type) && !child) {
+            parentIdle = true;
+            if (script.subagents === "stop-when-idle" && !stopping && working.size > 0) {
+              // Stop with only the subagents running: every one of them, then the agent if a report woke it.
+              stopping = true;
+              for (const id of working) steps.push({ call: "interrupt", withdrawn: false, interrupted: yield* api.interrupt(id) });
+            }
+            continue;
+          }
+          const asker = event.type === "permission.asked" ? event.data.sessionID : event.type === "form.created" ? event.data.form.sessionID : undefined;
+          if (asker !== undefined && asker !== sessionId) {
+            // A subagent asks: approve, or answer with the script's text.
+            if (event.type === "permission.asked") {
+              yield* api.replyPermission(asker, event.data.id, "once");
+              steps.push({ call: "reply", requestId: event.data.id, reply: "once" });
+            }
+            if (event.type === "form.created") {
+              const text = script.answer !== undefined && "text" in script.answer ? script.answer.text : "Sencha";
+              yield* api.replyForm(asker, event.data.form.id, Object.fromEntries(event.data.form.fields.map((field) => [field.key, text])));
+              steps.push({ call: "reply", requestId: event.data.form.id, reply: text });
+            }
+            continue;
+          }
+        }
         const noRoute = event.type === "session.execution.failed" && (event.data.error as { readonly type?: unknown }).type === "provider.no-route";
         if (END.has(event.type) && script.unrouted === true && attempt === 0 && !noRoute) {
           throw new Error(`OpenCode routed the cold turn (${event.type}); nothing to record, try again`);
@@ -174,7 +258,7 @@ const recordTurn = (api: OpenCodeApi, sessionId: string, root: string, attachmen
           steps.push({ call: "removeMessage", messageId: inboxId });
           return { ...recorded, steps, again: true as const };
         }
-        if (END.has(event.type)) return { ...recorded, steps };
+        if (END.has(event.type) && script.subagents === undefined) return { ...recorded, steps };
         if (script.interrupt === "after-text" && !interrupted && event.type === "session.text.delta") {
           interrupted = yield* api.interrupt(sessionId);
           steps.push({ call: "interrupt", withdrawn: false, interrupted });

@@ -55,6 +55,7 @@ const summary = (id: string, projectId: string | null, vaultId = "v1"): ThreadSu
   doneAt: null,
   continuedFrom: null,
   continuedIn: null,
+  subagentsActive: 0,
   lastSeq: 0,
   createdAt: 1,
   updatedAt: 1,

@@ -58,8 +58,10 @@ export const turns = sqliteTable(
      * `message`: you sent a message. `compaction`: you asked the provider to compact the
      * conversation; a restart never starts or continues one (it costs usage). `handoff`:
      * you asked the agent to write a handoff for a new thread; the same goes for it.
+     * `subagent`: subagents reported and the provider started the turn by itself;
+     * a restart never continues one either (the provider's session went with it).
      */
-    kind: text("kind", { enum: ["message", "compaction", "handoff"] }).notNull().default("message"),
+    kind: text("kind", { enum: ["message", "compaction", "handoff", "subagent"] }).notNull().default("message"),
     status: text("status", { enum: ["running", "completed", "interrupted", "failed"] }).notNull(),
     /** Sent by a schedule with nobody watching: requests are denied instead of waiting. */
     unattended: integer("unattended", { mode: "boolean" }).notNull().default(false),
@@ -83,6 +85,8 @@ export const runtimeRequests = sqliteTable(
     id: text("id").primaryKey(),
     threadId: text("thread_id").notNull(),
     turnId: text("turn_id").notNull(),
+    /** The subagent that asked (its provider id); null when the agent itself did. */
+    subagentId: text("subagent_id"),
     /** A `RequestPrompt` as JSON. */
     prompt: text("prompt").notNull(),
     status: text("status", { enum: ["pending", "answered", "cancelled"] }).notNull(),
@@ -112,3 +116,25 @@ export const threadNotes = sqliteTable("thread_notes", {
   threadId: text("thread_id").notNull(), turnId: text("turn_id").notNull(), path: text("path").notNull(),
   reason: text("reason").notNull(), hash: text("hash").notNull(),
 }, (table) => [primaryKey({ columns: [table.threadId, table.turnId, table.path, table.reason, table.hash] }), index("thread_notes_path_idx").on(table.path)]);
+
+/**
+ * The subagents each thread's agent delegated to, as they are now: rebuilt from the
+ * thread's `subagent.updated` events, kept here so a thread's running subagents can
+ * be counted and closed after a restart.
+ */
+export const threadSubagents = sqliteTable(
+  "thread_subagents",
+  {
+    threadId: text("thread_id").notNull(),
+    /** The provider's id for the child. */
+    subagentId: text("subagent_id").notNull(),
+    /** The turn that launched it. */
+    turnId: text("turn_id").notNull(),
+    label: text("label").notNull(),
+    agent: text("agent"),
+    status: text("status", { enum: ["running", "waiting", "done", "failed", "cancelled", "interrupted"] }).notNull(),
+    result: text("result"),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.threadId, table.subagentId] }), index("thread_subagents_status_idx").on(table.status)],
+);

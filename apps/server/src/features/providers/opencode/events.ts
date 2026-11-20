@@ -1,6 +1,6 @@
 import { isAbsolute, resolve } from "node:path";
 import type { ProposedEdit } from "@wiki-agents/contracts/changes/model";
-import type { RequestPrompt, TurnUsage } from "@wiki-agents/contracts/threads/model";
+import type { RequestPrompt, SubagentStatus, TurnUsage } from "@wiki-agents/contracts/threads/model";
 import { todoSteps } from "../plan.js";
 import type { ProviderEvent } from "../port.js";
 import { modelName, type OpenCodeEvent } from "./api.js";
@@ -27,6 +27,46 @@ export const sessionOf = (event: OpenCodeEvent): string | undefined => {
     return typeof data.form.sessionID === "string" ? data.form.sessionID : undefined;
   }
   return undefined;
+};
+
+/** A subagent OpenCode created: a session with a parent (OpenCode 2.3's `subagent` tool). */
+export interface ChildCreated {
+  readonly childId: string;
+  readonly parentId: string;
+  readonly label: string;
+  readonly agent: string | null;
+}
+
+/** The child a `session.created` makes, if it has a parent. */
+export const childCreated = (event: OpenCodeEvent): ChildCreated | undefined => {
+  if (event.type !== "session.created" || event.data.parentID === undefined) return undefined;
+  return { childId: event.data.sessionID, parentId: event.data.parentID, label: event.data.title ?? "Subagent", agent: event.data.agent ?? null };
+};
+
+/** A subagent's report to the session that launched it: what it said, and how it stands. */
+export interface ChildReport {
+  /** The report's id in the receiving session's inbox, so it can be withdrawn. */
+  readonly inboxId: string;
+  readonly childId: string;
+  readonly status: SubagentStatus;
+  readonly result: string;
+}
+
+/** OpenCode's `state` of a report, as the app's subagent status. */
+const REPORT_STATUS: Readonly<Record<string, SubagentStatus>> = { completed: "done", cancelled: "cancelled", failed: "failed", error: "failed" };
+
+/**
+ * The report a subagent's going idle puts in its parent's inbox: a synthetic item
+ * whose metadata says `source: "subagent"`, with the text wrapped in
+ * `<subagent sessionID=… state=… description=…>…</subagent>` (OpenCode 2.3.0).
+ */
+export const childReport = (event: OpenCodeEvent): ChildReport | undefined => {
+  if (event.type !== "session.inbox.enqueued" || event.data.item.type !== "synthetic") return undefined;
+  const { text, metadata } = event.data.item.payload;
+  if (metadata?.source !== "subagent" || typeof metadata.childID !== "string") return undefined;
+  const state = typeof metadata.state === "string" ? metadata.state : "completed";
+  const inner = /^<subagent\b[^>]*>\n?([\s\S]*?)\n?<\/subagent>\s*$/.exec(text)?.[1] ?? text;
+  return { inboxId: event.data.inboxID, childId: metadata.childID, status: REPORT_STATUS[state] ?? "done", result: inner.trim() };
 };
 
 /** A path inside the working directory, shown relative to it. */

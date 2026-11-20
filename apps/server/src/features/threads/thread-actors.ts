@@ -16,7 +16,7 @@ type StartError = Effect.Error<ReturnType<typeof makeThreadActor>>;
 /** ThreadActors by thread id, started on first use and stopped when idle. */
 export interface ThreadActorsService {
   readonly sendMessage: (threadId: string, text: string, notes?: ReadonlyArray<ContextNote>, options?: SendOptions) => Effect.Effect<string, StartError | Effect.Error<ReturnType<ThreadActor["sendMessage"]>>>;
-  readonly interrupt: (threadId: string) => Effect.Effect<string, StartError | Effect.Error<ThreadActor["interrupt"]>>;
+  readonly interrupt: (threadId: string) => Effect.Effect<string | null, StartError | Effect.Error<ThreadActor["interrupt"]>>;
   /** See `ThreadActor.compact`. */
   readonly compact: (threadId: string, operationId: string) => Effect.Effect<CompactStarted, StartError | Effect.Error<ReturnType<ThreadActor["compact"]>>>;
   /** See `ThreadActor.handoff`. */

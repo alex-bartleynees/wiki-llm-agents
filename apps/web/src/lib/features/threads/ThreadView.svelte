@@ -14,11 +14,12 @@
   import RequestCard from "./RequestCard.svelte";
   import ScheduleReceipt from "./ScheduleReceipt.svelte";
   import SignInNeededCard from "./SignInNeededCard.svelte";
+  import SubagentsCard from "./SubagentsCard.svelte";
   import TurnChanges from "#lib/features/changes/TurnChanges.svelte";
   import { openThread } from "./open-thread.svelte.ts";
   import { STATUS_LABEL } from "./status.ts";
   import { threads } from "./threads.svelte.ts";
-  import { hasConversation, isCompacting, isHandingOff, pendingRequests, routingLabel, type TimelineItem, usageLabel } from "./timeline.ts";
+  import { hasConversation, isCompacting, isHandingOff, pendingRequests, reportLabel, routingLabel, type TimelineItem, usageLabel } from "./timeline.ts";
   import WorktreeBar from "./WorktreeBar.svelte";
 
   const timeline = $derived(openThread.timeline);
@@ -159,6 +160,10 @@
       </div>
     {:else if item.kind === "compaction-request"}
       <p class="compaction-request mono">You asked to compact the conversation</p>
+    {:else if item.kind === "subagent-report"}
+      <p class="subagent-report mono"><span>{reportLabel(item)}</span></p>
+    {:else if item.kind === "subagents"}
+      <SubagentsCard subagents={item.subagents} />
     {:else if item.kind === "handoff-request"}
       <p class="compaction-request mono">You asked the agent to write a handoff for a new thread</p>
     {:else if item.kind === "handoff"}
@@ -376,6 +381,25 @@
     padding: 6px 8px 8px;
     border-top: 1px solid var(--line-soft);
     white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .subagent-report {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--ink-3);
+    margin: 4px 0;
+  }
+  .subagent-report::before,
+  .subagent-report::after {
+    content: "";
+    flex: 1;
+    border-top: 1px solid var(--line);
+  }
+  .subagent-report span {
+    max-width: 70%;
+    text-align: center;
     overflow-wrap: anywhere;
   }
   .compaction-request {

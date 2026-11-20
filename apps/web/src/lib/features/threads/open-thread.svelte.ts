@@ -6,7 +6,7 @@ import { ApiError, errorMessage, isAbort } from "#lib/api/client.ts";
 import { listen } from "#lib/api/sse.ts";
 import type { SendMessageRequest } from "@wiki-agents/contracts/threads/send-message/request";
 import { answerRequest, compactContext, getThread, interruptTurn, type MessageFiles, requestHandoff, sendMessage, threadTopic } from "./api.ts";
-import { applyEvent, emptyTimeline, type Timeline } from "./timeline.ts";
+import { applyEvent, emptyTimeline, subagentsWorking, type Timeline } from "./timeline.ts";
 
 /**
  * The thread shown in the chat pane: its events so far, then live ones over SSE
@@ -34,6 +34,11 @@ class OpenThreadStore {
 
   get running() {
     return this.timeline.runningTurn !== null;
+  }
+
+  /** Subagents still at work, which Stop stops too; they can be while the agent itself is idle. */
+  get subagentsWorking() {
+    return subagentsWorking(this.timeline);
   }
 
   async open(threadId: string | null) {

@@ -8,13 +8,13 @@ import {
   ThreadEvent,
   type ThreadSummary,
 } from "@wiki-agents/contracts/threads/model";
-import { and, asc, desc, eq, gt, gte, isNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, isNull, or, sql } from "drizzle-orm";
 import { Effect, Layer, Option, Schema } from "effect";
 import { DbError } from "../../shared/persistence/errors.js";
 import { Sqlite } from "../../shared/persistence/sqlite.js";
 import type { OpenRequest, PendingRequest, TurnRecord } from "./repository.js";
 import { ThreadRepository } from "./repository.js";
-import { threadNotes, outbox, runtimeRequests, threadEvents, threads, turns } from "./table.js";
+import { threadNotes, outbox, runtimeRequests, threadEvents, threadSubagents, threads, turns } from "./table.js";
 
 const EventJson = Schema.fromJsonString(ThreadEvent);
 const encodeEvent = Schema.encodeSync(EventJson);
@@ -46,6 +46,7 @@ const summaryColumns = {
     WHEN EXISTS (SELECT 1 FROM turns t WHERE t.thread_id = threads.id AND t.status = 'running') THEN 'running'
     ELSE 'idle' END`,
   lastSeq: sql<number>`COALESCE((SELECT MAX(e.seq) FROM thread_events e WHERE e.thread_id = threads.id), 0)`,
+  subagentsActive: sql<number>`(SELECT COUNT(*) FROM thread_subagents s WHERE s.thread_id = threads.id AND s.status IN ('running', 'waiting'))`,
   running: sql<string | null>`(SELECT json_object('startedAt', t.started_at, 'plan', t.plan) FROM turns t
     WHERE t.thread_id = threads.id AND t.status = 'running' ORDER BY t.started_at DESC LIMIT 1)`,
   last: sql<string | null>`(SELECT json_object('outcome', t.status, 'reason', t.reason, 'endedAt', t.ended_at) FROM turns t
@@ -189,6 +190,7 @@ export const ThreadRepositoryLive = Layer.effect(
                 or(
                   gte(threads.updatedAt, new Date(since)),
                   sql`EXISTS (SELECT 1 FROM turns t WHERE t.thread_id = ${threads.id} AND t.status = 'running')`,
+                  sql`EXISTS (SELECT 1 FROM thread_subagents s WHERE s.thread_id = ${threads.id} AND s.status IN ('running', 'waiting'))`,
                 ),
               ),
             )
@@ -241,12 +243,24 @@ export const ThreadRepositoryLive = Layer.effect(
                 case "handoff.requested":
                   tx.insert(turns).values({ id: event.turnId, threadId, input: "", kind: "handoff", status: "running", startedAt: when }).run();
                   break;
+                case "subagent.reported":
+                  tx.insert(turns).values({ id: event.turnId, threadId, input: "", kind: "subagent", status: "running", startedAt: when }).run();
+                  break;
+                case "subagent.updated": {
+                  const row = { turnId: event.turnId, label: event.label, agent: event.agent, status: event.status, result: event.result, updatedAt: when };
+                  tx.insert(threadSubagents)
+                    .values({ threadId, subagentId: event.subagentId, ...row })
+                    .onConflictDoUpdate({ target: [threadSubagents.threadId, threadSubagents.subagentId], set: row })
+                    .run();
+                  break;
+                }
                 case "request.opened":
                   tx.insert(runtimeRequests)
                     .values({
                       id: event.requestId,
                       threadId,
                       turnId: event.turnId,
+                      subagentId: event.subagentId ?? null,
                       prompt: encodePrompt(event.prompt),
                       status: "pending",
                       createdAt: when,
@@ -315,10 +329,29 @@ export const ThreadRepositoryLive = Layer.effect(
             .where(and(eq(runtimeRequests.threadId, threadId), eq(runtimeRequests.status, "pending")))
             .orderBy(asc(runtimeRequests.createdAt), asc(sql`rowid`))
             .all()
-            .map((row): PendingRequest => ({ requestId: row.id, turnId: row.turnId, prompt: decodePrompt(row.prompt) }));
+            .map((row): PendingRequest => ({
+              requestId: row.id,
+              turnId: row.turnId,
+              prompt: decodePrompt(row.prompt),
+              ...(row.subagentId === null ? {} : { subagentId: row.subagentId }),
+            }));
+          const activeSubagents = db
+            .select({
+              subagentId: threadSubagents.subagentId,
+              turnId: threadSubagents.turnId,
+              label: threadSubagents.label,
+              agent: threadSubagents.agent,
+              status: threadSubagents.status,
+              result: threadSubagents.result,
+            })
+            .from(threadSubagents)
+            .where(and(eq(threadSubagents.threadId, threadId), inArray(threadSubagents.status, ["running", "waiting"])))
+            .orderBy(asc(threadSubagents.updatedAt))
+            .all();
           return {
             openTurn: turn === undefined ? Option.none() : Option.some({ ...turn, dispatched: !queued }),
             pendingRequests,
+            activeSubagents,
           };
         }),
 
@@ -365,17 +398,19 @@ export const ThreadRepositoryLive = Layer.effect(
             threadId: request.threadId,
             prompt: decodePrompt(request.prompt),
             unattended,
+            ...(request.subagentId === null ? {} : { subagentId: request.subagentId }),
           })),
       ),
 
-      withOpenTurns: query(() =>
-        db
-          .selectDistinct({ threadId: turns.threadId })
-          .from(turns)
-          .where(eq(turns.status, "running"))
-          .all()
-          .map((row) => row.threadId),
-      ),
+      withOpenTurns: query(() => {
+        const running = db.selectDistinct({ threadId: turns.threadId }).from(turns).where(eq(turns.status, "running")).all();
+        const working = db
+          .selectDistinct({ threadId: threadSubagents.threadId })
+          .from(threadSubagents)
+          .where(inArray(threadSubagents.status, ["running", "waiting"]))
+          .all();
+        return [...new Set([...running, ...working].map((row) => row.threadId))];
+      }),
     });
   }),
 );

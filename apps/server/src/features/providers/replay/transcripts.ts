@@ -32,6 +32,42 @@ export const TRANSCRIPTS: ReadonlyArray<Transcript> = [
     ],
     usage: { inputTokens: 0, outputTokens: 0, costUsd: null },
   },
+  // Before "approval": a subagent asking to edit shouldn't pick that one.
+  {
+    // Two subagents in the background, one asking first; their reports start a turn of the provider's own.
+    name: "subagents",
+    keywords: ["subagent", "delegate"],
+    steps: [
+      { type: "text", text: "I'll hand these to two subagents and carry on." },
+      {
+        type: "subagents",
+        subagents: [
+          { id: "tea", label: "Add a line to Tea.md", agent: "general", ms: 600, asks: { title: "Edit Notes/Tea.md", detail: "+Oolong too." }, result: "Added 'Oolong too.' to Notes/Tea.md." },
+          { id: "coffee", label: "Read Coffee.md", agent: "explore", ms: 900, result: "The first line of Notes/Coffee.md is `# Coffee`." },
+        ],
+        then: [{ type: "text", text: "Both subagents are done: Tea.md has the new line, and Coffee.md starts with `# Coffee`." }],
+      },
+      { type: "text", text: "Launched; I'll report back when they're done." },
+    ],
+    usage: { inputTokens: 9_120, outputTokens: 64, costUsd: 0.0094 },
+  },
+  {
+    // Subagents that take a while, for trying Stop with only them running.
+    name: "subagents-slow",
+    keywords: ["background"],
+    steps: [
+      {
+        type: "subagents",
+        subagents: [
+          { id: "a", label: "Survey 1-Active", agent: "explore", ms: 60_000, result: "48 notes." },
+          { id: "b", label: "Survey 2-Areas", agent: "explore", ms: 60_000, result: "31 notes." },
+        ],
+        then: [{ type: "text", text: "Both surveys are back." }],
+      },
+      { type: "text", text: "Two subagents are working in the background." },
+    ],
+    usage: { inputTokens: 8_400, outputTokens: 22, costUsd: 0.008 },
+  },
   {
     name: "approval",
     keywords: ["approval", "edit", "change", "update"],

@@ -15,12 +15,12 @@ import { attachedFilesText } from "./attached-files.js";
 import { randomUUID } from "node:crypto";
 import { dirname } from "node:path";
 import type { ContextNote } from "@wiki-agents/contracts/threads/context";
-import type { RequestAnswer, ThreadEvent, ThreadSummary, TurnOutcome, TurnUsage } from "@wiki-agents/contracts/threads/model";
+import { isSubagentActive, type RequestAnswer, type ThreadEvent, type ThreadSummary, type TurnOutcome, type TurnUsage } from "@wiki-agents/contracts/threads/model";
 import { Cause, Clock, Deferred, Effect, Exit, Fiber, FileSystem, Option, Queue, Scope, Stream } from "effect";
 import type { DbError } from "../../shared/persistence/errors.js";
 import { AgentCatalog } from "../agents/catalog.js";
 import { sessionSetup } from "../agents/session-setup.js";
-import { ProviderError, type ProviderEvent, type ProviderSession, type SessionSetup, type TurnImage } from "../providers/port.js";
+import { type BackgroundEvent, ProviderError, type ProviderEvent, type ProviderSession, type SessionSetup, type SubagentState, type TurnImage } from "../providers/port.js";
 import { VaultTools } from "../mcp/vault-tools.js";
 import { SecretMaterial } from "../secrets/material.js";
 import { ProviderRegistry } from "../providers/registry.js";
@@ -59,7 +59,7 @@ type Message =
       readonly options: SendOptions;
       readonly reply: Deferred.Deferred<string, ThreadBusy | DbError>;
     }
-  | { readonly _tag: "Interrupt"; readonly reply: Deferred.Deferred<string, NoTurnRunning | DbError> }
+  | { readonly _tag: "Interrupt"; readonly reply: Deferred.Deferred<string | null, NoTurnRunning | DbError> }
   | { readonly _tag: "Compact"; readonly operationId: string; readonly reply: Deferred.Deferred<CompactStarted, CompactError> }
   | { readonly _tag: "Handoff"; readonly operationId: string; readonly reply: Deferred.Deferred<HandoffStarted, HandoffError> }
   | {
@@ -77,6 +77,8 @@ type Message =
   | { readonly _tag: "ChangeUndone"; readonly turnId: string; readonly changeId: string; readonly reply: Deferred.Deferred<void, DbError> }
   /** `run` when no turn is running or waiting, else `busy`; each completes the caller's reply. */
   | { readonly _tag: "WhileIdle"; readonly run: Effect.Effect<void>; readonly busy: Effect.Effect<void> }
+  /** From the provider session's background work (subagents, and turns it starts itself). */
+  | { readonly _tag: "Background"; readonly event: BackgroundEvent }
   /** From the turn's provider fiber; ignored once that turn is over. */
   | { readonly _tag: "ProviderEvent"; readonly turnId: string; readonly event: ProviderEvent }
   | { readonly _tag: "ProviderEnded"; readonly turnId: string; readonly exit: Exit.Exit<void, ProviderError> };
@@ -146,8 +148,11 @@ export interface ThreadActor {
   readonly approveToolCall: (call: ToolCallCheck) => Effect.Effect<Effect.Effect<void>, ToolCallError>;
   readonly recordContext: (note: ContextNote) => Effect.Effect<void, NoTurnRunning | DbError>;
   readonly sendMessage: (text: string, notes?: ReadonlyArray<ContextNote>, options?: SendOptions) => Effect.Effect<string, ThreadBusy | DbError>;
-  /** Stops the running turn; returns its id. */
-  readonly interrupt: Effect.Effect<string, NoTurnRunning | DbError>;
+  /**
+   * Stops everything: the running turn and every subagent at work. Returns the
+   * turn's id, or null when only subagents were running.
+   */
+  readonly interrupt: Effect.Effect<string | null, NoTurnRunning | DbError>;
   /**
    * Asks the provider to compact the conversation, as a turn of its own whose id is
    * `operationId`. Refused while a turn runs or waits for you; the same id again
@@ -195,7 +200,17 @@ interface RunningTurn {
 }
 
 /** Events that can change a thread's status, title or progress, so the thread list hears about them. */
-const LIST_EVENTS = new Set<ThreadEvent["_tag"]>(["user.message", "compaction.requested", "handoff.requested", "request.opened", "request.resolved", "plan.updated", "turn.finished"]);
+const LIST_EVENTS = new Set<ThreadEvent["_tag"]>([
+  "user.message",
+  "compaction.requested",
+  "handoff.requested",
+  "subagent.reported",
+  "subagent.updated",
+  "request.opened",
+  "request.resolved",
+  "plan.updated",
+  "turn.finished",
+]);
 
 export const SERVER_STOPPED = "The server stopped during this turn.";
 /** Why a turn fails in a thread whose provider the app no longer runs (replay outside tests, say). */
@@ -250,6 +265,12 @@ export const makeThreadActor = Effect.fnUntraced(function* (
   const toolCalls = new Map<string, ToolCallReply>();
   /** `completeRead` keys of the running turn's whole-note reads; they authorize edits. */
   const completeReads = new Set<string>();
+  /** Subagents at work (running or waiting for you), by provider id, with the turn that launched them. */
+  const subagents = new Map<string, SubagentState>();
+  /** The turn that launched each subagent seen in this run, by provider id, at work or not. */
+  const launchedBy = new Map<string, string>();
+  /** Keeps the actor alive while subagents work, with no turn running (see `retain`). */
+  let subagentHold: Scope.Closeable | undefined;
 
   /** Canonical folders of the attachments sent in this thread; read from its history on first use. */
   let attachmentFolders: Set<string> | undefined;
@@ -321,6 +342,13 @@ export const makeThreadActor = Effect.fnUntraced(function* (
       );
     }
     session = opened;
+    // Read for as long as the actor lives; the session closes with it.
+    if (opened.background !== undefined) {
+      yield* opened.background.pipe(
+        Stream.runForEach((event) => Queue.offer(mailbox, { _tag: "Background", event })),
+        Effect.forkIn(actorScope),
+      );
+    }
     return opened;
   });
 
@@ -361,9 +389,9 @@ export const makeThreadActor = Effect.fnUntraced(function* (
   const finish = Effect.fnUntraced(function* (outcome: TurnOutcome, usage: TurnUsage | null, reason: string | null) {
     const current = turn;
     if (current === undefined) return;
-    const cancelled = [...pending.values()]
-      .filter((request) => request.turnId === current.id)
-      .map((request): ThreadEvent => ({ _tag: "request.resolved", turnId: current.id, requestId: request.requestId, answer: null }));
+    // A subagent's request outlives the turn that launched it: it closes when the subagent stops.
+    const own = [...pending.values()].filter((request) => request.turnId === current.id && request.subagentId === undefined);
+    const cancelled = own.map((request): ThreadEvent => ({ _tag: "request.resolved", turnId: current.id, requestId: request.requestId, answer: null }));
     const links = [...new Set([...replyText.matchAll(/\[\[([^\]\n]+)\]\]/g)].map((match) => match[1]!))].slice(0, 100);
     if (links.length) {
       const resolved = yield* resolveLinks({ vaultId: vault.id, links: links.map((link) => ({ link })) }).pipe(Effect.provideContext(contextServices), Effect.option);
@@ -392,10 +420,12 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     toolCalls.clear();
     yield* Deferred.succeed(current.ended, undefined);
     completeReads.clear();
-    pending.clear();
+    for (const request of own) pending.delete(request.requestId);
     turn = undefined;
     if (current.fiber !== undefined) yield* Fiber.interrupt(current.fiber);
     if (current.hold !== undefined) yield* Scope.close(current.hold, Exit.void);
+    const next = startedTurns.shift();
+    if (next !== undefined) yield* startProviderTurn(next);
   });
 
   /** Starts a provider turn for a turn already recorded, then drops its outbox row. */
@@ -439,14 +469,21 @@ export const makeThreadActor = Effect.fnUntraced(function* (
   const resume = Effect.gen(function* () {
     const recovery = yield* repository.recovery(threadId);
     for (const request of recovery.pendingRequests) {
-      if (isAppRequest(request.requestId)) {
+      // A subagent's request went with the provider's session: it never resumes one.
+      if (isAppRequest(request.requestId) || request.subagentId !== undefined) {
         yield* record([{ _tag: "request.resolved", turnId: request.turnId, requestId: request.requestId, answer: null }]);
       } else pending.set(request.requestId, request);
+    }
+    // Subagents run in the provider's session, which a restart ended: what they were doing is unknown, and they are never started again.
+    if (recovery.activeSubagents.length > 0) {
+      yield* record(recovery.activeSubagents.map((subagent): ThreadEvent => ({ _tag: "subagent.updated", ...subagent, status: "interrupted" })));
     }
     if (Option.isNone(recovery.openTurn)) return;
     const open = recovery.openTurn.value;
     const current = yield* newTurn(open.id, open.kind, open.unattended);
     turn = current;
+    // The provider started it by itself, from a session that is gone.
+    if (open.kind === "subagent") return yield* finish("interrupted", null, SERVER_STOPPED);
     // Compacting costs usage, and nobody may be watching any more: never started or continued after a restart.
     if (open.kind === "compaction") return yield* finish("interrupted", null, open.dispatched ? COMPACTION_CUT_OFF : COMPACTION_NOT_STARTED);
     // The same for a handoff: it is cheap to ask again, and costly to run unseen.
@@ -539,12 +576,105 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     return { turnId: current.id, started: true };
   });
 
+  /** Stop stops everything (Alex, 2026-11-20): the turn, and every subagent with it. */
   const interrupt = Effect.gen(function* () {
     const current = turn;
-    if (current === undefined) return yield* new NoTurnRunning({ threadId });
+    if (current === undefined) {
+      if (subagents.size === 0) return yield* new NoTurnRunning({ threadId });
+      // The subagents' new states arrive from the session's background work.
+      if (session?.stopBackground !== undefined) yield* session.stopBackground;
+      else yield* cancelSubagents;
+      return null;
+    }
+    // Turns the provider began meanwhile are stopped with it, never started afterwards.
+    startedTurns.length = 0;
     if (session !== undefined) yield* session.interrupt(current.id);
     yield* finish("interrupted", null, null);
     return current.id;
+  });
+
+  /** Holds the actor while subagents work, and lets it go when none does. */
+  const holdForSubagents = Effect.gen(function* () {
+    if (subagents.size > 0 && subagentHold === undefined) {
+      subagentHold = yield* Scope.make();
+      yield* retain.pipe(Scope.provide(subagentHold));
+    } else if (subagents.size === 0 && subagentHold !== undefined) {
+      const hold = subagentHold;
+      subagentHold = undefined;
+      yield* Scope.close(hold, Exit.void);
+    }
+  });
+
+  /** Records every subagent still at work as cancelled, when there is no session to stop them through. */
+  const cancelSubagents = Effect.gen(function* () {
+    const closing = [...subagents.values()];
+    if (closing.length === 0) return;
+    const requests = [...pending.values()].filter((request) => request.subagentId !== undefined);
+    yield* record([
+      ...requests.map((request): ThreadEvent => ({ _tag: "request.resolved", turnId: request.turnId, requestId: request.requestId, answer: null })),
+      ...closing.map((subagent): ThreadEvent => ({ _tag: "subagent.updated", ...subagent, status: "cancelled" })),
+    ]);
+    for (const request of requests) pending.delete(request.requestId);
+    subagents.clear();
+    yield* holdForSubagents;
+  });
+
+  /** Whether the turn that launched these subagents was sent by a schedule, with nobody watching. */
+  const launchedUnattended = Effect.fnUntraced(function* (turnIds: ReadonlyArray<string>) {
+    for (const turnId of new Set(turnIds)) {
+      if (turn?.id === turnId && turn.unattended) return true;
+      const found = yield* repository.findTurn(turnId);
+      if (Option.isSome(found) && found.value.unattended) return true;
+    }
+    return false;
+  });
+
+  const onBackground = Effect.fnUntraced(function* (event: BackgroundEvent) {
+    switch (event._tag) {
+      case "subagent": {
+        const { state } = event;
+        yield* record([{ _tag: "subagent.updated", ...state }]);
+        launchedBy.set(state.subagentId, state.turnId);
+        if (isSubagentActive(state.status)) subagents.set(state.subagentId, state);
+        else subagents.delete(state.subagentId);
+        return yield* holdForSubagents;
+      }
+      case "request.opened": {
+        const prompt = yield* withEditWarnings(cwd, event.prompt).pipe(Effect.provideContext(changeServices));
+        yield* record([{ _tag: "request.opened", turnId: event.turnId, requestId: event.requestId, prompt, subagentId: event.subagentId }]);
+        const request = { requestId: event.requestId, turnId: event.turnId, prompt: event.prompt, subagentId: event.subagentId };
+        pending.set(event.requestId, request);
+        if (yield* launchedUnattended([event.turnId])) yield* answerUnattended(request);
+        return;
+      }
+      case "request.closed": {
+        const request = pending.get(event.requestId);
+        if (request === undefined) return;
+        pending.delete(event.requestId);
+        return yield* record([{ _tag: "request.resolved", turnId: request.turnId, requestId: request.requestId, answer: null }]);
+      }
+      case "turn":
+        // The turn before it may not have reported its end yet (it comes from another fiber): this one starts after it.
+        if (turn !== undefined) return void startedTurns.push(event);
+        return yield* startProviderTurn(event);
+    }
+  });
+
+  /** Turns the provider started while one was still running, to start once it finishes. */
+  const startedTurns: Array<Extract<BackgroundEvent, { readonly _tag: "turn" }>> = [];
+
+  /** Starts a turn the provider began by itself when subagents reported (see `subagent.reported`). */
+  const startProviderTurn = Effect.fnUntraced(function* (event: Extract<BackgroundEvent, { readonly _tag: "turn" }>) {
+    // A report comes as its subagent goes idle, so it is usually no longer at work.
+    const launchers = event.reports.flatMap((report) => {
+      const launcher = launchedBy.get(report.subagentId);
+      return launcher === undefined ? [] : [launcher];
+    });
+    const current = yield* newTurn(event.turnId, "subagent", yield* launchedUnattended(launchers));
+    yield* record([{ _tag: "subagent.reported", turnId: current.id, reports: event.reports }, { _tag: "turn.started", turnId: current.id }]);
+    turn = current;
+    yield* trackChanges(current.id);
+    yield* run(current, event.events);
   });
 
   /** Checks the write against the thread's current agent, the note on disk and this turn's reads. */
@@ -669,8 +799,8 @@ export const makeThreadActor = Effect.fnUntraced(function* (
   });
 
   const setDone = Effect.fnUntraced(function* (done: boolean) {
-    // A pending request belongs to the running turn, so this also covers "waiting".
-    if (done && turn !== undefined) return yield* new ThreadBusy({ threadId });
+    // A pending request belongs to the running turn or a subagent at work, so this also covers "waiting".
+    if (done && (turn !== undefined || subagents.size > 0)) return yield* new ThreadBusy({ threadId });
     const summary = yield* repository.setDone(threadId, done ? yield* Clock.currentTimeMillis : null);
     yield* bus.publishThread(summary);
     return summary;
@@ -763,7 +893,9 @@ export const makeThreadActor = Effect.fnUntraced(function* (
           ),
         );
       case "WhileIdle":
-        return turn === undefined ? message.run : message.busy;
+        return turn === undefined && subagents.size === 0 ? message.run : message.busy;
+      case "Background":
+        return Effect.asVoid(onBackground(message.event));
       case "ProviderEvent":
         return turn?.id === message.turnId ? onProviderEvent(message.event) : Effect.void;
       case "ProviderEnded":

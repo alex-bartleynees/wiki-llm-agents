@@ -1,11 +1,11 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 import { formatSize } from "@wiki-agents/contracts/attachments/model";
-import type { RequestAnswer, RequestPrompt } from "@wiki-agents/contracts/threads/model";
+import type { RequestAnswer, RequestPrompt, SubagentReport } from "@wiki-agents/contracts/threads/model";
 import { createTwoFilesPatch } from "diff";
-import { Context, Deferred, Effect, Option, Stream } from "effect";
-import { type ProviderAdapter, ProviderError, type ProviderEvent, type ProviderSession, type SessionSetup, type TurnImage } from "../port.js";
-import type { Step } from "./transcript.js";
+import { Context, Deferred, Effect, Fiber, Option, Queue, Stream } from "effect";
+import { type BackgroundEvent, type ProviderAdapter, ProviderError, type ProviderEvent, type ProviderSession, type SessionSetup, type SubagentState, type TurnImage } from "../port.js";
+import type { ReplaySubagent, Step } from "./transcript.js";
 import { chooseTranscript } from "./transcripts.js";
 import { writeVaultNote } from "./vault-tools.js";
 
@@ -115,6 +115,15 @@ const transcriptFor = (text: string) => chooseTranscript(text.split(/^Attached f
  */
 const makeSession = (cwd: string) => Effect.gen(function* () {
   let vaultTools: SessionSetup["vaultTools"] = null;
+  const scope = yield* Effect.scope;
+  const background = yield* Effect.acquireRelease(Queue.unbounded<BackgroundEvent>(), Queue.shutdown);
+  /** Subagents at work, by id: their state, and the request each waits on. */
+  const working = new Map<string, { state: SubagentState; request: string | undefined }>();
+  /** The fibers running `subagents` steps; Stop interrupts them. */
+  const delegations = new Set<Fiber.Fiber<void>>();
+  /** Stop was pressed: subagents that were running don't start a turn when they would have reported. */
+  let stopped = false;
+  const tell = (event: BackgroundEvent) => Queue.offer(background, event).pipe(Effect.asVoid);
   const answers = new Map<string, Deferred.Deferred<RequestAnswer>>();
   const answerFor = Effect.fnUntraced(function* (requestId: string) {
     const existing = answers.get(requestId);
@@ -160,9 +169,81 @@ const makeSession = (cwd: string) => Effect.gen(function* () {
     );
   };
 
+  /**
+   * Runs a `subagents` step's subagents in the background: each works, may ask, and
+   * reports; once all have, a turn of the provider's own plays `then`. Stop
+   * (`stopAll`) interrupts it.
+   */
+  const delegate = (turnId: string, step: Extract<Step, { type: "subagents" }>, path: string) =>
+    Effect.gen(function* () {
+      const report = (state: SubagentState) => tell({ _tag: "subagent", state });
+      const run = (subagent: ReplaySubagent) =>
+        Effect.gen(function* () {
+          const state: SubagentState = { turnId, subagentId: `${turnId}:${path}.${subagent.id}`, label: subagent.label, agent: subagent.agent, status: "running", result: null };
+          working.set(state.subagentId, { state, request: undefined });
+          yield* report(state);
+          yield* delay(subagent.ms);
+          if (subagent.asks !== undefined) {
+            const requestId = `${state.subagentId}.asks`;
+            working.set(state.subagentId, { state: { ...state, status: "waiting" }, request: requestId });
+            yield* report({ ...state, status: "waiting" });
+            yield* tell({ _tag: "request.opened", turnId, subagentId: state.subagentId, requestId, prompt: { _tag: "approval", ...subagent.asks } });
+            yield* Deferred.await(yield* answerFor(requestId));
+            working.set(state.subagentId, { state, request: undefined });
+            yield* report(state);
+            yield* delay(DELAY.tool);
+          }
+          working.delete(state.subagentId);
+          const done: SubagentState = { ...state, status: "done", result: subagent.result };
+          yield* report(done);
+          return { subagentId: done.subagentId, label: done.label, status: done.status } satisfies SubagentReport;
+        });
+      const reports = yield* Effect.forEach(step.subagents, run, { concurrency: "unbounded" });
+      if (stopped) return;
+      const reportedId = `${turnId}:${path}.reported`;
+      yield* tell({
+        _tag: "turn",
+        turnId: reportedId,
+        reports,
+        events: untilFinished(
+          Stream.concat(play(reportedId, step.then, "", {}), Stream.succeed<ProviderEvent>({ _tag: "turn.finished", turnId: reportedId, outcome: "completed", usage: null, reason: null })),
+        ),
+      });
+    });
+
+  /** Stop stops everything: every subagent, as cancelled, with the requests they wait on. */
+  const stopAll = Effect.gen(function* () {
+    stopped = true;
+    for (const fiber of delegations) yield* Fiber.interrupt(fiber);
+    delegations.clear();
+    for (const { state, request } of working.values()) {
+      if (request !== undefined) yield* tell({ _tag: "request.closed", requestId: request });
+      yield* tell({ _tag: "subagent", state: { ...state, status: "cancelled" } });
+    }
+    working.clear();
+  });
+
   const stepEvents = (turnId: string, step: Exclude<Step, { type: "fail" }>, path: string, vars: Vars): Events => {
     const id = `${turnId}:${path}`;
     switch (step.type) {
+      case "subagents":
+        return Stream.concat(
+          Stream.fromIterable(step.subagents).pipe(
+            Stream.flatMap((subagent) =>
+              Stream.concat(
+                emitAfter(DELAY.tool, { _tag: "tool.called", turnId, callId: `${id}.${subagent.id}`, name: "subagent", input: subagent.label }),
+                Stream.succeed<ProviderEvent>({ _tag: "tool.finished", turnId, callId: `${id}.${subagent.id}`, status: "succeeded", output: "Working in the background." }),
+              ),
+            ),
+          ),
+          Stream.fromEffect(
+            Effect.gen(function* () {
+              const fiber = yield* delegate(turnId, step, path).pipe(Effect.forkIn(scope));
+              delegations.add(fiber);
+              yield* Effect.forkIn(Effect.andThen(Fiber.await(fiber), Effect.sync(() => delegations.delete(fiber))), scope);
+            }),
+          ).pipe(Stream.drain),
+        );
       case "vault-create":
       case "vault-edit":
         return Stream.concat(
@@ -236,6 +317,7 @@ const makeSession = (cwd: string) => Effect.gen(function* () {
     nativeSessionId: null,
     startTurn: ({ turnId, text, images, setup }) => {
       vaultTools = setup.vaultTools;
+      stopped = false;
       const transcript = transcriptFor(text);
       const received = receivedText(text, images);
       return untilFinished(
@@ -271,7 +353,10 @@ const makeSession = (cwd: string) => Effect.gen(function* () {
           { _tag: "turn.finished", turnId, outcome: "completed", usage: REPLAY_COMPACTION.usage, reason: null },
         ]),
       ),
-    interrupt: () => Effect.void,
+    // Stop stops everything: the turn (the actor stops reading it) and every subagent.
+    interrupt: () => stopAll,
+    background: Stream.fromQueue(background),
+    stopBackground: stopAll,
     answerRequest: (requestId, answer) => Effect.flatMap(answerFor(requestId), (deferred) => Deferred.succeed(deferred, answer)),
     setModel: () => Effect.void,
   };

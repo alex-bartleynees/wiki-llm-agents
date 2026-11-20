@@ -1,6 +1,15 @@
 import type { Attachment } from "@wiki-agents/contracts/attachments/model";
 import type { FileChange } from "@wiki-agents/contracts/changes/model";
-import type { PlanStep, RequestAnswer, RequestPrompt, StoredThreadEvent, ThreadEvent, TurnOutcome, TurnUsage } from "@wiki-agents/contracts/threads/model";
+import { isSubagentActive, type PlanStep, type RequestAnswer, type RequestPrompt, type StoredThreadEvent, type SubagentReport, type SubagentStatus, type ThreadEvent, type TurnOutcome, type TurnUsage } from "@wiki-agents/contracts/threads/model";
+
+/** A subagent as the conversation shows it, as last reported. */
+export interface Subagent {
+  readonly id: string;
+  label: string;
+  agent: string | null;
+  status: SubagentStatus;
+  result: string | null;
+}
 
 /** What the conversation shows, built from the thread's events in order. */
 export type TimelineItem =
@@ -14,6 +23,10 @@ export type TimelineItem =
       readonly attachments: ReadonlyArray<Attachment>;
       readonly imagesAsFiles: boolean;
     }
+  /** Subagents reported, and the provider started a turn by itself (no message). */
+  | { readonly kind: "subagent-report"; readonly key: string; readonly reports: ReadonlyArray<SubagentReport> }
+  /** The subagents a turn launched, each as it is now; one per turn, updated in place. */
+  | { readonly kind: "subagents"; readonly key: string; readonly turnId: string; readonly subagents: Array<Subagent> }
   /** You asked the provider to compact the conversation (Compact conversation). */
   | { readonly kind: "compaction-request"; readonly key: string }
   /** You asked the agent to write a handoff for a new thread. */
@@ -38,6 +51,8 @@ export type TimelineItem =
       readonly key: string;
       readonly requestId: string;
       readonly prompt: RequestPrompt;
+      /** The subagent that asked, by its label; null when the agent itself did. */
+      readonly subagent: string | null;
       /** `pending` until answered; null when cancelled because the turn ended. */
       answer: RequestAnswer | null | "pending";
     }
@@ -73,9 +88,25 @@ export interface Timeline {
   readonly compactions: Set<string>;
   /** Turns that are handoffs you asked for, with the id of the agent message last written in each. */
   readonly handoffs: Map<string, string | null>;
+  /**
+   * The turn that launched each subagent seen, by id. Its state lives in that turn's
+   * `subagents` item only: a `$state` timeline wraps what goes into `items`, so that
+   * is the copy to change.
+   */
+  readonly subagents: Map<string, string>;
 }
 
-export const emptyTimeline = (): Timeline => ({ items: [], lastSeq: 0, runningTurn: null, compactions: new Set(), handoffs: new Map() });
+export const emptyTimeline = (): Timeline => ({ items: [], lastSeq: 0, runningTurn: null, compactions: new Set(), handoffs: new Map(), subagents: new Map() });
+
+/** A subagent as shown, by id. */
+const subagentOf = (timeline: Timeline, id: string) => {
+  const turnId = timeline.subagents.get(id);
+  return turnId === undefined ? undefined : find(timeline, "subagents", `${turnId}:subagents`)?.subagents.find((subagent) => subagent.id === id);
+};
+
+/** Subagents still at work (running, or waiting for you); they can be while no turn runs. */
+export const subagentsWorking = (timeline: Timeline) =>
+  timeline.items.reduce((count, item) => count + (item.kind === "subagents" ? item.subagents.filter((subagent) => isSubagentActive(subagent.status)).length : 0), 0);
 
 /** The running turn is a compaction you asked for. */
 export const isCompacting = (timeline: Timeline) => timeline.runningTurn !== null && timeline.compactions.has(timeline.runningTurn);
@@ -125,6 +156,32 @@ export const applyEvent = (timeline: Timeline, stored: StoredThreadEvent): boole
       timeline.handoffs.set(event.turnId, null);
       timeline.items.push({ kind: "handoff-request", key: event.turnId });
       break;
+    case "subagent.reported":
+      timeline.items.push({ kind: "subagent-report", key: event.turnId, reports: event.reports });
+      break;
+    case "subagent.updated": {
+      const known = subagentOf(timeline, event.subagentId);
+      if (known !== undefined) {
+        known.label = event.label;
+        known.agent = event.agent;
+        known.status = event.status;
+        known.result = event.result;
+        break;
+      }
+      const subagent: Subagent = { id: event.subagentId, label: event.label, agent: event.agent, status: event.status, result: event.result };
+      timeline.subagents.set(subagent.id, event.turnId);
+      const section = find(timeline, "subagents", `${event.turnId}:subagents`);
+      if (section !== undefined) {
+        section.subagents.push(subagent);
+        break;
+      }
+      // In the turn that launched them: before its end, which can be recorded first.
+      const item: TimelineItem = { kind: "subagents", key: `${event.turnId}:subagents`, turnId: event.turnId, subagents: [subagent] };
+      const end = timeline.items.findIndex((other) => other.kind === "turn-end" && other.key === `${event.turnId}:end`);
+      if (end < 0) timeline.items.push(item);
+      else timeline.items.splice(end, 0, item);
+      break;
+    }
     case "turn.started":
       timeline.runningTurn = event.turnId;
       break;
@@ -147,7 +204,14 @@ export const applyEvent = (timeline: Timeline, stored: StoredThreadEvent): boole
       break;
     }
     case "request.opened":
-      timeline.items.push({ kind: "request", key: event.requestId, requestId: event.requestId, prompt: event.prompt, answer: "pending" });
+      timeline.items.push({
+        kind: "request",
+        key: event.requestId,
+        requestId: event.requestId,
+        prompt: event.prompt,
+        subagent: event.subagentId === undefined ? null : (subagentOf(timeline, event.subagentId)?.label ?? "a subagent"),
+        answer: "pending",
+      });
       break;
     case "request.resolved": {
       const request = find(timeline, "request", event.requestId);
@@ -259,3 +323,10 @@ export const usageLabel = (usage: TurnUsage) =>
     ...(usage.context === undefined ? [] : [contextLabel(usage.context)]),
     ...(usage.costUsd === null ? [] : [`$${usage.costUsd.toFixed(usage.costUsd < 0.1 ? 3 : 2)}`]),
   ].join(" · ");
+
+/** "Subagent reported · Read Tea.md", or several: the divider above a turn the provider started when they reported. */
+export const reportLabel = (item: Extract<TimelineItem, { kind: "subagent-report" }>) => {
+  if (item.reports.length === 0) return "Subagent reported";
+  const labels = item.reports.map((report) => report.label).join(", ");
+  return `${item.reports.length === 1 ? "Subagent reported" : `${item.reports.length} subagents reported`} · ${labels}`;
+};

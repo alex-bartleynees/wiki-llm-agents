@@ -22,6 +22,8 @@ export type FixtureStep =
   | { readonly call: "reply"; readonly requestId: string; readonly reply: string }
   /** The recorder pressed Stop; what withdrawing the message and interrupting returned. */
   | { readonly call: "interrupt"; readonly withdrawn: boolean; readonly interrupted: boolean }
+  /** After Stop, the recorder withdrew a subagent's report from the session's inbox, so it wouldn't wake the agent. */
+  | { readonly call: "cancelPrompt"; readonly inboxId: string }
   /** The recorder asked OpenCode to compact the conversation; the inbox id it got back. */
   | { readonly call: "compact"; readonly inboxId: string }
   /**

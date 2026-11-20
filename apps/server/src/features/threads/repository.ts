@@ -1,6 +1,6 @@
 import type { ThreadDraft } from "@wiki-agents/contracts/threads/draft";
 import type { SaveDraftRequest } from "@wiki-agents/contracts/threads/save-draft/request";
-import type { RequestPrompt, StoredThreadEvent, ThreadEvent, ThreadSummary, TurnOutcome } from "@wiki-agents/contracts/threads/model";
+import type { RequestPrompt, StoredThreadEvent, SubagentStatus, ThreadEvent, ThreadSummary, TurnOutcome } from "@wiki-agents/contracts/threads/model";
 import { Context, type Effect, type Option } from "effect";
 import type { DbError } from "../../shared/persistence/errors.js";
 
@@ -26,6 +26,18 @@ export interface PendingRequest {
   readonly requestId: string;
   readonly turnId: string;
   readonly prompt: RequestPrompt;
+  /** A subagent asked (`turnId` launched it); it outlives that turn. */
+  readonly subagentId?: string | undefined;
+}
+
+/** A subagent as last recorded (see `subagent.updated`). */
+export interface SubagentRecord {
+  readonly subagentId: string;
+  readonly turnId: string;
+  readonly label: string;
+  readonly agent: string | null;
+  readonly status: SubagentStatus;
+  readonly result: string | null;
 }
 
 /** What a ThreadActor needs to pick up where the last run left off. */
@@ -39,10 +51,12 @@ export interface ThreadRecovery {
     readonly unattended: boolean;
   }>;
   readonly pendingRequests: ReadonlyArray<PendingRequest>;
+  /** Subagents last recorded running or waiting. */
+  readonly activeSubagents: ReadonlyArray<SubagentRecord>;
 }
 
-/** What started a turn: a message, or a compaction or handoff you asked for. */
-export type TurnKind = "message" | "compaction" | "handoff";
+/** What started a turn: a message, a compaction or handoff you asked for, or subagents reporting. */
+export type TurnKind = "message" | "compaction" | "handoff" | "subagent";
 
 /** A turn as recorded: its outcome and usage once it has finished. */
 export interface TurnRecord {
@@ -96,7 +110,7 @@ export interface ThreadRepositoryService {
   readonly listByVault: (vaultId: string, scope?: { readonly projectId: string | null }) => Effect.Effect<ReadonlyArray<ThreadSummary>, DbError>;
   /**
    * In every vault, most recently updated first: threads updated since `since`, and
-   * any with a turn still running however long ago it started. The running view
+   * any with a turn still running (or a subagent at work) however long ago it started. The running view
    * picks from these with `threadActivity`.
    */
   readonly listActive: (since: number) => Effect.Effect<ReadonlyArray<ThreadSummary>, DbError>;
@@ -119,7 +133,7 @@ export interface ThreadRepositoryService {
   readonly findTurn: (turnId: string) => Effect.Effect<Option.Option<TurnRecord>, DbError>;
   /** Requests waiting for an answer across every thread, oldest first. */
   readonly openRequests: Effect.Effect<ReadonlyArray<OpenRequest>, DbError>;
-  /** Threads with a turn still running, to wake at startup. */
+  /** Threads with a turn still running or a subagent still at work, to wake at startup. */
   readonly withOpenTurns: Effect.Effect<ReadonlyArray<string>, DbError>;
 }
 

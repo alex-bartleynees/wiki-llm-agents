@@ -21,13 +21,14 @@
   const outcome = $derived.by(() => {
     const answer = request.answer;
     if (answer === "pending") return "";
-    if (answer === null) return "Cancelled: the turn ended";
+    if (answer === null) return request.subagent === null ? "Cancelled: the turn ended" : "Cancelled: the subagent stopped";
     if (answer._tag === "approval") return answer.decision === "approve" ? (edits.length > 0 ? "Applied" : "Approved") : "Denied";
     return `Answered: ${answer.text}`;
   });
 </script>
 
 <section class="card" class:pending aria-label={request.prompt._tag === "approval" ? "Approval" : "Question"}>
+  {#if request.subagent !== null}<p class="from mono">From subagent · {request.subagent}</p>{/if}
   {#if request.prompt._tag === "approval"}
     <p class="kind mono">{edits.length > 0 ? "Proposed edit" : "Approval needed"}</p>
     <p class="title">{request.prompt.title}</p>
@@ -89,6 +90,12 @@
   }
   p {
     margin: 0;
+  }
+  .from {
+    font-size: 11px;
+    color: var(--ink-3);
+    margin-bottom: 2px;
+    overflow-wrap: anywhere;
   }
   .kind {
     font-size: 11px;
