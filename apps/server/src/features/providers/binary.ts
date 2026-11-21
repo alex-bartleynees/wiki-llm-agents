@@ -39,7 +39,7 @@ export const runBinary = (binary: string, args: ReadonlyArray<string>, notInstal
     child.once("error", (cause) =>
       resume(Effect.fail(new ProviderError({ message: "code" in cause && cause.code === "ENOENT" ? notInstalled : cause.message, cause }))),
     );
-    child.once("exit", (code) =>
+    child.once("close", (code) =>
       resume(
         code === 0 || output.trim() !== ""
           ? Effect.succeed(output)
