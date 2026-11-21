@@ -1,0 +1,1 @@
+ALTER TABLE `threads` ADD `child_model_source` text;

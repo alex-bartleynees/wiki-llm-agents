@@ -16,6 +16,7 @@ export const threads = sqliteTable(
     draftSequence: integer("draft_sequence").notNull().default(0),
     providerInstanceId: text("provider_instance_id").notNull(),
     model: text("model"),
+    childModelSource: text("child_model_source", { enum: ["explicit", "agent-default", "provider-default"] }),
     /** The named agent (`agents/<id>.md`) the thread follows; null for the rules alone. */
     agentId: text("agent_id"),
     /** The provider's own session id, for resuming (OpenCode session, Claude session). */

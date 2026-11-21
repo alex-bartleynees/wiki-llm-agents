@@ -91,6 +91,7 @@ export const AgentSummary = Schema.Struct({
    * besides the servers given to every thread.
    */
   mcp: Schema.Array(Schema.String),
+  workers: Schema.optionalKey(Schema.NullOr(Schema.Array(Schema.String))),
   autonomy: Autonomy,
   /** Absolute path of the agent's file. */
   path: Schema.String,
@@ -124,6 +125,7 @@ export const AgentInput = Schema.Struct({
   sources: Schema.Array(KnowledgeSource),
   /** MCP server ids; empty for only the servers every thread gets. */
   mcp: Schema.Array(Schema.String),
+  workers: Schema.optionalKey(Schema.NullOr(Schema.Array(Schema.String))),
   autonomy: Autonomy,
   /** The file's body, as markdown. */
   instructions: Schema.String,

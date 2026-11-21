@@ -32,6 +32,14 @@
   {#if request.prompt._tag === "approval"}
     <p class="kind mono">{edits.length > 0 ? "Proposed edit" : "Approval needed"}</p>
     <p class="title">{request.prompt.title}</p>
+    {#if request.prompt.childWorker}
+      {@const worker = request.prompt.childWorker}
+      <div class="edit">
+        <p class="path">Agent · {worker.agentId}</p>
+        <p class="path">Provider · {worker.providerInstanceId}</p>
+        <p class="path">Model · {worker.modelSource === "provider-default" ? "Provider default" : `${worker.model} (${worker.modelSource === "agent-default" ? "agent default" : "explicit"})`}</p>
+      </div>
+    {/if}
     {#if edits.length > 0}
       {#each edits as edit, index (index)}
         <div class="edit">

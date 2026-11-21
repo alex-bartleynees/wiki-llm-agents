@@ -97,7 +97,7 @@ layer(TestApp)("thread inactivity", (it) => {
       expect((yield* configure(false, 1)).status).toBe(200);
     }).pipe(Effect.ensuring(Deferred.succeed(released, undefined)));
     yield* Fiber.join(hold);
-    yield* actors.withChildMutation(Effect.void);
+    yield* actors.withChildMutation(held.id, Effect.void);
     expect((yield* getThread(held.id)).thread.doneAt).toBeNull();
     expect((yield* getThread(last.id)).thread.doneAt).toBeNull();
 

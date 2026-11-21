@@ -8,6 +8,7 @@ export const BLANK_AGENT: AgentInput = {
   model: null,
   sources: [],
   mcp: [],
+  workers: null,
   autonomy: DEFAULT_AUTONOMY,
   instructions: "",
 };
@@ -31,6 +32,7 @@ export const inputFromAgent = (agent: AgentSummary, instructions: string): Agent
   model: agent.model,
   sources: agent.sources,
   mcp: agent.mcp,
+  workers: agent.workers ?? null,
   autonomy: agent.autonomy,
   instructions,
 });

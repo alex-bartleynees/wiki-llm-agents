@@ -352,7 +352,10 @@ subagent when available, and Codex subagent questions go to you. Use
 
 An agent with `autonomy.threads` set to `ask` or `allow` can manage child app
 threads. Its MCP tools are `thread_create`, `thread_list`, `thread_read`,
-and `thread_send`. Creating a child or sending it a follow-up follows that
+`thread_send`, `thread_workers`, and `thread_worker_models`. Discovery shows eligible workers and their models.
+In the agent editor, **Restrict child thread workers** limits other agents the manager can select.
+An empty list permits self-delegation, while leaving the restriction off permits any configured agent.
+Creating a child or sending it a follow-up follows that
 autonomy setting. A child inherits the manager's workspace, including its
 worktree, and can run with a different agent. Children have their own
 conversation, approvals, and status, and link back to the manager. Find them below

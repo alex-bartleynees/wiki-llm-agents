@@ -60,6 +60,7 @@ type Message =
       readonly text: string;
       readonly notes: ReadonlyArray<ContextNote>;
       readonly options: SendOptions;
+      readonly recorded?: Deferred.Deferred<string, ThreadBusy | DbError>;
       readonly reply: Deferred.Deferred<string, ThreadBusy | DbError>;
     }
   | { readonly _tag: "Interrupt"; readonly reply: Deferred.Deferred<string | null, NoTurnRunning | DbError> }
@@ -137,6 +138,11 @@ export const UNATTENDED_ANSWER =
 /** A note the agent opened for you (`vault_open_note`). */
 export type OpenedNote = Omit<Extract<ThreadEvent, { readonly _tag: "note.opened" }>, "_tag" | "turnId">;
 
+export interface RecordedChildMessage {
+  readonly turnId: string;
+  readonly dispatched: Effect.Effect<string, ThreadBusy | DbError>;
+}
+
 export interface ThreadActor {
   /** Schedules a scan for completed child turns. */
   readonly childReports: Effect.Effect<void>;
@@ -154,6 +160,7 @@ export interface ThreadActor {
    */
   readonly approveToolCall: (call: ToolCallCheck) => Effect.Effect<Effect.Effect<void>, ToolCallError>;
   readonly recordContext: (note: ContextNote) => Effect.Effect<void, NoTurnRunning | DbError>;
+  readonly queueChildMessage: (text: string, unattended: boolean) => Effect.Effect<RecordedChildMessage, ThreadBusy | DbError>;
   readonly sendMessage: (text: string, notes?: ReadonlyArray<ContextNote>, options?: SendOptions) => Effect.Effect<string, ThreadBusy | DbError>;
   /**
    * Stops everything: the running turn and every subagent at work. Returns the
@@ -538,7 +545,12 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     }
   });
 
-  const sendMessage = Effect.fnUntraced(function* (text: string, notes: ReadonlyArray<ContextNote>, options: SendOptions) {
+  const sendMessage = Effect.fnUntraced(function* (
+    text: string,
+    notes: ReadonlyArray<ContextNote>,
+    options: SendOptions,
+    onRecorded?: (turnId: string) => Effect.Effect<boolean>,
+  ) {
     if (turn !== undefined) return yield* new ThreadBusy({ threadId });
     const unattended = options.unattended === true;
     const current = yield* newTurn(options.turnId ?? randomUUID(), "message", unattended);
@@ -562,6 +574,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     // Once known, the thread's folders grow with each message; otherwise its history (with this message) is read at dispatch.
     if (attachmentFolders !== undefined) for (const folder of yield* foldersOf(options.attachments ?? [])) attachmentFolders.add(folder);
     yield* trackChanges(current.id);
+    if (onRecorded !== undefined) yield* onRecorded(current.id);
     yield* dispatch(current, text);
     return current.id;
   });
@@ -925,10 +938,16 @@ export const makeThreadActor = Effect.fnUntraced(function* (
         return deliverChildReports;
       case "Resume":
         return Effect.ensuring(resume, Deferred.succeed(resumeDone, undefined));
-      case "SendMessage":
-        return Effect.asVoid(
-          Effect.flatMap(Effect.exit(sendMessage(message.text, message.notes, message.options)), (exit) => Deferred.done(message.reply, exit)),
-        );
+      case "SendMessage": {
+        const recorded = message.recorded;
+        const onRecorded = recorded === undefined ? undefined : (turnId: string) => Deferred.succeed(recorded, turnId);
+        const sent = sendMessage(message.text, message.notes, message.options, onRecorded);
+        return Effect.gen(function* () {
+          const exit = yield* Effect.exit(sent);
+          if (recorded !== undefined) yield* Deferred.done(recorded, exit);
+          yield* Deferred.done(message.reply, exit);
+        });
+      }
       case "Interrupt":
         return Effect.asVoid(Effect.flatMap(Effect.exit(interrupt), (exit) => Deferred.done(message.reply, exit)));
       case "Compact":
@@ -1005,6 +1024,13 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     writeNote: (input) => ask((reply) => ({ _tag: "WriteNote", input, reply })),
     approveToolCall: (call) => ask((reply) => ({ _tag: "ApproveToolCall", call, reply })),
     recordContext: (note) => ask((reply) => ({ _tag: "Context", note, reply })),
+    queueChildMessage: (text, unattended) => Effect.gen(function* () {
+      const recorded = yield* Deferred.make<string, ThreadBusy | DbError>();
+      const reply = yield* Deferred.make<string, ThreadBusy | DbError>();
+      yield* Queue.offer(mailbox, { _tag: "SendMessage", text, notes: [], options: { unattended }, recorded, reply });
+      const turnId = yield* Deferred.await(recorded);
+      return { turnId, dispatched: Deferred.await(reply) };
+    }),
     sendMessage: (text, notes = [], options = {}) => ask((reply) => ({ _tag: "SendMessage", text, notes, options, reply })),
     interrupt: ask((reply) => ({ _tag: "Interrupt", reply })),
     compact: (operationId) => ask((reply) => ({ _tag: "Compact", operationId, reply })),

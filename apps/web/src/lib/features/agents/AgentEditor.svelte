@@ -80,6 +80,7 @@
     model: "Model",
     sources: "Knowledge sources",
     mcp: "MCP servers",
+    workers: "Child thread workers",
     autonomy: "Autonomy",
     instructions: "Instructions",
   };
@@ -88,6 +89,7 @@
     if (field === "sources") return describeSources(input.sources);
     if (field === "autonomy") return AUTONOMY_ACTIONS.map((action) => `${ACTION_LABEL[action]}: ${LEVEL_LABEL[input.autonomy[action] ?? DEFAULT_AUTONOMY[action]]}`).join(" · ");
     if (field === "provider") return value === null ? "The one picked for each thread" : (providers.get(value as string)?.name ?? String(value));
+    if (field === "workers") return input.workers == null ? "Any agent" : ["This agent", ...input.workers].join(", ");
     if (field === "model") return value === null ? "The provider's default" : String(value);
     return String(value) || "(empty)";
   };
@@ -238,6 +240,25 @@
             </div>
           {/each}
           {#each problems("autonomy") as problem (problem)}<span class="field-error">{problem}</span>{/each}
+          <label>
+            <input type="checkbox" checked={editor.form.workers != null} onchange={(event) => (editor.form.workers = event.currentTarget.checked ? [] : null)} />
+            Restrict child thread workers
+          </label>
+          {#if editor.form.workers != null}
+            <span>This agent can always be selected when child threads are allowed.</span>
+            {#each [...new Set([...agents.list.map((agent) => agent.id), ...editor.form.workers])].filter((id) => id !== editor.id) as id (id)}
+              <label>
+                <input type="checkbox" checked={editor.form.workers.includes(id)} onchange={(event) => {
+                  const workers = editor.form.workers ?? [];
+                  editor.form.workers = event.currentTarget.checked ? [...workers, id] : workers.filter((worker) => worker !== id);
+                }} />
+                {agents.get(id)?.name ?? id}
+              </label>
+            {/each}
+          {:else}
+            <span>Any configured agent can be selected when child threads are allowed.</span>
+          {/if}
+          {#each problems("workers") as problem (problem)}<span class="field-error">{problem}</span>{/each}
           {#if enforcing.length > 0 || notes.length > 0}
             <details class="enforced">
               <summary>What each provider enforces (as saved)</summary>

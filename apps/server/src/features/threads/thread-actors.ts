@@ -5,6 +5,8 @@ import { Context, Effect, Layer, RcMap, Semaphore } from "effect";
 import type { ToolCallCheck } from "../mcp/gateway.js";
 import type { AgentNoteWrite } from "../notes/agent-write/use-case.js";
 import type { ThreadBusy } from "./errors.js";
+import { findThread } from "./find-thread.js";
+import { ThreadRepository } from "./repository.js";
 import { type CompactStarted, type HandoffStarted, makeThreadActor, type OpenedNote, type ScheduleReceipt, type SendOptions, type SignInCard, type ThreadActor } from "./thread-actor.js";
 
 /** How long a ThreadActor with nothing running stays in memory after its last use. */
@@ -15,6 +17,7 @@ type StartError = Effect.Error<ReturnType<typeof makeThreadActor>>;
 
 /** ThreadActors by thread id, started on first use and stopped when idle. */
 export interface ThreadActorsService {
+  readonly queueChildMessage: (threadId: string, text: string, unattended: boolean) => Effect.Effect<Effect.Success<ReturnType<ThreadActor["queueChildMessage"]>>, StartError | Effect.Error<ReturnType<ThreadActor["queueChildMessage"]>>>;
   readonly sendMessage: (threadId: string, text: string, notes?: ReadonlyArray<ContextNote>, options?: SendOptions) => Effect.Effect<string, StartError | Effect.Error<ReturnType<ThreadActor["sendMessage"]>>>;
   readonly interrupt: (threadId: string) => Effect.Effect<string | null, StartError | Effect.Error<ThreadActor["interrupt"]>>;
   /** See `ThreadActor.compact`. */
@@ -41,7 +44,7 @@ export interface ThreadActorsService {
   readonly changeUndone: (threadId: string, turnId: string, changeId: string) => Effect.Effect<void, StartError | Effect.Error<ReturnType<ThreadActor["changeUndone"]>>>;
   /** Runs `effect` while the thread has no turn running or waiting (see `ThreadActor.whileIdle`). */
   readonly whileIdle: <A, E>(threadId: string, effect: Effect.Effect<A, E>) => Effect.Effect<A, StartError | E | ThreadBusy>;
-  readonly withChildMutation: <A, E, R>(effect: Effect.Effect<A, E, R>) => Effect.Effect<A, E, R>;
+  readonly withChildMutation: <A, E, R>(managerId: string, effect: Effect.Effect<A, E, R>) => Effect.Effect<A, E, R>;
   readonly childReports: (threadId: string) => Effect.Effect<void, StartError>;
   /** Starts the actor, which resumes or closes a turn left running by the last run. */
   readonly wake: (threadId: string) => Effect.Effect<void, StartError>;
@@ -52,7 +55,15 @@ export class ThreadActors extends Context.Service<ThreadActors, ThreadActorsServ
 export const ThreadActorsLive = Layer.effect(
   ThreadActors,
   Effect.gen(function* () {
-    const mutations = yield* Semaphore.make(1);
+    const repository = yield* ThreadRepository;
+    const mutations = yield* RcMap.make({ lookup: (_managerId: string) => Semaphore.make(1) });
+    const withFamilyMutation = <A, E, R>(managerId: string, effect: Effect.Effect<A, E, R>) =>
+      Effect.scoped(Effect.flatMap(RcMap.get(mutations, managerId), (lock) => lock.withPermits(1)(effect)));
+    const withThreadMutation = <A, E, R>(threadId: string, effect: Effect.Effect<A, E, R>) =>
+      findThread(threadId).pipe(
+        Effect.provideService(ThreadRepository, repository),
+        Effect.flatMap((thread) => withFamilyMutation(thread.parentThreadId ?? thread.id, effect)),
+      );
     const actors: RcMap.RcMap<string, ThreadActor, StartError> = yield* RcMap.make({
       lookup: (threadId: string) => makeThreadActor(
         threadId,
@@ -72,15 +83,16 @@ export const ThreadActorsLive = Layer.effect(
     const withActor = <A, E>(threadId: string, use: (actor: ThreadActor) => Effect.Effect<A, E>) =>
       Effect.scoped(Effect.flatMap(RcMap.get(actors, threadId), use));
     return ThreadActors.of({
+      queueChildMessage: (threadId, text, unattended) => withActor(threadId, (actor) => actor.queueChildMessage(text, unattended)),
       sendMessage: (threadId, text, notes, options) => withActor(threadId, (actor) => actor.sendMessage(text, notes, options)),
-      interrupt: (threadId) => mutations.withPermits(1)(withActor(threadId, (actor) => actor.interrupt)),
-      withChildMutation: mutations.withPermits(1),
+      interrupt: (threadId) => withThreadMutation(threadId, withActor(threadId, (actor) => Effect.uninterruptible(actor.interrupt))),
+      withChildMutation: withFamilyMutation,
       compact: (threadId, operationId) => withActor(threadId, (actor) => actor.compact(operationId)),
       handoff: (threadId, operationId) => withActor(threadId, (actor) => actor.handoff(operationId)),
       answerRequest: (threadId, requestId, answer) => withActor(threadId, (actor) => actor.answerRequest(requestId, answer)),
       setModel: (threadId, model) => withActor(threadId, (actor) => actor.setModel(model)),
       setAgent: (threadId, agentId) => withActor(threadId, (actor) => actor.setAgent(agentId)),
-      completeInactive: (threadId) => mutations.withPermits(1)(withActor(threadId, (actor) => actor.completeInactive)),
+      completeInactive: (threadId) => withThreadMutation(threadId, withActor(threadId, (actor) => actor.completeInactive)),
       setDone: (threadId, done) => withActor(threadId, (actor) => actor.setDone(done)),
       writeNote: (threadId, input) => withActor(threadId, (actor) => actor.writeNote(input)),
       approveToolCall: (threadId, call) => withActor(threadId, (actor) => actor.approveToolCall(call)),

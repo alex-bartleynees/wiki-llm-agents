@@ -10,7 +10,7 @@ import type { Worktree } from "@wiki-agents/contracts/projects/model";
 import { createWorktree, discardWorktree, shareWorktree, unshareWorktree } from "../../projects/worktrees.js";
 import { ProviderRegistry } from "../../providers/registry.js";
 import { findVault } from "../../vaults/find-vault.js";
-import { validateModel } from "../model-selection.js";
+import { applicableAgentModel, validateModel } from "../model-selection.js";
 import { ThreadRepository } from "../repository.js";
 import { ThreadBus } from "../thread-bus.js";
 
@@ -34,6 +34,7 @@ export const createThread = Effect.fn("createThread")(function* (
     readonly parentThreadId?: string;
     readonly model?: string | null;
     readonly shareWorktree?: Worktree;
+    readonly childModelSource?: "explicit" | "agent-default" | "provider-default";
   } = {},
 ) {
   const vault = yield* findVault(request.vaultId);
@@ -45,7 +46,6 @@ export const createThread = Effect.fn("createThread")(function* (
   const registry = yield* ProviderRegistry;
   const providerInstanceId = request.providerInstanceId ?? agent?.provider ?? undefined;
   const instance = providerInstanceId === undefined ? yield* registry.defaultInstance : (yield* registry.get(providerInstanceId)).instance;
-  const agentsProvider = agent !== null && (agent.provider === null || agent.provider === instance.id);
   if (request.model !== undefined) {
     const { adapter } = yield* registry.get(instance.id);
     yield* validateModel(adapter, vault.rootPath, request.model);
@@ -63,7 +63,8 @@ export const createThread = Effect.fn("createThread")(function* (
       projectId: project?.id ?? null,
       providerInstanceId: instance.id,
       agentId: agent?.id ?? null,
-      model: options.model !== undefined ? options.model : request.model ?? (agentsProvider && instance.capabilities.models ? agent.model : null),
+      model: options.model !== undefined ? options.model : request.model ?? applicableAgentModel(agent, instance),
+      ...(options.childModelSource === undefined ? {} : { childModelSource: options.childModelSource }),
       title: options.title,
       draftText: options.draftText,
       continuedFrom: options.continuedFrom,

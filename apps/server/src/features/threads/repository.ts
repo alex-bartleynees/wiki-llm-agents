@@ -14,6 +14,7 @@ export interface NewThread {
   readonly agentId: string | null;
   /** The model to start with; null for the provider's default. */
   readonly model: string | null;
+  readonly childModelSource?: "explicit" | "agent-default" | "provider-default";
   /** Otherwise the first message names it. */
   readonly title?: string | undefined;
   /** The composer draft it starts with (a handoff); empty otherwise. */

@@ -3,7 +3,7 @@ import { Document, isMap, isScalar, type Pair, parseDocument, YAMLMap } from "ya
 import { splitFrontmatter } from "./definition.js";
 
 /** The order settings are written in; a setting the file doesn't have yet goes after the ones before it. */
-const ORDER = ["name", "description", "provider", "model", "sources", "mcp", "autonomy"] as const;
+const ORDER = ["name", "description", "provider", "model", "sources", "mcp", "workers", "autonomy"] as const;
 type Key = (typeof ORDER)[number];
 
 const keyOf = (pair: Pair) => (isScalar(pair.key) ? String(pair.key.value) : String(pair.key));
@@ -75,6 +75,8 @@ export const agentFileText = (input: AgentInput, existing: string | null): strin
   }
   if (input.mcp.length === 0) remove("mcp");
   else set("mcp", [...new Set(input.mcp)]);
+  if (input.workers === null) remove("workers");
+  else if (input.workers !== undefined) set("workers", [...new Set(input.workers)]);
   const autonomy = map.get("autonomy");
   if (isMap(autonomy)) {
     for (const action of AUTONOMY_ACTIONS) autonomy.set(action, input.autonomy[action] ?? DEFAULT_AUTONOMY[action]);

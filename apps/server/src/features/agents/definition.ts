@@ -14,6 +14,7 @@ export interface AgentDefinition {
   readonly sources: ReadonlyArray<KnowledgeSource>;
   /** MCP servers whose tools its threads get besides those every thread gets; ids as in `mcp/<id>.yaml`. */
   readonly mcp: ReadonlyArray<string>;
+  readonly workers: ReadonlyArray<string> | null;
   readonly autonomy: Autonomy;
   readonly path: string;
   /** The file's body, as markdown. */
@@ -70,6 +71,7 @@ const Frontmatter = Schema.Struct({
   model: Schema.optionalKey(Schema.NullOr(NonEmpty)),
   sources: Schema.optionalKey(Schema.Array(Source)),
   mcp: Schema.optionalKey(Schema.Array(ServerId)),
+  workers: Schema.optionalKey(Schema.Array(NonEmpty.check(Schema.makeFilter((id) => ID_PATTERN.test(id) ? undefined : "Use the agent file name without .md.")))),
   autonomy: Schema.optionalKey(
     Schema.Struct({
       read: Schema.optionalKey(Level),
@@ -164,6 +166,7 @@ export const parseAgent = (id: string, path: string, text: string): Result.Resul
       typeof source === "string" ? source : { vault: source.vault, folders: (source.folders ?? []).map((folder) => normaliseFolder(folder) ?? folder) },
     ),
     mcp: [...new Set(front.mcp ?? [])],
+    workers: front.workers === undefined ? null : [...new Set(front.workers)],
     autonomy: { read: level("read"), create: level("create"), edit: level("edit"), commands: level("commands"), web: level("web"), tools: level("tools"), subagents: level("subagents"), threads: level("threads") },
     path,
     instructions: body,

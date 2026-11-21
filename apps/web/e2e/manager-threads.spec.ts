@@ -10,7 +10,7 @@ test("opens a child from Running, shows it under its manager, and delivers its r
       baseHash: null,
       agent: {
         name: agentId, description: "", provider: null, model: null, sources: [], mcp: [],
-        autonomy: { read: "allow", create: "ask", edit: "ask", commands: "ask", web: "ask", tools: "ask", subagents: "ask", threads: "allow" },
+        autonomy: { read: "allow", create: "ask", edit: "ask", commands: "ask", web: "ask", tools: "ask", subagents: "ask", threads: "ask" },
         instructions: "Manage child threads.",
       },
     },
@@ -26,6 +26,11 @@ test("opens a child from Running, shows it under its manager, and delivers its r
   const message = page.getByRole("textbox", { name: "Message" });
   await message.fill(`managerfixture ${info.project.name}`);
   await message.press("Enter");
+  const approval = page.getByRole("region", { name: "Approval", exact: true }).filter({ hasText: "Start child thread" });
+  await expect(approval.getByText(`Agent · ${agentId}`, { exact: true })).toBeVisible();
+  await expect(approval.getByText("Provider · replay", { exact: true })).toBeVisible();
+  await expect(approval.getByText("Model · Provider default", { exact: true })).toBeVisible();
+  await approval.getByRole("button", { name: "Approve", exact: true }).click();
   await expect(page.getByText("The child thread is ready.")).toBeVisible();
 
   await page.getByRole("button", { name: "All threads" }).click();

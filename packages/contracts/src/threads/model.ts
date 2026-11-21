@@ -145,12 +145,24 @@ export const ToolFinished = Schema.TaggedStruct("tool.finished", {
   writes: Schema.optionalKey(Schema.Array(Schema.String)),
 });
 
+export const ChildModelSource = Schema.Literals(["explicit", "agent-default", "provider-default", "unknown"]);
+export type ChildModelSource = typeof ChildModelSource.Type;
+
+export const ChildWorkerSelection = Schema.Struct({
+  agentId: Schema.NullOr(Schema.String),
+  providerInstanceId: Schema.String,
+  model: Schema.NullOr(Schema.String),
+  modelSource: ChildModelSource,
+});
+export type ChildWorkerSelection = typeof ChildWorkerSelection.Type;
+
 /** Approve or deny something the agent wants to do. */
 export const ApprovalPrompt = Schema.TaggedStruct("approval", {
   /** What the agent wants to do, e.g. "Edit Projects/Plan.md". */
   title: Schema.String,
   /** Details such as the command or the change; plain text. */
   detail: Schema.String,
+  childWorker: Schema.optionalKey(ChildWorkerSelection),
   /** For a file edit: each file's diff and edit warnings, shown instead of `detail`. */
   edits: Schema.optionalKey(Schema.Array(ProposedEdit)),
 });
@@ -424,6 +436,7 @@ export const ThreadSummary = Schema.Struct({
   providerInstanceId: Schema.String,
   /** The model chosen for this thread; null uses the provider's default. */
   model: Schema.NullOr(Schema.String),
+  childModelSource: Schema.optionalKey(Schema.NullOr(ChildModelSource)),
   /** The named agent whose instructions and autonomy the thread uses; null for none. */
   agentId: Schema.NullOr(Schema.String),
   status: ThreadStatus,

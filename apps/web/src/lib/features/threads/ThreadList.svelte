@@ -118,6 +118,12 @@
         {/if}
         {timeAgo(thread.doneAt ?? thread.updatedAt)}
       </span>
+      {#if thread.parentThreadId != null}
+        <span class="meta mono worker">
+          {providers.get(thread.providerInstanceId)?.name ?? thread.providerInstanceId}
+          · {thread.model ?? "Provider default"}{thread.childModelSource === "agent-default" ? " (agent default)" : thread.childModelSource === "explicit" ? " (explicit)" : ""}
+        </span>
+      {/if}
     </button>
 {/snippet}
 
@@ -214,6 +220,9 @@
   .meta {
     font-size: 11px;
     color: var(--ink-3);
+  }
+  .worker {
+    overflow-wrap: anywhere;
   }
   .agent-name {
     color: var(--agent);

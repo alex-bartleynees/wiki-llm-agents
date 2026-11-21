@@ -49,6 +49,9 @@ export const ProviderUnavailable = Schema.TaggedStruct("unavailable", {
 export const ProviderStatus = Schema.Union([ProviderReady, ProviderUnavailable]);
 export type ProviderStatus = typeof ProviderStatus.Type;
 
+export const ProviderReadiness = Schema.Union([Schema.TaggedStruct("ready", {}), ProviderUnavailable]);
+export type ProviderReadiness = typeof ProviderReadiness.Type;
+
 /** A model a provider offers. */
 export const ProviderModel = Schema.Struct({
   /** The provider's name for it, e.g. `opencode/big-pickle`. */

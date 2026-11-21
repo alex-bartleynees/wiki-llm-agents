@@ -34,6 +34,7 @@ const summaryColumns = {
   title: threads.title,
   providerInstanceId: threads.providerInstanceId,
   model: threads.model,
+  childModelSource: threads.childModelSource,
   agentId: threads.agentId,
   doneAt: threads.doneAt,
   doneReason: threads.doneReason,
@@ -187,7 +188,7 @@ export const ThreadRepositoryLive = Layer.effect(
 
       setModel: (threadId, model, at) =>
         query(() => {
-          db.update(threads).set({ model, updatedAt: new Date(at) }).where(eq(threads.id, threadId)).run();
+          db.update(threads).set({ model, childModelSource: sql`CASE WHEN ${threads.parentThreadId} IS NOT NULL THEN 'explicit' ELSE NULL END`, updatedAt: new Date(at) }).where(eq(threads.id, threadId)).run();
           return Option.getOrThrow(findSync(threadId));
         }),
 

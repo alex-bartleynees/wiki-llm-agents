@@ -1,11 +1,11 @@
-import { type ThreadSummary, TurnOutcome } from "@wiki-agents/contracts/threads/model";
+import { ChildWorkerSelection, type RequestPrompt, type ThreadSummary, TurnOutcome } from "@wiki-agents/contracts/threads/model";
 import { Effect, Layer, Option, Schema, type FileSystem } from "effect";
 import { McpServer, Tool, Toolkit } from "effect/ai";
 import { AgentCatalog } from "../agents/catalog.js";
 import type { ProjectRepository } from "../projects/repository.js";
 import type { WorktreeRoot } from "../projects/worktrees.js";
 import type { ProviderRegistry } from "../providers/registry.js";
-import { listChildThreads, readChildThread, sendToChildThread, startChildThread } from "../threads/manager-threads.js";
+import { childWorkerSelection, listChildThreads, readChildThread, resolveChildWorker, sendToChildThread, startChildThread, validateChildWorker } from "../threads/manager-threads.js";
 import { WallClock } from "../../shared/wall-clock.js";
 import { ThreadActors } from "../threads/thread-actors.js";
 import type { ThreadBus } from "../threads/thread-bus.js";
@@ -13,6 +13,8 @@ import { ThreadRepository } from "../threads/repository.js";
 import type { VaultRepository } from "../vaults/repository.js";
 import { VaultCaller } from "./auth.js";
 import { ToolFailure, vaultTool } from "./tools/shared.js";
+import { ThreadWorkers, threadWorkers } from "./tools/thread-workers/tool.js";
+import { ThreadWorkerModels, threadWorkerModels } from "./tools/thread-worker-models/tool.js";
 
 const Text = Schema.Trim.check(Schema.isNonEmpty());
 const ChildId = Schema.Struct({ threadId: Text });
@@ -22,7 +24,7 @@ const common = { failure: ToolFailure, dependencies: [VaultCaller] };
 const ManagerTools = Toolkit.make(
   vaultTool(Tool.make("thread_create", {
     ...common,
-    description: "Start a child app thread in this project's workspace. Choose an agent or inherit this thread's agent.",
+    description: "Start a child app thread in this project's workspace. Use thread_workers and thread_worker_models to pick overrides, or inherit your agent and provider with the applicable default model.",
     parameters: Schema.Struct({
       title: Text.check(Schema.isMaxLength(80)),
       prompt: Text.check(Schema.isMaxLength(4000)),
@@ -30,12 +32,15 @@ const ManagerTools = Toolkit.make(
       providerInstanceId: Schema.optionalKey(Text),
       model: Schema.optionalKey(Text),
     }),
-    success: Started,
+    success: Schema.Struct({ ...Started.fields, ...ChildWorkerSelection.fields }),
   })).annotate(Tool.Readonly, false),
+  ThreadWorkers,
+  ThreadWorkerModels,
   vaultTool(Tool.make("thread_list", {
     ...common,
     description: "List the child app threads you started and see what they are doing.",
     success: Schema.Struct({ children: Schema.Array(Schema.Struct({
+      ...ChildWorkerSelection.fields,
       threadId: Schema.String,
       title: Schema.NullOr(Schema.String),
       status: Schema.Literals(["working", "waiting", "done", "failed", "stopped", "idle"]),
@@ -82,42 +87,68 @@ type Services = WallClock | ThreadActors | ThreadRepository | ThreadBus | AgentC
 const managerHandlers = ManagerTools.toLayer(Effect.gen(function* () {
   const services = yield* Effect.context<Services>();
   const actors = yield* ThreadActors;
-  const handle = <A, E extends { readonly _tag: string; readonly message?: string }>(work: Effect.Effect<A, E, Services | VaultCaller>) =>
+  const handle = <A, E extends { readonly _tag: string; readonly message?: string; readonly reason?: string; readonly model?: string; readonly providerInstanceId?: string }>(work: Effect.Effect<A, E, Services | VaultCaller>) =>
     work.pipe(
       Effect.provideContext(services),
       Effect.catch((error) => Effect.fail(new ToolFailure({ message:
         error._tag === "ToolFailure" || error._tag === "DelegationRefused" || error._tag === "ToolCallRefused"
           ? error.message ?? "The call was refused."
+          : error._tag === "AgentNotFound" ? error.reason + " Use thread_workers to see eligible agents."
+          : error._tag === "ProviderInstanceNotFound" ? 'Provider "' + error.providerInstanceId + '" is unavailable. Use thread_workers to find another provider instance.'
+          : error._tag === "UnknownModel" ? 'The selected provider does not offer "' + error.model + '". Use thread_worker_models or omit model for the default.'
+          : error._tag === "ProviderError" ? error.message + " Check the provider configuration or select another instance with thread_workers."
           : error._tag === "NoTurnRunning"
             ? "Child threads can only be started or prompted during a running turn."
             : `The child thread call failed (${error._tag}). Use thread_list to check its state before retrying.`,
       }))),
     );
 
-  const mutate = <A, E>(title: string, detail: object, work: (manager: ThreadSummary, unattended: boolean) => Effect.Effect<A, E, Services>) =>
+  const mutate = <A, E, D, F = never>(
+    prompt: Extract<RequestPrompt, { _tag: "approval" }>,
+    work: (manager: ThreadSummary, unattended: boolean) => Effect.Effect<{ readonly result: A; readonly dispatched: Effect.Effect<string, D> }, E, Services>,
+    prepare?: (manager: ThreadSummary) => Effect.Effect<void, F, Services>,
+  ) =>
     Effect.gen(function* () {
       const manager = yield* requireManager;
       const stop = yield* actors.approveToolCall(manager.id, {
         level: (autonomy) => autonomy.threads ?? "deny",
-        prompt: { _tag: "approval", title, detail: JSON.stringify(detail, null, 2) },
+        prompt,
       });
-      return yield* Effect.raceFirst(
+      const { result, dispatched } = yield* Effect.raceFirst(
         Effect.gen(function* () {
-          const current = yield* requireManager;
-          const turn = Option.getOrUndefined((yield* (yield* ThreadRepository).recovery(current.id)).openTurn);
-          if (turn === undefined) return yield* new ToolFailure({ message: "The manager's turn has ended." });
-          return yield* Effect.uninterruptible(work(current, turn.unattended));
-        }).pipe(actors.withChildMutation),
+          if (prepare !== undefined) yield* prepare(manager);
+          return yield* actors.withChildMutation(manager.id, Effect.gen(function* () {
+            const current = yield* requireManager;
+            const turn = Option.getOrUndefined((yield* (yield* ThreadRepository).recovery(current.id)).openTurn);
+            if (turn === undefined) return yield* new ToolFailure({ message: "The manager's turn has ended." });
+            return yield* Effect.uninterruptible(work(current, turn.unattended));
+          }));
+        }),
         stop.pipe(Effect.andThen(Effect.fail(new ToolFailure({ message: "The manager's turn ended. Check thread_list before retrying." })))),
       );
+      yield* dispatched;
+      return result;
     });
 
   return ManagerTools.of({
-    thread_create: (params) => handle(mutate("Start child thread", params, (manager, unattended) => startChildThread(manager, params, unattended))),
+    thread_create: (params) => handle(Effect.gen(function* () {
+      const manager = yield* requireManager;
+      const worker = yield* resolveChildWorker(manager, params);
+      yield* validateChildWorker(manager, worker);
+      return yield* mutate({
+        _tag: "approval",
+        title: "Start child thread",
+        detail: JSON.stringify({ title: params.title, prompt: params.prompt }, null, 2),
+        childWorker: worker,
+      }, (current, unattended) => startChildThread(current, params, unattended, worker), (current) => validateChildWorker(current, worker));
+    })),
+    thread_workers: () => handle(threadWorkers(requireManager)),
+    thread_worker_models: (params) => handle(threadWorkerModels(requireManager, params)),
     thread_list: () => handle(Effect.gen(function* () {
       const manager = yield* requireManager;
       const children = yield* listChildThreads(manager.id);
       return { children: children.map((child) => ({
+        ...childWorkerSelection(child),
         threadId: child.id,
         title: child.title,
         status: child.status === "waiting" ? "waiting" as const
@@ -129,7 +160,7 @@ const managerHandlers = ManagerTools.toLayer(Effect.gen(function* () {
       })) };
     })),
     thread_read: ({ threadId }) => handle(Effect.flatMap(requireManager, (manager) => readChildThread(manager.id, threadId))),
-    thread_send: (params) => handle(mutate("Send to child thread", params, (manager, unattended) => sendToChildThread(manager.id, params.threadId, params.prompt, unattended))),
+    thread_send: (params) => handle(mutate({ _tag: "approval", title: "Send to child thread", detail: JSON.stringify(params, null, 2) }, (manager, unattended) => sendToChildThread(manager.id, params.threadId, params.prompt, unattended))),
   });
 }));
 
