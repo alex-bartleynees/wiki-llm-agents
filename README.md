@@ -32,6 +32,13 @@ All commands run through the Nix dev shell; there is no global Node.
 
 Gate before every commit: `npm test`, `npm run check`, `npm run build`, `git diff --check`.
 
+`npm run check` includes the source comment lint. It checks TypeScript, JavaScript,
+Svelte, CSS, HTML, SVG, Nix, and SQL. The design export, build output, and Drizzle's
+statement-breakpoint directives are outside the rule. Existing comments use a
+per-file fingerprint baseline. After removals, run
+`nix develop -c npm run lint:comments -- --prune` and include the baseline reductions.
+Use the shared `delete-comment` skill for cleanup batches and [the ADRs](docs/adr/) for decisions moved out of source.
+
 ### UI tests
 
 - **Flows** (`apps/web/e2e/`, Playwright): key flows at 1440px and 390px through the

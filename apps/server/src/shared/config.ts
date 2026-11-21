@@ -13,7 +13,6 @@ const absolute = (path: string) => resolve(path);
 
 /** Process configuration. Every value has a default so `wiki-agents` starts with no setup. */
 export const AppConfig = {
-  /** Loopback only; remote access comes later with authentication. */
   host: Config.String("WIKI_AGENTS_HOST").pipe(Config.withDefault("127.0.0.1")),
   port: Config.Port("WIKI_AGENTS_PORT").pipe(Config.withDefault(4317)),
   /** Absolute (a relative one, as `npm run dev` gives, is taken from the working directory): providers refuse relative paths. */

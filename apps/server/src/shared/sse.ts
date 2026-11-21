@@ -2,16 +2,10 @@ import { Effect, Stream } from "effect";
 import { HttpServerResponse } from "effect/http";
 import { ServerClosing } from "./server-closing.js";
 
-/** A comment line now and then keeps proxies and browsers from closing an idle stream. */
 const HEARTBEAT = "25 seconds";
 
-/** One server-sent event. */
 export const sseFrame = (data: string) => `data: ${data}\n\n`;
 
-/**
- * An event stream response from frames, with keep-alive comments. Ends when `frames`
- * ends or the server starts closing; the browser reconnects and subscribes again.
- */
 export const sseResponse = (frames: Stream.Stream<string>) =>
   Effect.map(ServerClosing, (closing) =>
     HttpServerResponse.stream(

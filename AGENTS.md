@@ -6,6 +6,9 @@ Read `README.md` first. Design decisions are in the user's vault at
 
 ## Rules
 
+- Write source without new prose comments. Use clear names and structure, and
+  record non-obvious design decisions in `docs/adr/`. Use the shared
+  `delete-comment` skill when cleaning up existing comments.
 - Run everything through Nix: `nix develop -c <command>`. There is no global Node.
 - Vertical slices with strict REPR. An HTTP operation is split across two packages
   at the same path:
