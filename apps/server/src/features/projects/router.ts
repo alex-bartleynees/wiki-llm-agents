@@ -22,6 +22,9 @@ import { reviewChangesEndpoint } from "./review-changes/endpoint.js";
 import { suggestCommitMessageEndpoint } from "./suggest-commit-message/endpoint.js";
 import { unignoreFileEndpoint } from "./unignore-file/endpoint.js";
 
+import { checkWorktreeBranchEndpoint } from "./check-worktree-branch/endpoint.js";
+import { deleteWorktreeBranchEndpoint } from "./delete-worktree-branch/endpoint.js";
+
 export const projectsRouter = Layer.mergeAll(
   HttpRouter.add("GET", "/api/projects", listProjectsEndpoint),
   HttpRouter.add("POST", "/api/projects", registerProjectEndpoint),
@@ -34,6 +37,8 @@ export const projectsRouter = Layer.mergeAll(
   HttpRouter.add("POST", "/api/projects/:projectId/diff/ignored", ignoreFileEndpoint),
   HttpRouter.add("DELETE", "/api/projects/:projectId/diff/ignored", unignoreFileEndpoint),
   HttpRouter.add("GET", "/api/projects/:projectId/worktrees", listWorktreesEndpoint),
+  HttpRouter.add("POST", "/api/projects/:projectId/worktrees/:threadId/branch/check", checkWorktreeBranchEndpoint),
+  HttpRouter.add("POST", "/api/projects/:projectId/worktrees/:threadId/branch/delete", deleteWorktreeBranchEndpoint),
   HttpRouter.add("GET", "/api/projects/:projectId/git", getGitStatusEndpoint),
   HttpRouter.add("POST", "/api/projects/:projectId/git/commit", commitChangesEndpoint),
   HttpRouter.add("POST", "/api/projects/:projectId/git/push", pushBranchEndpoint),

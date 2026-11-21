@@ -1,3 +1,6 @@
+import { CheckWorktreeBranchResponse } from "@wiki-agents/contracts/projects/check-worktree-branch/response";
+import { DeleteWorktreeBranchRequest } from "@wiki-agents/contracts/projects/delete-worktree-branch/request";
+import { DeleteWorktreeBranchResponse } from "@wiki-agents/contracts/projects/delete-worktree-branch/response";
 import { ArchiveProjectResponse } from "@wiki-agents/contracts/projects/archive-project/response";
 import { CommitChangesRequest } from "@wiki-agents/contracts/projects/commit-changes/request";
 import { CommitChangesResponse } from "@wiki-agents/contracts/projects/commit-changes/response";
@@ -106,3 +109,12 @@ export const getProjectMcpServers = (projectId: string, signal?: AbortSignal) =>
 /** Replaces the project's MCP servers; 400 lists what to fix. */
 export const saveProjectMcpServers = (projectId: string, body: SaveProjectMcpServersRequest) =>
   putJson(`${projectPath(projectId)}/mcp-servers`, SaveProjectMcpServersRequest, body, SaveProjectMcpServersResponse);
+
+const worktreeBranchPath = (projectId: string, threadId: string) => `${projectPath(projectId)}/worktrees/${encodeURIComponent(threadId)}/branch`;
+const BRANCH_CLEANUP_TIMEOUT = { timeoutMs: 65_000 };
+
+export const checkWorktreeBranch = (projectId: string, threadId: string) =>
+  postJson(`${worktreeBranchPath(projectId, threadId)}/check`, NoBody, {}, CheckWorktreeBranchResponse, BRANCH_CLEANUP_TIMEOUT);
+
+export const deleteWorktreeBranch = (projectId: string, threadId: string, confirmation: string) =>
+  postJson(`${worktreeBranchPath(projectId, threadId)}/delete`, DeleteWorktreeBranchRequest, { confirmation }, DeleteWorktreeBranchResponse, BRANCH_CLEANUP_TIMEOUT);

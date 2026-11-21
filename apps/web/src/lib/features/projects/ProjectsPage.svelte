@@ -14,6 +14,7 @@
   import { vaults } from "#lib/features/vaults/vaults.svelte.ts";
   import { paneWidths } from "#lib/ui/layout/pane-widths.svelte.ts";
   import PaneSplitter from "#lib/ui/layout/PaneSplitter.svelte";
+  import WorktreeBranchCleanup from "./WorktreeBranchCleanup.svelte";
   import ArchivedNotice from "./ArchivedNotice.svelte";
   import BrowserSignIns from "./BrowserSignIns.svelte";
   import ChangedFiles from "./ChangedFiles.svelte";
@@ -107,7 +108,7 @@
   const selectedWorktrees = $derived(selected === null ? [] : worktrees.of(selected.id));
   const doneThreadIds = $derived(new Set(selectedDone.map((thread) => thread.id)));
   const isDoneWorktree = (worktree: ListedWorktree) =>
-    doneThreadIds.has(worktree.threadId) && worktree.sharedWith.every((id) => doneThreadIds.has(id));
+    worktree.removedAt !== null || (doneThreadIds.has(worktree.threadId) && worktree.sharedWith.every((id) => doneThreadIds.has(id)));
   const openWorktrees = $derived(selectedWorktrees.filter((worktree) => !isDoneWorktree(worktree)));
   const doneWorktrees = $derived(selectedWorktrees.filter(isDoneWorktree));
   /** Where a thread works: its worktree's branch, or the main directory's folder. */
@@ -356,7 +357,7 @@
       <button type="button" class="link" onclick={() => openThreadOf(project, worktree.threadId)}>Open</button>
     </span>
     <span class="meta mono">
-      {#if worktree.removedAt !== null}removed {timeAgo(worktree.removedAt)} · branch kept{:else if !worktree.exists}missing: deleted outside the app{:else}{worktree.changedFiles} {worktree.changedFiles === 1 ? "file" : "files"} changed · {worktree.directory}{/if}
+      {#if worktree.removedAt !== null}removed {timeAgo(worktree.removedAt)} · <WorktreeBranchCleanup {worktree} />{:else if !worktree.exists}missing: deleted outside the app{:else}{worktree.changedFiles} {worktree.changedFiles === 1 ? "file" : "files"} changed · {worktree.directory}{/if}
     </span>
   </div>
 {/snippet}

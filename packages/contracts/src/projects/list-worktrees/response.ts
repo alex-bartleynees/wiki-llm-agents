@@ -5,6 +5,7 @@ export const ListedWorktree = Schema.Struct({
   ...Worktree.fields,
   /** False once removed, or when its folder was deleted outside the app. */
   exists: Schema.Boolean,
+  branchDeleted: Schema.optionalKey(Schema.Boolean),
   /** Files that differ from the worktree's `HEAD`, ignored files left out; null when it doesn't exist. */
   changedFiles: Schema.NullOr(Schema.Number),
   /** Other threads working in it too (threads continued with the same folder), oldest first. */

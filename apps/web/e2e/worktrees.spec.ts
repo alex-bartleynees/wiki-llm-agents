@@ -114,14 +114,15 @@ test(`from ${entry}: runs a thread in its own worktree, reviews its diff, and re
   // Committed (as you'd ask the agent to), it goes; the branch stays.
   git(worktree, "commit", "-qam", "agent's edit");
   await bar.getByRole("button", { name: "Remove worktree" }).click();
-  await expect(bar).toContainText("worktree removed · branch kept");
+  await expect(bar).toContainText("worktree removed");
+  await expect(bar.getByText("Branch kept", { exact: true })).toBeVisible();
   expect(git(folder, "branch", "--list", branch).trim()).toBe(branch);
   expect(readFileSync(join(folder, "Replay note.md"), "utf8")).toBe(NOTE);
   await page.goto(`/projects/${project.id}`);
   await expect(doneWorktrees).toBeVisible();
   await expect(branchLabel).toBeHidden();
   await doneWorktrees.click();
-  await expect(overview.getByText(/removed .* · branch kept/)).toBeVisible();
+  await expect(overview.getByText("Branch kept", { exact: true })).toBeVisible();
 });
 
 }
@@ -176,3 +177,76 @@ test("continues a worktree thread in a new thread that shares the worktree", asy
   await expect(bar).not.toContainText("This thread is done. Remove its worktree?");
   await expect(bar.getByRole("button", { name: "Remove worktree" })).not.toHaveClass(/offered/);
 });
+
+for (const entry of ["project", "thread"] as const) {
+  test(`checks, cancels, and deletes a merged local branch from the ${entry} worktree view`, async ({ page }, info) => {
+    const folder = projectFolder(info, `cleanup-${entry}`);
+    const remote = projectFolder(info, `cleanup-remote-${entry}`);
+    git(folder, "init", "-qb", "main");
+    git(folder, "config", "core.logAllRefUpdates", "true");
+    git(folder, "commit", "-qm", "initial", "--allow-empty");
+    git(remote, "clone", "--bare", folder, ".");
+    git(folder, "remote", "add", "origin", remote);
+    const registered = await page.request.post("/api/projects", {
+      data: { name: `Cleanup ${entry} ${info.project.name}`, workingDirectories: [folder] },
+    });
+    expect(registered.status()).toBe(201);
+    const { project } = (await registered.json()) as { project: { id: string; vaultId: string } };
+    const branch = "wiki-agents/cleanup";
+    const created = await page.request.post(`/api/vaults/${project.vaultId}/threads`, {
+      data: { projectId: project.id, providerInstanceId: "replay", worktree: { branch } },
+    });
+    expect(created.status()).toBe(201);
+    const { thread } = (await created.json()) as { thread: { id: string } };
+    const listing = await page.request.get(`/api/projects/${project.id}/worktrees`);
+    const { worktrees: [row] } = (await listing.json()) as { worktrees: Array<{ directory: string }> };
+    git(row!.directory, "commit", "-qm", "worktree commit", "--allow-empty");
+    git(folder, "push", "origin", branch);
+    expect((await page.request.post(`/api/threads/${thread.id}/worktree/remove`, { data: {} })).ok()).toBe(true);
+
+    const overview = page.getByRole("region", { name: "Worktrees" });
+    const bar = page.getByRole("region", { name: "Worktree", exact: true });
+    const openProject = async () => {
+      await page.goto(`/projects/${project.id}`);
+      await overview.getByText("done · 1", { exact: true }).click();
+    };
+    const openThread = () => overview.getByRole("button", { name: "Open", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Delete local branch" });
+    const confirm = dialog.getByRole("button", { name: "Delete local branch", exact: true });
+    const cancel = dialog.getByRole("button", { name: "Cancel" });
+    const trigger = (view: typeof overview) => view.getByRole("button", { name: "Delete branch…" });
+
+    await openProject();
+    await trigger(overview).click();
+    await expect(dialog.getByText("Merge not verified against origin/main", { exact: false })).toBeVisible();
+    await expect(confirm).toHaveCount(0);
+    await cancel.click();
+    await expect(dialog).toBeHidden();
+
+    git(folder, "merge", "--no-ff", "--no-edit", branch);
+    git(folder, "push", "origin", "main");
+    await openThread();
+    await trigger(bar).click();
+    await expect(dialog.getByText(branch, { exact: true })).toBeVisible();
+    await expect(dialog.getByText("origin/main", { exact: true })).toBeVisible();
+    await cancel.click();
+    await expect(dialog).toBeHidden();
+    expect(git(folder, "branch", "--list", branch).trim()).toBe(branch);
+
+    if (entry === "project") await openProject();
+    await trigger(entry === "project" ? overview : bar).click();
+    await confirm.click();
+    await expect(dialog).toBeHidden();
+    await expect((entry === "project" ? overview : bar).getByText("Branch deleted", { exact: true })).toBeVisible();
+    if (entry === "project") {
+      await openThread();
+      await expect(bar.getByText("Branch deleted", { exact: true })).toBeVisible();
+    } else {
+      await openProject();
+      await expect(overview.getByText("Branch deleted", { exact: true })).toBeVisible();
+      await expect(overview.getByRole("button", { name: "Open", exact: true })).toBeVisible();
+    }
+    expect(git(folder, "branch", "--list", branch).trim()).toBe("");
+    expect(git(remote, "branch", "--list", branch).trim()).toBe(branch);
+  });
+}

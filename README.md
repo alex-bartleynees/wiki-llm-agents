@@ -450,7 +450,14 @@ vault's threads show.
   Choose a branch name to start on a separate checkout from HEAD. Review its
   changes in the project's Diff view. Finished worktrees appear in a collapsed
   **done** group. Marking a thread done offers to remove its worktree. Removal
-  requires a clean worktree and no busy thread sharing it. The branch is kept.
+  requires a clean worktree and no busy thread sharing it. **Delete branch…**
+  appears beside **Branch kept** in the project's done worktrees and the thread's
+  worktree details. It checks the original local branch against the remote's
+  freshly fetched default branch (`origin/main` for this app's repository).
+  Confirmation deletes the local branch if Git verifies its ancestry and the
+  branch is unused. The remote branch, removed-worktree history, and thread link
+  stay. Squash merges and older removals without branch identity evidence can
+  block cleanup.
 - **Diff** (`/projects/<id>/diff`, also **Review the diff** under changed files)
   shows each working directory's changes from git, compared with `HEAD`: staged and
   unstaged together, untracked (not ignored) files as new, renames detected, binary

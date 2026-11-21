@@ -5,7 +5,7 @@ import { ProjectFilesError } from "./files.js";
 import { isWorkTree, runGit } from "./git.js";
 
 /**
- * The app's only git writes, each started by the user: `git worktree add` (a new
+ * The worktree Git writes, each started by the user: `git worktree add` (a new
  * branch from `HEAD`) and `git worktree remove` without `--force`. Neither touches the
  * main working tree, the index or any branch but the new one. Everything else in
  * `git.ts` only reads.

@@ -27,6 +27,11 @@ export interface IgnoredFile {
   readonly path: string;
 }
 
+export interface StoredWorktree extends Worktree {
+  readonly removedBranchIdentity: string | null;
+  readonly branchDeletedAt: number | null;
+}
+
 export interface ProjectRepositoryService {
   /** By name. */
   readonly list: Effect.Effect<ReadonlyArray<Project>, DbError>;
@@ -44,9 +49,9 @@ export interface ProjectRepositoryService {
   readonly unignoreFile: (id: string, file: IgnoredFile) => Effect.Effect<void, DbError>;
   readonly insertWorktree: (worktree: Worktree) => Effect.Effect<void, DbError>;
   /** The project's worktrees, oldest first, removed ones included. */
-  readonly worktrees: (projectId: string) => Effect.Effect<ReadonlyArray<Worktree>, DbError>;
+  readonly worktrees: (projectId: string) => Effect.Effect<ReadonlyArray<StoredWorktree>, DbError>;
   /** The thread's own worktree, or the one it shares (see `shareWorktree`). */
-  readonly worktreeOfThread: (threadId: string) => Effect.Effect<Option.Option<Worktree>, DbError>;
+  readonly worktreeOfThread: (threadId: string) => Effect.Effect<Option.Option<StoredWorktree>, DbError>;
   /** The thread works in `ownerThreadId`'s worktree from now on. */
   readonly shareWorktree: (threadId: string, ownerThreadId: string) => Effect.Effect<void, DbError>;
   /** Undoes `shareWorktree` for a thread that couldn't be saved. */
@@ -54,7 +59,8 @@ export interface ProjectRepositoryService {
   /** Threads sharing the project's worktrees, with whose worktree each shares. */
   readonly worktreeShares: (projectId: string) => Effect.Effect<ReadonlyArray<{ readonly threadId: string; readonly ownerThreadId: string }>, DbError>;
   /** `threadId` is the worktree's owner. */
-  readonly setWorktreeRemoved: (threadId: string, at: number) => Effect.Effect<void, DbError>;
+  readonly setWorktreeRemoved: (threadId: string, at: number, identity: string | null) => Effect.Effect<void, DbError>;
+  readonly setWorktreeBranchDeleted: (threadId: string, at: number) => Effect.Effect<void, DbError>;
   /** Forgets a worktree undone because its thread couldn't be saved. */
   readonly deleteWorktree: (threadId: string) => Effect.Effect<void, DbError>;
   /** Both null until saved. */

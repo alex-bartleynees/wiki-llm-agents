@@ -1,6 +1,6 @@
 import type { ListedWorktree, ListWorktreesResponse } from "@wiki-agents/contracts/projects/list-worktrees/response";
 import { removeWorktree } from "#lib/features/threads/api.ts";
-import { listWorktrees } from "./api.ts";
+import { deleteWorktreeBranch, listWorktrees } from "./api.ts";
 
 /** A fresh branch name for a new thread's worktree: `wiki-agents/` and eight hex digits. */
 export const suggestedBranch = () => `wiki-agents/${crypto.randomUUID().replaceAll("-", "").slice(0, 8)}`;
@@ -11,6 +11,7 @@ export const suggestedBranch = () => `wiki-agents/${crypto.randomUUID().replaceA
  * worktree is made or removed.
  */
 class WorktreesStore {
+  #requests = new Map<string, symbol>();
   #byProject = $state<Record<string, ListWorktreesResponse>>({});
 
   /** Whether new threads in the project can have a worktree; false until loaded. */
@@ -30,10 +31,35 @@ class WorktreesStore {
 
   /** Loads (or reloads) the project's worktrees; a failure keeps what was shown. */
   async load(projectId: string) {
+    const request = Symbol();
+    this.#requests.set(projectId, request);
     try {
-      this.#byProject[projectId] = await listWorktrees(projectId);
+      const result = await listWorktrees(projectId);
+      if (this.#requests.get(projectId) === request) this.#byProject[projectId] = result;
     } catch {
       // The option and headers stay as they were; the next load tries again.
+    } finally {
+      if (this.#requests.get(projectId) === request) this.#requests.delete(projectId);
+    }
+  }
+
+  /** Update every view of this worktree, including threads that share its owner's record. */
+  markBranchDeleted(projectId: string, threadId: string) {
+    this.#requests.delete(projectId);
+    const current = this.#byProject[projectId];
+    if (current === undefined) return;
+    this.#byProject[projectId] = {
+      ...current,
+      worktrees: current.worktrees.map((row) => row.threadId === threadId ? { ...row, branchDeleted: true } : row),
+    };
+  }
+
+  async deleteBranch(projectId: string, threadId: string, confirmation: string) {
+    try {
+      await deleteWorktreeBranch(projectId, threadId, confirmation);
+      this.markBranchDeleted(projectId, threadId);
+    } finally {
+      await this.load(projectId);
     }
   }
 

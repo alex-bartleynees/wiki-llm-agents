@@ -114,8 +114,10 @@ export const ProjectRepositoryLive = Layer.effect(
             .orderBy(asc(threadWorktreeShares.threadId))
             .all(),
         ),
-      setWorktreeRemoved: (threadId, at) =>
-        query(() => void db.update(projectWorktrees).set({ removedAt: at }).where(eq(projectWorktrees.threadId, threadId)).run()),
+      setWorktreeRemoved: (threadId, at, identity) =>
+        query(() => void db.update(projectWorktrees).set({ removedAt: at, removedBranchIdentity: identity }).where(eq(projectWorktrees.threadId, threadId)).run()),
+      setWorktreeBranchDeleted: (threadId, at) =>
+        query(() => void db.update(projectWorktrees).set({ branchDeletedAt: at }).where(eq(projectWorktrees.threadId, threadId)).run()),
       deleteWorktree: (threadId) => query(() => void db.delete(projectWorktrees).where(eq(projectWorktrees.threadId, threadId)).run()),
       commitMessageSettings: query(() => {
         const row = db.select().from(commitMessageSettings).where(eq(commitMessageSettings.id, SETTINGS_ROW)).get();

@@ -1,3 +1,5 @@
+import { CheckWorktreeBranchResponse } from "@wiki-agents/contracts/projects/check-worktree-branch/response";
+import { DeleteWorktreeBranchResponse } from "@wiki-agents/contracts/projects/delete-worktree-branch/response";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -127,7 +129,127 @@ const turn = (threadId: string, text: string) =>
 const sessionOf = (threadId: string) => opened.findLast((input) => input.threadId === threadId)!;
 const branches = (repo: string) => git(repo, "branch", "--format=%(refname:short)").split("\n").filter(Boolean).sort();
 
+const cleanupFixture = Effect.gen(function* () {
+  const vault = yield* shared;
+  const dir = yield* temp;
+  const repo = repository(join(dir, "repo"), { "app.ts": "initial\n" });
+  git(repo, "config", "core.logAllRefUpdates", "true");
+  const remote = join(dir, "remote.git");
+  git(dir, "clone", "--bare", repo, remote);
+  git(repo, "remote", "add", "origin", remote);
+  const project = yield* register({ name: "Branch cleanup", workingDirectories: [repo] });
+  const branch = "wiki-agents/cleanup";
+  const thread = yield* createThread(vault.id, { projectId: project.id, worktree: { branch } });
+  const [row] = yield* worktrees(project.id);
+  writeFileSync(join(row!.directory, "app.ts"), "changed\n");
+  git(row!.directory, "commit", "-qam", "worktree change");
+  git(repo, "push", "origin", branch);
+  const route = (id: string) => `/api/projects/${project.id}/worktrees/${id}/branch`;
+  const check = (id = thread.id) => post(`${route(id)}/check`, {}).pipe(Effect.flatMap(decode(CheckWorktreeBranchResponse)));
+  const confirm = (confirmation: string, id = thread.id) => post(`${route(id)}/delete`, { confirmation });
+  const remove = removeWorktree(thread.id).pipe(Effect.flatMap(decode(RemoveWorktreeResponse)));
+  const merge = () => {
+    git(repo, "merge", "--no-ff", "--no-edit", branch);
+    git(repo, "push", "origin", "main");
+  };
+  return { repo, dir, remote, project, thread, branch, check, confirm, remove, merge };
+});
+
 layer(makeTestApp({ vaults: [sharedRoot], providers: makeProviderRegistry(Effect.succeed([writer])) }))("thread worktrees", (test) => {
+  test.effect("deletes a verified merged branch from a shared removed row and preserves the remote and history on retry", () =>
+    Effect.gen(function* () {
+      const f = yield* cleanupFixture;
+      const sharing = yield* continueOk(f.thread.id, { text: "Pick up here." });
+      yield* removeWorktree(sharing.id).pipe(Effect.flatMap(decode(RemoveWorktreeResponse)));
+      f.merge();
+      const result = yield* f.check(sharing.id);
+      expect(result).toMatchObject({ status: "ready", branch: f.branch, target: "origin/main" });
+      if (result.status !== "ready") throw new Error(JSON.stringify(result));
+      expect((yield* f.confirm("invalid", sharing.id)).status).toBe(409);
+      const deleted = yield* f.confirm(result.confirmation).pipe(Effect.flatMap(decode(DeleteWorktreeBranchResponse)));
+      expect(deleted.status).toBe("deleted");
+      expect(branches(f.repo)).toEqual(["main"]);
+      expect(branches(f.remote)).toContain(f.branch);
+      expect(yield* worktrees(f.project.id)).toMatchObject([{ threadId: f.thread.id, sharedWith: [sharing.id], branchDeleted: true, exists: false }]);
+      expect((yield* f.confirm(result.confirmation, sharing.id)).status).toBe(200);
+      git(f.repo, "branch", f.branch);
+      expect((yield* f.confirm(result.confirmation)).status).toBe(200);
+      expect(branches(f.repo)).toContain(f.branch);
+    }));
+
+  test.effect("blocks unmerged and squash-merged branches and a remote which cannot be fetched", () =>
+    Effect.gen(function* () {
+      const f = yield* cleanupFixture;
+      yield* f.remove;
+      expect(yield* f.check()).toMatchObject({ status: "blocked", reason: expect.stringContaining("Merge not verified") });
+      git(f.repo, "merge", "--squash", f.branch);
+      git(f.repo, "commit", "-qm", "squashed");
+      git(f.repo, "push", "origin", "main");
+      expect(yield* f.check()).toMatchObject({ status: "blocked", reason: expect.stringContaining("Merge not verified") });
+      // Advertisement still succeeds, but fetch cannot replace the local tracking ref.
+      git(f.repo, "update-ref", "-d", "refs/remotes/origin/main");
+      const lock = join(f.repo, ".git/refs/remotes/origin/main.lock");
+      writeFileSync(lock, "");
+      expect(yield* f.check()).toMatchObject({ status: "blocked", reason: expect.stringContaining("could not be verified and fetched") });
+      rmSync(lock);
+      git(f.repo, "remote", "set-url", "origin", join(f.dir, "missing.git"));
+      expect(yield* f.check()).toMatchObject({ status: "blocked", reason: expect.stringContaining("could not be verified and fetched") });
+      expect(branches(f.repo)).toContain(f.branch);
+    }));
+
+  test.effect("rejects checkout elsewhere, changed target and branch tips, and reuse at the same tip", () =>
+    Effect.gen(function* () {
+      const f = yield* cleanupFixture;
+      yield* f.remove;
+      f.merge();
+      const first = yield* f.check();
+      if (first.status !== "ready") throw new Error(JSON.stringify(first));
+      const other = join(f.dir, "other");
+      git(f.repo, "worktree", "add", other, f.branch);
+      const occupied = yield* f.confirm(first.confirmation);
+      expect(occupied.status).toBe(409);
+      expect(yield* occupied.text).toContain("checked out");
+      git(f.repo, "worktree", "remove", other);
+      git(f.repo, "commit", "--allow-empty", "-qm", "advance target");
+      git(f.repo, "push", "origin", "main");
+      expect((yield* f.confirm(first.confirmation)).status).toBe(409);
+      const fresh = yield* f.check();
+      if (fresh.status !== "ready") throw new Error(JSON.stringify(fresh));
+      const tip = git(f.repo, "rev-parse", f.branch).trim();
+      git(f.repo, "branch", "-f", f.branch, "main");
+      expect((yield* f.confirm(fresh.confirmation)).status).toBe(409);
+      git(f.repo, "branch", "-D", f.branch);
+      git(f.repo, "branch", f.branch, tip);
+      expect(yield* f.check()).toMatchObject({ status: "blocked", reason: expect.stringContaining("identity") });
+      git(f.repo, "branch", "-D", f.branch);
+      expect(yield* f.check()).toEqual({ status: "deleted" });
+      expect(yield* worktrees(f.project.id)).toMatchObject([{ branchDeleted: true }]);
+    }));
+
+  test.effect("uses the current remote default and shields it from deletion", () =>
+    Effect.gen(function* () {
+      const f = yield* cleanupFixture;
+      yield* f.remove;
+      f.merge();
+      git(f.repo, "push", "origin", "main:trunk");
+      git(f.remote, "symbolic-ref", "HEAD", "refs/heads/trunk");
+      expect(yield* f.check()).toMatchObject({ status: "ready", target: "origin/trunk" });
+      git(f.remote, "symbolic-ref", "HEAD", `refs/heads/${f.branch}`);
+      expect(yield* f.check()).toMatchObject({ status: "blocked", reason: "This branch is the remote merge target." });
+      expect(branches(f.repo)).toContain(f.branch);
+    }));
+
+  test.effect("keeps a merged branch when a missing worktree leaves no removal-time identity", () =>
+    Effect.gen(function* () {
+      const f = yield* cleanupFixture;
+      const [row] = yield* worktrees(f.project.id);
+      git(f.repo, "worktree", "remove", row!.path);
+      yield* f.remove;
+      f.merge();
+      expect(yield* f.check()).toMatchObject({ status: "blocked", reason: expect.stringContaining("identity") });
+      expect(branches(f.repo)).toContain(f.branch);
+    }));
+
   test.effect("runs a thread in its own worktree on a new branch, leaving the main directory untouched", () =>
     Effect.gen(function* () {
       const vault = yield* shared;

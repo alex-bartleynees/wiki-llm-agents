@@ -65,6 +65,8 @@ export const projectWorktrees = sqliteTable("project_worktrees", {
   createdAt: integer("created_at").notNull(),
   /** Milliseconds since the epoch; null until the app removes it. */
   removedAt: integer("removed_at"),
+  removedBranchIdentity: text("removed_branch_identity"),
+  branchDeletedAt: integer("branch_deleted_at"),
 });
 
 /**

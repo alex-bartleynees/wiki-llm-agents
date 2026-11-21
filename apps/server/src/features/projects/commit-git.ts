@@ -116,6 +116,10 @@ const succeed = (directory: string, args: ReadonlyArray<string>, options: WriteO
         ),
   );
 
+/** Bounded, non-interactive network calls for worktree branch merge verification. */
+export const queryRemoteForCleanup = (directory: string, args: ReadonlyArray<string>) =>
+  succeed(directory, args, { timeout: Duration.seconds(20) });
+
 /** A setting from git's config for `directory`, or null when it isn't set. */
 const configValue = (directory: string, key: string) =>
   Effect.map(write(directory, ["config", "--get", key], { timeout: COMMIT_TIMEOUT }), (result) =>

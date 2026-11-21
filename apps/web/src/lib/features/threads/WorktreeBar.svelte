@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { ThreadSummary } from "@wiki-agents/contracts/threads/model";
   import { errorMessage } from "#lib/api/client.ts";
+  import WorktreeBranchCleanup from "#lib/features/projects/WorktreeBranchCleanup.svelte";
   import { worktrees } from "#lib/features/projects/worktrees.svelte.ts";
 
   /**
@@ -65,7 +66,8 @@
         <span class="shared mono" title="Another thread works in this worktree too: you share its files. Removing it removes it for both.">shared</span>
       {/if}
       {#if worktree.removedAt !== null}
-        <span class="state mono">worktree removed · branch kept</span>
+        <span class="state mono">worktree removed</span>
+        {#key worktree.threadId}<WorktreeBranchCleanup {worktree} />{/key}
       {:else}
         <span class="path mono" title={worktree.directory}>{worktree.directory}</span>
         <button type="button" class="link" onclick={() => copy(worktree.directory)}>{copied ? "Copied" : "Copy path"}</button>

@@ -30,13 +30,13 @@ class GitFailed extends Error {}
 /** Untracked files larger than this are listed without reading them. */
 const MAX_UNTRACKED_BYTES = 32 * 1024 * 1024;
 
-const run = (directory: string, args: ReadonlyArray<string>, literal = false) =>
+const run = (directory: string, args: ReadonlyArray<string>, literal = false, env: NodeJS.ProcessEnv = {}) =>
   new Promise<{ readonly code: number | null; readonly stdout: string; readonly stderr: string }>((resolve) =>
     execFile(
       "git",
       ["--no-pager", ...(literal ? ["--literal-pathspecs"] : []), "-C", directory, ...args],
       // No index refresh on the way: reading must not take git's lock while an agent or lazygit works.
-      { maxBuffer: 1024 * 1024 * 1024, encoding: "utf8", env: { ...process.env, GIT_OPTIONAL_LOCKS: "0", LC_ALL: "C" } },
+      { maxBuffer: 1024 * 1024 * 1024, encoding: "utf8", env: { ...process.env, GIT_OPTIONAL_LOCKS: "0", LC_ALL: "C", ...env } },
       (error, stdout, stderr) => resolve({ code: error === null ? 0 : typeof error.code === "number" ? error.code : null, stdout, stderr }),
     ),
   );
@@ -277,5 +277,5 @@ const statusOf = async (directory: string) => {
 /** `directory`'s branch and how it stands against its upstream (see `GitStatus`), and its remotes. */
 export const branchStatus = (directory: string) => Effect.tryPromise({ try: () => statusOf(directory), catch: failed });
 
-/** For `worktree-git.ts` and `commit-git.ts`, the app's only git writes: the same runner (no shell, no pager). */
+/** Shared Git runner for project operations (no shell or pager). */
 export { isWorkTree, run as runGit };

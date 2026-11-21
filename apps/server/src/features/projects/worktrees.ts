@@ -3,6 +3,7 @@ import { isAbsolute, join, relative } from "node:path";
 import type { Project, Worktree } from "@wiki-agents/contracts/projects/model";
 import { Clock, Context, Data, Effect, Layer, Option } from "effect";
 import { AppConfig } from "../../shared/config.js";
+import { captureRemovedBranch } from "./branch-cleanup-git.js";
 import { InvalidProject } from "./errors.js";
 import { findProject } from "./find-project.js";
 import { mainDirectory } from "./project-context.js";
@@ -12,8 +13,7 @@ import { addWorktree, checkBranch, removeEmptyParents, removeWorktree, worktreeP
 /**
  * Opt-in git worktrees for threads (slice 14b): a thread can run in its own checkout of
  * the project's main directory, on a new branch, so two threads in one repository never
- * mix their changes. The app makes and removes them when asked and never commits,
- * merges or deletes the branch.
+ * mix their changes. The app makes and removes them when asked. Branch cleanup is a separate action.
  */
 
 /**
@@ -80,7 +80,7 @@ export const createWorktree = Effect.fn("createWorktree")(function* (project: Pr
 
 /**
  * Undoes `createWorktree` when its thread couldn't be saved: removes the clean
- * worktree and forgets it. The branch stays (the app never deletes branches).
+ * worktree and forgets it. The branch stays.
  */
 export const discardWorktree = (worktree: Worktree) =>
   Effect.gen(function* () {
@@ -130,7 +130,7 @@ export const worktreeProblem = Effect.fnUntraced(function* (threadId: string) {
   const found = yield* threadWorktree(threadId);
   if (Option.isNone(found)) return null;
   const worktree = found.value;
-  if (worktree.removedAt !== null) return `This thread's worktree (branch ${worktree.branch}) was removed, so it has nowhere to work. The branch is kept; start a new thread to carry on.`;
+  if (worktree.removedAt !== null) return `This thread's worktree (branch ${worktree.branch}) was removed, so it has nowhere to work. Start a new thread to carry on.`;
   if (!(yield* exists(worktree.directory))) {
     return `This thread's worktree (branch ${worktree.branch}) is missing from ${worktree.path}; it was deleted outside the app. Start a new thread to carry on.`;
   }
@@ -148,14 +148,17 @@ export const removeThreadWorktree = Effect.fn("removeThreadWorktree")(function* 
   if (Option.isNone(found)) return yield* new WorktreeNotFound({ threadId });
   const worktree = found.value;
   if (worktree.removedAt !== null) return worktree;
+  let identity: string | null = null;
   if (yield* exists(worktree.path)) {
     const project = yield* findProject(worktree.projectId);
-    yield* removeWorktree(mainDirectory(project), worktree.path);
+    const main = mainDirectory(project);
+    identity = yield* Effect.promise(() => captureRemovedBranch(main, worktree.path, worktree.branch));
+    yield* removeWorktree(main, worktree.path);
     yield* removeEmptyParents(worktree.path, (yield* WorktreeRoot).directory);
   }
   const removedAt = yield* Clock.currentTimeMillis;
   // A shared worktree is its owner's record, so it is removed for every thread in it.
-  yield* repository.setWorktreeRemoved(worktree.threadId, removedAt);
+  yield* repository.setWorktreeRemoved(worktree.threadId, removedAt, identity);
   return { ...worktree, removedAt } satisfies Worktree;
 });
 
