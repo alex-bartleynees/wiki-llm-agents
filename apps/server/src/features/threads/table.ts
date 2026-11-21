@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { index, integer, primaryKey, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 /** A conversation with an agent, scoped to the vault or a project. */
@@ -25,11 +26,14 @@ export const threads = sqliteTable(
     parentThreadId: text("parent_thread_id"),
     /** When you marked the thread done; cleared by its next message. */
     doneAt: integer("done_at", { mode: "timestamp_ms" }),
+    doneReason: text("done_reason", { enum: ["inactivity"] }),
+    activityAt: integer("activity_at"),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
     deletedAt: integer("deleted_at", { mode: "timestamp_ms" }),
   },
-  (table) => [index("threads_vault_idx").on(table.vaultId, table.updatedAt), index("threads_continued_from_idx").on(table.continuedFromThreadId), index("threads_parent_idx").on(table.parentThreadId)],
+  (table) => [index("threads_vault_idx").on(table.vaultId, table.updatedAt), index("threads_continued_from_idx").on(table.continuedFromThreadId), index("threads_parent_idx").on(table.parentThreadId),
+    index("threads_inactivity_idx").on(table.activityAt, table.id).where(sql`${table.doneAt} IS NULL AND ${table.deletedAt} IS NULL`)],
 );
 
 /**
@@ -140,3 +144,9 @@ export const threadSubagents = sqliteTable(
   },
   (table) => [primaryKey({ columns: [table.threadId, table.subagentId] }), index("thread_subagents_status_idx").on(table.status)],
 );
+
+export const threadInactivityPolicy = sqliteTable("thread_inactivity_policy", {
+  id: integer("id").primaryKey(),
+  enabled: integer("enabled", { mode: "boolean" }).notNull(),
+  days: integer("days").notNull(),
+});

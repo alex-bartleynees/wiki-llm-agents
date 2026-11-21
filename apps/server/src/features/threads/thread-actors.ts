@@ -28,6 +28,7 @@ export interface ThreadActorsService {
   ) => Effect.Effect<void, StartError | Effect.Error<ReturnType<ThreadActor["answerRequest"]>>>;
   readonly setModel: (threadId: string, model: string) => Effect.Effect<ThreadSummary, StartError | Effect.Error<ReturnType<ThreadActor["setModel"]>>>;
   readonly setAgent: (threadId: string, agentId: string | null) => Effect.Effect<ThreadSummary, StartError | Effect.Error<ReturnType<ThreadActor["setAgent"]>>>;
+  readonly completeInactive: (threadId: string) => Effect.Effect<void, StartError | Effect.Error<ThreadActor["completeInactive"]>>;
   readonly setDone: (threadId: string, done: boolean) => Effect.Effect<ThreadSummary, StartError | Effect.Error<ReturnType<ThreadActor["setDone"]>>>;
   readonly writeNote: (threadId: string, input: AgentNoteWrite) => Effect.Effect<SaveNoteResponse, StartError | Effect.Error<ReturnType<ThreadActor["writeNote"]>>>;
   /** See `ThreadActor.approveToolCall`. */
@@ -80,6 +81,7 @@ export const ThreadActorsLive = Layer.effect(
       answerRequest: (threadId, requestId, answer) => withActor(threadId, (actor) => actor.answerRequest(requestId, answer)),
       setModel: (threadId, model) => withActor(threadId, (actor) => actor.setModel(model)),
       setAgent: (threadId, agentId) => withActor(threadId, (actor) => actor.setAgent(agentId)),
+      completeInactive: (threadId) => mutations.withPermits(1)(withActor(threadId, (actor) => actor.completeInactive)),
       setDone: (threadId, done) => withActor(threadId, (actor) => actor.setDone(done)),
       writeNote: (threadId, input) => withActor(threadId, (actor) => actor.writeNote(input)),
       approveToolCall: (threadId, call) => withActor(threadId, (actor) => actor.approveToolCall(call)),

@@ -1,3 +1,4 @@
+import { WallClock } from "../../shared/wall-clock.js";
 import type { Attachment } from "@wiki-agents/contracts/attachments/model";
 import type { SaveNoteResponse } from "@wiki-agents/contracts/notes/save-note/response";
 import { AttachmentStore } from "../attachments/attachment-store.js";
@@ -16,7 +17,7 @@ import { randomUUID } from "node:crypto";
 import { dirname } from "node:path";
 import type { ContextNote } from "@wiki-agents/contracts/threads/context";
 import { isSubagentActive, type RequestAnswer, type ThreadEvent, type ThreadSummary, type TurnOutcome, type TurnUsage } from "@wiki-agents/contracts/threads/model";
-import { Cause, Clock, Deferred, Effect, Exit, Fiber, FileSystem, Option, Queue, Scope, Stream } from "effect";
+import { Cause, Deferred, Effect, Exit, Fiber, FileSystem, Option, Queue, Scope, Stream } from "effect";
 import type { DbError } from "../../shared/persistence/errors.js";
 import { AgentCatalog } from "../agents/catalog.js";
 import { sessionSetup } from "../agents/session-setup.js";
@@ -72,6 +73,7 @@ type Message =
     }
   | { readonly _tag: "SetModel"; readonly model: string; readonly reply: Deferred.Deferred<ThreadSummary, DbError | ProviderError> }
   | { readonly _tag: "SetAgent"; readonly agentId: string | null; readonly reply: Deferred.Deferred<ThreadSummary, DbError> }
+  | { readonly _tag: "CompleteInactive"; readonly reply: Deferred.Deferred<void, DbError> }
   | { readonly _tag: "SetDone"; readonly done: boolean; readonly reply: Deferred.Deferred<ThreadSummary, ThreadBusy | DbError> }
   | { readonly _tag: "OpenNote"; readonly note: OpenedNote; readonly reply: Deferred.Deferred<void, NoTurnRunning | DbError> }
   | { readonly _tag: "ScheduleSaved"; readonly receipt: ScheduleReceipt; readonly reply: Deferred.Deferred<void, NoTurnRunning | DbError> }
@@ -175,6 +177,7 @@ export interface ThreadActor {
   readonly setModel: (model: string) => Effect.Effect<ThreadSummary, DbError | ProviderError>;
   /** Saves the thread's agent; its instructions and autonomy apply from the next turn. */
   readonly setAgent: (agentId: string | null) => Effect.Effect<ThreadSummary, DbError>;
+  readonly completeInactive: Effect.Effect<void, DbError>;
   /** Marks the thread done (refused while a turn runs or waits for you), or reopens it. */
   readonly setDone: (done: boolean) => Effect.Effect<ThreadSummary, ThreadBusy | DbError>;
   /** Records that the agent opened a note, in the running turn (the UI opens it). */
@@ -256,6 +259,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
   const noteWriteServices = yield* Effect.context<Effect.Services<ReturnType<typeof prepareAgentNoteWrite>> | Effect.Services<ReturnType<typeof saveNote>>>();
   const attachmentStore = yield* AttachmentStore;
   const actorScope = yield* Effect.scope;
+  const clock = yield* WallClock;
   const mailbox = yield* Queue.unbounded<Message>();
   let reportWakeScheduled = false;
   let reportsWaiting = false;
@@ -371,8 +375,9 @@ export const makeThreadActor = Effect.fnUntraced(function* (
   });
 
   const record = Effect.fnUntraced(function* (events: ReadonlyArray<ThreadEvent>, options?: { readonly startTurn?: string }) {
-    const stored = yield* repository.append(threadId, events, yield* Clock.currentTimeMillis, options);
+    const { stored, reopenedManager } = yield* repository.append(threadId, events, yield* clock.now, options);
     yield* bus.publishEvents(stored);
+    if (reopenedManager !== undefined) yield* bus.publishThread(reopenedManager);
     if (events.some((event) => LIST_EVENTS.has(event._tag))) {
       const summary = yield* repository.find(threadId);
       if (Option.isSome(summary)) yield* bus.publishThread(summary.value);
@@ -850,14 +855,14 @@ export const makeThreadActor = Effect.fnUntraced(function* (
   };
 
   const setModel = Effect.fnUntraced(function* (model: string) {
-    const summary = yield* repository.setModel(threadId, model, yield* Clock.currentTimeMillis);
+    const summary = yield* repository.setModel(threadId, model, yield* clock.now);
     if (session !== undefined) yield* session.setModel(model);
     yield* bus.publishThread(summary);
     return summary;
   });
 
   const setAgent = Effect.fnUntraced(function* (agentId: string | null) {
-    const summary = yield* repository.setAgent(threadId, agentId, yield* Clock.currentTimeMillis);
+    const summary = yield* repository.setAgent(threadId, agentId, yield* clock.now);
     yield* bus.publishThread(summary);
     return summary;
   });
@@ -865,9 +870,15 @@ export const makeThreadActor = Effect.fnUntraced(function* (
   const setDone = Effect.fnUntraced(function* (done: boolean) {
     // A pending request belongs to the running turn or a subagent at work, so this also covers "waiting".
     if (done && (turn !== undefined || subagents.size > 0)) return yield* new ThreadBusy({ threadId });
-    const summary = yield* repository.setDone(threadId, done ? yield* Clock.currentTimeMillis : null);
+    const summary = yield* repository.setDone(threadId, done, yield* clock.now);
     yield* bus.publishThread(summary);
     return summary;
+  });
+
+  const completeInactive = Effect.gen(function* () {
+    if (turn !== undefined || pending.size > 0 || subagents.size > 0 || startedTurns.length > 0 || reportWakeScheduled || reportsWaiting) return;
+    const summary = yield* repository.completeInactive(threadId, yield* clock.now);
+    if (summary !== undefined) yield* bus.publishThread(summary);
   });
 
   const openNote = Effect.fnUntraced(function* (note: OpenedNote) {
@@ -932,6 +943,8 @@ export const makeThreadActor = Effect.fnUntraced(function* (
         return Effect.asVoid(Effect.flatMap(Effect.exit(setModel(message.model)), (exit) => Deferred.done(message.reply, exit)));
       case "SetAgent":
         return Effect.asVoid(Effect.flatMap(Effect.exit(setAgent(message.agentId)), (exit) => Deferred.done(message.reply, exit)));
+      case "CompleteInactive":
+        return Effect.asVoid(Effect.flatMap(Effect.exit(completeInactive), (exit) => Deferred.done(message.reply, exit)));
       case "SetDone":
         return Effect.asVoid(Effect.flatMap(Effect.exit(setDone(message.done)), (exit) => Deferred.done(message.reply, exit)));
       case "Context":
@@ -999,6 +1012,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     answerRequest: (requestId, answer) => ask((reply) => ({ _tag: "AnswerRequest", requestId, answer, reply })),
     setModel: (model) => ask((reply) => ({ _tag: "SetModel", model, reply })),
     setAgent: (agentId) => ask((reply) => ({ _tag: "SetAgent", agentId, reply })),
+    completeInactive: ask((reply) => ({ _tag: "CompleteInactive", reply })),
     setDone: (done) => ask((reply) => ({ _tag: "SetDone", done, reply })),
     openNote: (note) => ask((reply) => ({ _tag: "OpenNote", note, reply })),
     scheduleSaved: (receipt) => ask((reply) => ({ _tag: "ScheduleSaved", receipt, reply })),

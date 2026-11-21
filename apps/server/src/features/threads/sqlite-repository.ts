@@ -8,13 +8,13 @@ import {
   ThreadEvent,
   type ThreadSummary,
 } from "@wiki-agents/contracts/threads/model";
-import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
-import { Effect, Layer, Option, Schema } from "effect";
+import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
+import { Effect, Layer, Option, Queue, Schema } from "effect";
 import { DbError } from "../../shared/persistence/errors.js";
 import { Sqlite } from "../../shared/persistence/sqlite.js";
 import type { OpenRequest, PendingRequest, TurnRecord } from "./repository.js";
 import { ThreadRepository } from "./repository.js";
-import { threadNotes, outbox, runtimeRequests, threadEvents, threadSubagents, threads, turns } from "./table.js";
+import { threadNotes, outbox, runtimeRequests, threadEvents, threadSubagents, threads, turns, threadInactivityPolicy } from "./table.js";
 
 const EventJson = Schema.fromJsonString(ThreadEvent);
 const encodeEvent = Schema.encodeSync(EventJson);
@@ -36,6 +36,7 @@ const summaryColumns = {
   model: threads.model,
   agentId: threads.agentId,
   doneAt: threads.doneAt,
+  doneReason: threads.doneReason,
   continuedFrom: threads.continuedFromThreadId,
   parentThreadId: threads.parentThreadId,
   continuedIn: sql<string | null>`(SELECT c.id FROM threads c WHERE c.continued_from_thread_id = threads.id AND c.deleted_at IS NULL
@@ -92,10 +93,43 @@ const titleFrom = (event: { readonly text: string; readonly attachments?: Readon
   return line.length > TITLE_LENGTH ? `${line.slice(0, TITLE_LENGTH - 1)}…` : line;
 };
 
+const dayMs = 24 * 60 * 60 * 1000;
+
+const noOutstandingWork = sql`
+  NOT EXISTS (SELECT 1 FROM turns t WHERE t.thread_id = threads.id AND t.status = 'running')
+  AND NOT EXISTS (SELECT 1 FROM runtime_requests r WHERE r.thread_id = threads.id AND r.status = 'pending')
+  AND NOT EXISTS (SELECT 1 FROM thread_subagents s WHERE s.thread_id = threads.id AND s.status IN ('running', 'waiting'))
+`;
+
+const noOutstandingChildWork = sql`
+  NOT EXISTS (
+    SELECT 1 FROM threads c WHERE c.parent_thread_id = threads.id AND c.deleted_at IS NULL
+    AND (
+      EXISTS (SELECT 1 FROM runtime_requests r WHERE r.thread_id = c.id AND r.status = 'pending')
+      OR EXISTS (SELECT 1 FROM thread_subagents s WHERE s.thread_id = c.id AND s.status IN ('running', 'waiting'))
+      OR EXISTS (
+        SELECT 1 FROM turns t WHERE t.thread_id = c.id AND (
+          t.status = 'running' OR (
+            threads.parent_thread_id IS NULL
+            AND (t.status <> 'interrupted' OR t.reason IS NOT NULL)
+            AND NOT EXISTS (
+              SELECT 1 FROM thread_events e, json_each(e.payload, '$.childReports') report
+              WHERE e.thread_id = threads.id AND e.type = 'user.message' AND report.value = t.id
+            )
+          )
+        )
+      )
+    )
+  )
+`;
+
+const openThread = and(isNull(threads.doneAt), isNull(threads.deletedAt));
+
 export const ThreadRepositoryLive = Layer.effect(
   ThreadRepository,
   Effect.gen(function* () {
     const { db } = yield* Sqlite;
+    const policyChanged = yield* Queue.sliding<void>(1);
     const query = <A>(run: () => A) => Effect.try({ try: run, catch: (cause) => new DbError({ cause }) });
 
     const findSync = (threadId: string) => {
@@ -109,15 +143,19 @@ export const ThreadRepositoryLive = Layer.effect(
         if (row === undefined) throw new Error("Thread not found");
         return row;
       }),
-      saveDraft: (threadId, request) => query(() => db.transaction((tx) => {
-        const row = tx.select().from(threads).where(eq(threads.id, threadId)).get();
+      saveDraft: (threadId, request, at) => query(() => db.transaction((tx) => {
+        const row = tx.select().from(threads).where(and(eq(threads.id, threadId), isNull(threads.deletedAt))).get();
         if (row === undefined) throw new Error("Thread not found");
         const sameWriter = row.draftWriterId === request.writerId;
         if (row.draftVersion !== request.baseVersion && !sameWriter) return null;
-        if (sameWriter && request.sequence <= row.draftSequence) return { text: row.draftText, version: row.draftVersion };
+        if (sameWriter && request.sequence <= row.draftSequence) return { draft: { text: row.draftText, version: row.draftVersion } };
         const version = row.draftVersion + 1;
-        tx.update(threads).set({ draftText: request.text, draftVersion: version, draftWriterId: request.writerId, draftSequence: request.sequence }).where(eq(threads.id, threadId)).run();
-        return { text: request.text, version };
+        const reopen = row.doneReason === "inactivity" && request.text !== "";
+        tx.update(threads).set({ draftText: request.text, draftVersion: version, draftWriterId: request.writerId, draftSequence: request.sequence,
+          ...(row.draftText !== "" && request.text === "" ? { activityAt: sql`MAX(COALESCE(${threads.activityAt}, 0), ${at})` } : {}),
+          ...(reopen ? { doneAt: null, doneReason: null } : {}),
+        }).where(eq(threads.id, threadId)).run();
+        return { draft: { text: request.text, version }, ...(reopen ? { reopened: Option.getOrThrow(findSync(threadId)) } : {}) };
       })),
       noteContext: (vaultId, path) => query(() => db.select({ threadId: threads.id, title: threads.title, turnId: threadNotes.turnId, path: threadNotes.path, reason: threadNotes.reason, hash: threadNotes.hash }).from(threadNotes).innerJoin(threads, eq(threads.id, threadNotes.threadId)).where(and(eq(threads.vaultId, vaultId), isNull(threads.deletedAt), path === undefined ? undefined : eq(threadNotes.path, path))).orderBy(desc(threads.updatedAt), asc(threadNotes.path)).all()),
       insert: (thread) =>
@@ -125,7 +163,7 @@ export const ThreadRepositoryLive = Layer.effect(
           const at = new Date(thread.createdAt);
           const { draftText, continuedFrom, ...row } = thread;
           db.insert(threads)
-            .values({ ...row, title: row.title ?? null, draftText: draftText ?? "", continuedFromThreadId: continuedFrom ?? null, createdAt: at, updatedAt: at })
+            .values({ ...row, title: row.title ?? null, draftText: draftText ?? "", continuedFromThreadId: continuedFrom ?? null, createdAt: at, updatedAt: at, activityAt: thread.createdAt })
             .run();
           return Option.getOrThrow(findSync(thread.id));
         }),
@@ -159,11 +197,39 @@ export const ThreadRepositoryLive = Layer.effect(
           return Option.getOrThrow(findSync(threadId));
         }),
 
-      setDone: (threadId, at) =>
+      inactivityPolicy: query(() =>
+        db.select({ enabled: threadInactivityPolicy.enabled, days: threadInactivityPolicy.days })
+          .from(threadInactivityPolicy).where(eq(threadInactivityPolicy.id, 1)).get() ?? { enabled: false, days: 30 },
+      ),
+      saveInactivityPolicy: (policy) => query(() => {
+        db.insert(threadInactivityPolicy).values({ id: 1, ...policy })
+          .onConflictDoUpdate({ target: threadInactivityPolicy.id, set: policy }).run();
+      }).pipe(Effect.andThen(Queue.offer(policyChanged, undefined)), Effect.asVoid, Effect.uninterruptible),
+      inactivityPolicyChanged: Queue.take(policyChanged),
+      inactiveCandidates: (cutoff, after) => query(() =>
+        db.select({ id: threads.id, at: sql<number>`${threads.activityAt}` }).from(threads)
+          .where(and(openThread, lte(threads.activityAt, cutoff), eq(threads.draftText, ""),
+            noOutstandingWork, noOutstandingChildWork, after === undefined ? undefined :
+            or(gt(threads.activityAt, after.at), and(eq(threads.activityAt, after.at), gt(threads.id, after.id)))))
+          .orderBy(asc(threads.activityAt), asc(threads.id)).limit(64).all(),
+      ),
+      completeInactive: (threadId, now) => query(() => {
+        const completed = db.update(threads).set({ doneAt: new Date(now), doneReason: "inactivity" })
+          .where(and(
+            eq(threads.id, threadId), openThread, eq(threads.draftText, ""),
+            noOutstandingWork, noOutstandingChildWork,
+            sql`EXISTS (SELECT 1 FROM thread_inactivity_policy p
+              WHERE p.id = 1 AND p.enabled = 1 AND threads.activity_at <= ${now} - p.days * ${dayMs})`,
+          )).returning({ id: threads.id }).get();
+        return completed === undefined ? undefined : Option.getOrThrow(findSync(threadId));
+      }),
+
+      setDone: (threadId, done, at) =>
         query(() => {
-          // Marking a done thread done keeps the first time.
           db.update(threads)
-            .set({ doneAt: at === null ? null : sql`COALESCE(${threads.doneAt}, ${at})` })
+            .set(done ? { doneAt: sql`COALESCE(${threads.doneAt}, ${at})` } : {
+              doneAt: null, doneReason: null, activityAt: sql`MAX(COALESCE(${threads.activityAt}, 0), ${at})`,
+            })
             .where(eq(threads.id, threadId))
             .run();
           return Option.getOrThrow(findSync(threadId));
@@ -228,6 +294,23 @@ export const ThreadRepositoryLive = Layer.effect(
             const when = new Date(at);
             const last = tx.get<{ seq: number | null }>(sql`SELECT MAX(seq) AS seq FROM thread_events WHERE thread_id = ${threadId}`);
             let seq = last?.seq ?? 0;
+            const activity = events.some((event) =>
+              event._tag === "user.message" || event._tag === "turn.finished" ||
+              event._tag === "subagent.updated" || event._tag === "request.resolved" ||
+              event._tag === "subagent.reported",
+            );
+            const startsWork = events.some((event) =>
+              event._tag === "user.message" || event._tag === "subagent.reported",
+            );
+            const backgroundWork = events.some((event) =>
+              event._tag === "request.opened" || event._tag === "handoff.requested" ||
+              event._tag === "compaction.requested" || (event._tag === "subagent.updated" &&
+              (event.status === "running" || event.status === "waiting")),
+            );
+            if (startsWork || backgroundWork) {
+              tx.update(threads).set({ doneAt: null, doneReason: null })
+                .where(and(eq(threads.id, threadId), startsWork ? undefined : eq(threads.doneReason, "inactivity"))).run();
+            }
             const stored = events.map((event) => {
               seq += 1;
               tx.insert(threadEvents).values({ threadId, seq, type: event._tag, payload: encodeEvent(event), at: when }).run();
@@ -245,7 +328,7 @@ export const ThreadRepositoryLive = Layer.effect(
                   }
                   tx.insert(turns).values({ id: event.turnId, threadId, input: event.text, status: "running", unattended: event.unattended === true, startedAt: when }).run();
                   tx.update(threads)
-                    .set({ title: sql`COALESCE(${threads.title}, ${titleFrom(event)})`, doneAt: null })
+                    .set({ title: sql`COALESCE(${threads.title}, ${titleFrom(event)})` })
                     .where(eq(threads.id, threadId))
                     .run();
                   break;
@@ -319,8 +402,16 @@ export const ThreadRepositoryLive = Layer.effect(
                 })
                 .run();
             }
-            tx.update(threads).set({ updatedAt: when }).where(eq(threads.id, threadId)).run();
-            return stored;
+            const activityAt = sql`MAX(COALESCE(${threads.activityAt}, 0), ${at})`;
+            tx.update(threads).set({ updatedAt: when, ...(activity ? { activityAt } : {}) }).where(eq(threads.id, threadId)).run();
+            const manager = sql`threads.id = (SELECT c.parent_thread_id FROM threads c WHERE c.id = ${threadId})`;
+            if (activity) tx.update(threads).set({ activityAt }).where(manager).run();
+            const reopened = startsWork || backgroundWork
+              ? tx.update(threads).set({ doneAt: null, doneReason: null, activityAt })
+                .where(and(manager, isNull(threads.deletedAt), eq(threads.doneReason, "inactivity")))
+                .returning({ id: threads.id }).get()
+              : undefined;
+            return { stored, reopenedManager: reopened === undefined ? undefined : Option.getOrUndefined(findSync(reopened.id)) };
           }),
         ),
 

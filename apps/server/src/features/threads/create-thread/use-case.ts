@@ -1,7 +1,8 @@
+import { WallClock } from "../../../shared/wall-clock.js";
 import { randomUUID } from "node:crypto";
 import type { CreateThreadRequest } from "@wiki-agents/contracts/threads/create-thread/request";
 import type { CreateThreadResponse } from "@wiki-agents/contracts/threads/create-thread/response";
-import { Clock, Effect } from "effect";
+import { Effect } from "effect";
 import { AgentCatalog } from "../../agents/catalog.js";
 import { InvalidProject } from "../../projects/errors.js";
 import { findProject } from "../../projects/find-project.js";
@@ -67,7 +68,7 @@ export const createThread = Effect.fn("createThread")(function* (
       draftText: options.draftText,
       continuedFrom: options.continuedFrom,
       parentThreadId: options.parentThreadId,
-      createdAt: yield* Clock.currentTimeMillis,
+      createdAt: yield* (yield* WallClock).now,
     })
     .pipe(
       Effect.tapError(() => (worktree === null ? Effect.void : discardWorktree(worktree))),

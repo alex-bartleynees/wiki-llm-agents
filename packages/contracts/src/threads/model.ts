@@ -433,6 +433,7 @@ export const ThreadSummary = Schema.Struct({
   lastTurn: Schema.NullOr(LastTurn),
   /** When you marked the thread done; null while it is open. A new message reopens it. */
   doneAt: Schema.NullOr(Schema.Number),
+  doneReason: Schema.optional(Schema.NullOr(Schema.Literal("inactivity"))),
   /** The thread this one continues (Continue in a new thread); null when it continues none. */
   continuedFrom: Schema.NullOr(Schema.String),
   /** The manager that launched this child app thread. */

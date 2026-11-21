@@ -1,3 +1,4 @@
+import type { InactivityPolicy } from "@wiki-agents/contracts/threads/inactivity-policy";
 import type { ThreadDraft } from "@wiki-agents/contracts/threads/draft";
 import type { SaveDraftRequest } from "@wiki-agents/contracts/threads/save-draft/request";
 import type { RequestPrompt, StoredThreadEvent, SubagentStatus, ThreadEvent, ThreadSummary, TurnOutcome } from "@wiki-agents/contracts/threads/model";
@@ -91,7 +92,7 @@ export interface RequestRecord {
 export interface ThreadRepositoryService {
   readonly draft: (threadId: string) => Effect.Effect<ThreadDraft, DbError>;
   /** Null means another writer changed the version; an older sequence from this writer is ignored. */
-  readonly saveDraft: (threadId: string, request: SaveDraftRequest) => Effect.Effect<ThreadDraft | null, DbError>;
+  readonly saveDraft: (threadId: string, request: SaveDraftRequest, at: number) => Effect.Effect<{ readonly draft: ThreadDraft; readonly reopened?: ThreadSummary } | null, DbError>;
   readonly noteContext: (vaultId: string, path?: string) => Effect.Effect<ReadonlyArray<import("@wiki-agents/contracts/threads/list-note-context/response").NoteContextLink>, DbError>;
   readonly insert: (thread: NewThread) => Effect.Effect<ThreadSummary, DbError>;
   readonly find: (threadId: string) => Effect.Effect<Option.Option<ThreadSummary>, DbError>;
@@ -102,8 +103,12 @@ export interface ThreadRepositoryService {
   readonly setNativeSession: (threadId: string, nativeSessionId: string | null) => Effect.Effect<void, DbError>;
   readonly setModel: (threadId: string, model: string, at: number) => Effect.Effect<ThreadSummary, DbError>;
   readonly setAgent: (threadId: string, agentId: string | null, at: number) => Effect.Effect<ThreadSummary, DbError>;
-  /** Marks the thread done at `at` (keeping an earlier time), or reopens it with null. Leaves `updatedAt` alone. */
-  readonly setDone: (threadId: string, at: number | null) => Effect.Effect<ThreadSummary, DbError>;
+  readonly inactivityPolicy: Effect.Effect<InactivityPolicy, DbError>;
+  readonly saveInactivityPolicy: (policy: InactivityPolicy) => Effect.Effect<void, DbError>;
+  readonly inactivityPolicyChanged: Effect.Effect<void>;
+  readonly inactiveCandidates: (cutoff: number, after?: { readonly at: number; readonly id: string }) => Effect.Effect<ReadonlyArray<{ readonly at: number; readonly id: string }>, DbError>;
+  readonly completeInactive: (threadId: string, now: number) => Effect.Effect<ThreadSummary | undefined, DbError>;
+  readonly setDone: (threadId: string, done: boolean, at: number) => Effect.Effect<ThreadSummary, DbError>;
   /**
    * Most recently updated first. With `scope`, only that project's threads (for a null
    * `projectId`, the vault's own threads); without, every thread in the vault.
@@ -127,7 +132,10 @@ export interface ThreadRepositoryService {
     events: ReadonlyArray<ThreadEvent>,
     at: number,
     options?: { readonly startTurn?: string },
-  ) => Effect.Effect<ReadonlyArray<StoredThreadEvent>, DbError>;
+  ) => Effect.Effect<{
+    readonly stored: ReadonlyArray<StoredThreadEvent>;
+    readonly reopenedManager: ThreadSummary | undefined;
+  }, DbError>;
   /** The provider has the turn: drops its `turn.start` outbox row. */
   readonly markDispatched: (turnId: string) => Effect.Effect<void, DbError>;
   readonly recovery: (threadId: string) => Effect.Effect<ThreadRecovery, DbError>;

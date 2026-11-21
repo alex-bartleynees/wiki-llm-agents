@@ -2,7 +2,7 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { expect, type Page, type TestInfo } from "@playwright/test";
 
-export const isPhone = (info: TestInfo) => info.project.name === "phone";
+export const isPhone = (info: TestInfo) => info.project.use.isMobile === true;
 
 /** The run's temporary folder (see playwright.config.ts). */
 export const e2eRoot = () => {

@@ -4,6 +4,7 @@
   import McpServersSettings from "#lib/features/mcp-servers/McpServersSettings.svelte";
   import CommitMessageSettings from "#lib/features/projects/CommitMessageSettings.svelte";
   import SecretsSettings from "#lib/features/secrets/SecretsSettings.svelte";
+  import ThreadInactivitySettings from "#lib/features/threads/ThreadInactivitySettings.svelte";
   import ProviderList from "#lib/features/threads/ProviderList.svelte";
   import AddVaultForm from "#lib/features/vaults/AddVaultForm.svelte";
   import VaultList from "#lib/features/vaults/VaultList.svelte";
@@ -20,6 +21,8 @@
   <VaultList />
   <h2>Add a vault</h2>
   <AddVaultForm onadded={(vault) => goto(`/vaults/${vault.id}`)} />
+  <h1 class="next">Threads</h1>
+  <ThreadInactivitySettings />
   <h1 class="next">Providers</h1>
   <p class="hint">
     The agents threads run on. OpenCode, Claude Code and Codex are your installed ones, with your own login; checking OpenCode

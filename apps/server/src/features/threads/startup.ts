@@ -1,4 +1,5 @@
 import { Effect, Layer } from "effect";
+import { runInactivityWorker } from "./inactivity-worker.js";
 import { ThreadRepository } from "./repository.js";
 import { ThreadActors } from "./thread-actors.js";
 
@@ -21,6 +22,6 @@ export const ThreadsStartup = Layer.effectDiscard(
       managers,
       (threadId) => actors.childReports(threadId).pipe(Effect.catch((error) => Effect.logWarning(`can't recover reports for thread ${threadId}`, error))),
       { discard: true },
-    )), Effect.forkScoped);
+    )), Effect.andThen(runInactivityWorker), Effect.forkScoped);
   }),
 );

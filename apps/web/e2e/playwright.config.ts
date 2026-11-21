@@ -42,6 +42,11 @@ if (process.env["E2E_ROOT"] === undefined) {
     mkdirSync(dirname(join(root, "vault", path)), { recursive: true });
     writeFileSync(join(root, "vault", path), text);
   }
+  for (const scenario of ["inactivity-desktop", "inactivity-phone"]) {
+    const vault = join(root, scenario, "vault");
+    mkdirSync(vault, { recursive: true });
+    writeFileSync(join(vault, "index.md"), VAULT["index.md"]!);
+  }
   mkdirSync(join(root, "projects"));
   // A secret declared in the service's configuration, as sops-nix would provide it.
   mkdirSync(join(root, "run-secrets"));
@@ -51,47 +56,59 @@ if (process.env["E2E_ROOT"] === undefined) {
 }
 const root = process.env["E2E_ROOT"];
 const port = Number(process.env["E2E_PORT"]);
-const baseURL = `http://127.0.0.1:${port}`;
+const baseURL = (port: number) => `http://127.0.0.1:${port}`;
+const inactivityTest = "**/thread-inactivity.spec.ts";
+const desktop = { browserName: "chromium", viewport: { width: 1440, height: 900 } } as const;
+const phone = { browserName: "chromium", viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true } as const;
+const inactivityDesktopPort = port + 2000;
+const inactivityPhonePort = port + 4000;
+
+const webServer = (instanceRoot: string, port: number) => ({
+  command: `node --conditions=source --import tsx src/index.ts --vault ${JSON.stringify(join(instanceRoot, "vault"))}`,
+  cwd: server,
+  url: `${baseURL(port)}/health`,
+  reuseExistingServer: false,
+  timeout: 60_000,
+  env: {
+    WIKI_AGENTS_HOST: "127.0.0.1",
+    WIKI_AGENTS_PORT: String(port),
+    WIKI_AGENTS_DATA_DIR: join(instanceRoot, "data"),
+    WIKI_AGENTS_CONFIG_DIR: join(instanceRoot, "config"),
+    WIKI_AGENTS_STATIC_DIR: join(web, "build"),
+    // This checkout's migrations, not those of an installed copy whose settings the shell may carry.
+    WIKI_AGENTS_MIGRATIONS_DIR: join(server, "drizzle"),
+    // Stored secrets' key in the run's folder, never systemd's or your own.
+    WIKI_AGENTS_SECRETS_KEY: "file",
+    WIKI_AGENTS_SECRETS_KEY_FILE: join(instanceRoot, "state", "secrets.key"),
+    WIKI_AGENTS_SECRET_FILES: `jira=${join(root, "run-secrets", "jira")}`,
+    WIKI_AGENTS_OPENCODE: "wiki-agents-e2e-no-opencode",
+    WIKI_AGENTS_CLAUDE: "wiki-agents-e2e-no-claude",
+    WIKI_AGENTS_CODEX: "wiki-agents-e2e-no-codex",
+    // Adds the built-in browser server to Settings; nothing starts it in the flows.
+    WIKI_AGENTS_BROWSER_MCP: "wiki-agents-e2e-no-browser",
+    // Lets flows move the schedules' clock instead of waiting (POST /api/test/clock),
+    // and adds the replay provider, which exists for tests only.
+    WIKI_AGENTS_TEST_HOOKS: "true",
+  },
+});
 
 export default defineConfig({
   testDir: here,
-  // One app and one vault: flows run one at a time.
   workers: 1,
   fullyParallel: false,
   forbidOnly: true,
   reporter: [["list"]],
   globalTeardown: join(here, "teardown.ts"),
-  use: { baseURL, trace: "retain-on-failure" },
+  use: { baseURL: baseURL(port), trace: "retain-on-failure" },
   projects: [
-    { name: "desktop", use: { browserName: "chromium", viewport: { width: 1440, height: 900 } } },
-    { name: "phone", use: { browserName: "chromium", viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true } },
+    { name: "desktop", testIgnore: inactivityTest, use: desktop },
+    { name: "phone", testIgnore: inactivityTest, use: phone },
+    { name: "inactivity-desktop", testMatch: inactivityTest, use: { ...desktop, baseURL: baseURL(inactivityDesktopPort) } },
+    { name: "inactivity-phone", testMatch: inactivityTest, use: { ...phone, baseURL: baseURL(inactivityPhonePort) } },
   ],
-  webServer: {
-    command: `node --conditions=source --import tsx src/index.ts --vault ${JSON.stringify(join(root, "vault"))}`,
-    cwd: server,
-    url: `${baseURL}/health`,
-    reuseExistingServer: false,
-    timeout: 60_000,
-    env: {
-      WIKI_AGENTS_HOST: "127.0.0.1",
-      WIKI_AGENTS_PORT: String(port),
-      WIKI_AGENTS_DATA_DIR: join(root, "data"),
-      WIKI_AGENTS_CONFIG_DIR: join(root, "config"),
-      WIKI_AGENTS_STATIC_DIR: join(web, "build"),
-      // This checkout's migrations, not those of an installed copy whose settings the shell may carry.
-      WIKI_AGENTS_MIGRATIONS_DIR: join(server, "drizzle"),
-      // Stored secrets' key in the run's folder, never systemd's or your own.
-      WIKI_AGENTS_SECRETS_KEY: "file",
-      WIKI_AGENTS_SECRETS_KEY_FILE: join(root, "state", "secrets.key"),
-      WIKI_AGENTS_SECRET_FILES: `jira=${join(root, "run-secrets", "jira")}`,
-      WIKI_AGENTS_OPENCODE: "wiki-agents-e2e-no-opencode",
-      WIKI_AGENTS_CLAUDE: "wiki-agents-e2e-no-claude",
-      WIKI_AGENTS_CODEX: "wiki-agents-e2e-no-codex",
-      // Adds the built-in browser server to Settings; nothing starts it in the flows.
-      WIKI_AGENTS_BROWSER_MCP: "wiki-agents-e2e-no-browser",
-      // Lets flows move the schedules' clock instead of waiting (POST /api/test/clock),
-      // and adds the replay provider, which exists for tests only.
-      WIKI_AGENTS_TEST_HOOKS: "true",
-    },
-  },
+  webServer: [
+    webServer(root, port),
+    webServer(join(root, "inactivity-desktop"), inactivityDesktopPort),
+    webServer(join(root, "inactivity-phone"), inactivityPhonePort),
+  ],
 });

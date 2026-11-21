@@ -6,6 +6,7 @@ import type { ProjectRepository } from "../projects/repository.js";
 import type { WorktreeRoot } from "../projects/worktrees.js";
 import type { ProviderRegistry } from "../providers/registry.js";
 import { listChildThreads, readChildThread, sendToChildThread, startChildThread } from "../threads/manager-threads.js";
+import { WallClock } from "../../shared/wall-clock.js";
 import { ThreadActors } from "../threads/thread-actors.js";
 import type { ThreadBus } from "../threads/thread-bus.js";
 import { ThreadRepository } from "../threads/repository.js";
@@ -76,7 +77,7 @@ const ManagerVisibility = McpServer.visibility(Effect.gen(function* () {
   );
 }));
 
-type Services = ThreadActors | ThreadRepository | ThreadBus | AgentCatalog | ProjectRepository | ProviderRegistry | VaultRepository | WorktreeRoot | FileSystem.FileSystem;
+type Services = WallClock | ThreadActors | ThreadRepository | ThreadBus | AgentCatalog | ProjectRepository | ProviderRegistry | VaultRepository | WorktreeRoot | FileSystem.FileSystem;
 
 const managerHandlers = ManagerTools.toLayer(Effect.gen(function* () {
   const services = yield* Effect.context<Services>();

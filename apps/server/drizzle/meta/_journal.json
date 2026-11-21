@@ -204,6 +204,20 @@
       "when": 1795228225658,
       "tag": "0028_oval_warlock",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "6",
+      "when": 1795229895688,
+      "tag": "0029_shocking_greymalkin",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "6",
+      "when": 1795229906055,
+      "tag": "0030_backfill_thread_activity",
+      "breakpoints": true
     }
   ]
 }

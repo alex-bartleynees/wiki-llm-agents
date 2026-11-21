@@ -1,3 +1,6 @@
+import { GetInactivityPolicyResponse } from "@wiki-agents/contracts/threads/get-inactivity-policy/response";
+import { UpdateInactivityPolicyRequest } from "@wiki-agents/contracts/threads/update-inactivity-policy/request";
+import { UpdateInactivityPolicyResponse } from "@wiki-agents/contracts/threads/update-inactivity-policy/response";
 import { GetDraftResponse } from "@wiki-agents/contracts/threads/get-draft/response";
 import { SaveDraftRequest } from "@wiki-agents/contracts/threads/save-draft/request";
 import { SaveDraftResponse } from "@wiki-agents/contracts/threads/save-draft/response";
@@ -129,3 +132,8 @@ export const saveDraft = (threadId: string, request: SaveDraftRequest) =>
 
 /** `git worktree remove` for the thread's worktree; 409 with git's refusal, or while a turn runs or waits. */
 export const removeWorktree = (threadId: string) => postJson(`${threadPath(threadId)}/worktree/remove`, NoBody, {}, RemoveWorktreeResponse);
+
+const inactivityPolicyPath = "/api/settings/thread-inactivity";
+export const getInactivityPolicy = () => getJson(inactivityPolicyPath, GetInactivityPolicyResponse);
+export const saveInactivityPolicy = (request: UpdateInactivityPolicyRequest) =>
+  putJson(inactivityPolicyPath, UpdateInactivityPolicyRequest, request, UpdateInactivityPolicyResponse);

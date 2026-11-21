@@ -108,7 +108,7 @@
         onclick={() => threads.setDone(thread.id, true)}>Mark done</button
       >
     {:else}
-      <span class="done-label mono">✓ done</span>
+      <span class="done-label mono">{thread.doneReason === "inactivity" ? "Marked done after inactivity" : "✓ done"}</span>
       <button type="button" class="done-action" onclick={() => threads.setDone(thread.id, false)}>Reopen</button>
     {/if}
   {/if}

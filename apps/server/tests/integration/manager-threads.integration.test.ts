@@ -5,12 +5,13 @@ import { fileURLToPath } from "node:url";
 import { NodeHttpServer } from "@effect/platform-node";
 import { expect, it, layer } from "@effect/vitest";
 import { DEFAULT_AUTONOMY, type AutonomyLevel } from "@wiki-agents/contracts/agents/model";
-import { Effect, Fiber, Layer, type Scope } from "effect";
+import { Effect, Fiber, Layer, PubSub, type Scope } from "effect";
 import { TestClock } from "effect/testing";
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http";
 import { mcpSession, tokenFor } from "./infrastructure/mcp.js";
 import { makeHttpApp } from "../../src/app/layers.js";
 import { makeAgentCatalog } from "../../src/features/agents/catalog-live.js";
+import { ThreadBus } from "../../src/features/threads/thread-bus.js";
 import { ThreadActors } from "../../src/features/threads/thread-actors.js";
 import { makeSqlite, Sqlite } from "../../src/shared/persistence/sqlite.js";
 import { ReplayOnly, TestApp, TestAttachments, TestSecrets, TestWorktrees } from "./infrastructure/test-app.js";
@@ -88,6 +89,43 @@ layer(TestApp)("manager thread tools", (it) => {
       childReports: expect.arrayContaining(children.map(({ turnId }) => turnId)),
       text: expect.stringContaining("Check the plan"),
     }));
+  }));
+
+  it.effect("keeps an idle manager open while its child is waiting", () => Effect.gen(function* () {
+    const { vault, manager, mcp, events, requestId } = yield* setup("allow");
+    const child = yield* mcp.result<{ threadId: string; turnId: string }>("thread_create", { ...task, title: "Worker" });
+    const childEvents = yield* watch(child.threadId);
+    yield* childEvents.until(isTag("request.opened"));
+    yield* answer(manager.id, requestId, { _tag: "question", text: "Wait for the child" });
+    yield* events.until(isTag("turn.finished"), "5 seconds");
+    expect((yield* getThread(manager.id)).thread.status).toBe("idle");
+
+    yield* TestClock.adjust(1);
+    const sentinel = yield* newThread(vault.id);
+    const bus = yield* ThreadBus;
+    const updates = yield* bus.subscribeThreads;
+    const policy = (enabled: boolean) =>
+      HttpClient.execute(HttpClientRequest.put("/api/settings/thread-inactivity").pipe(
+        HttpClientRequest.bodyJsonUnsafe({ policy: { enabled, days: 1 } }),
+      ));
+    const waitForDone = (id: string) => Effect.gen(function* () {
+      let thread = yield* PubSub.take(updates);
+      while (thread.id !== id || thread.doneReason !== "inactivity") thread = yield* PubSub.take(updates);
+    });
+
+    yield* TestClock.adjust("1 day");
+    expect((yield* policy(true)).status).toBe(200);
+    yield* waitForDone(sentinel.id);
+    expect((yield* getThread(manager.id)).thread.doneAt).toBeNull();
+    expect((yield* getThread(child.threadId)).thread.doneAt).toBeNull();
+
+    expect((yield* interrupt(manager.id)).status).toBe(200);
+    expect((yield* getThread(child.threadId)).thread.lastTurn?.outcome).toBe("interrupted");
+    expect((yield* getThread(manager.id)).thread.doneAt).toBeNull();
+    yield* TestClock.adjust("1 day");
+    expect((yield* policy(true)).status).toBe(200);
+    yield* waitForDone(manager.id);
+    expect((yield* policy(false)).status).toBe(200);
   }));
 
   it.effect("stops a waiting child when the manager stops", () => Effect.gen(function* () {
