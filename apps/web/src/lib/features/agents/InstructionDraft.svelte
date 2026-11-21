@@ -24,13 +24,12 @@
   let includeCurrent = $state(false);
   let providerChoice = $state<string | null>(null);
   let modelChoice = $state<string | null>(null);
-  const availableProviders = $derived(providers.list.filter((entry) => entry.toolFreeCompletion));
-  const configuredProvider = $derived(availableProviders.find((entry) => entry.id === input.provider));
+  const configuredProvider = $derived(providers.list.find((entry) => entry.id === input.provider));
   const provider = $derived(
-    availableProviders.find((entry) => entry.id === providerChoice)
+    providers.list.find((entry) => entry.id === providerChoice)
     ?? configuredProvider
-    ?? availableProviders.find((entry) => entry.id === providers.chosen?.id)
-    ?? availableProviders[0],
+    ?? providers.list.find((entry) => entry.id === providers.chosen?.id)
+    ?? providers.list[0],
   );
 
   const discovered = $derived(discovery.get(provider?.id));
@@ -50,8 +49,8 @@
   let pending = $state(false);
   let preview = $state<string | undefined>();
   let error = $state<string | undefined>();
-  let active = true;
-  onDestroy(() => { active = false; });
+  const controller = new AbortController();
+  onDestroy(() => controller.abort());
 
   const inputError = $derived(
     input.name.length > DRAFT_NAME_MAX ? `Name must be at most ${DRAFT_NAME_MAX} characters to generate a draft.`
@@ -72,12 +71,12 @@
         ...(input.name.trim() ? { name: input.name } : {}),
         ...(input.description.trim() ? { description: input.description } : {}),
         ...(canRevise && includeCurrent && input.instructions.trim() ? { currentInstructions: input.instructions } : {}),
-      });
-      if (active) preview = result.instructions;
+      }, controller.signal);
+      if (!controller.signal.aborted) preview = result.instructions;
     } catch (failure) {
-      if (active) error = errorMessage(failure, "Couldn't generate a draft.");
+      if (!controller.signal.aborted) error = errorMessage(failure, "Couldn't generate a draft.");
     } finally {
-      if (active) pending = false;
+      if (!controller.signal.aborted) pending = false;
     }
   };
 </script>
@@ -95,7 +94,7 @@
         modelChoice = null;
       }}>
         {#if !provider}<option value="">No drafting provider available</option>{/if}
-        {#each availableProviders as entry (entry.id)}
+        {#each providers.list as entry (entry.id)}
           <option value={entry.id}>{entry.name}</option>
         {/each}
       </select>

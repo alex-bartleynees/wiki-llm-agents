@@ -171,6 +171,7 @@ const recordingLauncher = (log: { steps: Array<FixtureStep>; sent: () => void },
           exit: handlers.exit,
         }),
       kill: process.kill,
+      closed: process.closed,
     };
   },
 });

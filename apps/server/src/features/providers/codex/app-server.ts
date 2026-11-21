@@ -13,6 +13,7 @@ export interface AppServerProcess {
   readonly listen: (handlers: { readonly message: (message: JsonRpcMessage) => void; readonly exit: (reason: string | null) => void }) => void;
   /** Ends the process. */
   readonly kill: () => void;
+  readonly closed: Promise<void>;
 }
 
 export interface LaunchOptions {
@@ -28,6 +29,7 @@ export interface CodexLauncher {
 
 /** Lines of Codex's stderr kept to explain a crash. */
 const STDERR_LINES = 20;
+const EXIT_DRAIN_MS = 250;
 
 /** Codex's log lines are coloured; the reason reads better without. */
 const ANSI = /\u001b\[[0-9;]*m/g;
@@ -38,6 +40,17 @@ export const makeCodexLauncher = (base: () => Readonly<Record<string, string | u
     const child = spawn(binary, ["app-server"], { cwd, env: { ...base(), ...env }, stdio: ["pipe", "pipe", "pipe"] });
     const stderr: Array<string> = [];
     let closing = false;
+    let didClose = false;
+    let force: ReturnType<typeof setTimeout> | undefined;
+    let drain: ReturnType<typeof setTimeout> | undefined;
+    const closed = new Promise<void>((resolve) => {
+      child.once("close", () => {
+        didClose = true;
+        if (force !== undefined) clearTimeout(force);
+        if (drain !== undefined) clearTimeout(drain);
+        resolve();
+      });
+    });
     let handlers: Parameters<AppServerProcess["listen"]>[0] | undefined;
     const early: Array<JsonRpcMessage> = [];
     let ended: { reason: string | null } | undefined;
@@ -65,7 +78,13 @@ export const makeCodexLauncher = (base: () => Readonly<Record<string, string | u
     child.once("error", (cause) =>
       end("code" in cause && cause.code === "ENOENT" ? `"${binary}" isn't installed` : cause.message),
     );
-    child.once("exit", (code, signal) => {
+    child.once("exit", () => {
+      drain = setTimeout(() => {
+        child.stdout.destroy();
+        child.stderr.destroy();
+      }, EXIT_DRAIN_MS);
+    });
+    child.once("close", (code, signal) => {
       if (closing) return end(null);
       const detail = stderr.at(-1);
       end(`${signal === null ? `exit code ${code}` : signal}${detail === undefined ? "" : `: ${detail}`}`);
@@ -80,14 +99,19 @@ export const makeCodexLauncher = (base: () => Readonly<Record<string, string | u
         for (const message of early.splice(0)) next.message(message);
         if (ended !== undefined) next.exit(ended.reason);
       },
+      closed,
       kill: () => {
-        if (closing) return;
+        if (closing || didClose) return;
         closing = true;
         child.stdin.end();
         child.kill("SIGTERM");
-        const force = setTimeout(() => child.kill("SIGKILL"), 2000);
+        force = setTimeout(() => {
+          child.kill("SIGKILL");
+          child.stdout.destroy();
+          child.stderr.destroy();
+          child.stdin.destroy();
+        }, 2000);
         force.unref();
-        child.once("exit", () => clearTimeout(force));
       },
     };
   },
@@ -118,6 +142,7 @@ export interface RpcClient {
   readonly respond: (id: JsonRpcId, result: unknown) => void;
   readonly respondError: (id: JsonRpcId, message: string) => void;
   readonly kill: () => void;
+  readonly closed: Promise<void>;
 }
 
 /**
@@ -171,6 +196,7 @@ export const makeRpc = (
     respond: (id, result) => process.send({ id, result }),
     respondError: (id, message) => process.send({ id, error: { code: -32601, message } }),
     kill: () => process.kill(),
+    closed: process.closed,
   };
 };
 

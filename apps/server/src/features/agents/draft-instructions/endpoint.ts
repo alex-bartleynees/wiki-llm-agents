@@ -17,7 +17,6 @@ export const draftInstructionsEndpoint = Effect.gen(function* () {
     SchemaError: () => Effect.succeed(badRequest("Provide a provider, a model or its default, and an idea within the drafting limits.")),
     HttpServerError: () => Effect.succeed(badRequest()),
     ProviderInstanceNotFound: () => Effect.succeed(notFound("Draft provider is unavailable.")),
-    DraftProviderUnsupported: () => Effect.succeed(badRequest("The selected provider does not support tool-free drafting.")),
     DraftModelUnavailable: () => Effect.succeed(badRequest("The selected model is unavailable. Choose another model or the provider default.")),
     ProviderError: (error) => Effect.succeed(badGateway(error.message)),
   }),

@@ -27,6 +27,8 @@ export interface PlayOptions {
   readonly crashAfter?: number;
   /** Why the vault tools' MCP server fails to start; it starts when unset. */
   readonly mcpError?: string;
+  readonly holdRequest?: (method: string, launch: LaunchOptions) => boolean;
+  readonly beforeClose?: (launch: LaunchOptions) => Promise<void>;
 }
 
 /** What the adapter asked of Codex, in order. */
@@ -60,6 +62,9 @@ export const makeFakeAppServer = () => {
     calls.push({ call: "launch", options: launched });
     let handlers: Parameters<AppServerProcess["listen"]>[0] | undefined;
     let closed = false;
+    let closing = false;
+    let resolveClosed!: () => void;
+    const completion = new Promise<void>((resolve) => { resolveClosed = resolve; });
     let threadId = "";
     let toolsConfigured = false;
     const answers = new Map<JsonRpcId, (result: unknown) => void>();
@@ -74,12 +79,15 @@ export const makeFakeAppServer = () => {
     };
     const emit = async (message: JsonRpcMessage) => {
       await tick();
-      if (!closed) handlers?.message(message);
+      if (!closed && !closing) handlers?.message(message);
     };
     const exit = (reason: string | null) => {
       if (closed) return;
       closed = true;
+      for (const answer of answers.values()) answer(undefined);
+      answers.clear();
       handlers?.exit(reason);
+      resolveClosed();
     };
     const reply = (id: JsonRpcId | undefined, result: unknown) => (id === undefined ? Promise.resolve() : emit({ id, result }));
     const fail = (id: JsonRpcId | undefined, message: string) => (id === undefined ? Promise.resolve() : emit({ id, error: { code: -32600, message } }));
@@ -135,6 +143,7 @@ export const makeFakeAppServer = () => {
       }
       if (message.method === "initialized") return;
       calls.push({ call: "request", method: message.method, params: message.params });
+      if (options.holdRequest?.(message.method, launched)) return;
       const params = (message.params ?? {}) as Record<string, unknown>;
       switch (message.method) {
         case "initialize":
@@ -197,11 +206,15 @@ export const makeFakeAppServer = () => {
       listen: (next) => {
         handlers = next;
       },
+      closed: completion,
       kill: () => {
-        if (closed) return;
+        if (closed || closing) return;
+        closing = true;
         calls.push({ call: "kill" });
         stop?.();
-        exit(null);
+        const pending = options.beforeClose?.(launched);
+        if (pending === undefined) exit(null);
+        else void pending.then(() => exit(null));
       },
     };
   };

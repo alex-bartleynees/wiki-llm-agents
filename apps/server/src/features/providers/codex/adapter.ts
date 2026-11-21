@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { NodeFileSystem } from "@effect/platform-node";
 import type { ProviderModel, ProviderStatus } from "@wiki-agents/contracts/providers/model";
 import type { RequestAnswer, RequestPrompt } from "@wiki-agents/contracts/threads/model";
-import { Clock, Deferred, Duration, Effect, FileSystem, Option, Queue, Stream } from "effect";
+import { Clock, Deferred, Duration, Effect, FileSystem, Option, Queue, Scope, Stream } from "effect";
 import { resolveBinary } from "../binary.js";
 import {
   type BackgroundEvent,
@@ -214,7 +214,8 @@ export const makeCodexAdapter = (options: CodexAdapterOptions) =>
     const listModels = (cwd: string) =>
       Effect.gen(function* () {
         const now = yield* Clock.currentTimeMillis;
-        if (models !== undefined && now - models.at < Duration.toMillis(MODELS_TTL)) return models.list;
+        const previous = models;
+        if (previous !== undefined && now - previous.at < Duration.toMillis(MODELS_TTL)) return previous.list;
         const binary = yield* executable;
         const offered = yield* withAppServer(launcher, binary, cwd, "Codex didn't list its models", async (rpc) => {
           const all = [];
@@ -231,7 +232,8 @@ export const makeCodexAdapter = (options: CodexAdapterOptions) =>
           models: visible.map((model): ProviderModel => ({ id: model.id, name: model.displayName, free: false, images: takesImages(model) })),
           defaultModel: visible.find((model) => model.isDefault)?.id ?? null,
         };
-        models = { at: now, list };
+        const at = yield* Clock.currentTimeMillis;
+        if (models === previous) models = { at, list };
         return list;
       });
 
@@ -287,7 +289,6 @@ export const makeCodexAdapter = (options: CodexAdapterOptions) =>
             current.alive = false;
             current.rpc.kill();
           };
-          yield* Effect.addFinalizer(() => Effect.sync(() => conversation !== undefined && close(conversation)));
 
           /** Starts (or resumes) the thread in a new app-server unless the running one has this setup. */
           const start = (setup: SessionSetup) =>
@@ -305,16 +306,26 @@ export const makeCodexAdapter = (options: CodexAdapterOptions) =>
               if (conversation !== undefined) close(conversation);
               const signals = yield* Queue.unbounded<Signal>();
               const incoming = yield* Queue.unbounded<Incoming | Extract<Signal, { _tag: "ended" }>>();
-              let current: Conversation | undefined;
-              const rpc = makeRpc(
-                launcher.launch({ binary, cwd, env: tools === null ? {} : { [TOKEN_ENV]: tools.token } }),
-                (message) => Queue.offerUnsafe(incoming, message),
-                (reason) => {
-                  if (current !== undefined) current.alive = false;
-                  Queue.offerUnsafe(incoming, { _tag: "ended", reason });
-                },
-              );
-              current = { rpc, signals, key, alive: true, toolsReported: false, children: new Map(), stopping: false };
+              const current = yield* Effect.acquireRelease(
+                Effect.sync(() => {
+                  let connection: Conversation | undefined;
+                  const rpc = makeRpc(
+                    launcher.launch({ binary, cwd, env: tools === null ? {} : { [TOKEN_ENV]: tools.token } }),
+                    (message) => Queue.offerUnsafe(incoming, message),
+                    (reason) => {
+                      if (connection !== undefined) connection.alive = false;
+                      Queue.offerUnsafe(incoming, { _tag: "ended", reason });
+                    },
+                  );
+                  connection = { rpc, signals, key, alive: true, toolsReported: false, children: new Map(), stopping: false };
+                  return connection;
+                }),
+                (connection) => Effect.promise(() => {
+                  close(connection);
+                  return connection.rpc.closed;
+                }),
+              ).pipe(Scope.provide(sessionScope));
+              const { rpc } = current;
               conversation = current;
               const params: ThreadParams = {
                 cwd,
@@ -359,7 +370,7 @@ export const makeCodexAdapter = (options: CodexAdapterOptions) =>
                     Queue.offerUnsafe(background, { _tag: "request.opened", turnId: child.state.turnId, subagentId: child.state.subagentId, requestId, prompt });
                     return [];
                   }
-                  if (turn === undefined) {
+                  if (current.stopping || turn === undefined) {
                     current.rpc.respond(request.id, cancelled(pending));
                     return [];
                   }
@@ -627,7 +638,7 @@ export const makeCodexAdapter = (options: CodexAdapterOptions) =>
           const stopCodexTurn = (current: Conversation, codexTurnId: string, target = threadId) =>
             tryPromise(() => current.rpc.request("turn/interrupt", { threadId: target, turnId: codexTurnId }), "Codex didn't take the stop").pipe(
               Effect.catch((error) => Effect.logWarning(error.message)),
-              Effect.forkDetach,
+              Effect.forkDetach({ startImmediately: true }),
               Effect.asVoid,
             );
 

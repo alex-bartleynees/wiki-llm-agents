@@ -9,7 +9,7 @@ import { type Completion, type CompletionInput, type ProviderAdapter, ProviderEr
 export const COMPLETION_TIMEOUT = Duration.minutes(2);
 
 /** Nothing the model asks to do is allowed: a one-shot call only answers. */
-const NOTHING: Autonomy = { read: "deny", create: "deny", edit: "deny", commands: "deny", web: "deny", tools: "deny", subagents: "deny" };
+const NOTHING: Autonomy = { read: "deny", create: "deny", edit: "deny", commands: "deny", web: "deny", tools: "deny", subagents: "deny", threads: "deny" };
 
 /**
  * One turn in a throwaway session, for a provider without its own `complete`: every
@@ -31,10 +31,16 @@ const throughSession = (adapter: ProviderAdapter, input: CompletionInput) =>
       const turnId = randomUUID();
       const messages = new Map<string, string>();
       let usage: TurnUsage | null = null;
+      let finished = false;
       let failure: string | null = null;
-      yield* session.startTurn({ turnId, text: input.prompt, images: [], setup }).pipe(
+      const events = yield* Stream.toQueue(session.startTurn({ turnId, text: input.prompt, images: [], setup }), { capacity: "unbounded" });
+      yield* Effect.addFinalizer(() => {
+        const cleanup = finished ? session.stopBackground : session.interrupt(turnId);
+        return cleanup?.pipe(Effect.interruptible, Effect.timeoutOption(Duration.seconds(5)), Effect.asVoid) ?? Effect.void;
+      });
+      yield* Stream.fromQueue(events).pipe(
         Stream.runForEach((event) =>
-          Effect.sync(() => {
+          Effect.suspend(() => {
             switch (event._tag) {
               case "message.delta": {
                 // Deleted and set again, so the message that last got text comes last.
@@ -44,13 +50,14 @@ const throughSession = (adapter: ProviderAdapter, input: CompletionInput) =>
                 break;
               }
               case "request.opened":
-                failure ??= "The model asked for something instead of answering.";
-                break;
+                return Effect.fail(new ProviderError({ message: "The model asked for something instead of answering." }));
               case "turn.finished":
+                finished = true;
                 usage = event.usage;
                 if (event.outcome !== "completed") failure ??= event.reason ?? `The model's turn ${event.outcome === "failed" ? "failed" : "stopped"}.`;
                 break;
             }
+            return Effect.void;
           }),
         ),
       );

@@ -1,12 +1,14 @@
 import { existsSync, realpathSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, layer } from "@effect/vitest";
+import { DraftInstructionsResponse } from "@wiki-agents/contracts/agents/draft-instructions/response";
 import { GetProviderStatusResponse } from "@wiki-agents/contracts/providers/get-provider-status/response";
 import { ListProvidersResponse } from "@wiki-agents/contracts/providers/list-providers/response";
 import { ListModelsResponse } from "@wiki-agents/contracts/threads/list-models/response";
 import type { ThreadEvent } from "@wiki-agents/contracts/threads/model";
 import { SetModelResponse } from "@wiki-agents/contracts/threads/set-model/response";
-import { Context, Effect, Layer, PubSub, Stream } from "effect";
+import { Context, Deferred, Effect, Fiber, Layer, PubSub, Stream } from "effect";
+import { TestClock } from "effect/testing";
 import { HttpClient, HttpClientRequest } from "effect/http";
 import { CODEX_STOPPED, makeCodexAdapter, NOT_ALLOWED, TOKEN_ENV } from "../../src/features/providers/codex/adapter.js";
 import { VAULT_SERVER } from "../../src/features/providers/codex/events.js";
@@ -17,13 +19,13 @@ import { makeProviderRegistry } from "../../src/features/providers/registry-live
 import { ReplayAdapter } from "../../src/features/providers/replay/adapter.js";
 import { ThreadBus } from "../../src/features/threads/thread-bus.js";
 import { type FakeAppServer, loadFixture, makeFakeAppServer, type PlayOptions } from "../fixtures/codex/fake-app-server.js";
-import { VAULT_FILES } from "../fixtures/codex/fixture.js";
+import { type FixtureStep, VAULT_FILES } from "../fixtures/codex/fixture.js";
 import { CSV_PROMPT, SALES_CSV, SALES_TOTAL } from "../fixtures/csv.js";
 import { RED_SQUARE, sha256 } from "../fixtures/image.js";
 import { setSecret } from "./infrastructure/browser-sign-ins.js";
 import { mcpSession } from "./infrastructure/mcp.js";
 import { makeTestApp } from "./infrastructure/test-app.js";
-import { answer, compactOk, decode, getThread, interrupt, isTag, newThread, newVaultWith, sendOk, sendWithOk, setAgent, status, uploadOk } from "./infrastructure/threads.js";
+import { answer, compactOk, decode, getThread, interrupt, isTag, newThread, newVaultWith, post, sendOk, sendWithOk, setAgent, status, uploadOk } from "./infrastructure/threads.js";
 
 /** The scripted Codex app-server the adapter talks to; tests load a recording into it. */
 class Fake extends Context.Service<Fake, FakeAppServer>()("FakeCodex") {}
@@ -112,7 +114,178 @@ const playTurn = (threadId: string, prompt: string) =>
     return yield* events.until(isTag("turn.finished"));
   });
 
+const draftWithCodex = (idea: string, model: string | null = null) =>
+  post("/api/agents/draft-instructions", { idea, providerInstanceId: "codex", model });
+
+const draftFixture = (name: string, idea: string) => {
+  const fixture = loadFixture(name);
+  return { ...fixture, turns: [{ ...fixture.turns[0]!, prompt: JSON.stringify({ idea }) }] };
+};
+
+const closeProbe = Effect.gen(function* () {
+  const closing = yield* Deferred.make<string>();
+  const released = yield* Deferred.make<void>();
+  return {
+    closing: Deferred.await(closing),
+    release: Deferred.succeed(released, undefined),
+    beforeClose: ({ cwd }: { cwd: string }) => {
+      Deferred.doneUnsafe(closing, Effect.succeed(cwd));
+      return Effect.runPromise(Deferred.await(released));
+    },
+  };
+});
+
+layer(App)("Codex draft teardown", (it) => {
+  it.effect("interrupts a pending question and cancels it before waiting for the process to close", () =>
+    Effect.gen(function* () {
+      const fake = yield* Fake;
+      const probe = yield* closeProbe;
+      const idea = "Draft a reviewer.";
+      const fixture = draftFixture("question", idea);
+      const turn = fixture.turns[0]!;
+      const steps = turn.steps.flatMap<FixtureStep>((step) => "response" in step
+        ? [{ response: { id: step.response.id, result: { answers: {} } } }, { interrupt: true as const }]
+        : [step]);
+      fake.load({ ...fixture, turns: [{ ...turn, steps }] }, "/tmp", { beforeClose: probe.beforeClose });
+      yield* Effect.gen(function* () {
+        const result = yield* Effect.forkChild(draftWithCodex(idea));
+        const cwd = yield* probe.closing;
+        expect(existsSync(cwd)).toBe(true);
+        expect(fake.requests("turn/interrupt")).toHaveLength(1);
+        const stop = fake.calls.findIndex((call) => call.call === "request" && call.method === "turn/interrupt");
+        const cancel = fake.calls.findIndex((call) => call.call === "respond");
+        const kill = fake.calls.findIndex((call) => call.call === "kill");
+        expect(stop).toBeGreaterThanOrEqual(0);
+        expect(cancel).toBeGreaterThan(stop);
+        expect(kill).toBeGreaterThan(cancel);
+        expect(fake.calls[cancel]).toMatchObject({ result: { answers: {} } });
+        yield* probe.release;
+        const response = yield* Fiber.join(result);
+        expect(response.status).toBe(502);
+        expect(yield* response.text).toContain("asked for something");
+        expect(existsSync(cwd)).toBe(false);
+      }).pipe(Effect.ensuring(probe.release));
+    }),
+  );
+
+  for (const reason of ["timeout", "disconnect"] as const) {
+    it.effect("interrupts a running Codex draft on " + reason, () =>
+      Effect.gen(function* () {
+        const fake = yield* Fake;
+        const probe = yield* closeProbe;
+        const started = yield* Deferred.make<void>();
+        const idea = "Draft without waiting.";
+        fake.load(draftFixture("interrupt-mid-stream", idea), "/tmp", {
+          holdRequest: (method) => {
+            if (method === "turn/start") Deferred.doneUnsafe(started, Effect.void);
+            return false;
+          },
+          beforeClose: probe.beforeClose,
+        });
+        yield* Effect.gen(function* () {
+          const result = yield* Effect.forkChild(draftWithCodex(idea));
+          yield* Deferred.await(started);
+          if (reason === "timeout") yield* TestClock.adjust("2 minutes");
+          else yield* Fiber.interrupt(result);
+          const cwd = yield* probe.closing;
+          expect(existsSync(cwd)).toBe(true);
+          expect(fake.requests("turn/interrupt")).toHaveLength(1);
+          yield* probe.release;
+          if (reason === "timeout") {
+            expect((yield* Fiber.join(result)).status).toBe(502);
+            expect(existsSync(cwd)).toBe(false);
+          }
+        }).pipe(Effect.ensuring(probe.release));
+      }),
+    );
+  }
+
+  it.effect("closes Codex after a bounded wait if the turn start never returns a native ID", () =>
+    Effect.gen(function* () {
+      const fake = yield* Fake;
+      const started = yield* Deferred.make<void>();
+      const idea = "Draft without a turn ID.";
+      fake.load(draftFixture("multi-turn", idea), "/tmp", {
+        holdRequest: (method) => {
+          if (method !== "turn/start") return false;
+          Deferred.doneUnsafe(started, Effect.void);
+          return true;
+        },
+      });
+      const result = yield* Effect.forkChild(draftWithCodex(idea));
+      yield* Deferred.await(started);
+      yield* TestClock.adjust("2 minutes");
+      yield* TestClock.adjust("5 seconds");
+      expect((yield* Fiber.join(result)).status).toBe(502);
+      expect(fake.requests("turn/interrupt")).toEqual([]);
+      expect(fake.calls.at(-1)).toEqual({ call: "kill" });
+      expect(existsSync(fake.launches()[0]!.cwd)).toBe(false);
+    }),
+  );
+
+  for (const stalled of ["initialize", "model/list"] as const) {
+    it.effect("closes a cold model lookup stalled in " + stalled + " without cancelling a concurrent lookup", () =>
+      Effect.gen(function* () {
+        const fake = yield* Fake;
+        const probe = yield* closeProbe;
+        const blocked = yield* Deferred.make<string>();
+        const idea = "Draft with a model.";
+        let stalledCwd: string | undefined;
+        yield* TestClock.adjust("11 minutes");
+        fake.load(draftFixture("multi-turn", idea), "/tmp", {
+          holdRequest: (method, { cwd }) => {
+            if (method !== stalled || stalledCwd !== undefined) return false;
+            stalledCwd = cwd;
+            Deferred.doneUnsafe(blocked, Effect.succeed(cwd));
+            return true;
+          },
+          beforeClose: (launch) => launch.cwd === stalledCwd ? probe.beforeClose(launch) : Promise.resolve(),
+        });
+        yield* Effect.gen(function* () {
+          const result = yield* Effect.forkChild(draftWithCodex(idea, "gpt-5.6-luna"));
+          const cwd = yield* Deferred.await(blocked);
+          const healthy = yield* draftWithCodex(idea, "gpt-5.6-luna").pipe(Effect.flatMap(decode(DraftInstructionsResponse)));
+          expect(healthy.instructions).toBe("OK");
+          yield* TestClock.adjust("2 minutes");
+          expect(yield* probe.closing).toBe(cwd);
+          expect(existsSync(cwd)).toBe(true);
+          yield* probe.release;
+          expect((yield* Fiber.join(result)).status).toBe(502);
+          expect(existsSync(cwd)).toBe(false);
+          expect(fake.requests("turn/start")).toHaveLength(1);
+          const launches = fake.launches().length;
+          expect((yield* HttpClient.get("/api/providers/codex/models")).status).toBe(200);
+          expect(fake.launches()).toHaveLength(launches);
+        }).pipe(Effect.ensuring(probe.release));
+      }),
+    );
+  }
+});
+
 layer(App)("Codex provider", (it) => {
+  it.effect("drafts with the selected Codex model and the provider default", () =>
+    Effect.gen(function* () {
+      const fake = yield* Fake;
+      const body = { idea: "Draft a reviewer." };
+      for (const model of ["gpt-5.6-luna", null] as const) {
+        const fixture = loadFixture("multi-turn");
+        fake.load({ ...fixture, turns: [{ ...fixture.turns[0]!, prompt: JSON.stringify(body) }] }, "/tmp");
+        const response = yield* post("/api/agents/draft-instructions", { ...body, providerInstanceId: "codex", model })
+          .pipe(Effect.flatMap(decode(DraftInstructionsResponse)));
+        expect(response.instructions).toBe("OK");
+        const thread = fake.requests("thread/start")[0]!;
+        const turn = fake.requests("turn/start")[0]!;
+        expect(thread["model"]).toBe(model ?? undefined);
+        expect(turn["model"]).toBe(model ?? undefined);
+        expect(String(thread["cwd"])).toContain("wiki-agent-draft-");
+        expect(existsSync(String(thread["cwd"]))).toBe(false);
+        expect(thread["config"]).not.toHaveProperty(["mcp_servers." + VAULT_SERVER]);
+        expect(fake.requests("thread/resume")).toEqual([]);
+        expect(fake.calls.at(-1)).toEqual({ call: "kill" });
+      }
+    }),
+  );
+
   it.effect("keeps two subagents and their results attached to the launching turn after it ends", () =>
     Effect.gen(function* () {
       const { thread, prompts } = yield* setUp("subagents-two");

@@ -34,8 +34,8 @@ export const saveRules = (rulesId: string, request: SaveRulesRequest) => putJson
 export const deleteRules = (rulesId: string, hash: string) =>
   deleteJson(`${rulesPath(rulesId)}?hash=${encodeURIComponent(hash)}`, DeleteRulesResponse);
 
-export const draftInstructions = (request: DraftInstructionsRequest) =>
-  postJson("/api/agents/draft-instructions", DraftInstructionsRequest, request, DraftInstructionsResponse, { timeoutMs: 135_000 });
+export const draftInstructions = (request: DraftInstructionsRequest, signal: AbortSignal) =>
+  postJson("/api/agents/draft-instructions", DraftInstructionsRequest, request, DraftInstructionsResponse, { timeoutMs: 135_000, signal });
 
 export const listProviderModels = (providerInstanceId: string, signal?: AbortSignal) =>
   getJson(`/api/providers/${encodeURIComponent(providerInstanceId)}/models`, ListProviderModelsResponse, signal);

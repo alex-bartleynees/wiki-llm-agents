@@ -5,6 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { NodeHttpServer } from "@effect/platform-node";
 import { describe, expect, it, layer } from "@effect/vitest";
+import { DraftInstructionsResponse } from "@wiki-agents/contracts/agents/draft-instructions/response";
 import { ListAgentsResponse } from "@wiki-agents/contracts/agents/list-agents/response";
 import { RegisterProjectResponse } from "@wiki-agents/contracts/projects/register-project/response";
 import { CreateThreadResponse } from "@wiki-agents/contracts/threads/create-thread/response";
@@ -120,6 +121,24 @@ const finishedOf = (events: ReadonlyArray<ThreadEvent>) => {
 };
 
 layer(App)("OpenCode provider", (it) => {
+  it.effect("drafts with the selected OpenCode model and the provider default", () =>
+    Effect.gen(function* () {
+      const fake = yield* Fake;
+      const body = { idea: "Draft a reviewer." };
+      for (const model of [FAKE_MODELS[1]!.id, null] as const) {
+        const fixture = loadFixture("multi-turn");
+        yield* fake.load({ ...fixture, turns: [{ ...fixture.turns[0]!, prompt: JSON.stringify(body) }] }, "/tmp");
+        const response = yield* post("/api/agents/draft-instructions", { ...body, providerInstanceId: "opencode", model })
+          .pipe(Effect.flatMap(decode(DraftInstructionsResponse)));
+        expect(response.instructions).toBe("OK");
+        expect(fake.calls).toContainEqual(expect.objectContaining({ call: "createSession", model }));
+        expect(fake.calls).toContainEqual({ call: "prompt", text: JSON.stringify(body) });
+        expect(fake.calls).toContainEqual({ call: "setInstructions", text: expect.stringContaining("Write Markdown instructions") });
+        expect(fake.calls.some(({ call }) => call === "addMcpServer")).toBe(false);
+      }
+    }),
+  );
+
   it.effect("sends the persisted note snapshot to the provider with its hash", () => Effect.gen(function* () {
     const path = "Context.md", content = "# Context\n\nA current fact.";
     const hash = createHash("sha256").update(content).digest("hex");

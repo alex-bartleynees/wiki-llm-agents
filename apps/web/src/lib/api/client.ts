@@ -24,6 +24,7 @@ const WRITE_TIMEOUT_MS = 15_000;
 /** Options for a write: `timeoutMs` for one that does real work, such as scanning a large repository. */
 export interface WriteOptions {
   readonly timeoutMs?: number;
+  readonly signal?: AbortSignal;
   /** Let a small write finish while its page unloads. */
   readonly keepalive?: boolean;
 }
@@ -31,7 +32,9 @@ export interface WriteOptions {
 /** Turns a timeout or a refused connection into a message worth showing. */
 const send = async (path: string, init: RequestInit, timeoutMs = WRITE_TIMEOUT_MS): Promise<Response> => {
   try {
-    return await fetch(path, { ...init, signal: AbortSignal.timeout(timeoutMs) });
+    const timeout = AbortSignal.timeout(timeoutMs);
+    const signal = init.signal ? AbortSignal.any([init.signal, timeout]) : timeout;
+    return await fetch(path, { ...init, signal });
   } catch (error) {
     if (error instanceof DOMException && error.name === "TimeoutError") throw new ApiError(0, "The server didn't answer; try again");
     if (error instanceof TypeError) throw new ApiError(0, "Can't reach the server; try again");
@@ -91,7 +94,7 @@ const writeJson = async <R extends Schema.ConstraintCodec<unknown, unknown>, S e
   const encoded = Schema.encodeUnknownSync(request)(body);
   const response = await send(
     path,
-    { method, headers: { accept: "application/json", "content-type": "application/json" }, body: JSON.stringify(encoded), keepalive: options.keepalive ?? false },
+    { method, headers: { accept: "application/json", "content-type": "application/json" }, body: JSON.stringify(encoded), keepalive: options.keepalive ?? false, signal: options.signal ?? null },
     options.timeoutMs,
   );
   return decodeResponse(response, schema);

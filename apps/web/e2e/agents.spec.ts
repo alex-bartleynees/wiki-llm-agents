@@ -189,16 +189,18 @@ test("uses the header catalog and wiki tab to draft, review and save instruction
   const delayed = new Promise<void>((resolve) => { respond = resolve; });
   await page.route("**/api/agents/draft-instructions", async (route) => {
     await delayed;
-    await route.fulfill({ json: { instructions: "# Late draft" } });
+    await route.fulfill({ json: { instructions: "# Late draft" } }).catch(() => undefined);
   }, { times: 1 });
   await edit.getByRole("button", { name: "Draft instructions", exact: true }).click();
   await draft.getByLabel("Idea").fill("Revise the workflow.");
+  const started = page.waitForRequest((request) => request.url().endsWith("/api/agents/draft-instructions"));
   await draft.getByRole("button", { name: "Generate draft" }).click();
+  const pendingRequest = await started;
   await expect(draft.getByRole("status")).toHaveText("Generating draft…");
+  const cancelled = page.waitForEvent("requestfailed", (request) => request === pendingRequest);
   await draft.getByRole("button", { name: "Discard draft" }).click();
-  const late = page.waitForResponse((response) => response.url().endsWith("/api/agents/draft-instructions"));
+  await cancelled;
   respond();
-  await late;
   await expect(preview).toHaveCount(0);
   await expect(instructions).toHaveValue(original!);
 
@@ -301,4 +303,50 @@ test("retries ordinary model suggestions when reselecting a provider", async ({ 
   const draft = page.getByRole("region", { name: "Draft instructions" });
   await expect(draft.getByRole("option", { name: "Haiku", exact: true })).toHaveCount(1);
   expect(discoveryCalls).toBe(2);
+});
+
+test("drafts with Codex and OpenCode using the selected model or provider default", async ({ page }) => {
+  for (const [providerId, modelId, modelName] of [
+    ["codex", "gpt-5.6-luna", "GPT-5.6 Luna"],
+    ["opencode", "opencode/big-pickle", "Big Pickle"],
+  ] as const) {
+    await page.route("**/api/providers/" + providerId + "/models", (route) => route.fulfill({ json: {
+      models: [{ id: modelId, name: modelName, free: false, images: false }],
+      defaultModel: modelId,
+    } }));
+  }
+  await page.route("**/api/agents/draft-instructions", (route) => {
+    const { providerInstanceId } = route.request().postDataJSON();
+    return route.fulfill({ json: { instructions: "# " + providerInstanceId + " draft" } });
+  });
+  await page.goto("/agents/edit");
+  const form = page.getByRole("form", { name: "New agent" });
+  await form.getByRole("combobox", { name: "Provider", exact: true }).selectOption("codex");
+  await form.getByRole("combobox", { name: "Model", exact: true }).fill("gpt-5.6-luna");
+  await form.getByRole("button", { name: "Draft instructions", exact: true }).click();
+  const draft = form.getByRole("region", { name: "Draft instructions" });
+  const provider = draft.getByRole("combobox", { name: "Draft provider" });
+  const model = draft.getByRole("combobox", { name: "Draft model" });
+  await expect(provider).toHaveValue("codex");
+  await expect(model).toHaveValue("gpt-5.6-luna");
+  await draft.getByLabel("Idea").fill("Draft a reviewer.");
+
+  for (const [providerId, modelId] of [["codex", "gpt-5.6-luna"], ["opencode", null]] as const) {
+    if (providerId === "opencode") {
+      await provider.selectOption(providerId);
+      await expect(model).toBeEnabled();
+      await expect(model).toHaveValue("");
+    }
+    const request = page.waitForRequest((request) => request.url().endsWith("/api/agents/draft-instructions"));
+    await draft.getByRole("button", { name: /Generate draft|Regenerate/ }).click();
+    expect((await request).postDataJSON()).toMatchObject({ providerInstanceId: providerId, model: modelId });
+    await expect(draft.getByLabel("Draft preview")).toHaveText("# " + providerId + " draft");
+  }
+
+  const instructions = form.getByRole("textbox", { name: "Instructions", exact: true });
+  await expect(instructions).toHaveValue("");
+  await draft.getByRole("button", { name: "Use draft" }).click();
+  await expect(instructions).toHaveValue("# opencode draft");
+  await expect(form.getByRole("combobox", { name: "Provider", exact: true })).toHaveValue("codex");
+  await noOverflow(page);
 });

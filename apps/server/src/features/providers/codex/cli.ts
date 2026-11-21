@@ -38,23 +38,28 @@ export const describeError = (cause: unknown) => (cause instanceof Error ? cause
  * account), then closes it. Starts no thread and spends nothing.
  */
 export const withAppServer = <A>(launcher: CodexLauncher, binary: string, cwd: string, what: string, use: (rpc: RpcClient) => Promise<A>) =>
-  Effect.tryPromise({
-    try: async () => {
-      let stopped: (reason: string | null) => void = () => {};
-      const exited = new Promise<never>((_, reject) => {
-        stopped = (reason) => reject(new Error(reason === null ? "Codex stopped" : reason));
-      });
-      exited.catch(() => {});
-      const rpc = makeRpc(launcher.launch({ binary, cwd, env: {} }), () => {}, (reason) => stopped(reason));
-      try {
+  Effect.acquireUseRelease(
+    Effect.try({
+      try: () => launcher.launch({ binary, cwd, env: {} }),
+      catch: (cause) => new ProviderError({ message: `${what}: ${describeError(cause)}`, cause }),
+    }),
+    (process) => Effect.tryPromise({
+      try: async () => {
+        let stopped: (reason: string | null) => void = () => {};
+        const exited = new Promise<never>((_, reject) => {
+          stopped = (reason) => reject(new Error(reason === null ? "Codex stopped" : reason));
+        });
+        const rpc = makeRpc(process, () => {}, stopped);
         await Promise.race([initialize(rpc), exited]);
         return await Promise.race([use(rpc), exited]);
-      } finally {
-        rpc.kill();
-      }
-    },
-    catch: (cause) => new ProviderError({ message: `${what}: ${describeError(cause)}`, cause }),
-  });
+      },
+      catch: (cause) => new ProviderError({ message: `${what}: ${describeError(cause)}`, cause }),
+    }),
+    (process) => Effect.promise(() => {
+      process.kill();
+      return process.closed;
+    }),
+  );
 
 export interface AuthStatus {
   readonly loggedIn: boolean;
