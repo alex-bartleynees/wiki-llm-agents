@@ -47,7 +47,7 @@ export const InboxRepositoryLive = Layer.effect(
       markRead: (itemIds, at) =>
         query(() => {
           if (itemIds.length === 0) return [];
-          const unread = and(inArray(inboxItems.id, [...itemIds]), openUnsnoozed, eq(inboxItems.read, false));
+          const unread = and(inArray(inboxItems.id, [...itemIds]), eq(inboxItems.read, false));
           const changed = db.select({ id: inboxItems.id }).from(inboxItems).where(unread).all();
           if (changed.length === 0) return [];
           db.update(inboxItems).set({ read: true, updatedAt: updatedAt(at) }).where(unread).run();

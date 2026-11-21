@@ -125,6 +125,54 @@ describe("inbox", () => {
     expect(inbox.history).toEqual([done]);
   });
 
+  it.each(["queued event during sent snapshot", "sent event during queued snapshot"] as const)(
+    "keeps the sent receipt on reconnect with a %s",
+    async (order) => {
+      const queued = item("a", {
+        deliveries: [{ channel: "in-app", status: "queued", attempts: 0, lastError: null, detail: null, sentAt: null }],
+      });
+      const sent = item("a", {
+        deliveries: [{ channel: "in-app", status: "sent", attempts: 1, lastError: null, detail: null, sentAt: 1 }],
+      });
+      const queuedEvent = order === "queued event during sent snapshot";
+      api.listInbox.mockResolvedValue({ items: [queued] });
+      inbox.start();
+      await vi.waitFor(() => expect(inbox.status).toBe("loaded"));
+
+      const snapshot = Promise.withResolvers<{ items: InboxItem[] }>();
+      api.listInbox.mockReturnValue(snapshot.promise);
+      stream.handlers!.onReconnect!();
+      const emit = (updated: InboxItem) => stream.handlers!.onEvent({ type: "item.updated", item: updated });
+      emit(queuedEvent ? queued : sent);
+      snapshot.resolve({ items: [queuedEvent ? sent : queued] });
+      await vi.waitFor(() => expect(inbox.status).toBe("loaded"));
+      expect(inbox.items).toEqual([sent]);
+      emit(queued);
+      expect(inbox.items).toEqual([sent]);
+    },
+  );
+
+  it("recovers a committed completion after transport failure and retries idempotently", async () => {
+    const original = item("a");
+    const done = item("a", { state: "done", updatedAt: 2 });
+    const arrival = item("arrival");
+    const targets = [{ itemId: original.id, turnId: null }];
+    api.listInbox.mockResolvedValue({ items: [original] });
+    inbox.start();
+    await vi.waitFor(() => expect(inbox.status).toBe("loaded"));
+    api.markAllDone.mockRejectedValueOnce(new Error("Connection lost")).mockResolvedValueOnce({ items: [] });
+    await expect(inbox.completeAll(targets)).rejects.toThrow("Connection lost");
+    expect(inbox.open).toEqual([original]);
+
+    api.listInbox.mockResolvedValue({ items: [arrival, done] });
+    stream.handlers!.onReconnect!();
+    await vi.waitFor(() => expect(inbox.history).toEqual([done]));
+    expect(await inbox.completeAll(targets)).toBe(0);
+    expect(api.markAllDone.mock.calls).toEqual([[{ targets }], [{ targets }]]);
+    expect(inbox.history).toEqual([done]);
+    expect(inbox.open).toEqual([arrival]);
+  });
+
   it("ignores a completion response older than the state fetched on reconnect", async () => {
     const original = item("a");
     api.listInbox.mockResolvedValue({ items: [original] });

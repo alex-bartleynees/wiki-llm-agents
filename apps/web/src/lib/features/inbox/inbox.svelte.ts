@@ -7,6 +7,23 @@ import { dismissItem, INBOX_TOPIC, listInbox, markAllDone, markItemDone, markRea
 
 const newestFirst = (a: InboxItem, b: InboxItem) => b.updatedAt - a.updatedAt;
 
+const reconcileItem = (current: InboxItem | undefined, incoming: InboxItem): InboxItem => {
+  if (current === undefined || incoming.updatedAt > current.updatedAt) return incoming;
+  if (incoming.updatedAt < current.updatedAt) return current;
+
+  // Delivery receipts advance independently of the item timestamp. Requeuing
+  // resets attempts together with a new item timestamp.
+  const deliveries = new Map(current.deliveries.map((delivery) => [delivery.channel, delivery]));
+  let advanced = false;
+  for (const delivery of incoming.deliveries) {
+    const previous = deliveries.get(delivery.channel);
+    if (previous !== undefined && previous.attempts >= delivery.attempts) continue;
+    deliveries.set(delivery.channel, delivery);
+    advanced = true;
+  }
+  return advanced ? { ...current, deliveries: [...deliveries.values()] } : current;
+};
+
 /**
  * The one inbox, across agents, vaults and projects: loaded once and kept current by
  * the inbox topic on the event stream, so the header's unread count is live on every page.
@@ -49,7 +66,7 @@ class InboxStore {
     let subscribed = false;
     this.#close = listen(INBOX_TOPIC, InboxStreamMessage, {
       onEvent: (message) => {
-        if (message.type === "item.updated") this.#merge([message.item], true);
+        if (message.type === "item.updated") this.#merge([message.item]);
         // A first load can finish before the topic subscribes.
         if (message.type === "ready" && !subscribed) {
           subscribed = true;
@@ -75,11 +92,11 @@ class InboxStore {
     try {
       const { items } = await listInbox();
       if (this.#loadUpdates !== updates) return;
-      const snapshot = new Map(items.map((item) => [item.id, item]));
+      const current = new Map(this.items.map((item) => [item.id, item]));
+      const snapshot = new Map(items.map((item) => [item.id, reconcileItem(current.get(item.id), item)]));
       // Keep updates received during the fetch, including arrivals absent from its snapshot.
       for (const [id, item] of updates) {
-        const listed = snapshot.get(id);
-        if (listed === undefined || item.updatedAt >= listed.updatedAt) snapshot.set(id, item);
+        snapshot.set(id, reconcileItem(snapshot.get(id), item));
       }
       this.items = [...snapshot.values()];
       this.#loaded++;
@@ -94,23 +111,19 @@ class InboxStore {
     }
   }
 
-  #merge(changed: ReadonlyArray<InboxItem>, live: boolean, loaded = this.#loaded) {
+  #merge(changed: ReadonlyArray<InboxItem>, loaded = this.#loaded) {
     const current = new Map(this.items.map((item) => [item.id, item]));
     const arrivalIds: string[] = [];
     let merged = false;
     for (const item of changed) {
       const previous = current.get(item.id);
-      // Mutations have increasing timestamps per row. Equal live updates can
-      // carry delivery details, so prefer those over an equal HTTP response.
-      if (previous === undefined) {
-        // A reload can drop old history while a mutation response is in flight.
-        if (loaded !== this.#loaded) continue;
-        arrivalIds.push(item.id);
-      } else if (item.updatedAt < previous.updatedAt || (!live && item.updatedAt === previous.updatedAt)) {
-        continue;
-      }
-      current.set(item.id, item);
-      this.#loadUpdates?.set(item.id, item);
+      // A reload can drop old history while a mutation response is in flight.
+      if (previous === undefined && loaded !== this.#loaded) continue;
+      const next = reconcileItem(previous, item);
+      if (next === previous) continue;
+      if (previous === undefined) arrivalIds.push(item.id);
+      current.set(item.id, next);
+      this.#loadUpdates?.set(item.id, next);
       merged = true;
     }
     if (merged) {
@@ -127,7 +140,7 @@ class InboxStore {
     await this.#run((async () => {
       for (let offset = 0; offset < unread.length; offset += 500) {
         const ids = unread.slice(offset, offset + 500).map((item) => item.id);
-        this.#merge((await markRead(ids)).items, false, loaded);
+        this.#merge((await markRead(ids)).items, loaded);
       }
     })(), "Could not mark items read");
   }
@@ -137,7 +150,7 @@ class InboxStore {
     const loaded = this.#loaded;
     try {
       const { items } = await markAllDone({ targets });
-      this.#merge(items, false, loaded);
+      this.#merge(items, loaded);
       return items.length;
     } finally {
       this.completing = false;
@@ -146,17 +159,17 @@ class InboxStore {
 
   snooze(itemId: string, until: number) {
     const loaded = this.#loaded;
-    return this.#run(snoozeItem(itemId, until).then((response) => this.#merge([response.item], false, loaded)), "Could not snooze");
+    return this.#run(snoozeItem(itemId, until).then((response) => this.#merge([response.item], loaded)), "Could not snooze");
   }
 
   dismiss(itemId: string) {
     const loaded = this.#loaded;
-    return this.#run(dismissItem(itemId).then((response) => this.#merge([response.item], false, loaded)), "Could not dismiss");
+    return this.#run(dismissItem(itemId).then((response) => this.#merge([response.item], loaded)), "Could not dismiss");
   }
 
   done(itemId: string) {
     const loaded = this.#loaded;
-    return this.#run(markItemDone(itemId).then((response) => this.#merge([response.item], false, loaded)), "Could not mark done");
+    return this.#run(markItemDone(itemId).then((response) => this.#merge([response.item], loaded)), "Could not mark done");
   }
 
   async #run(action: Promise<void>, fallback: string) {

@@ -99,7 +99,7 @@ test("snoozes an item until later and dismisses it", async ({ page, request }, i
   await expect(item).toHaveCount(0);
 });
 
-test("confirms bulk completion across tabs and preserves requests, snoozes and new arrivals", async ({ page, request, context }, info) => {
+test("recovers a lost bulk completion response and updates another tab outside Inbox", async ({ page, request, context }, info) => {
   const titles = ["Complete this", "Keep snoozed", "Keep new arrival"].map((title) => `${title} (${info.project.name})`);
   const scheduleIds: string[] = [];
   for (const title of titles) {
@@ -127,6 +127,8 @@ test("confirms bulk completion across tabs and preserves requests, snoozes and n
   await message.press("Enter");
   await expect(page.getByText("Where should the new note go?", { exact: true })).toBeVisible();
 
+  // Keep these items unread so the second tab's badge exercises the Done event.
+  await page.route("**/api/inbox/read", (route) => route.fulfill({ json: { items: [] } }));
   await page.goto("/inbox");
   const open = (target: Page) => target.getByRole("region", { name: "Open", exact: true });
   const card = (target: Page, index: number) => open(target).getByRole("article", { name: titles[index]! });
@@ -139,8 +141,16 @@ test("confirms bulk completion across tabs and preserves requests, snoozes and n
   await expect(card(page, 1)).toHaveCount(0);
 
   const other = await context.newPage();
-  await other.goto("/inbox");
-  await expect(card(other, 0)).toBeVisible();
+  await openVault(other);
+  const badge = other.getByRole("navigation", { name: "Sections" }).getByRole("link", { name: /^Inbox/ }).locator(".badge");
+  const unread = async () => {
+    const { items } = (await (await request.get("/api/inbox")).json()) as {
+      items: Array<{ title: string; kind: string; state: string; read: boolean; snoozedUntil: number | null }>;
+    };
+    return items.filter((item) => item.state === "open" && !item.read && item.snoozedUntil === null);
+  };
+  const baseline = (await unread()).length;
+  await expect(badge).toHaveAttribute("aria-label", `${baseline} unread`);
   await action.click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toContainText(/Mark \d+ items? as done\?/);
@@ -154,12 +164,25 @@ test("confirms bulk completion across tabs and preserves requests, snoozes and n
   const count = Number(heading?.match(/\d+/)?.[0]);
   expect(count).toBeGreaterThan(0);
   await run(2);
-  // The new arrival proves both tabs are subscribed before the completion.
-  await expect(card(other, 2)).toBeVisible();
+  // The badge increment proves that the tab outside Inbox is receiving live events.
+  await expect(badge).toHaveAttribute("aria-label", `${baseline + 1} unread`);
+  const unreadBefore = await unread();
+  const retained = unreadBefore.filter((item) => item.kind === "request" || item.title === titles[2]).length;
+  expect(retained).toBeLessThan(unreadBefore.length);
   await expect(dialog.getByRole("heading")).toHaveText(heading!);
+  await page.route("**/api/inbox/done", async (route) => {
+    const response = await route.fetch();
+    expect(response.ok()).toBe(true);
+    expect((await response.json()).items).toHaveLength(count);
+    await route.abort("connectionreset");
+  }, { times: 1 });
   await dialog.getByRole("button", { name: "Mark done", exact: true }).click();
+  await expect(dialog.getByRole("alert")).toBeVisible();
+  await expect(badge).toHaveAttribute("aria-label", `${retained} unread`);
 
-  await expect(page.getByRole("status").filter({ hasText: /^Marked/ })).toHaveText(`Marked ${count} ${count === 1 ? "item" : "items"} done.`);
+  await dialog.getByRole("button", { name: "Retry", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: /^Marked/ })).toHaveText("Marked 0 items done.");
+  await other.goto("/inbox");
   for (const target of [page, other]) {
     await expect(card(target, 0)).toHaveCount(0);
     await expect(card(target, 2)).toBeVisible();

@@ -78,6 +78,29 @@ layer(makeTestApp({ providers: provider.registry }))("inbox", (it) => {
     }),
   );
 
+  it.effect("marks explicitly named snoozed and done items read and publishes the persisted rows", () =>
+    Effect.gen(function* () {
+      const repo = yield* InboxRepository;
+      const at = yield* Clock.currentTimeMillis;
+      const reminder = { kind: "reminder", title: "Read explicitly", body: "", source: {} } as const;
+      const snoozed = yield* repo.add(reminder, [], at);
+      const done = yield* repo.add(reminder, [], at);
+      const untouched = yield* repo.add(reminder, [], at);
+      const until = at + 60_000;
+      yield* post(`/api/inbox/${snoozed.id}/snooze`, { until }).pipe(Effect.flatMap(decode(SnoozeItemResponse)));
+      yield* act(done, "done");
+      const subscription = yield* (yield* InboxBus).subscribe;
+      const { items } = yield* post("/api/inbox/read", { itemIds: [snoozed.id, done.id] }).pipe(Effect.flatMap(decode(MarkReadResponse)));
+      expect(items).toHaveLength(2);
+      expect(items).toEqual(expect.arrayContaining([
+        expect.objectContaining({ id: snoozed.id, state: "open", snoozedUntil: until, read: true }),
+        expect.objectContaining({ id: done.id, state: "done", snoozedUntil: null, read: true }),
+      ]));
+      expect(yield* inbox).toEqual(expect.arrayContaining([...items, untouched]));
+      expect(yield* PubSub.takeAll(subscription)).toEqual(items);
+    }),
+  );
+
   it.effect("bulk completes only captured, still eligible versions and publishes only committed changes", () =>
     Effect.gen(function* () {
       const read = yield* reminderNow("Already read");
