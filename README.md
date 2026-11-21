@@ -1,7 +1,16 @@
 # wiki-agents
 
-Local-first app that puts a wiki-llm Obsidian vault and coding agents (OpenCode
-first, then Claude Code and Codex) in one place. Working name; the app isn't named yet.
+wiki-agents is a local-first app for working with an Obsidian vault and your
+installed OpenCode, Claude Code, and Codex agents. Browse, search, and edit notes
+alongside conversations, then review and undo agents' changes to notes.
+
+- [Threads](#threads) support drafts, conversation compaction, handoffs, and delegation.
+- [Projects](#projects) bring working directories, git worktrees, diff review,
+  commits, and pushes into the app.
+- [MCP servers](#mcp-servers) connect agents to external tools, including a
+  Playwright browser with project test sign-ins.
+- [Schedules and the inbox](#schedules-and-the-inbox) bring reminders, scheduled
+  agent runs, and requests for your input together, with optional Web Push.
 
 Design and plans live in the vault: `1-Active/Wiki-LLM-Agents-App/` (README,
 Architecture, Implementation Plan, Code Organisation, OpenCode Integration). The UI
@@ -40,6 +49,10 @@ Gate before every commit: `npm test`, `npm run check`, `npm run build`, `git dif
   After a nixpkgs update, pin both to the new version and update `npmDepsHash`.
 
 ## Vaults
+
+**Settings › Appearance** lets you choose a theme and fonts for this device.
+Where the browser supports local font discovery, you can pick from installed
+fonts or enter a font name manually.
 
 Register a vault on the settings screen (⚙ in the vault pane; it also lists the
 providers, whether each is installed, signed in, and its version), with
@@ -148,9 +161,9 @@ exercises create → read → edit through the real MCP endpoint.
 ### Threads
 
 The right-hand pane (the Chat tab on phone) holds the vault's agent threads.
-Unsent message text autosaves per thread to SQLite, so it survives navigation,
-refreshes and server restarts, and is available when you open that thread on another
-device. An older tab cannot overwrite a newer draft from another device. Save errors
+Unsent message text autosaves after a pause in typing and flushes on page exit.
+Drafts are stored per thread in SQLite, so they survive navigation, refreshes
+and server restarts, and are available when you open that thread on another device. An older tab cannot overwrite a newer draft from another device. Save errors
 appear below the composer with Retry; a successfully accepted message clears its
 matching draft. This saves message text only; note context and file selections
 remain specific to the current composer.
@@ -163,6 +176,19 @@ on this device; explicit model choices are kept per provider while the app is op
 resets the explicit model and selects its provider when configured. Worktree starts
 off and resets after a successful creation or project change. Errors stay beside
 the form so you can correct a choice and retry.
+
+**Conversation context.** When the provider reports context usage, the thread
+shows how much of its context window is in use and records compaction in the
+timeline. **Compact** asks OpenCode, Claude Code, or Codex to summarise the
+conversation in its current provider session. OpenCode also shows the routed
+model when a service such as Copilot Auto reports one.
+
+**Continue in a new thread** starts a fresh provider session with the same agent,
+provider, and model. Write a handoff or ask the agent to draft one in the source
+thread, then edit it before creating the new thread. The handoff waits in the new
+composer for you to send, and both threads link to each other. For a project you
+can use its main directory, share the source thread's existing worktree, or
+create a clean worktree from HEAD when available.
 
 Available providers:
 
@@ -220,9 +246,10 @@ Available providers:
   even after a restart, resumes the thread. Pick the model in the thread's header
   (Codex's own list, without its hidden models).
   **Approvals:** every thread runs in Codex's read-only sandbox with the `on-request`
-  approval policy. Commands run inside the sandbox without asking (they can read
-  anywhere, but not write or reach the network); a patch, or a command that needs
-  more than the sandbox, comes to the app, which answers from the agent's autonomy or
+  approval policy. Commands run inside the sandbox without asking and can read files
+  permitted by the profile. When protected paths are configured, network and local socket access
+  require command autonomy set to `allow`. A patch or a command that needs more
+  than the sandbox comes to the app, which answers from the agent's autonomy or
   asks you (patches show their diff). A patch that adds a file that doesn't exist yet
   is *create*, anything else *edit*; a patch touching several files takes the
   strictest of them, and files outside the working folders always ask. Codex's web
@@ -274,8 +301,8 @@ Available providers:
   without you pressing Stop (a restart, the provider giving up), with the reason.
   Stopped threads stay until you send them a message or **Mark done**, for at most a
   week. `GET /api/active-threads` lists them; the `all-threads` topic on the event
-  stream keeps the page current (the per-vault list follows `vault-threads`). The page
-  follows that topic only while it is shown, and the tab has no count yet.
+  stream keeps the page current (the per-vault list follows `vault-threads`). The Running
+  tab shows its count when there are active or stopped threads.
   There is no task queue: a background task is a thread, and threads for the same
   agent run side by side.
 - Each thread has a **ThreadActor** (`features/threads/thread-actor.ts`): one mailbox
@@ -308,6 +335,25 @@ Available providers:
   resume: its server stops with the app and cancels the turn and its pending
   approvals, so an OpenCode turn cut off by a restart is closed as interrupted.
 
+#### Subagents and manager threads
+
+OpenCode, Claude Code, and Codex subagents appear in the conversation with their
+status and latest reports. Background subagents can keep a thread visible in
+**Running** after the main turn finishes. Approvals and questions identify the
+subagent when available, and Codex subagent questions go to you. Use
+**Stop the subagents** when only the subagents are still working.
+
+An agent with `autonomy.threads` set to `ask` or `allow` can manage child app
+threads. Its MCP tools are `thread_create`, `thread_list`, `thread_read`,
+and `thread_send`. Creating a child or sending it a follow-up follows that
+autonomy setting. A child inherits the manager's workspace, including its
+worktree, and can run with a different agent. Children have their own
+conversation, approvals, and status, and link back to the manager. Find them below
+their manager in the thread list or in **Running** while active or waiting.
+Finished turns report back in the manager's **Child thread results** card,
+and the manager can use those results in a follow-up turn. Child threads
+cannot start their own child app threads.
+
 ### Vault context and MCP
 
 Each thread gets authenticated vault tools at `/mcp`, registered with OpenCode for
@@ -336,6 +382,10 @@ context: they do not establish that the provider read that file version. File re
 through other provider tools are not tracked. Live `vault_open_note` events open
 the note; replaying stored history never navigates the reader.
 
+The composer's attachment control adds images and other files. Which files
+can be sent depends on the selected provider. The composer reports any
+attachment it cannot send.
+
 Search evaluation fixtures and fixed relevance judgements live in
 `apps/server/tests/fixtures/search-eval/`. Run the evaluation against the real HTTP
 app with `nix develop -c npm test -w @wiki-agents/server -- search-eval`.
@@ -362,9 +412,9 @@ The overview’s registration sidebar starts collapsed when any projects exist.
 registration** hides it without clearing an unfinished form. With no projects, it
 starts open. Registering a project closes it again.
 
-A project's threads run in its main directory and keep their project across
-restarts. They reach the shared vault through their vault tools (MCP), supplied
-notes and the rules. The threads pane remembers the open thread separately for each
+Projects with recent thread activity appear first. A project's threads use its
+main directory by default and keep their project across restarts. They reach
+the shared vault through their vault tools (MCP), supplied notes and the rules. The threads pane remembers the open thread separately for each
 project. With a vault open that the selected project doesn't use, all of that
 vault's threads show.
 
@@ -396,6 +446,11 @@ vault's threads show.
   project's other working directories and the shared vault itself (resolving
   symlinks) and asks you about anywhere else. Shell commands follow command
   autonomy; this is a permission boundary, not an OS sandbox.
+- **Worktrees** are opt-in when starting a thread in an eligible git project.
+  Choose a branch name to start on a separate checkout from HEAD. Review its
+  changes in the project's Diff view. Finished worktrees appear in a collapsed
+  **done** group. Marking a thread done offers to remove its worktree. Removal
+  requires a clean worktree and no busy thread sharing it. The branch is kept.
 - **Diff** (`/projects/<id>/diff`, also **Review the diff** under changed files)
   shows each working directory's changes from git, compared with `HEAD`: staged and
   unstaged together, untracked (not ignored) files as new, renames detected, binary
@@ -491,8 +546,9 @@ that machine's fresh defaults would win over your edits. A Syncthing conflict co
   `description`, `provider` and `model` (defaults for new threads), `sources`,
   and `autonomy` per action (`read`, `create`, `edit`, `commands`, `web`,
   `tools` for other MCP servers' tools, and `subagents` for starting the provider's
-  own subagents: `allow`, `ask`, or `deny`; `always` and `never` work too). Anything
-  left out reads freely and asks for the rest. Unknown keys are errors, so typos can't pass.
+  own subagents, and `threads` for managing child app threads). Levels are
+  `allow`, `ask`, or `deny`. The aliases `always` and `never` work too.
+  Unknown keys are errors, so typos can't pass.
 - `subagents` covers OpenCode's `subagent` tool and Claude Code's `Agent`; what a
   subagent then does follows the rest of the autonomy. A scheduled run denies every
   ask, so it can start subagents only when `subagents` is `allow`; its inbox result is
@@ -662,9 +718,11 @@ excludeTools: [delete_repository] # optional: the server's tools no agent gets a
 - **Test** connects once, apart from the connections threads use, with the references
   filled in, and lists the server's tools (`<id>__<tool>`, read-only ones marked).
   A server that can't be reached shows why, never with a secret in it.
-- **Agent tools:** enable **Give to every thread**, or list server IDs in an agent's
-  **MCP servers** field (`mcp: [coffee-journal, github]` in its frontmatter). Each
-  thread gets those servers' tools through its existing `/mcp` entry, named
+- **Agent tools:** enable **Give to every thread**, select servers in the
+  project's **MCP servers** settings for all its threads, or list server IDs in
+  an agent's **MCP servers** field (`mcp: [coffee-journal, github]` in its
+  frontmatter). Each thread gets the combined tools through its existing
+  `/mcp` entry, named
   `<server-id>__<tool>`. Missing servers and tools held back (names providers refuse,
   or longer than 60 characters with the prefix) are explained in conversation notices.
 - **Autonomy and approvals:** the app decides each call, not the provider (providers
@@ -1065,7 +1123,7 @@ origin even when opened directly in a tab:
 apps/server/        Node + Effect HTTP server (API, SSE, MCP, actors, SQLite); serves the web build
 apps/web/           SvelteKit SPA (adapter-static), no server code
 packages/contracts/ Effect Schemas shared by both: <feature>/<operation>/{request,response}.ts
-nix/                package.nix (buildNpmPackage); home-manager and NixOS modules later
+nix/                package.nix (buildNpmPackage); home-manager module
 design/             Claude Design mockup
 ```
 
@@ -1081,6 +1139,8 @@ design/             Claude Design mockup
 | `WIKI_AGENTS_OPENCODE` | `opencode` (looked up on `PATH`) |
 | `WIKI_AGENTS_OPENCODE_TODO` | `false`; `true` turns on OpenCode's experimental `todowrite` tool (`experimental.todo`, added to any `OPENCODE_CONFIG_CONTENT`) for the app's OpenCode server, so OpenCode threads show plans. It adds tool calls to multi-step turns; restart the app after changing it |
 | `WIKI_AGENTS_CLAUDE` | `claude` (looked up on `PATH`) |
+| `WIKI_AGENTS_CODEX` | `codex` (looked up on `PATH`) |
+| `WIKI_AGENTS_BROWSER_MCP` | unset; set a command or path to enable the built-in Playwright MCP server |
 | `WIKI_AGENTS_PROVIDER_ENV_WITHHOLD` | unset; environment variables kept from OpenCode, Claude Code and Codex, and so from every command an agent runs: names separated by commas, a trailing `*` matching a prefix (`AWS_*, NPM_TOKEN`). The app's own `WIKI_AGENTS_*` variables are always kept from them; everything else (`PATH`, `HOME`, `SSH_AUTH_SOCK`, Nix, provider keys) goes through. Restart the app after changing it |
 | `WIKI_AGENTS_PROVIDER_ENV_PASS` | unset; variables passed to the providers anyway, over the list above and the `WIKI_AGENTS_*` rule (same form) |
 | `WIKI_AGENTS_CONFIG_DIR` | `$XDG_CONFIG_HOME/wiki-agents` (rules and agents) |
