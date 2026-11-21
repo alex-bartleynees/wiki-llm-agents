@@ -1,6 +1,7 @@
 import { Effect, Layer } from "effect";
 import { McpProtocol, McpServer } from "effect/ai";
 import { ThreadActors } from "../threads/thread-actors.js";
+import { ManagerThreadRegistrations } from "./manager-thread-toolkit.js";
 import { McpAuth } from "./auth.js";
 import { McpGateway } from "./gateway.js";
 import { SERVER_INSTRUCTIONS } from "./instructions.js";
@@ -41,5 +42,5 @@ export const mcpRouter = McpServer.layerHttp({
   instructions: SERVER_INSTRUCTIONS,
   path: MCP_PATH,
   protocols: [McpProtocol.v2025_11_25, McpProtocol.v2025_06_18, McpProtocol.v2025_03_26, McpProtocol.v2026_07_28],
-  registrations: Layer.merge(McpServer.toolkit(VaultToolkit).pipe(Layer.provide(VaultToolkitLive)), GatewayRegistrations),
+  registrations: Layer.mergeAll(McpServer.toolkit(VaultToolkit).pipe(Layer.provide(VaultToolkitLive)), GatewayRegistrations, ManagerThreadRegistrations),
 }).pipe(Layer.provide(McpAuth.layer));

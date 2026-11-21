@@ -115,6 +115,7 @@ export interface ThreadRepositoryService {
    * picks from these with `threadActivity`.
    */
   readonly listActive: (since: number) => Effect.Effect<ReadonlyArray<ThreadSummary>, DbError>;
+  readonly listChildren: (parentThreadId: string) => Effect.Effect<ReadonlyArray<ThreadSummary>, DbError>;
   /** Events with a seq greater than `afterSeq`, in order. */
   readonly events: (threadId: string, afterSeq: number) => Effect.Effect<ReadonlyArray<StoredThreadEvent>, DbError>;
   /**

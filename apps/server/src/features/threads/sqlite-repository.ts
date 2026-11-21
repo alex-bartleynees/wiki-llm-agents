@@ -180,6 +180,17 @@ export const ThreadRepositoryLive = Layer.effect(
             .map(toSummary),
         ),
 
+      listChildren: (parentThreadId) =>
+        query(() =>
+          db
+            .select(summaryColumns)
+            .from(threads)
+            .where(and(eq(threads.parentThreadId, parentThreadId), isNull(threads.deletedAt)))
+            .orderBy(desc(threads.updatedAt), desc(threads.createdAt))
+            .all()
+            .map(toSummary),
+        ),
+
       listActive: (since) =>
         query(() =>
           db
