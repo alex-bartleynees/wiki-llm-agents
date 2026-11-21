@@ -6,6 +6,7 @@ import type { RequestAnswer, RequestPrompt } from "@wiki-agents/contracts/thread
 import { Clock, Deferred, Duration, Effect, FileSystem, Option, Queue, Stream } from "effect";
 import { resolveBinary } from "../binary.js";
 import {
+  type BackgroundEvent,
   type CompactInput,
   DENIED,
   type ModelList,
@@ -14,6 +15,7 @@ import {
   type ProviderEvent,
   type ProviderSession,
   type SessionSetup,
+  type SubagentState,
   type TurnImage,
   type TurnInput,
   vaultToolsUnavailable,
@@ -42,6 +44,7 @@ import type {
   ModelListResponse,
   Notifications,
   PermissionsApprovalParams,
+  ThreadItem,
   ThreadParams,
   ThreadResponse,
   TurnStartResponse,
@@ -98,11 +101,22 @@ type Signal =
 interface Conversation {
   readonly rpc: RpcClient;
   readonly signals: Queue.Queue<Signal>;
+  readonly children: Map<string, CodexChild>;
+  stopping: boolean;
   /** The setup it was started with. */
   readonly key: string;
   alive: boolean;
   /** The vault tools failed to start, and the user was told. */
   toolsReported: boolean;
+}
+
+interface CodexChild {
+  state: SubagentState;
+  nativeTurnId: string | undefined;
+  result: string | null;
+  readonly mapper: ReturnType<typeof makeTurnMapper>;
+  stopped: Deferred.Deferred<void>;
+  readonly requests: Set<string>;
 }
 
 type PendingRequest =
@@ -236,6 +250,8 @@ export const makeCodexAdapter = (options: CodexAdapterOptions) =>
           let model = initialModel;
           let conversation: Conversation | undefined;
           let turn: RunningTurn | undefined;
+          const sessionScope = yield* Effect.scope;
+          const background = yield* Queue.unbounded<BackgroundEvent>();
           const requests = new Map<string, PendingRequest>();
           /** Why Codex didn't run an item (autonomy or you declined it), by item id. */
           const declined = new Map<string, string>();
@@ -247,8 +263,27 @@ export const makeCodexAdapter = (options: CodexAdapterOptions) =>
             requests.clear();
           };
 
+          const publishChild = (child: CodexChild, status: SubagentState["status"], result = child.state.result) => {
+            child.state = { ...child.state, status, result };
+            Queue.offerUnsafe(background, { _tag: "subagent", state: child.state });
+          };
+
+          const clearChildRequests = (child: CodexChild) => {
+            for (const requestId of child.requests) {
+              requests.delete(requestId);
+              Queue.offerUnsafe(background, { _tag: "request.closed", requestId });
+            }
+            child.requests.clear();
+          };
+
           const close = (current: Conversation) => {
-            cancelRequests(current);
+            for (const child of current.children.values()) {
+              if (child.state.status !== "running" && child.state.status !== "waiting") continue;
+              clearChildRequests(child);
+              publishChild(child, current.stopping ? "cancelled" : "interrupted");
+              Deferred.doneUnsafe(child.stopped, Effect.void);
+            }
+            if (conversation === current) cancelRequests(current);
             current.alive = false;
             current.rpc.kill();
           };
@@ -269,16 +304,17 @@ export const makeCodexAdapter = (options: CodexAdapterOptions) =>
               if (conversation?.alive === true && conversation.key === key) return conversation;
               if (conversation !== undefined) close(conversation);
               const signals = yield* Queue.unbounded<Signal>();
+              const incoming = yield* Queue.unbounded<Incoming | Extract<Signal, { _tag: "ended" }>>();
               let current: Conversation | undefined;
               const rpc = makeRpc(
                 launcher.launch({ binary, cwd, env: tools === null ? {} : { [TOKEN_ENV]: tools.token } }),
-                (message) => Queue.offerUnsafe(signals, message),
+                (message) => Queue.offerUnsafe(incoming, message),
                 (reason) => {
                   if (current !== undefined) current.alive = false;
-                  Queue.offerUnsafe(signals, { _tag: "ended", reason });
+                  Queue.offerUnsafe(incoming, { _tag: "ended", reason });
                 },
               );
-              current = { rpc, signals, key, alive: true, toolsReported: false };
+              current = { rpc, signals, key, alive: true, toolsReported: false, children: new Map(), stopping: false };
               conversation = current;
               const params: ThreadParams = {
                 cwd,
@@ -302,19 +338,33 @@ export const makeCodexAdapter = (options: CodexAdapterOptions) =>
                 return await rpc.request<ThreadResponse>("thread/start", params);
               }, "Codex didn't start the thread").pipe(Effect.tapError(() => Effect.sync(() => close(current))));
               threadId = opened.thread.id;
+              yield* Effect.forkIn(dispatch(current, setup, incoming, threadId), sessionScope);
               return current;
             });
 
-          yield* start(initialSetup);
-
           /** Answers a request Codex sends during a turn from the autonomy, or opens it for you. */
-          const handleRequest = (current: Conversation, setup: SessionSetup, request: Extract<Incoming, { readonly _tag: "request" }>): Effect.Effect<ReadonlyArray<ProviderEvent>> =>
+          const handleRequest = (current: Conversation, setup: SessionSetup, request: Extract<Incoming, { readonly _tag: "request" }>, child?: CodexChild): Effect.Effect<ReadonlyArray<ProviderEvent>> =>
             Effect.gen(function* () {
               const ask = (pending: PendingRequest, prompt: RequestPrompt): Effect.Effect<ReadonlyArray<ProviderEvent>> =>
                 Effect.sync(() => {
                   const requestId = randomUUID();
+                  if (child !== undefined) {
+                    if (current.stopping) {
+                      current.rpc.respond(request.id, cancelled(pending));
+                      return [];
+                    }
+                    requests.set(requestId, pending);
+                    child.requests.add(requestId);
+                    publishChild(child, "waiting");
+                    Queue.offerUnsafe(background, { _tag: "request.opened", turnId: child.state.turnId, subagentId: child.state.subagentId, requestId, prompt });
+                    return [];
+                  }
+                  if (turn === undefined) {
+                    current.rpc.respond(request.id, cancelled(pending));
+                    return [];
+                  }
                   requests.set(requestId, pending);
-                  return turn === undefined ? [] : [{ _tag: "request.opened", turnId: turn.id, requestId, prompt }];
+                  return [{ _tag: "request.opened", turnId: turn.id, requestId, prompt }];
                 });
               const decide = (level: "allow" | "ask" | "deny", pending: PendingRequest, prompt: Effect.Effect<RequestPrompt>) => {
                 if (level === "allow") return Effect.sync(() => (current.rpc.respond(request.id, { decision: "accept" }), []));
@@ -334,7 +384,7 @@ export const makeCodexAdapter = (options: CodexAdapterOptions) =>
                 }
                 case "item/fileChange/requestApproval": {
                   const params = request.params as FileChangeApprovalParams;
-                  const changes = mapperOf(current)?.fileChange(params.itemId) ?? [];
+                  const changes = (child?.mapper ?? mapperOf(current))?.fileChange(params.itemId) ?? [];
                   const level = yield* withFs(decideFileChange({ autonomy: setup.autonomy, roots: setup.projectRoots ?? [realCwd], cwd, changes, protection: setup.protection }));
                   return yield* decide(level, { kind: "fileChange", id: request.id, itemId: params.itemId }, withFs(fileChangePrompt(changes, cwd, params.reason)));
                 }
@@ -373,6 +423,85 @@ export const makeCodexAdapter = (options: CodexAdapterOptions) =>
           let activeMapper: { readonly conversation: Conversation; readonly mapper: ReturnType<typeof makeTurnMapper> } | undefined;
           const mapperOf = (current: Conversation) => (activeMapper?.conversation === current ? activeMapper.mapper : undefined);
 
+          /** Routes child traffic even when the app has no parent turn running. */
+          const dispatch = (
+            current: Conversation,
+            setup: SessionSetup,
+            incoming: Queue.Queue<Incoming | Extract<Signal, { _tag: "ended" }>>,
+            parentId: string,
+          ) => Effect.gen(function* () {
+            while (true) {
+              const signal = yield* Queue.take(incoming);
+              if (signal._tag === "ended") {
+                close(current);
+                yield* Queue.offer(current.signals, signal);
+                return;
+              }
+              if (conversation !== current || !current.alive) continue;
+              const origin = (signal.params as { readonly threadId?: string } | undefined)?.threadId;
+              const child = origin === undefined ? undefined : current.children.get(origin);
+              if (signal._tag === "request") {
+                if (child !== undefined && current.stopping) {
+                  current.rpc.respondError(signal.id, "The Codex subagent is stopping");
+                } else if (child !== undefined) {
+                  yield* handleRequest(current, setup, signal, child);
+                } else if ((origin === undefined || origin === parentId) && turn !== undefined) {
+                  yield* Queue.offer(current.signals, signal);
+                } else {
+                  current.rpc.respondError(signal.id, "wiki-agents has no active turn for this request");
+                }
+                continue;
+              }
+              const { method } = signal;
+              if (method === "item/completed" && (origin === parentId || child !== undefined)) {
+                const { item } = signal.params as Notifications["item/completed"];
+                const launchingTurn = child?.state.turnId ?? turn?.id;
+                if (item.type === "collabAgentToolCall" && item.tool === "spawnAgent" && launchingTurn !== undefined) {
+                  for (const subagentId of item.receiverThreadIds ?? []) {
+                    if (current.children.has(subagentId)) continue;
+                    const state: SubagentState = { turnId: launchingTurn, subagentId, label: item.prompt ?? "Codex subagent", agent: null, status: "running", result: null };
+                    const spawned: CodexChild = { state, nativeTurnId: undefined, result: null, mapper: makeTurnMapper(launchingTurn, cwd, (itemId) => declined.get(itemId)), stopped: yield* Deferred.make<void>(), requests: new Set() };
+                    current.children.set(subagentId, spawned);
+                    publishChild(spawned, "running");
+                  }
+                }
+              }
+              if (child === undefined) {
+                if ((origin === undefined || origin === parentId) && (turn !== undefined || method === "mcpServer/startupStatus/updated")) yield* Queue.offer(current.signals, signal);
+                continue;
+              }
+              if (method === "turn/started") {
+                if (child.state.status !== "running" && child.state.status !== "waiting") child.stopped = yield* Deferred.make<void>();
+                child.nativeTurnId = (signal.params as Notifications["turn/completed"]).turn.id;
+                child.result = null;
+                publishChild(child, "running");
+                if (current.stopping) yield* stopCodexTurn(current, child.nativeTurnId, child.state.subagentId);
+              } else if (method === "turn/completed") {
+                const { turn: completed } = signal.params as Notifications["turn/completed"];
+                if (child.nativeTurnId !== undefined && child.nativeTurnId !== completed.id) continue;
+                child.nativeTurnId = undefined;
+                clearChildRequests(child);
+                const result = completed.items?.findLast((item) => item.type === "agentMessage");
+                const status = completed.status === "completed" ? "done" : completed.status === "failed" ? "failed" : "cancelled";
+                publishChild(child, status, result?.text ?? child.result ?? completed.error?.message ?? null);
+                yield* Deferred.succeed(child.stopped, undefined);
+              } else if (method === "serverRequest/resolved") {
+                const { requestId } = signal.params as { readonly requestId: JsonRpcId };
+                for (const id of child.requests) {
+                  if (requests.get(id)?.id !== requestId) continue;
+                  requests.delete(id);
+                  child.requests.delete(id);
+                  yield* Queue.offer(background, { _tag: "request.closed", requestId: id });
+                }
+                if (child.requests.size === 0 && child.state.status === "waiting") publishChild(child, "running");
+              } else if (method === "item/started" || method === "item/completed") {
+                const { item } = signal.params as Notifications["item/completed"];
+                if (method === "item/completed" && item.type === "agentMessage") child.result = item.text;
+                child.mapper.map(method, signal.params as Notifications[typeof method]);
+              }
+            }
+          });
+
           /**
            * Runs one of Codex's turns as the app's turn: `send` asks Codex to start it and
            * resolves with Codex's turn id when the answer has one (a compaction's
@@ -400,6 +529,7 @@ export const makeCodexAdapter = (options: CodexAdapterOptions) =>
                 const thread = threadId;
                 // Together, so a Stop either finds the turn or comes before its message was sent.
                 yield* Effect.sync(() => {
+                  current.stopping = false;
                   turn = running;
                   send(current.rpc, thread).then(
                     (codexTurnId) => codexTurnId !== undefined && Queue.offerUnsafe(current.signals, { _tag: "started", codexTurnId }),
@@ -494,12 +624,29 @@ export const makeCodexAdapter = (options: CodexAdapterOptions) =>
               "Codex didn't start compacting",
             );
 
-          const stopCodexTurn = (current: Conversation, codexTurnId: string) =>
-            tryPromise(() => current.rpc.request("turn/interrupt", { threadId, turnId: codexTurnId }), "Codex didn't take the stop").pipe(
+          const stopCodexTurn = (current: Conversation, codexTurnId: string, target = threadId) =>
+            tryPromise(() => current.rpc.request("turn/interrupt", { threadId: target, turnId: codexTurnId }), "Codex didn't take the stop").pipe(
               Effect.catch((error) => Effect.logWarning(error.message)),
               Effect.forkDetach,
               Effect.asVoid,
             );
+
+          const stopBackground = Effect.gen(function* () {
+            const current = conversation;
+            if (current === undefined || !current.alive) return;
+            current.stopping = true;
+            const children = [...current.children.values()].filter(({ state }) => state.status === "running" || state.status === "waiting");
+            for (const child of children) {
+              for (const id of child.requests) {
+                const pending = requests.get(id);
+                if (pending !== undefined) current.rpc.respond(pending.id, cancelled(pending));
+              }
+              clearChildRequests(child);
+              if (child.nativeTurnId !== undefined) yield* stopCodexTurn(current, child.nativeTurnId, child.state.subagentId);
+            }
+            const stopped = yield* Effect.forEach(children, (child) => Deferred.await(child.stopped), { discard: true }).pipe(Effect.timeoutOption(stopWait));
+            if (Option.isNone(stopped) && conversation === current) close(current);
+          });
 
           /**
            * Stops the turn: pending approvals are cancelled, Codex is asked to stop,
@@ -511,13 +658,21 @@ export const makeCodexAdapter = (options: CodexAdapterOptions) =>
               const running = turn;
               const current = conversation;
               if (running === undefined || running.id !== turnId || current === undefined || !current.alive) return;
-              cancelRequests(current);
+              current.stopping = true;
               if (running.codexTurnId === undefined) running.stopping = true;
               else yield* stopCodexTurn(current, running.codexTurnId);
+              for (const [id, request] of requests) {
+                if ([...current.children.values()].some((child) => child.requests.has(id))) continue;
+                current.rpc.respond(request.id, cancelled(request));
+                requests.delete(id);
+              }
+              yield* stopBackground;
               const stopped = yield* Deferred.await(running.ended).pipe(Effect.timeoutOption(stopWait));
               if (Option.isNone(stopped)) {
                 yield* Effect.logWarning("Codex didn't confirm the stop; closing it");
                 if (conversation === current) close(current);
+              } else {
+                yield* stopBackground;
               }
             });
 
@@ -527,17 +682,24 @@ export const makeCodexAdapter = (options: CodexAdapterOptions) =>
               const current = conversation;
               if (request === undefined || current === undefined || !current.alive) return yield* new ProviderError({ message: "Codex is no longer waiting for this answer." });
               requests.delete(requestId);
+              for (const child of current.children.values()) {
+                if (child.requests.delete(requestId) && child.requests.size === 0) publishChild(child, "running");
+              }
               if ((request.kind === "command" || request.kind === "fileChange") && !(answer._tag === "approval" && answer.decision === "approve")) {
                 declined.set(request.itemId, DENIED);
               }
               current.rpc.respond(request.id, answered(request, answer));
             });
 
+          yield* start(initialSetup);
+
           const session: ProviderSession = {
             get nativeSessionId() {
               return threadId;
             },
             startTurn,
+            background: Stream.fromQueue(background),
+            stopBackground,
             compact,
             // Codex runs as a child of this server and stops with it, taking any
             // pending approval with it, so there is nothing to resume.

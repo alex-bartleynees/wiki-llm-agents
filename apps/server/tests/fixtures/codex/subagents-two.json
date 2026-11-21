@@ -1,0 +1,509 @@
+{
+  "scenario": "subagents-two",
+  "codexVersion": "0.169.0",
+  "model": "gpt-5.6-luna",
+  "autonomy": {
+    "read": "allow",
+    "create": "ask",
+    "edit": "ask",
+    "commands": "ask",
+    "web": "ask"
+  },
+  "turns": [
+    {
+      "prompt": "Spawn two subagents in parallel. The first lists the file names in Notes/ in one line. The second reads Notes/Tea.md and summarises it in one sentence. Don't wait for them: as soon as both are spawned, reply with just 'launched'.",
+      "steps": [
+        {
+          "message": {
+            "method": "turn/started",
+            "params": {
+              "threadId": "__thread__",
+              "turn": {
+                "id": "01a1fb29-05d1-7063-95e2-b8bce564c659",
+                "rootTurnId": "01a1fb29-05d1-7063-95e2-b8bce564c659",
+                "items": [],
+                "itemsView": "notLoaded",
+                "status": "inProgress",
+                "error": null,
+                "startedAt": 1795215132,
+                "completedAt": null,
+                "durationMs": null
+              }
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "collabAgentToolCall",
+                "id": "exec-464be4db-0b47-4d21-836c-9921ac111765",
+                "tool": "spawnAgent",
+                "status": "inProgress",
+                "senderThreadId": "__thread__",
+                "receiverThreadIds": [],
+                "prompt": "Read Notes/Tea.md and summarise it in exactly one sentence.",
+                "model": "",
+                "reasoningEffort": "medium",
+                "agentsStates": {},
+                "startedAtMs": 1795215140992,
+                "completedAtMs": null
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1fb29-05d1-7063-95e2-b8bce564c659",
+              "startedAtMs": 1795215140992
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "collabAgentToolCall",
+                "id": "exec-464be4db-0b47-4d21-836c-9921ac111765",
+                "tool": "spawnAgent",
+                "status": "completed",
+                "senderThreadId": "__thread__",
+                "receiverThreadIds": [
+                  "01a1fb29-2883-7771-b9bd-56ef0bf5ff7e"
+                ],
+                "prompt": "Read Notes/Tea.md and summarise it in exactly one sentence.",
+                "model": "gpt-5.6-luna",
+                "reasoningEffort": "medium",
+                "agentsStates": {
+                  "01a1fb29-2883-7771-b9bd-56ef0bf5ff7e": {
+                    "status": "pendingInit",
+                    "message": null
+                  }
+                },
+                "startedAtMs": 1795215140992,
+                "completedAtMs": 1795215141011
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1fb29-05d1-7063-95e2-b8bce564c659",
+              "contentTokenCount": null,
+              "completedAtMs": 1795215141011
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "turn/started",
+            "params": {
+              "threadId": "01a1fb29-2883-7771-b9bd-56ef0bf5ff7e",
+              "turn": {
+                "id": "01a1fb29-2892-7cb0-b35f-63dbf0d34d4c",
+                "rootTurnId": "01a1fb29-05d1-7063-95e2-b8bce564c659",
+                "items": [],
+                "itemsView": "notLoaded",
+                "status": "inProgress",
+                "error": null,
+                "startedAt": 1795215141,
+                "completedAt": null,
+                "durationMs": null
+              }
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "collabAgentToolCall",
+                "id": "exec-cfadda02-3557-4c26-aa48-5b983ec3f9e5",
+                "tool": "spawnAgent",
+                "status": "inProgress",
+                "senderThreadId": "__thread__",
+                "receiverThreadIds": [],
+                "prompt": "List the file names in Notes/ on one line. Return only that one-line listing.",
+                "model": "",
+                "reasoningEffort": "medium",
+                "agentsStates": {},
+                "startedAtMs": 1795215141016,
+                "completedAtMs": null
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1fb29-05d1-7063-95e2-b8bce564c659",
+              "startedAtMs": 1795215141016
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "collabAgentToolCall",
+                "id": "exec-cfadda02-3557-4c26-aa48-5b983ec3f9e5",
+                "tool": "spawnAgent",
+                "status": "completed",
+                "senderThreadId": "__thread__",
+                "receiverThreadIds": [
+                  "01a1fb29-2898-73d3-9237-83734c045587"
+                ],
+                "prompt": "List the file names in Notes/ on one line. Return only that one-line listing.",
+                "model": "gpt-5.6-luna",
+                "reasoningEffort": "medium",
+                "agentsStates": {
+                  "01a1fb29-2898-73d3-9237-83734c045587": {
+                    "status": "pendingInit",
+                    "message": null
+                  }
+                },
+                "startedAtMs": 1795215141016,
+                "completedAtMs": 1795215141021
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1fb29-05d1-7063-95e2-b8bce564c659",
+              "contentTokenCount": null,
+              "completedAtMs": 1795215141021
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "turn/started",
+            "params": {
+              "threadId": "01a1fb29-2898-73d3-9237-83734c045587",
+              "turn": {
+                "id": "01a1fb29-289b-7b23-890f-f9212927ca7a",
+                "rootTurnId": "01a1fb29-05d1-7063-95e2-b8bce564c659",
+                "items": [],
+                "itemsView": "notLoaded",
+                "status": "inProgress",
+                "error": null,
+                "startedAt": 1795215141,
+                "completedAt": null,
+                "durationMs": null
+              }
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "moderation": null,
+                "id": "msg_0d8b4abc45e35d40016b00cf258bc087d08a906a24e7af1f4e",
+                "text": "",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1795215141594,
+                "completedAtMs": null
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1fb29-05d1-7063-95e2-b8bce564c659",
+              "startedAtMs": 1795215141594
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "moderation": null,
+                "id": "msg_0d8b4abc45e35d40016b00cf258bc087d08a906a24e7af1f4e",
+                "text": "launched",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1795215141594,
+                "completedAtMs": 1795215141642
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1fb29-05d1-7063-95e2-b8bce564c659",
+              "contentTokenCount": 3,
+              "completedAtMs": 1795215141642
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "turn/completed",
+            "params": {
+              "threadId": "__thread__",
+              "turn": {
+                "id": "01a1fb29-05d1-7063-95e2-b8bce564c659",
+                "rootTurnId": "01a1fb29-05d1-7063-95e2-b8bce564c659",
+                "items": [
+                  {
+                    "type": "agentMessage",
+                    "moderation": null,
+                    "id": "msg_0d8b4abc45e35d40016b00cf258bc087d08a906a24e7af1f4e",
+                    "text": "launched",
+                    "phase": "final_answer",
+                    "memoryCitation": null,
+                    "delivery": null,
+                    "questions": null,
+                    "startedAtMs": 1795215141594,
+                    "completedAtMs": 1795215141642
+                  }
+                ],
+                "itemsView": "summary",
+                "status": "completed",
+                "error": null,
+                "startedAt": 1795215132,
+                "completedAt": 1795215141,
+                "durationMs": 9533
+              }
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "moderation": null,
+                "id": "msg_029e303ceb76f900016b00cf26f7a087d09155f3824772066b",
+                "text": "",
+                "phase": "commentary",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1795215143045,
+                "completedAtMs": null
+              },
+              "threadId": "01a1fb29-2898-73d3-9237-83734c045587",
+              "turnId": "01a1fb29-289b-7b23-890f-f9212927ca7a",
+              "startedAtMs": 1795215143045
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "moderation": null,
+                "id": "msg_029e303ceb76f900016b00cf26f7a087d09155f3824772066b",
+                "text": "",
+                "phase": "commentary",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1795215143045,
+                "completedAtMs": 1795215143325
+              },
+              "threadId": "01a1fb29-2898-73d3-9237-83734c045587",
+              "turnId": "01a1fb29-289b-7b23-890f-f9212927ca7a",
+              "contentTokenCount": 1,
+              "completedAtMs": 1795215143325
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "moderation": null,
+                "id": "msg_0d38bc94f7955dc8016b00cf27fce087d0893dc84efe495f9f",
+                "text": "",
+                "phase": "commentary",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1795215144132,
+                "completedAtMs": null
+              },
+              "threadId": "01a1fb29-2883-7771-b9bd-56ef0bf5ff7e",
+              "turnId": "01a1fb29-2892-7cb0-b35f-63dbf0d34d4c",
+              "startedAtMs": 1795215144132
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "moderation": null,
+                "id": "msg_0d38bc94f7955dc8016b00cf27fce087d0893dc84efe495f9f",
+                "text": "I’m using the wiki-llm guidance because this is a request to read and summarize a note from a knowledge base.",
+                "phase": "commentary",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1795215144132,
+                "completedAtMs": 1795215144660
+              },
+              "threadId": "01a1fb29-2883-7771-b9bd-56ef0bf5ff7e",
+              "turnId": "01a1fb29-2892-7cb0-b35f-63dbf0d34d4c",
+              "contentTokenCount": 26,
+              "completedAtMs": 1795215144660
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "moderation": null,
+                "id": "msg_029e303ceb76f900016b00cf29c3c087d08b085d82f5adc576",
+                "text": "",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1795215145786,
+                "completedAtMs": null
+              },
+              "threadId": "01a1fb29-2898-73d3-9237-83734c045587",
+              "turnId": "01a1fb29-289b-7b23-890f-f9212927ca7a",
+              "startedAtMs": 1795215145786
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "moderation": null,
+                "id": "msg_029e303ceb76f900016b00cf29c3c087d08b085d82f5adc576",
+                "text": "Coffee.md Tea.md",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1795215145786,
+                "completedAtMs": 1795215145886
+              },
+              "threadId": "01a1fb29-2898-73d3-9237-83734c045587",
+              "turnId": "01a1fb29-289b-7b23-890f-f9212927ca7a",
+              "contentTokenCount": 5,
+              "completedAtMs": 1795215145886
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "turn/completed",
+            "params": {
+              "threadId": "01a1fb29-2898-73d3-9237-83734c045587",
+              "turn": {
+                "id": "01a1fb29-289b-7b23-890f-f9212927ca7a",
+                "rootTurnId": "01a1fb29-05d1-7063-95e2-b8bce564c659",
+                "items": [
+                  {
+                    "type": "agentMessage",
+                    "moderation": null,
+                    "id": "msg_029e303ceb76f900016b00cf29c3c087d08b085d82f5adc576",
+                    "text": "Coffee.md Tea.md",
+                    "phase": "final_answer",
+                    "memoryCitation": null,
+                    "delivery": null,
+                    "questions": null,
+                    "startedAtMs": 1795215145786,
+                    "completedAtMs": 1795215145886
+                  }
+                ],
+                "itemsView": "summary",
+                "status": "completed",
+                "error": null,
+                "startedAt": 1795215141,
+                "completedAt": 1795215145,
+                "durationMs": 4875
+              }
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "moderation": null,
+                "id": "msg_0d38bc94f7955dc8016b00cf2e34dc87d0814f9377c0c309d5",
+                "text": "",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1795215150287,
+                "completedAtMs": null
+              },
+              "threadId": "01a1fb29-2883-7771-b9bd-56ef0bf5ff7e",
+              "turnId": "01a1fb29-2892-7cb0-b35f-63dbf0d34d4c",
+              "startedAtMs": 1795215150287
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "moderation": null,
+                "id": "msg_0d38bc94f7955dc8016b00cf2e34dc87d0814f9377c0c309d5",
+                "text": "The note recommends drinking green tea in the afternoon.",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1795215150287,
+                "completedAtMs": 1795215150604
+              },
+              "threadId": "01a1fb29-2883-7771-b9bd-56ef0bf5ff7e",
+              "turnId": "01a1fb29-2892-7cb0-b35f-63dbf0d34d4c",
+              "contentTokenCount": 11,
+              "completedAtMs": 1795215150604
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "turn/completed",
+            "params": {
+              "threadId": "01a1fb29-2883-7771-b9bd-56ef0bf5ff7e",
+              "turn": {
+                "id": "01a1fb29-2892-7cb0-b35f-63dbf0d34d4c",
+                "rootTurnId": "01a1fb29-05d1-7063-95e2-b8bce564c659",
+                "items": [
+                  {
+                    "type": "agentMessage",
+                    "moderation": null,
+                    "id": "msg_0d38bc94f7955dc8016b00cf2e34dc87d0814f9377c0c309d5",
+                    "text": "The note recommends drinking green tea in the afternoon.",
+                    "phase": "final_answer",
+                    "memoryCitation": null,
+                    "delivery": null,
+                    "questions": null,
+                    "startedAtMs": 1795215150287,
+                    "completedAtMs": 1795215150604
+                  }
+                ],
+                "itemsView": "summary",
+                "status": "completed",
+                "error": null,
+                "startedAt": 1795215141,
+                "completedAt": 1795215150,
+                "durationMs": 9635
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

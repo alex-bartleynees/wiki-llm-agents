@@ -95,7 +95,7 @@ export type ThreadItem =
     }
   | { readonly type: "webSearch"; readonly id: string; readonly query: string }
   | { readonly type: "imageView"; readonly id: string; readonly path: string }
-  | { readonly type: "collabAgentToolCall"; readonly id: string; readonly tool: string; readonly status: ItemStatus; readonly prompt: string | null }
+  | { readonly type: "collabAgentToolCall"; readonly id: string; readonly tool: string; readonly status: ItemStatus; readonly prompt: string | null; readonly receiverThreadIds?: ReadonlyArray<string> }
   | { readonly type: "userMessage" | "reasoning" | "plan" | "contextCompaction"; readonly id: string };
 
 export interface TokenUsageBreakdown {
@@ -118,7 +118,7 @@ export interface Notifications {
   readonly "item/completed": { readonly item: ThreadItem; readonly turnId: string };
   readonly "item/agentMessage/delta": { readonly itemId: string; readonly delta: string; readonly turnId: string };
   readonly "thread/tokenUsage/updated": { readonly turnId: string; readonly tokenUsage: { readonly last: TokenUsageBreakdown; readonly total?: TokenUsageBreakdown; readonly modelContextWindow?: number | null } };
-  readonly "turn/completed": { readonly turn: { readonly id: string; readonly status: TurnStatus; readonly error: TurnError | null } };
+  readonly "turn/completed": { readonly turn: { readonly id: string; readonly status: TurnStatus; readonly error: TurnError | null; readonly items?: ReadonlyArray<ThreadItem> } };
   readonly "turn/plan/updated": {
     readonly turnId: string;
     readonly explanation: string | null;

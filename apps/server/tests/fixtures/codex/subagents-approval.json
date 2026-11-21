@@ -1,0 +1,396 @@
+{
+  "scenario": "subagents-approval",
+  "codexVersion": "0.169.0",
+  "model": "gpt-5.6-luna",
+  "autonomy": {
+    "read": "allow",
+    "create": "ask",
+    "edit": "ask",
+    "commands": "ask",
+    "web": "ask"
+  },
+  "turns": [
+    {
+      "prompt": "Spawn one subagent that uses apply_patch to create Notes/Child.md containing exactly '# Child', then reports 'created'. Don't wait for it: reply with just 'launched'.",
+      "steps": [
+        {
+          "message": {
+            "method": "turn/started",
+            "params": {
+              "threadId": "__thread__",
+              "turn": {
+                "id": "01a1fb2a-e10c-76b3-9809-051c52845987",
+                "rootTurnId": "01a1fb2a-e10c-76b3-9809-051c52845987",
+                "items": [],
+                "itemsView": "notLoaded",
+                "status": "inProgress",
+                "error": null,
+                "startedAt": 1795215253,
+                "completedAt": null,
+                "durationMs": null
+              }
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "collabAgentToolCall",
+                "id": "exec-95606f7c-3ae2-40b5-93ad-04f432fb770b",
+                "tool": "spawnAgent",
+                "status": "inProgress",
+                "senderThreadId": "__thread__",
+                "receiverThreadIds": [],
+                "prompt": "Use apply_patch to create Notes/Child.md containing exactly the single line '# Child' (with a trailing newline). Then report exactly: created",
+                "model": "",
+                "reasoningEffort": "medium",
+                "agentsStates": {},
+                "startedAtMs": 1795215260687,
+                "completedAtMs": null
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1fb2a-e10c-76b3-9809-051c52845987",
+              "startedAtMs": 1795215260687
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "collabAgentToolCall",
+                "id": "exec-95606f7c-3ae2-40b5-93ad-04f432fb770b",
+                "tool": "spawnAgent",
+                "status": "completed",
+                "senderThreadId": "__thread__",
+                "receiverThreadIds": [
+                  "01a1fb2a-fc0f-7703-8c1d-d0fcc8a0e5b9"
+                ],
+                "prompt": "Use apply_patch to create Notes/Child.md containing exactly the single line '# Child' (with a trailing newline). Then report exactly: created",
+                "model": "gpt-5.6-luna",
+                "reasoningEffort": "medium",
+                "agentsStates": {
+                  "01a1fb2a-fc0f-7703-8c1d-d0fcc8a0e5b9": {
+                    "status": "pendingInit",
+                    "message": null
+                  }
+                },
+                "startedAtMs": 1795215260687,
+                "completedAtMs": 1795215260700
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1fb2a-e10c-76b3-9809-051c52845987",
+              "contentTokenCount": null,
+              "completedAtMs": 1795215260700
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "turn/started",
+            "params": {
+              "threadId": "01a1fb2a-fc0f-7703-8c1d-d0fcc8a0e5b9",
+              "turn": {
+                "id": "01a1fb2a-fc19-7872-9d68-be282c615164",
+                "rootTurnId": "01a1fb2a-e10c-76b3-9809-051c52845987",
+                "items": [],
+                "itemsView": "notLoaded",
+                "status": "inProgress",
+                "error": null,
+                "startedAt": 1795215260,
+                "completedAt": null,
+                "durationMs": null
+              }
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "moderation": null,
+                "id": "msg_02d5f83cecbeb520016b00cf9d38b887d0a0347b22aedc97cd",
+                "text": "",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1795215261244,
+                "completedAtMs": null
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1fb2a-e10c-76b3-9809-051c52845987",
+              "startedAtMs": 1795215261244
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "moderation": null,
+                "id": "msg_02d5f83cecbeb520016b00cf9d38b887d0a0347b22aedc97cd",
+                "text": "launched",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1795215261244,
+                "completedAtMs": 1795215261592
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1fb2a-e10c-76b3-9809-051c52845987",
+              "contentTokenCount": 3,
+              "completedAtMs": 1795215261592
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "turn/completed",
+            "params": {
+              "threadId": "__thread__",
+              "turn": {
+                "id": "01a1fb2a-e10c-76b3-9809-051c52845987",
+                "rootTurnId": "01a1fb2a-e10c-76b3-9809-051c52845987",
+                "items": [
+                  {
+                    "type": "agentMessage",
+                    "moderation": null,
+                    "id": "msg_02d5f83cecbeb520016b00cf9d38b887d0a0347b22aedc97cd",
+                    "text": "launched",
+                    "phase": "final_answer",
+                    "memoryCitation": null,
+                    "delivery": null,
+                    "questions": null,
+                    "startedAtMs": 1795215261244,
+                    "completedAtMs": 1795215261592
+                  }
+                ],
+                "itemsView": "summary",
+                "status": "completed",
+                "error": null,
+                "startedAt": 1795215253,
+                "completedAt": 1795215261,
+                "durationMs": 7824
+              }
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "moderation": null,
+                "id": "msg_0c477ad59aa8be6d016b00cf9f04b887d0bf6b10387108dc0c",
+                "text": "",
+                "phase": "commentary",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1795215263040,
+                "completedAtMs": null
+              },
+              "threadId": "01a1fb2a-fc0f-7703-8c1d-d0fcc8a0e5b9",
+              "turnId": "01a1fb2a-fc19-7872-9d68-be282c615164",
+              "startedAtMs": 1795215263040
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "moderation": null,
+                "id": "msg_0c477ad59aa8be6d016b00cf9f04b887d0bf6b10387108dc0c",
+                "text": "",
+                "phase": "commentary",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1795215263040,
+                "completedAtMs": 1795215263344
+              },
+              "threadId": "01a1fb2a-fc0f-7703-8c1d-d0fcc8a0e5b9",
+              "turnId": "01a1fb2a-fc19-7872-9d68-be282c615164",
+              "contentTokenCount": 1,
+              "completedAtMs": 1795215263344
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "fileChange",
+                "id": "exec-b26ccf44-c4e9-46a2-84e5-9dac60acd492",
+                "changes": [
+                  {
+                    "path": "/__vault__/Notes/Child.md",
+                    "kind": {
+                      "type": "add"
+                    },
+                    "diff": "# Child\n"
+                  }
+                ],
+                "status": "inProgress",
+                "startedAtMs": 1795215264401,
+                "completedAtMs": null
+              },
+              "threadId": "01a1fb2a-fc0f-7703-8c1d-d0fcc8a0e5b9",
+              "turnId": "01a1fb2a-fc19-7872-9d68-be282c615164",
+              "startedAtMs": 1795215264401
+            }
+          }
+        },
+        {
+          "message": {
+            "id": 0,
+            "method": "item/fileChange/requestApproval",
+            "params": {
+              "threadId": "01a1fb2a-fc0f-7703-8c1d-d0fcc8a0e5b9",
+              "turnId": "01a1fb2a-fc19-7872-9d68-be282c615164",
+              "itemId": "exec-b26ccf44-c4e9-46a2-84e5-9dac60acd492",
+              "startedAtMs": 1795215264412,
+              "reason": null,
+              "grantRoot": null
+            }
+          }
+        },
+        {
+          "response": {
+            "id": 0,
+            "result": {
+              "decision": "accept"
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "serverRequest/resolved",
+            "params": {
+              "threadId": "01a1fb2a-fc0f-7703-8c1d-d0fcc8a0e5b9",
+              "requestId": 0
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "fileChange",
+                "id": "exec-b26ccf44-c4e9-46a2-84e5-9dac60acd492",
+                "changes": [
+                  {
+                    "path": "/__vault__/Notes/Child.md",
+                    "kind": {
+                      "type": "add"
+                    },
+                    "diff": "# Child\n"
+                  }
+                ],
+                "status": "completed",
+                "startedAtMs": 1795215264401,
+                "completedAtMs": 1795215264499
+              },
+              "threadId": "01a1fb2a-fc0f-7703-8c1d-d0fcc8a0e5b9",
+              "turnId": "01a1fb2a-fc19-7872-9d68-be282c615164",
+              "contentTokenCount": null,
+              "completedAtMs": 1795215264499
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "moderation": null,
+                "id": "msg_0c477ad59aa8be6d016b00cfa1381c87d0973bc671e84eef0e",
+                "text": "",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1795215265441,
+                "completedAtMs": null
+              },
+              "threadId": "01a1fb2a-fc0f-7703-8c1d-d0fcc8a0e5b9",
+              "turnId": "01a1fb2a-fc19-7872-9d68-be282c615164",
+              "startedAtMs": 1795215265441
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "moderation": null,
+                "id": "msg_0c477ad59aa8be6d016b00cfa1381c87d0973bc671e84eef0e",
+                "text": "created",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1795215265441,
+                "completedAtMs": 1795215265442
+              },
+              "threadId": "01a1fb2a-fc0f-7703-8c1d-d0fcc8a0e5b9",
+              "turnId": "01a1fb2a-fc19-7872-9d68-be282c615164",
+              "contentTokenCount": 2,
+              "completedAtMs": 1795215265442
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "turn/completed",
+            "params": {
+              "threadId": "01a1fb2a-fc0f-7703-8c1d-d0fcc8a0e5b9",
+              "turn": {
+                "id": "01a1fb2a-fc19-7872-9d68-be282c615164",
+                "rootTurnId": "01a1fb2a-e10c-76b3-9809-051c52845987",
+                "items": [
+                  {
+                    "type": "agentMessage",
+                    "moderation": null,
+                    "id": "msg_0c477ad59aa8be6d016b00cfa1381c87d0973bc671e84eef0e",
+                    "text": "created",
+                    "phase": "final_answer",
+                    "memoryCitation": null,
+                    "delivery": null,
+                    "questions": null,
+                    "startedAtMs": 1795215265441,
+                    "completedAtMs": 1795215265442
+                  }
+                ],
+                "itemsView": "summary",
+                "status": "completed",
+                "error": null,
+                "startedAt": 1795215260,
+                "completedAt": 1795215265,
+                "durationMs": 4749
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

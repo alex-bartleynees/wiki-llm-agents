@@ -14,7 +14,8 @@
     "record:claude-code": "node --conditions=source --import tsx scripts/record-claude-code.ts",
     "record:codex": "node --conditions=source --import tsx scripts/record-codex.ts",
     "probe:opencode": "node --conditions=source --import tsx scripts/probe-opencode.ts",
-    "probe:claude-code": "node --conditions=source --import tsx scripts/probe-claude-code.ts"
+    "probe:claude-code": "node --conditions=source --import tsx scripts/probe-claude-code.ts",
+    "probe:codex": "node --conditions=source --import tsx scripts/probe-codex.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "0.3.316",

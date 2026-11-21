@@ -1,0 +1,306 @@
+{
+  "scenario": "subagents-stop-idle",
+  "codexVersion": "0.169.0",
+  "model": "gpt-5.6-luna",
+  "autonomy": {
+    "read": "allow",
+    "create": "ask",
+    "edit": "ask",
+    "commands": "ask",
+    "web": "ask"
+  },
+  "turns": [
+    {
+      "prompt": "Spawn two subagents, each runs the shell command 'sleep 30' and then replies 'slept'. Don't wait for them: reply with just 'launched'.",
+      "steps": [
+        {
+          "message": {
+            "method": "turn/started",
+            "params": {
+              "threadId": "__thread__",
+              "turn": {
+                "id": "01a1fb2a-e1d0-7140-aa54-d828c25b0fbd",
+                "rootTurnId": "01a1fb2a-e1d0-7140-aa54-d828c25b0fbd",
+                "items": [],
+                "itemsView": "notLoaded",
+                "status": "inProgress",
+                "error": null,
+                "startedAt": 1795215253,
+                "completedAt": null,
+                "durationMs": null
+              }
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "collabAgentToolCall",
+                "id": "exec-7f10d241-19ef-4b21-925d-8d3c2afb0a9c",
+                "tool": "spawnAgent",
+                "status": "inProgress",
+                "senderThreadId": "__thread__",
+                "receiverThreadIds": [],
+                "prompt": "Run the shell command `sleep 30`, then reply exactly `slept`.",
+                "model": "",
+                "reasoningEffort": "medium",
+                "agentsStates": {},
+                "startedAtMs": 1795215259975,
+                "completedAtMs": null
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1fb2a-e1d0-7140-aa54-d828c25b0fbd",
+              "startedAtMs": 1795215259975
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "collabAgentToolCall",
+                "id": "exec-7f10d241-19ef-4b21-925d-8d3c2afb0a9c",
+                "tool": "spawnAgent",
+                "status": "completed",
+                "senderThreadId": "__thread__",
+                "receiverThreadIds": [
+                  "01a1fb2a-f948-7f83-88d6-d7d941414990"
+                ],
+                "prompt": "Run the shell command `sleep 30`, then reply exactly `slept`.",
+                "model": "gpt-5.6-luna",
+                "reasoningEffort": "medium",
+                "agentsStates": {
+                  "01a1fb2a-f948-7f83-88d6-d7d941414990": {
+                    "status": "pendingInit",
+                    "message": null
+                  }
+                },
+                "startedAtMs": 1795215259975,
+                "completedAtMs": 1795215259994
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1fb2a-e1d0-7140-aa54-d828c25b0fbd",
+              "contentTokenCount": null,
+              "completedAtMs": 1795215259994
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "collabAgentToolCall",
+                "id": "exec-703762de-f924-46a7-8fc0-ce5cb8497579",
+                "tool": "spawnAgent",
+                "status": "inProgress",
+                "senderThreadId": "__thread__",
+                "receiverThreadIds": [],
+                "prompt": "Run the shell command `sleep 30`, then reply exactly `slept`.",
+                "model": "",
+                "reasoningEffort": "medium",
+                "agentsStates": {},
+                "startedAtMs": 1795215259997,
+                "completedAtMs": null
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1fb2a-e1d0-7140-aa54-d828c25b0fbd",
+              "startedAtMs": 1795215259997
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "turn/started",
+            "params": {
+              "threadId": "01a1fb2a-f948-7f83-88d6-d7d941414990",
+              "turn": {
+                "id": "01a1fb2a-f957-7300-877b-020c597c142b",
+                "rootTurnId": "01a1fb2a-e1d0-7140-aa54-d828c25b0fbd",
+                "items": [],
+                "itemsView": "notLoaded",
+                "status": "inProgress",
+                "error": null,
+                "startedAt": 1795215259,
+                "completedAt": null,
+                "durationMs": null
+              }
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "collabAgentToolCall",
+                "id": "exec-703762de-f924-46a7-8fc0-ce5cb8497579",
+                "tool": "spawnAgent",
+                "status": "completed",
+                "senderThreadId": "__thread__",
+                "receiverThreadIds": [
+                  "01a1fb2a-f95d-77f3-af92-aa46ddb80c84"
+                ],
+                "prompt": "Run the shell command `sleep 30`, then reply exactly `slept`.",
+                "model": "gpt-5.6-luna",
+                "reasoningEffort": "medium",
+                "agentsStates": {
+                  "01a1fb2a-f95d-77f3-af92-aa46ddb80c84": {
+                    "status": "pendingInit",
+                    "message": null
+                  }
+                },
+                "startedAtMs": 1795215259997,
+                "completedAtMs": 1795215260002
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1fb2a-e1d0-7140-aa54-d828c25b0fbd",
+              "contentTokenCount": null,
+              "completedAtMs": 1795215260002
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "turn/started",
+            "params": {
+              "threadId": "01a1fb2a-f95d-77f3-af92-aa46ddb80c84",
+              "turn": {
+                "id": "01a1fb2a-f960-7a42-8dc7-c50a6d5924ed",
+                "rootTurnId": "01a1fb2a-e1d0-7140-aa54-d828c25b0fbd",
+                "items": [],
+                "itemsView": "notLoaded",
+                "status": "inProgress",
+                "error": null,
+                "startedAt": 1795215260,
+                "completedAt": null,
+                "durationMs": null
+              }
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "item/started",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "moderation": null,
+                "id": "msg_0856536b108fb00a016b00cf9d058c87d0869e897b0f778c8b",
+                "text": "",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1795215261041,
+                "completedAtMs": null
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1fb2a-e1d0-7140-aa54-d828c25b0fbd",
+              "startedAtMs": 1795215261041
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "item/completed",
+            "params": {
+              "item": {
+                "type": "agentMessage",
+                "moderation": null,
+                "id": "msg_0856536b108fb00a016b00cf9d058c87d0869e897b0f778c8b",
+                "text": "launched",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null,
+                "startedAtMs": 1795215261041,
+                "completedAtMs": 1795215261192
+              },
+              "threadId": "__thread__",
+              "turnId": "01a1fb2a-e1d0-7140-aa54-d828c25b0fbd",
+              "contentTokenCount": 3,
+              "completedAtMs": 1795215261192
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "turn/completed",
+            "params": {
+              "threadId": "__thread__",
+              "turn": {
+                "id": "01a1fb2a-e1d0-7140-aa54-d828c25b0fbd",
+                "rootTurnId": "01a1fb2a-e1d0-7140-aa54-d828c25b0fbd",
+                "items": [
+                  {
+                    "type": "agentMessage",
+                    "moderation": null,
+                    "id": "msg_0856536b108fb00a016b00cf9d058c87d0869e897b0f778c8b",
+                    "text": "launched",
+                    "phase": "final_answer",
+                    "memoryCitation": null,
+                    "delivery": null,
+                    "questions": null,
+                    "startedAtMs": 1795215261041,
+                    "completedAtMs": 1795215261192
+                  }
+                ],
+                "itemsView": "summary",
+                "status": "completed",
+                "error": null,
+                "startedAt": 1795215253,
+                "completedAt": 1795215261,
+                "durationMs": 7228
+              }
+            }
+          }
+        },
+        {
+          "interrupt": true
+        },
+        {
+          "message": {
+            "method": "turn/completed",
+            "params": {
+              "threadId": "01a1fb2a-f948-7f83-88d6-d7d941414990",
+              "turn": {
+                "id": "01a1fb2a-f957-7300-877b-020c597c142b",
+                "rootTurnId": "01a1fb2a-e1d0-7140-aa54-d828c25b0fbd",
+                "items": [],
+                "itemsView": "notLoaded",
+                "status": "interrupted",
+                "error": null,
+                "startedAt": 1795215259,
+                "completedAt": 1795215261,
+                "durationMs": 1214
+              }
+            }
+          }
+        },
+        {
+          "message": {
+            "method": "turn/completed",
+            "params": {
+              "threadId": "01a1fb2a-f95d-77f3-af92-aa46ddb80c84",
+              "turn": {
+                "id": "01a1fb2a-f960-7a42-8dc7-c50a6d5924ed",
+                "rootTurnId": "01a1fb2a-e1d0-7140-aa54-d828c25b0fbd",
+                "items": [],
+                "itemsView": "notLoaded",
+                "status": "interrupted",
+                "error": null,
+                "startedAt": 1795215260,
+                "completedAt": 1795215261,
+                "durationMs": 1211
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

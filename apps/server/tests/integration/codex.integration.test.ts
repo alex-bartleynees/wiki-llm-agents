@@ -113,6 +113,54 @@ const playTurn = (threadId: string, prompt: string) =>
   });
 
 layer(App)("Codex provider", (it) => {
+  it.effect("keeps two subagents and their results attached to the launching turn after it ends", () =>
+    Effect.gen(function* () {
+      const { thread, prompts } = yield* setUp("subagents-two");
+      const events = yield* watch(thread.id);
+      yield* sendOk(thread.id, prompts[0]!);
+      completes(yield* events.until(isTag("turn.finished")));
+      const seen = yield* events.until((event) => event._tag === "subagent.updated" && event.result?.includes("green tea") === true);
+      const done = seen.filter((event) => event._tag === "subagent.updated").filter((event) => event.status === "done");
+      expect(done).toHaveLength(2);
+      expect(new Set(done.map((event) => event.subagentId)).size).toBe(2);
+      expect(done.map((event) => event.result)).toContain("Coffee.md Tea.md");
+      expect(textOf(seen)).not.toContain("Coffee.md Tea.md");
+      expect((yield* getThread(thread.id)).thread.subagentsActive).toBe(0);
+    }),
+  );
+
+  it.effect("routes a child patch approval after the parent finishes", () =>
+    Effect.gen(function* () {
+      const { thread, fake, prompts } = yield* setUp("subagents-approval");
+      const events = yield* watch(thread.id);
+      yield* sendOk(thread.id, prompts[0]!);
+      completes(yield* events.until(isTag("turn.finished")));
+      const request = yield* events.request;
+      expect(request.subagentId).toBeDefined();
+      expect(request.prompt).toMatchObject({ _tag: "approval", title: "Create Notes/Child.md" });
+      expect((yield* answer(thread.id, request.requestId, { _tag: "approval", decision: "approve" })).status).toBe(200);
+      const after = yield* events.until((event) => (event._tag === "subagent.updated" && event.status === "done") || event._tag === "turn.finished");
+      expect(after.at(-1)).toMatchObject({ _tag: "subagent.updated", status: "done" });
+      expect(responses(fake)).toEqual([{ decision: "accept" }]);
+    }),
+  );
+
+  it.effect("interrupts both native child turns when the parent is idle", () =>
+    Effect.gen(function* () {
+      const { thread, fake, prompts } = yield* setUp("subagents-stop-idle");
+      const events = yield* watch(thread.id);
+      yield* sendOk(thread.id, prompts[0]!);
+      completes(yield* events.until(isTag("turn.finished")));
+      expect((yield* interrupt(thread.id)).status).toBe(200);
+      const cancelled = (event: ThreadEvent) => event._tag === "subagent.updated" && event.status === "cancelled";
+      yield* events.until(cancelled);
+      yield* events.until(cancelled);
+      const calls = fake.calls.flatMap((call) => call.call === "request" && call.method === "turn/interrupt" ? [call.params] : []);
+      expect(calls).toHaveLength(2);
+      expect(new Set(calls.map((params) => (params as { threadId: string }).threadId)).size).toBe(2);
+    }),
+  );
+
   it.effect("is listed with what it can do, and reports its version and who is signed in", () =>
     Effect.gen(function* () {
       const { providers } = yield* HttpClient.get("/api/providers").pipe(Effect.flatMap(decode(ListProvidersResponse)));
