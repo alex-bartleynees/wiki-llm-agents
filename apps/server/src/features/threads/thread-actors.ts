@@ -41,7 +41,6 @@ export interface ThreadActorsService {
   readonly changeUndone: (threadId: string, turnId: string, changeId: string) => Effect.Effect<void, StartError | Effect.Error<ReturnType<ThreadActor["changeUndone"]>>>;
   /** Runs `effect` while the thread has no turn running or waiting (see `ThreadActor.whileIdle`). */
   readonly whileIdle: <A, E>(threadId: string, effect: Effect.Effect<A, E>) => Effect.Effect<A, StartError | E | ThreadBusy>;
-  /** Serializes a child launch or follow-up with Stop. */
   readonly withChildMutation: <A, E, R>(effect: Effect.Effect<A, E, R>) => Effect.Effect<A, E, R>;
   readonly childReports: (threadId: string) => Effect.Effect<void, StartError>;
   /** Starts the actor, which resumes or closes a turn left running by the last run. */
