@@ -6,7 +6,7 @@
   import { getAgent } from "./api.ts";
   import { ACTION_LABEL, LEVEL_LABEL } from "./autonomy.ts";
 
-  let { agent, onback }: { agent: AgentSummary; onback: () => void } = $props();
+  let { agent, editHref, onback }: { agent: AgentSummary; editHref: string; onback: () => void } = $props();
 
   let instructions = $state<string | undefined>(undefined);
   let error = $state<string | undefined>(undefined);
@@ -35,7 +35,7 @@
 <header>
   <button type="button" class="back" aria-label="All agents" onclick={onback}>←</button>
   <h2>◆ {agent.name}</h2>
-  <a class="edit" href="/agents/edit?agent={encodeURIComponent(agent.id)}">Edit</a>
+  <a class="edit" href={editHref}>Edit</a>
 </header>
 
 <div class="body">
@@ -155,6 +155,7 @@
   dd {
     margin: 0;
     min-width: 0;
+    overflow-wrap: anywhere;
   }
   .path {
     font-size: 11px;

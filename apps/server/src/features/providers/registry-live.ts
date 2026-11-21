@@ -64,6 +64,7 @@ export const makeProviderRegistry = <E, R>(makeAdapters: Effect.Effect<ReadonlyA
         kind: row.kind,
         name: row.name,
         capabilities: adapter.capabilities,
+        ...(adapter.complete === undefined ? {} : { toolFreeCompletion: true }),
       });
 
       const list = query(() => db.select().from(providerInstances).orderBy(asc(providerInstances.createdAt)).all()).pipe(

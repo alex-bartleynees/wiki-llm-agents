@@ -3,6 +3,7 @@
   import { afterNavigate } from "$app/navigation";
   import { page } from "$app/state";
   import { RUNNING_PATH } from "@wiki-agents/contracts/threads/model";
+  import { wikiAgentsDestination } from "#lib/features/agents/leave.ts";
   import { inbox } from "#lib/features/inbox/inbox.svelte.ts";
   import { running } from "#lib/features/threads/running.svelte.ts";
   import Splitter from "#lib/ui/primitives/Splitter.svelte";
@@ -29,8 +30,10 @@
 
   // AppShell stays mounted while moving between Wiki and Projects.
   let wikiHref = $state("/");
+  const isAgentEditor = (path: string | undefined) => path === "/agents/edit" || path === "/agents/rules";
 
   const onProjects = $derived(page.url.pathname.startsWith("/projects"));
+  const onAgents = $derived(page.url.pathname.startsWith("/agents"));
   const onInbox = $derived(page.url.pathname.startsWith("/inbox"));
 
   /** Threads at work right now (working or waiting for you); stopped ones only show on the Running tab. */
@@ -43,12 +46,18 @@
   );
 
   // Phone: opening a note (from the drawer or a link) shows it full screen.
-  afterNavigate(({ to }) => {
-    if (to?.params?.["vaultId"] !== undefined) {
-      wikiHref = to.url.pathname + to.url.search + to.url.hash;
+  afterNavigate(({ from, to }) => {
+    const fromUrl = from?.url;
+    const toUrl = to?.url;
+    const arrived = toUrl ? toUrl.pathname + toUrl.search + toUrl.hash : null;
+    if (arrived !== null && to?.params?.["vaultId"] !== undefined) {
+      wikiHref = arrived;
     }
     shell.drawerOpen = false;
-    shell.tab = "wiki";
+    const destination = fromUrl && isAgentEditor(fromUrl.pathname) ? wikiAgentsDestination(fromUrl) : null;
+    const returnToWikiAgents = destination !== null && destination === arrived;
+    shell.tab = returnToWikiAgents ? "agents" : "wiki";
+    if (returnToWikiAgents) shell.sidePane = "agents";
   });
 </script>
 
@@ -73,8 +82,9 @@
       <span class="brand-name">wiki-agents</span>
     </a>
     <nav aria-label="Sections">
-      <a href={wikiHref} aria-current={onProjects || onInbox ? undefined : "page"}>Wiki</a>
+      <a href={wikiHref} aria-current={onProjects || onInbox || onAgents ? undefined : "page"}>Wiki</a>
       <a href="/projects" aria-current={onProjects ? "page" : undefined}>Projects</a>
+      <a href="/agents" aria-current={onAgents ? "page" : undefined}>Agents</a>
       <a href="/inbox" aria-current={onInbox ? "page" : undefined}>
         Inbox{#if inbox.unread > 0}<span class="badge" aria-label="{inbox.unread} unread">{inbox.unread}</span>{/if}
       </a>
@@ -354,7 +364,7 @@
       display: none;
     }
     nav {
-      gap: 14px;
+      gap: 10px;
     }
     /* Room for the section links and the inbox badge; the icon still links home. */
     .brand-name,

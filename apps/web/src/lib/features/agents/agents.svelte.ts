@@ -23,8 +23,6 @@ class AgentsStore {
   problems = $state<ReadonlyArray<ConfigProblem>>([]);
   configDir = $state<string | null>(null);
   error = $state<string | undefined>(undefined);
-  /** The agent shown in detail on the Agents screen. */
-  shown = $state<string | null>(null);
   #chosen = $state<string | null>(stored());
   #loading: Promise<void> | undefined;
 

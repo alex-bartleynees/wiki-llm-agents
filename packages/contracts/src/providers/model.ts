@@ -26,6 +26,7 @@ export type ProviderCapabilities = typeof ProviderCapabilities.Type;
 export const ProviderInstance = Schema.Struct({
   id: Schema.String,
   kind: Schema.String,
+  toolFreeCompletion: Schema.optionalKey(Schema.Literal(true)),
   name: Schema.String,
   capabilities: ProviderCapabilities,
 });

@@ -53,7 +53,7 @@
   {#snippet agents()}
     <!-- Desktop shows agents in the right-hand pane instead. -->
     {#if shell.phone.current}
-      <AgentsPane />
+      <AgentsPane inWiki />
     {/if}
   {/snippet}
 

@@ -36,7 +36,7 @@ import { type AuthStatus, isSupportedVersion, notInstalled, resolveBinary, SUPPO
 import { answeredInput, approvalPrompt, askedQuestions, makeTurnMapper, questionPrompt, resultFailure, resultUsage } from "./events.js";
 import { appendedPrompt } from "./instructions.js";
 import { decide, enforcedAutonomy } from "./permissions.js";
-import { type ClaudeCodeSdk, type ClaudeQuery, type Input, makeInput, type MessageImage, userMessage } from "./sdk.js";
+import { type ClaudeCodeSdk, type ClaudeQuery, type Input, type QueryParams, makeInput, type MessageImage, userMessage } from "./sdk.js";
 
 export interface ClaudeCodeAdapterOptions {
   readonly sdk: ClaudeCodeSdk;
@@ -174,7 +174,7 @@ const beginsTurn = (message: SDKMessage) => {
 const isAgentTask = (task: { readonly task_type?: string; readonly subagent_type?: string }) =>
   task.task_type === "local_agent" || (task.task_type === undefined && task.subagent_type !== undefined);
 
-const tryPromise = <A>(run: () => Promise<A>, message: string) =>
+const tryPromise = <A>(run: (signal: AbortSignal) => Promise<A>, message: string) =>
   Effect.tryPromise({ try: run, catch: (cause) => new ProviderError({ message: `${message}: ${cause instanceof Error ? cause.message : String(cause)}`, cause }) });
 
 const IMAGE_TYPES: ReadonlySet<string> = new Set<MessageImage["mime"]>(["image/png", "image/jpeg", "image/gif", "image/webp"]);
@@ -222,6 +222,11 @@ export const makeClaudeCodeAdapter = (options: ClaudeCodeAdapterOptions) =>
       return { _tag: "ready", version, account: auth.account } as const;
     }).pipe(Effect.catch((error) => Effect.succeed({ _tag: "unavailable", reason: error.message } as const)));
 
+    const modelList = (offered: Awaited<ReturnType<ClaudeQuery["supportedModels"]>>): ModelList => ({
+      models: offered.map((model): ProviderModel => ({ id: model.value, name: model.displayName, free: false, images: true })),
+      defaultModel: offered.some((model) => model.value === "default") ? "default" : null,
+    });
+
     let models: { readonly at: number; readonly list: ModelList } | undefined;
     const listModels = (cwd: string) =>
       Effect.gen(function* () {
@@ -238,56 +243,71 @@ export const makeClaudeCodeAdapter = (options: ClaudeCodeAdapterOptions) =>
             query.close();
           }
         }, "Claude Code didn't list its models");
-        const list: ModelList = {
-          // Every Claude model takes images.
-          models: offered.map((model): ProviderModel => ({ id: model.value, name: model.displayName, free: false, images: true })),
-          defaultModel: offered.some((model) => model.value === "default") ? "default" : null,
-        };
+        const list = modelList(offered);
         models = { at: now, list };
         return list;
       });
 
-    /**
-     * One prompt and its answer: no tools at all, none of your settings, `CLAUDE.md`
-     * files or MCP servers, the app's system prompt only, one step, and no session
-     * saved to resume.
-     */
-    const complete = ({ cwd, model, system, prompt }: CompletionInput) =>
-      Effect.gen(function* () {
-        const binary = yield* executable;
-        return yield* tryPromise(async (): Promise<Completion> => {
-          const input = makeInput();
-          const query = sdk.query({
-            prompt: input.iterable,
-            options: {
-              cwd,
-              pathToClaudeCodeExecutable: binary,
-              ...(model === null ? {} : { model }),
-              systemPrompt: system,
-              tools: [],
-              settingSources: [],
-              mcpServers: {},
-              strictMcpConfig: true,
-              maxTurns: 1,
-              persistSession: false,
+    const isolatedQuery = <A>(
+      options: QueryParams["options"],
+      read: (query: ClaudeQuery, input: Input) => Promise<A>,
+      failure: string,
+    ) => Effect.gen(function* () {
+      const binary = yield* executable;
+      return yield* Effect.scoped(Effect.gen(function* () {
+        const { query, input } = yield* Effect.acquireRelease(
+          Effect.try({
+            try: () => {
+              const input = makeInput();
+              const abort = new AbortController();
+              const query = sdk.query({
+                prompt: input.iterable,
+                options: {
+                  ...options,
+                  pathToClaudeCodeExecutable: binary,
+                  abortController: abort,
+                  tools: [],
+                  skills: [],
+                  settingSources: [],
+                  mcpServers: {},
+                  strictMcpConfig: true,
+                  maxTurns: 1,
+                  persistSession: false,
+                },
+              });
+              return { query, input, abort };
             },
-          });
-          input.push(userMessage(prompt));
-          let billed = false;
-          try {
-            for await (const message of query) {
-              if (message.type === "system" && message.subtype === "init") billed = BILLED.has(message.apiKeySource);
-              if (message.type !== "result") continue;
-              if (message.subtype !== "success" || message.is_error) throw new Error(resultFailure(message));
-              return { text: message.result, usage: resultUsage(message, billed ? message.total_cost_usd : null) };
-            }
-            throw new Error("it ended without an answer");
-          } finally {
+            catch: (cause) => new ProviderError({ message: failure, cause }),
+          }),
+          ({ query, input, abort }, exit) => Effect.sync(() => {
+            if (exit._tag === "Failure") abort.abort();
             input.close();
             query.close();
+          }),
+        );
+        return yield* tryPromise(() => read(query, input), failure);
+      }));
+    });
+
+    const listCompletionModels = (cwd: string) =>
+      isolatedQuery({ cwd }, async (query) => modelList(await query.supportedModels()), "Claude Code didn't list isolated models");
+
+    const complete = ({ cwd, model, system, prompt }: CompletionInput) =>
+      isolatedQuery(
+        { cwd, ...(model === null ? {} : { model }), systemPrompt: system },
+        async (query, input): Promise<Completion> => {
+          input.push(userMessage(prompt));
+          let billed = false;
+          for await (const message of query) {
+            if (message.type === "system" && message.subtype === "init") billed = BILLED.has(message.apiKeySource);
+            if (message.type !== "result") continue;
+            if (message.subtype !== "success" || message.is_error) throw new Error(resultFailure(message));
+            return { text: message.result, usage: resultUsage(message, billed ? message.total_cost_usd : null) };
           }
-        }, "Claude Code didn't answer");
-      });
+          throw new Error("it ended without an answer");
+        },
+        "Claude Code didn't answer",
+      );
 
     const adapter: ProviderAdapter = {
       kind: "claude-code",
@@ -295,6 +315,7 @@ export const makeClaudeCodeAdapter = (options: ClaudeCodeAdapterOptions) =>
       enforcement: enforcedAutonomy,
       status,
       listModels,
+      listCompletionModels,
       complete,
       openSession: ({ cwd, nativeSessionId, model: initialModel }) =>
         Effect.gen(function* () {

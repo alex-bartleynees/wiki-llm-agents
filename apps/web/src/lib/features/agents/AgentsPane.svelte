@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { page } from "$app/state";
   import type { AgentSummary } from "@wiki-agents/contracts/agents/model";
   import type { ThreadStatus } from "@wiki-agents/contracts/threads/model";
   import { providers } from "#lib/features/threads/providers.svelte.ts";
@@ -6,6 +7,11 @@
   import AgentDetail from "./AgentDetail.svelte";
   import { agents } from "./agents.svelte.ts";
   import { describeAutonomy } from "./autonomy.ts";
+  import { agentEditorHref } from "./leave.ts";
+
+  let { inWiki = false }: { inWiki?: boolean } = $props();
+  const from = $derived(inWiki ? page.url.pathname + page.url.search + page.url.hash : null);
+  let selectedId = $state<string | null>(null);
 
   /** Opening the screen asks again, so edits to the files show up. */
   $effect(() => {
@@ -32,18 +38,18 @@
   /** Paths inside the config directory, shown relative to it. */
   const relative = (path: string) => (agents.configDir !== null && path.startsWith(`${agents.configDir}/`) ? path.slice(agents.configDir.length + 1) : path);
 
-  const shown = $derived(agents.get(agents.shown));
+  const shown = $derived(agents.get(selectedId));
 </script>
 
 <div class="pane">
   {#if shown}
-    <AgentDetail agent={shown} onback={() => (agents.shown = null)} />
+    <AgentDetail agent={shown} editHref={agentEditorHref("edit", shown.id, from)} onback={() => (selectedId = null)} />
   {:else}
     <header>
       <h2 class="mono">Agents</h2>
       <span class="header-actions">
         <button type="button" class="refresh" onclick={() => void agents.refresh()}>Reload</button>
-        <a class="new" href="/agents/edit">New agent</a>
+        <a class="new" href={agentEditorHref("edit", null, from)}>New agent</a>
       </span>
     </header>
 
@@ -65,12 +71,14 @@
 
       <ul class="agents">
         {#each agents.list as agent (agent.id)}
-          {@const { status, count } = statusOf(agent)}
           <li>
-            <button type="button" onclick={() => (agents.shown = agent.id)}>
+            <button type="button" onclick={() => (selectedId = agent.id)}>
               <span class="top">
                 <span class="name">◆ {agent.name}</span>
-                <span class="status mono" data-status={status}>{STATUS_TEXT[status](count)}</span>
+                {#if inWiki}
+                  {@const { status, count } = statusOf(agent)}
+                  <span class="status mono" data-status={status}>{STATUS_TEXT[status](count)}</span>
+                {/if}
               </span>
               {#if agent.description}<span class="description">{agent.description}</span>{/if}
               <span class="autonomy">{describeAutonomy(agent.autonomy)}</span>
@@ -83,10 +91,10 @@
         <h3>Rules for every agent</h3>
         <ul>
           {#each agents.rules as rules (rules.id)}
-            <li><a href="/agents/rules?rules={encodeURIComponent(rules.id)}" class="mono">rules/{rules.id}.md</a></li>
+            <li><a href={agentEditorHref("rules", rules.id, from)} class="mono">rules/{rules.id}.md</a></li>
           {/each}
         </ul>
-        <a class="add" href="/agents/rules">New rules file</a>
+        <a class="add" href={agentEditorHref("rules", null, from)}>New rules file</a>
       </section>
 
       {#if agents.configDir}
@@ -109,6 +117,7 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
+    overflow-wrap: anywhere;
   }
   header {
     flex: 0 0 auto;

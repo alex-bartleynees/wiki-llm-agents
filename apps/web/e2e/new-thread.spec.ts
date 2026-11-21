@@ -3,6 +3,8 @@ import { isPhone, projectFolder, useReplay } from "./app.ts";
 
 for (const entry of ["overview", "threads"] as const) {
   test(`new-thread choices from ${entry} stay visible and errors allow retry`, async ({ page }, info) => {
+    const navigationErrors: Error[] = [];
+    page.on("pageerror", (error) => navigationErrors.push(error));
     const registered = await page.request.post("/api/projects", { data: { name: `Choices ${entry} ${info.project.name}`, workingDirectories: [projectFolder(info, `choices-${entry}`)] } });
     const { project } = await registered.json();
     // Model discovery stood in for; the missing provider still refuses creation on the real server.
@@ -30,6 +32,7 @@ for (const entry of ["overview", "threads"] as const) {
     if (isPhone(info)) await page.getByRole("button", { name: "All threads" }).click();
     await page.getByRole("navigation", { name: "Project view" }).getByRole("link", { name: "Overview", exact: true }).click();
     await expect(page.getByLabel("Provider for new threads")).toHaveValue("replay");
+    expect(navigationErrors).toEqual([]);
     await page.getByLabel("Provider for new threads").selectOption("claude-code");
     await expect(page.getByLabel("Model for new threads")).toHaveValue("haiku");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

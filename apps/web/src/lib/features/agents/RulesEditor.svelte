@@ -1,5 +1,7 @@
 <script lang="ts">
   import { beforeNavigate, goto } from "$app/navigation";
+  import { page } from "$app/state";
+  import { agentEditorHref, wikiAgentsDestination } from "./leave.ts";
   import { agents } from "./agents.svelte.ts";
   import { RulesEditor } from "./rules-editor.svelte.ts";
   import TextDiff from "./TextDiff.svelte";
@@ -32,7 +34,7 @@
     const wasNew = editor.isNew;
     if ((await editor.save()) && wasNew && editor.savedId !== null) {
       leaving = true;
-      await goto(`/agents/rules?rules=${encodeURIComponent(editor.savedId)}`, { replaceState: true });
+      await goto(agentEditorHref("rules", editor.savedId, wikiAgentsDestination(page.url)), { replaceState: true });
       leaving = false;
     }
   };

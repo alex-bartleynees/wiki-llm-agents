@@ -384,7 +384,12 @@ export const ReplayAdapter: ProviderAdapter = {
   }),
   status: Effect.succeed({ _tag: "ready", version: null, account: null }),
   listModels: () => Effect.succeed({ models: [], defaultModel: null }),
-  complete: ({ prompt }) => Effect.succeed({ text: replayCompletion(prompt), usage: { inputTokens: Math.ceil(prompt.length / 4), outputTokens: 12, costUsd: 0 } }),
+  complete: ({ purpose, prompt }) => {
+    const text = purpose === "draft-instructions"
+      ? replayInstructionDraft(prompt)
+      : replayCompletion(prompt);
+    return Effect.succeed({ text, usage: { inputTokens: Math.ceil(prompt.length / 4), outputTokens: 12, costUsd: 0 } });
+  },
 };
 
 /**
@@ -395,3 +400,7 @@ export const replayCompletion = (prompt: string) => {
   const first = /^- (?:\S+ )?(.+)$/m.exec(prompt)?.[1];
   return `Replay suggestion${first === undefined ? "" : ` for ${first}`}\n\nA recorded answer; no model was asked.`;
 };
+
+const replayInstructionDraft = (prompt: string) => prompt.includes('"currentInstructions":')
+  ? "# Revised role\n\nReview the existing workflow and report the changes."
+  : "# Role\n\nFollow the proposed workflow and report the result.";

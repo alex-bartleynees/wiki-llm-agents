@@ -1,15 +1,17 @@
 <script lang="ts">
   import { AUTONOMY_ACTIONS, DEFAULT_AUTONOMY, type AgentInput, type AutonomyLevel } from "@wiki-agents/contracts/agents/model";
-  import type { ProviderModel } from "@wiki-agents/contracts/providers/model";
   import { beforeNavigate, goto } from "$app/navigation";
-  import { isAbort } from "#lib/api/client.ts";
+  import { page } from "$app/state";
+  import { agentEditorHref, wikiAgentsDestination } from "./leave.ts";
+  import { onDestroy, untrack } from "svelte";
   import { providers } from "#lib/features/threads/providers.svelte.ts";
   import { vaults } from "#lib/features/vaults/vaults.svelte.ts";
   import { AgentEditor } from "./agent-editor.svelte.ts";
   import { describeSources, type FormField } from "./agent-form.ts";
   import { agents } from "./agents.svelte.ts";
-  import { listProviderModels } from "./api.ts";
+  import { ModelDiscovery } from "./model-discovery.svelte.ts";
   import { ACTION_LABEL, LEVEL_LABEL } from "./autonomy.ts";
+  import InstructionDraft from "./InstructionDraft.svelte";
   import SourcesPicker from "./SourcesPicker.svelte";
   import TextDiff from "./TextDiff.svelte";
 
@@ -26,21 +28,15 @@
     void agents.load();
   });
 
-  let models = $state<ReadonlyArray<ProviderModel>>([]);
-  let defaultModel = $state<string | null>(null);
+  let drafting = $state(false);
+  const discovery = new ModelDiscovery();
+  onDestroy(() => discovery.close());
+  const configuredModels = $derived(discovery.get(editor.form.provider ?? undefined));
+  const models = $derived(configuredModels?.status === "ready" ? configuredModels.result.models : []);
+  const defaultModel = $derived(configuredModels?.status === "ready" ? configuredModels.result.defaultModel : null);
   $effect(() => {
-    const provider = editor.form.provider;
-    models = [];
-    defaultModel = null;
-    if (provider === null) return;
-    const controller = new AbortController();
-    listProviderModels(provider, controller.signal).then(
-      (response) => ((models = response.models), (defaultModel = response.defaultModel)),
-      (error) => {
-        if (!isAbort(error)) models = [];
-      },
-    );
-    return () => controller.abort();
+    const id = editor.form.provider;
+    if (id !== null) untrack(() => discovery.load(id, true));
   });
 
   /** Set once leaving on purpose (after saving, deleting, or Cancel's own question), so it isn't asked again. */
@@ -59,9 +55,11 @@
   const save = async (event: SubmitEvent) => {
     event.preventDefault();
     const wasNew = editor.isNew;
-    if ((await editor.save()) && wasNew && editor.savedId !== null) {
+    const saved = await editor.save();
+    if (saved) drafting = false;
+    if (saved && wasNew && editor.savedId !== null) {
       leaving = true;
-      await goto(`/agents/edit?agent=${encodeURIComponent(editor.savedId)}`, { replaceState: true });
+      await goto(agentEditorHref("edit", editor.savedId, wikiAgentsDestination(page.url)), { replaceState: true });
       leaving = false;
     }
   };
@@ -69,7 +67,6 @@
   const remove = async () => {
     if (!confirm(`Delete the ${editor.form.name || editor.savedId} agent? Its file goes to the config folder's .trash/; threads using it will ask for another agent.`)) return;
     if (await editor.remove()) {
-      if (agents.shown === editor.savedId) agents.shown = null;
       close();
     }
   };
@@ -296,6 +293,19 @@
           <textarea class="mono" bind:value={editor.form.instructions} rows="16" spellcheck="true" placeholder="# Role&#10;&#10;What it does, how, and what it never does."></textarea>
           {#each problems("instructions") as problem (problem)}<span class="field-error">{problem}</span>{/each}
         </label>
+        {#if drafting}
+          <InstructionDraft {discovery} input={editor.form} canRevise={!editor.isNew}
+            onapply={(instructions) => {
+              editor.form.instructions = instructions;
+              drafting = false;
+            }}
+            ondiscard={() => (drafting = false)}
+          />
+        {:else}
+          <div class="actions">
+            <button type="button" onclick={() => (drafting = true)}>Draft instructions</button>
+          </div>
+        {/if}
         <p class="hint">Rules files and a vault's own AGENTS.md are added for every agent. Threads use a saved change from their next message.</p>
 
         <div class="actions">

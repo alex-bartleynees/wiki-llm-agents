@@ -138,6 +138,7 @@ layer(App)("Claude Code provider", (it) => {
         id: "claude-code",
         kind: "claude-code",
         name: "Claude Code",
+        toolFreeCompletion: true,
         capabilities: { interrupt: true, resume: false, approvals: true, questions: true, models: true, images: true, compact: true },
       });
       const { status: ready } = yield* HttpClient.get("/api/providers/claude-code/status").pipe(Effect.flatMap(decode(GetProviderStatusResponse)));

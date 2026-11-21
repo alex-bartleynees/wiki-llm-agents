@@ -1,5 +1,7 @@
 import { DeleteAgentResponse } from "@wiki-agents/contracts/agents/delete-agent/response";
 import { DeleteRulesResponse } from "@wiki-agents/contracts/agents/delete-rules/response";
+import { DraftInstructionsRequest } from "@wiki-agents/contracts/agents/draft-instructions/request";
+import { DraftInstructionsResponse } from "@wiki-agents/contracts/agents/draft-instructions/response";
 import { GetAgentResponse } from "@wiki-agents/contracts/agents/get-agent/response";
 import { GetRulesResponse } from "@wiki-agents/contracts/agents/get-rules/response";
 import { ListAgentsResponse } from "@wiki-agents/contracts/agents/list-agents/response";
@@ -10,7 +12,7 @@ import { SaveRulesResponse } from "@wiki-agents/contracts/agents/save-rules/resp
 import { ListProviderModelsResponse } from "@wiki-agents/contracts/providers/list-provider-models/response";
 import { SetAgentRequest } from "@wiki-agents/contracts/threads/set-agent/request";
 import { SetAgentResponse } from "@wiki-agents/contracts/threads/set-agent/response";
-import { deleteJson, getJson, putJson } from "#lib/api/client.ts";
+import { deleteJson, getJson, postJson, putJson } from "#lib/api/client.ts";
 
 const agentPath = (agentId: string) => `/api/agents/${encodeURIComponent(agentId)}`;
 const rulesPath = (rulesId: string) => `/api/rules/${encodeURIComponent(rulesId)}`;
@@ -31,6 +33,9 @@ export const saveRules = (rulesId: string, request: SaveRulesRequest) => putJson
 
 export const deleteRules = (rulesId: string, hash: string) =>
   deleteJson(`${rulesPath(rulesId)}?hash=${encodeURIComponent(hash)}`, DeleteRulesResponse);
+
+export const draftInstructions = (request: DraftInstructionsRequest) =>
+  postJson("/api/agents/draft-instructions", DraftInstructionsRequest, request, DraftInstructionsResponse, { timeoutMs: 135_000 });
 
 export const listProviderModels = (providerInstanceId: string, signal?: AbortSignal) =>
   getJson(`/api/providers/${encodeURIComponent(providerInstanceId)}/models`, ListProviderModelsResponse, signal);

@@ -29,7 +29,7 @@
     </div>
   {/if}
   {#if showAgents}
-    <AgentsPane />
+    <AgentsPane inWiki />
   {:else if openThread.status === "empty"}
     <ThreadList {vaultId} {projectId} />
   {:else}

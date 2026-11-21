@@ -189,6 +189,7 @@ export interface CompletionInput {
   /** What the model is for and how to answer. */
   readonly system: string;
   readonly prompt: string;
+  readonly purpose?: "draft-instructions";
 }
 
 export interface Completion {
@@ -218,6 +219,7 @@ export interface ProviderAdapter {
   readonly status: Effect.Effect<ProviderStatus>;
   /** Models offered in `cwd`; none when `capabilities.models` is false. */
   readonly listModels: (cwd: string) => Effect.Effect<ModelList, ProviderError>;
+  readonly listCompletionModels?: (cwd: string) => Effect.Effect<ModelList, ProviderError>;
   /**
    * A one-shot call without tools or a saved conversation, where the provider has a
    * lean way to make one. Without it, `complete` (in `complete.ts`) runs one turn in a
