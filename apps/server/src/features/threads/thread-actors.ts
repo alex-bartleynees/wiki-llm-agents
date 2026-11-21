@@ -1,7 +1,7 @@
 import type { SaveNoteResponse } from "@wiki-agents/contracts/notes/save-note/response";
 import type { ContextNote } from "@wiki-agents/contracts/threads/context";
 import type { RequestAnswer, ThreadSummary } from "@wiki-agents/contracts/threads/model";
-import { Context, Effect, Layer, RcMap } from "effect";
+import { Context, Effect, Layer, RcMap, Semaphore } from "effect";
 import type { ToolCallCheck } from "../mcp/gateway.js";
 import type { AgentNoteWrite } from "../notes/agent-write/use-case.js";
 import type { ThreadBusy } from "./errors.js";
@@ -40,6 +40,9 @@ export interface ThreadActorsService {
   readonly changeUndone: (threadId: string, turnId: string, changeId: string) => Effect.Effect<void, StartError | Effect.Error<ReturnType<ThreadActor["changeUndone"]>>>;
   /** Runs `effect` while the thread has no turn running or waiting (see `ThreadActor.whileIdle`). */
   readonly whileIdle: <A, E>(threadId: string, effect: Effect.Effect<A, E>) => Effect.Effect<A, StartError | E | ThreadBusy>;
+  /** Serializes a child launch or follow-up with Stop. */
+  readonly withChildMutation: <A, E, R>(effect: Effect.Effect<A, E, R>) => Effect.Effect<A, E, R>;
+  readonly childReports: (threadId: string) => Effect.Effect<void, StartError>;
   /** Starts the actor, which resumes or closes a turn left running by the last run. */
   readonly wake: (threadId: string) => Effect.Effect<void, StartError>;
 }
@@ -49,15 +52,29 @@ export class ThreadActors extends Context.Service<ThreadActors, ThreadActorsServ
 export const ThreadActorsLive = Layer.effect(
   ThreadActors,
   Effect.gen(function* () {
+    const mutations = yield* Semaphore.make(1);
     const actors: RcMap.RcMap<string, ThreadActor, StartError> = yield* RcMap.make({
-      lookup: (threadId: string) => makeThreadActor(threadId, Effect.asVoid(RcMap.get(actors, threadId).pipe(Effect.orDie))),
+      lookup: (threadId: string) => makeThreadActor(
+        threadId,
+        Effect.asVoid(RcMap.get(actors, threadId).pipe(Effect.orDie)),
+        (managerId) => Effect.scoped(Effect.flatMap(RcMap.get(actors, managerId), (actor) => actor.childReports)).pipe(
+          Effect.catch((error) => Effect.logWarning(`can't deliver child report to thread ${managerId}`, error)),
+        ),
+        (childId) => Effect.scoped(Effect.flatMap(RcMap.get(actors, childId), (actor) => actor.interrupt)).pipe(
+          Effect.asVoid,
+          Effect.catch((error) => error._tag === "NoTurnRunning"
+            ? Effect.void
+            : Effect.logWarning(`can't stop child thread ${childId}`, error)),
+        ),
+      ),
       idleTimeToLive: ACTOR_IDLE_TIME,
     });
     const withActor = <A, E>(threadId: string, use: (actor: ThreadActor) => Effect.Effect<A, E>) =>
       Effect.scoped(Effect.flatMap(RcMap.get(actors, threadId), use));
     return ThreadActors.of({
       sendMessage: (threadId, text, notes, options) => withActor(threadId, (actor) => actor.sendMessage(text, notes, options)),
-      interrupt: (threadId) => withActor(threadId, (actor) => actor.interrupt),
+      interrupt: (threadId) => mutations.withPermits(1)(withActor(threadId, (actor) => actor.interrupt)),
+      withChildMutation: mutations.withPermits(1),
       compact: (threadId, operationId) => withActor(threadId, (actor) => actor.compact(operationId)),
       handoff: (threadId, operationId) => withActor(threadId, (actor) => actor.handoff(operationId)),
       answerRequest: (threadId, requestId, answer) => withActor(threadId, (actor) => actor.answerRequest(requestId, answer)),
@@ -72,6 +89,7 @@ export const ThreadActorsLive = Layer.effect(
       signInNeeded: (threadId, card) => withActor(threadId, (actor) => actor.signInNeeded(card)),
       changeUndone: (threadId, turnId, changeId) => withActor(threadId, (actor) => actor.changeUndone(turnId, changeId)),
       whileIdle: (threadId, effect) => withActor(threadId, (actor) => actor.whileIdle(effect)),
+      childReports: (threadId) => withActor(threadId, (actor) => actor.childReports),
       wake: (threadId) => withActor(threadId, (actor) => actor.resumed),
     });
   }),

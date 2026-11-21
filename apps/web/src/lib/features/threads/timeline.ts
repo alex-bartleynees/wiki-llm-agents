@@ -24,6 +24,7 @@ export type TimelineItem =
       readonly imagesAsFiles: boolean;
     }
   /** Subagents reported, and the provider started a turn by itself (no message). */
+  | { readonly kind: "thread-report"; readonly key: string; readonly text: string }
   | { readonly kind: "subagent-report"; readonly key: string; readonly reports: ReadonlyArray<SubagentReport> }
   /** The subagents a turn launched, each as it is now; one per turn, updated in place. */
   | { readonly kind: "subagents"; readonly key: string; readonly turnId: string; readonly subagents: Array<Subagent> }
@@ -139,6 +140,10 @@ export const applyEvent = (timeline: Timeline, stored: StoredThreadEvent): boole
       timeline.items.push({ kind: "notice", key: String(stored.seq), path: event.note.path, text: `${event.note.reason}: ${event.note.path} · sha256 ${event.note.hash.slice(0, 12)}${event.note.notices.length ? ` · ${event.note.notices.join(" ")}` : ""}` });
       break;
     case "user.message":
+      if (event.childReports?.length) {
+        timeline.items.push({ kind: "thread-report", key: event.turnId, text: event.text });
+        break;
+      }
       timeline.items.push({
         kind: "user",
         key: event.turnId,

@@ -32,6 +32,15 @@ export const TRANSCRIPTS: ReadonlyArray<Transcript> = [
     ],
     usage: { inputTokens: 0, outputTokens: 0, costUsd: null },
   },
+  {
+    name: "manager-thread",
+    keywords: ["managerfixture"],
+    steps: [
+      { type: "child-create", title: "Review the plan", prompt: "Ask me a question" },
+      { type: "text", text: "The child thread is ready." },
+    ],
+    usage: { inputTokens: 0, outputTokens: 0, costUsd: null },
+  },
   // Before "approval": a subagent asking to edit shouldn't pick that one.
   {
     // Two subagents in the background, one asking first; their reports start a turn of the provider's own.

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { threadHref } from "./thread-link.ts";
   import { tick } from "svelte";
   import AgentPicker from "#lib/features/agents/AgentPicker.svelte";
   import { agents } from "#lib/features/agents/agents.svelte.ts";
@@ -124,6 +125,9 @@
 </header>
 
 {#if openThread.thread}
+  {#if openThread.thread.parentThreadId}
+    <a class="manager-link" href={threadHref(openThread.thread.vaultId, openThread.thread.parentThreadId)}>Manager thread</a>
+  {/if}
   <WorktreeBar thread={openThread.thread} idle={status === "idle"} />
   <ContinuationBar thread={openThread.thread} />
 {/if}
@@ -160,6 +164,12 @@
       </div>
     {:else if item.kind === "compaction-request"}
       <p class="compaction-request mono">You asked to compact the conversation</p>
+    {:else if item.kind === "thread-report"}
+      <p class="subagent-report mono"><span>Thread reported</span></p>
+      <details class="manager-link">
+        <summary>Child thread results</summary>
+        <pre>{item.text}</pre>
+      </details>
     {:else if item.kind === "subagent-report"}
       <p class="subagent-report mono"><span>{reportLabel(item)}</span></p>
     {:else if item.kind === "subagents"}
@@ -225,6 +235,14 @@
 {/if}
 
 <style>
+  .manager-link pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .manager-link {
+    align-self: start;
+    padding: 6px 16px;
+    font-size: 12px;
+    color: var(--accent-ink);
+  }
+
   header {
     flex: 0 0 auto;
     display: flex;

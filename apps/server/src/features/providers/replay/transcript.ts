@@ -17,6 +17,7 @@ export type Step =
     }
   /** Calls the actual vault MCP transport, including its app-owned approval. */
   | { readonly type: "vault-create" | "vault-edit"; readonly path: string; readonly content: string }
+  | { readonly type: "child-create"; readonly title: string; readonly prompt: string }
   /** Appends `append` to the file at `path` (relative to the working folder), creating it if needed: a real write. */
   | { readonly type: "write"; readonly path: string; readonly append: string }
   | {

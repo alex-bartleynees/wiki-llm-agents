@@ -11,6 +11,7 @@
   import { listModels } from "./api.ts";
   import { mentionAt, noteName, withoutMention } from "./mentions.ts";
   import { openThread } from "./open-thread.svelte.ts";
+  import { running as activeThreads } from "./running.svelte.ts";
   import { providers } from "./providers.svelte.ts";
 
   /** Notes offered at once. */
@@ -43,6 +44,9 @@
   const running = $derived(openThread.running);
   /** Subagents still at work while the agent itself is idle: you can send, and Stop stops them. */
   const subagentsOnly = $derived(!running && openThread.subagentsWorking > 0);
+  const childrenWorking = $derived(activeThreads.threads.some((thread) =>
+    thread.parentThreadId === threadId && (thread.status !== "idle" || thread.subagentsActive > 0),
+  ));
   const selectionLines = $derived(selection === "" ? 0 : selection.split("\n").length);
 
   /** Files for the next message, uploaded as they are added. */
@@ -354,7 +358,9 @@
     {#if running}
       <button type="button" class="stop" onclick={() => openThread.stop()}>Stop</button>
     {:else}
-      {#if subagentsOnly}
+      {#if childrenWorking}
+        <button type="button" class="stop" onclick={() => openThread.stop()} aria-label="Stop child threads">Stop</button>
+      {:else if subagentsOnly}
         <button type="button" class="stop" onclick={() => openThread.stop()} aria-label="Stop the subagents" title="Stop every subagent still working">Stop</button>
       {/if}
       <button type="submit" class="send" disabled={!canSend}>Send</button>

@@ -8,7 +8,7 @@ import {
   ThreadEvent,
   type ThreadSummary,
 } from "@wiki-agents/contracts/threads/model";
-import { and, asc, desc, eq, gt, gte, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { Effect, Layer, Option, Schema } from "effect";
 import { DbError } from "../../shared/persistence/errors.js";
 import { Sqlite } from "../../shared/persistence/sqlite.js";
@@ -413,6 +413,12 @@ export const ThreadRepositoryLive = Layer.effect(
             ...(request.subagentId === null ? {} : { subagentId: request.subagentId }),
           })),
       ),
+
+      withChildren: query(() => db.selectDistinct({ id: threads.parentThreadId })
+        .from(threads)
+        .where(and(isNotNull(threads.parentThreadId), isNull(threads.deletedAt)))
+        .all()
+        .flatMap(({ id }) => id === null ? [] : [id])),
 
       withOpenTurns: query(() => {
         const running = db.selectDistinct({ threadId: turns.threadId }).from(turns).where(eq(turns.status, "running")).all();

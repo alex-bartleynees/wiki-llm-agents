@@ -135,6 +135,8 @@ export interface ThreadRepositoryService {
   readonly findTurn: (turnId: string) => Effect.Effect<Option.Option<TurnRecord>, DbError>;
   /** Requests waiting for an answer across every thread, oldest first. */
   readonly openRequests: Effect.Effect<ReadonlyArray<OpenRequest>, DbError>;
+  /** Managers with children, to recover report delivery at startup. */
+  readonly withChildren: Effect.Effect<ReadonlyArray<string>, DbError>;
   /** Threads with a turn still running or a subagent still at work, to wake at startup. */
   readonly withOpenTurns: Effect.Effect<ReadonlyArray<string>, DbError>;
 }

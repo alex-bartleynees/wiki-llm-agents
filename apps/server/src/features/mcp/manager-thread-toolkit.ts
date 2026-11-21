@@ -1,5 +1,5 @@
 import { type ThreadSummary, TurnOutcome } from "@wiki-agents/contracts/threads/model";
-import { Effect, Layer, Option, Schema, Semaphore, type FileSystem } from "effect";
+import { Effect, Layer, Option, Schema, type FileSystem } from "effect";
 import { McpServer, Tool, Toolkit } from "effect/ai";
 import { AgentCatalog } from "../agents/catalog.js";
 import type { ProjectRepository } from "../projects/repository.js";
@@ -80,7 +80,7 @@ type Services = ThreadActors | ThreadRepository | ThreadBus | AgentCatalog | Pro
 
 const managerHandlers = ManagerTools.toLayer(Effect.gen(function* () {
   const services = yield* Effect.context<Services>();
-  const mutations = yield* Semaphore.make(1);
+  const actors = yield* ThreadActors;
   const handle = <A, E extends { readonly _tag: string; readonly message?: string }>(work: Effect.Effect<A, E, Services | VaultCaller>) =>
     work.pipe(
       Effect.provideContext(services),
@@ -96,7 +96,7 @@ const managerHandlers = ManagerTools.toLayer(Effect.gen(function* () {
   const mutate = <A, E>(title: string, detail: object, work: (manager: ThreadSummary, unattended: boolean) => Effect.Effect<A, E, Services>) =>
     Effect.gen(function* () {
       const manager = yield* requireManager;
-      const stop = yield* (yield* ThreadActors).approveToolCall(manager.id, {
+      const stop = yield* actors.approveToolCall(manager.id, {
         level: (autonomy) => autonomy.threads ?? "deny",
         prompt: { _tag: "approval", title, detail: JSON.stringify(detail, null, 2) },
       });
@@ -106,7 +106,7 @@ const managerHandlers = ManagerTools.toLayer(Effect.gen(function* () {
           const turn = Option.getOrUndefined((yield* (yield* ThreadRepository).recovery(current.id)).openTurn);
           if (turn === undefined) return yield* new ToolFailure({ message: "The manager's turn has ended." });
           return yield* Effect.uninterruptible(work(current, turn.unattended));
-        }).pipe(mutations.withPermits(1)),
+        }).pipe(actors.withChildMutation),
         stop.pipe(Effect.andThen(Effect.fail(new ToolFailure({ message: "The manager's turn ended. Check thread_list before retrying." })))),
       );
     });

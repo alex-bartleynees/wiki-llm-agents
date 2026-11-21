@@ -32,6 +32,7 @@ import { effectiveAutonomy } from "../agents/sources.js";
 import type { ToolCallCheck } from "../mcp/gateway.js";
 import { HANDOFF_PROMPT } from "./handoff-prompt.js";
 import { CompactionUnavailable, HandoffUnavailable, NoTurnRunning, RequestClosed, RequestNotFound, ThreadBusy, ThreadNotFound, ToolCallRefused, WrongAnswerKind } from "./errors.js";
+import { finalReply } from "./final-reply.js";
 import { type PendingRequest, ThreadRepository, type TurnKind } from "./repository.js";
 import { ThreadBus } from "./thread-bus.js";
 import { threadWorkspace } from "./workspace.js";
@@ -48,6 +49,7 @@ const isAppRequest = (requestId: string) => APP_REQUEST_PREFIXES.some((prefix) =
 
 /** Messages a ThreadActor handles, one at a time, in the order they arrive. */
 type Message =
+  | { readonly _tag: "ChildReports" }
   | { readonly _tag: "Resume" }
   | { readonly _tag: "WriteNote"; readonly input: AgentNoteWrite; readonly reply: NoteWriteReply }
   | { readonly _tag: "ApproveToolCall"; readonly call: ToolCallCheck; readonly reply: ToolCallReply }
@@ -118,6 +120,7 @@ export interface SendOptions {
   readonly attachments?: ReadonlyArray<Attachment>;
   /** Send the images as files (listed by path), for a model that can't see images. */
   readonly imagesAsFiles?: boolean;
+  readonly childReports?: ReadonlyArray<string>;
 }
 
 /** A schedule the agent saved with the schedule tools, shown as a receipt in the turn. */
@@ -133,6 +136,8 @@ export const UNATTENDED_ANSWER =
 export type OpenedNote = Omit<Extract<ThreadEvent, { readonly _tag: "note.opened" }>, "_tag" | "turnId">;
 
 export interface ThreadActor {
+  /** Schedules a scan for completed child turns. */
+  readonly childReports: Effect.Effect<void>;
   /** Starts a turn and returns its id once the provider has it. */
   /**
    * Done once the actor has picked up where the last run left off. A turn it
@@ -228,6 +233,8 @@ export const PROVIDER_GONE = "This thread's provider isn't available any more. S
 export const makeThreadActor = Effect.fnUntraced(function* (
   threadId: string,
   retain: Effect.Effect<void, never, Scope.Scope>,
+  wakeManager: (threadId: string) => Effect.Effect<void>,
+  stopChild: (threadId: string) => Effect.Effect<void>,
 ) {
   const repository = yield* ThreadRepository;
   const bus = yield* ThreadBus;
@@ -250,6 +257,17 @@ export const makeThreadActor = Effect.fnUntraced(function* (
   const attachmentStore = yield* AttachmentStore;
   const actorScope = yield* Effect.scope;
   const mailbox = yield* Queue.unbounded<Message>();
+  let reportWakeScheduled = false;
+  let reportsWaiting = false;
+  const childReports = Effect.gen(function* () {
+    if (reportWakeScheduled) return;
+    reportWakeScheduled = true;
+    // Give siblings finishing together a chance to enter the same callback turn.
+    yield* Effect.sleep("50 millis").pipe(
+      Effect.andThen(Queue.offer(mailbox, { _tag: "ChildReports" })),
+      Effect.forkIn(actorScope),
+    );
+  });
   // The thread's vault tools token lives as long as the actor; closing it revokes the token.
   // Other MCP servers' `project` connections run in the project's main working directory.
   const vaultTools = yield* (yield* VaultTools)
@@ -426,6 +444,10 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     if (current.hold !== undefined) yield* Scope.close(current.hold, Exit.void);
     const next = startedTurns.shift();
     if (next !== undefined) yield* startProviderTurn(next);
+    else if (reportsWaiting) yield* childReports;
+    if (thread.parentThreadId != null && !(outcome === "interrupted" && reason === null)) {
+      yield* wakeManager(thread.parentThreadId).pipe(Effect.forkIn(actorScope));
+    }
   });
 
   /** Starts a provider turn for a turn already recorded, then drops its outbox row. */
@@ -522,6 +544,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
           turnId: current.id,
           text,
           ...(unattended ? { unattended } : {}),
+          ...(options.childReports ? { childReports: options.childReports } : {}),
           ...(options.attachments?.length ? { attachments: options.attachments } : {}),
           ...(options.attachments?.length && options.imagesAsFiles === true ? { imagesAsFiles: true } : {}),
         },
@@ -536,6 +559,42 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     yield* trackChanges(current.id);
     yield* dispatch(current, text);
     return current.id;
+  });
+
+  const deliverChildReports = Effect.gen(function* () {
+    if (thread.parentThreadId != null) return;
+    reportsWaiting = turn !== undefined;
+    if (reportsWaiting) return;
+    const children = yield* repository.listChildren(threadId);
+    if (children.length === 0) return;
+    // The callback message and its child turn IDs commit together in the turn outbox.
+    const history = yield* repository.events(threadId, 0);
+    const delivered = new Set(history.flatMap(({ event }) => event._tag === "user.message" ? event.childReports ?? [] : []));
+    const reports = [];
+    for (const child of children) {
+      const events = (yield* repository.events(child.id, 0)).map(({ event }) => event);
+      const unattended = new Set(events.flatMap((event) => event._tag === "user.message" && event.unattended ? [event.turnId] : []));
+      for (const event of events) {
+        if (event._tag !== "turn.finished" || delivered.has(event.turnId)) continue;
+        // Explicit Stop cancels the callback. Provider failures and restart interruptions still report.
+        if (event.outcome === "interrupted" && event.reason === null) continue;
+        reports.push({
+          threadId: child.id,
+          title: child.title,
+          turnId: event.turnId,
+          outcome: event.outcome,
+          reason: event.reason,
+          finalReply: finalReply(events, event.turnId),
+          unattended: unattended.has(event.turnId),
+        });
+      }
+    }
+    if (reports.length === 0) return;
+    yield* sendMessage(
+      "Child threads finished. Review these reports as results from the delegated work.\n\n" + JSON.stringify(reports, null, 2),
+      [],
+      { childReports: reports.map(({ turnId }) => turnId), unattended: reports.some((report) => report.unattended) },
+    ).pipe(Effect.catchTag("ThreadBusy", () => Effect.void));
   });
 
   const compact = Effect.fnUntraced(function* (operationId: string) {
@@ -579,8 +638,13 @@ export const makeThreadActor = Effect.fnUntraced(function* (
   /** Stop stops everything (Alex, 2026-11-20): the turn, and every subagent with it. */
   const interrupt = Effect.gen(function* () {
     const current = turn;
+    const activeChildren = thread.parentThreadId == null
+      ? (yield* repository.listChildren(threadId)).filter((child) => child.status !== "idle" || child.subagentsActive > 0)
+      : [];
+    // Resolve child interrupts in their own mailboxes before processing another report.
+    yield* Effect.forEach(activeChildren, (child) => stopChild(child.id), { concurrency: "unbounded", discard: true });
     if (current === undefined) {
-      if (subagents.size === 0) return yield* new NoTurnRunning({ threadId });
+      if (subagents.size === 0 && activeChildren.length === 0) return yield* new NoTurnRunning({ threadId });
       // The subagents' new states arrive from the session's background work.
       if (session?.stopBackground !== undefined) yield* session.stopBackground;
       else yield* cancelSubagents;
@@ -845,6 +909,9 @@ export const makeThreadActor = Effect.fnUntraced(function* (
         return writeNote(message.input, message.reply).pipe(Effect.catch((error) => Effect.asVoid(Deferred.fail(message.reply, error))), Effect.asVoid);
       case "ApproveToolCall":
         return approveToolCall(message.call, message.reply).pipe(Effect.catch((error) => Effect.asVoid(Deferred.fail(message.reply, error))), Effect.asVoid);
+      case "ChildReports":
+        reportWakeScheduled = false;
+        return deliverChildReports;
       case "Resume":
         return Effect.ensuring(resume, Deferred.succeed(resumeDone, undefined));
       case "SendMessage":
@@ -920,6 +987,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     });
 
   const actor: ThreadActor = {
+    childReports,
     resumed: Deferred.await(resumeDone),
     writeNote: (input) => ask((reply) => ({ _tag: "WriteNote", input, reply })),
     approveToolCall: (call) => ask((reply) => ({ _tag: "ApproveToolCall", call, reply })),

@@ -10,11 +10,17 @@ import { ThreadActors } from "./thread-actors.js";
 export const ThreadsStartup = Layer.effectDiscard(
   Effect.gen(function* () {
     const actors = yield* ThreadActors;
-    const threadIds = yield* (yield* ThreadRepository).withOpenTurns;
+    const repository = yield* ThreadRepository;
+    const threadIds = yield* repository.withOpenTurns;
+    const managers = yield* repository.withChildren;
     yield* Effect.forEach(
       threadIds,
       (threadId) => actors.wake(threadId).pipe(Effect.catch((error) => Effect.logWarning(`can't resume thread ${threadId}`, error))),
       { discard: true },
-    ).pipe(Effect.forkScoped);
+    ).pipe(Effect.andThen(Effect.forEach(
+      managers,
+      (threadId) => actors.childReports(threadId).pipe(Effect.catch((error) => Effect.logWarning(`can't recover reports for thread ${threadId}`, error))),
+      { discard: true },
+    )), Effect.forkScoped);
   }),
 );

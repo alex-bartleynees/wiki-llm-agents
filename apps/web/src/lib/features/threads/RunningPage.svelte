@@ -41,6 +41,15 @@
 
   const STOPPED_LABEL = { failed: "Failed", interrupted: "Stopped", completed: "Done" } as const;
 
+  // Keep each section's status ordering while moving children under a manager in that section.
+  const withChildren = (items: readonly ThreadSummary[]) => {
+    const ids = new Set(items.map((thread) => thread.id));
+    return items.flatMap((thread) => {
+      if (thread.parentThreadId && ids.has(thread.parentThreadId)) return [];
+      return [thread, ...items.filter((child) => child.parentThreadId === thread.id)];
+    });
+  };
+
   const empty = $derived(running.count === 0);
 </script>
 
@@ -59,8 +68,11 @@
   {/if}
 
   {#snippet row(thread: ThreadSummary, detail: string, reason: string | null)}
-    <li>
+    <li class:child={thread.parentThreadId != null}>
       <a class="title" href={threadHref(thread.vaultId, thread.id)}>{thread.title ?? "New thread"}</a>
+      {#if thread.parentThreadId}
+        <a class="where manager" href={threadHref(thread.vaultId, thread.parentThreadId)}>Manager thread</a>
+      {/if}
       {#if where(thread)}<span class="where mono">{where(thread)}</span>{/if}
       <span class="detail mono">{detail}</span>
       {#if reason}<span class="reason">{reason}</span>{/if}
@@ -74,7 +86,7 @@
     <section aria-label="Waiting for you">
       <h2>Waiting for you · {running.waiting.length}</h2>
       <ul>
-        {#each running.waiting as thread (thread.id)}
+        {#each withChildren(running.waiting) as thread (thread.id)}
           {@const turn = thread.runningTurn}
           {@render row(
             thread,
@@ -95,7 +107,7 @@
     <section aria-label="Working">
       <h2>Working · {running.working.length}</h2>
       <ul>
-        {#each running.working as thread (thread.id)}
+        {#each withChildren(running.working) as thread (thread.id)}
           {@const turn = thread.runningTurn}
           {@render row(
             thread,
@@ -116,7 +128,7 @@
     <section aria-label="Failed or stopped">
       <h2>Failed or stopped · {running.stopped.length}</h2>
       <ul>
-        {#each running.stopped as thread (thread.id)}
+        {#each withChildren(running.stopped) as thread (thread.id)}
           {@const last = thread.lastTurn}
           {@render row(thread, last ? `${STOPPED_LABEL[last.outcome]} · ${timeAgo(last.endedAt)}` : "", last?.reason ?? null)}
         {/each}
@@ -160,6 +172,12 @@
     border: 1px solid var(--line);
     border-radius: var(--radius);
     background: var(--surface);
+  }
+  li.child {
+    margin-left: 18px;
+  }
+  .manager {
+    width: fit-content;
   }
   li > :not(button) {
     grid-column: 1;

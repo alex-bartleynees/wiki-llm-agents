@@ -35,6 +35,8 @@ export type TurnUsage = typeof TurnUsage.Type;
 export const UserMessage = Schema.TaggedStruct("user.message", {
   turnId: Schema.String,
   text: Schema.String,
+  /** Child turns delivered by this automatic message. */
+  childReports: Schema.optionalKey(Schema.Array(Schema.String)),
   /**
    * Sent by a schedule, with nobody watching: anything that would ask you (an
    * approval or a question) is denied instead of waiting.

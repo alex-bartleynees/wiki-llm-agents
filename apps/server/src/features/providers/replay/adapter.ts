@@ -7,7 +7,7 @@ import { Context, Deferred, Effect, Fiber, Option, Queue, Stream } from "effect"
 import { type BackgroundEvent, type ProviderAdapter, ProviderError, type ProviderEvent, type ProviderSession, type SessionSetup, type SubagentState, type TurnImage } from "../port.js";
 import type { ReplaySubagent, Step } from "./transcript.js";
 import { chooseTranscript } from "./transcripts.js";
-import { writeVaultNote } from "./vault-tools.js";
+import { createChildThread, writeVaultNote } from "./vault-tools.js";
 
 /** Multiplies every replay delay; 0 plays instantly. */
 export const ReplaySpeed = Context.Reference<number>("ReplaySpeed", { defaultValue: () => 1 });
@@ -243,6 +243,11 @@ const makeSession = (cwd: string) => Effect.gen(function* () {
               yield* Effect.forkIn(Effect.andThen(Fiber.await(fiber), Effect.sync(() => delegations.delete(fiber))), scope);
             }),
           ).pipe(Stream.drain),
+        );
+      case "child-create":
+        return Stream.concat(
+          Stream.succeed<ProviderEvent>({ _tag: "tool.called", turnId, callId: id, name: "thread_create", input: step.title }),
+          Stream.fromEffect(Effect.map(createChildThread(vaultTools, step.title, step.prompt), (output): ProviderEvent => ({ _tag: "tool.finished", turnId, callId: id, status: "succeeded", output }))),
         );
       case "vault-create":
       case "vault-edit":

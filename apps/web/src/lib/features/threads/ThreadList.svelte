@@ -23,6 +23,20 @@
   const vaultProjects = $derived(projects.active.filter((project) => project.vaultId === vaultId));
   const vaultName = $derived(vaults.byId(vaultId)?.name ?? "vault");
 
+  const openIds = $derived(new Set(threads.open.map((thread) => thread.id)));
+  const doneIds = $derived(new Set(threads.done.map((thread) => thread.id)));
+  const unlistedDone = $derived(threads.done.filter((thread) => !thread.parentThreadId || !openIds.has(thread.parentThreadId)));
+  const children = $derived.by(() => {
+    const byParent = new Map<string, ThreadSummary[]>();
+    for (const thread of threads.threads) {
+      if (thread.parentThreadId == null) continue;
+      const siblings = byParent.get(thread.parentThreadId) ?? [];
+      siblings.push(thread);
+      byParent.set(thread.parentThreadId, siblings);
+    }
+    return byParent;
+  });
+
   const chosen = $derived(providers.chosen);
 </script>
 
@@ -59,16 +73,16 @@
       <p class="all-done">Every thread here is done. Start a new one, or open a done one to carry on.</p>
     {/if}
     <ul aria-label="Open threads">
-      {#each threads.open as thread (thread.id)}
-        {@render item(thread)}
+      {#each threads.open.filter((thread) => !thread.parentThreadId || !openIds.has(thread.parentThreadId)) as thread (thread.id)}
+        {@render item(thread, children.get(thread.id))}
       {/each}
     </ul>
-    {#if threads.done.length > 0}
+    {#if unlistedDone.length > 0}
       <details class="done" bind:open={threads.showDone}>
-        <summary class="mono">done · {threads.done.length}</summary>
+        <summary class="mono">done · {unlistedDone.length}</summary>
         <ul aria-label="Done threads">
-          {#each threads.done as thread (thread.id)}
-            {@render item(thread)}
+          {#each unlistedDone.filter((thread) => !thread.parentThreadId || !doneIds.has(thread.parentThreadId)) as thread (thread.id)}
+            {@render item(thread, children.get(thread.id)?.filter((child) => !openIds.has(child.id)))}
           {/each}
         </ul>
       </details>
@@ -76,8 +90,20 @@
   </div>
 {/if}
 
-{#snippet item(thread: ThreadSummary)}
+{#snippet item(thread: ThreadSummary, childThreads?: ThreadSummary[])}
   <li>
+    {@render threadButton(thread)}
+    {#if childThreads?.length}
+      <ul class="children" aria-label="Child threads">
+        {#each childThreads as child (child.id)}
+          <li>{@render threadButton(child)}</li>
+        {/each}
+      </ul>
+    {/if}
+  </li>
+{/snippet}
+
+{#snippet threadButton(thread: ThreadSummary)}
     <button type="button" onclick={() => threads.select(thread.id)}>
       <span class="title">{thread.title ?? "New thread"}</span>
       <span class="meta mono">
@@ -93,7 +119,6 @@
         {timeAgo(thread.doneAt ?? thread.updatedAt)}
       </span>
     </button>
-  </li>
 {/snippet}
 
 <style>
@@ -140,6 +165,11 @@
     list-style: none;
     margin: 0;
     padding: 6px;
+  }
+  .children {
+    margin-left: 14px;
+    padding: 0 0 0 5px;
+    border-left: 1px solid var(--line-soft);
   }
   .all-done {
     margin: 0;

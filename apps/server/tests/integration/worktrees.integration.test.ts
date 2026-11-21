@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { expect, layer } from "@effect/vitest";
 import { afterAll } from "vitest";
+import { DEFAULT_AUTONOMY } from "@wiki-agents/contracts/agents/model";
 import { GetDiffResponse } from "@wiki-agents/contracts/projects/get-diff/response";
 import { GetFileDiffResponse } from "@wiki-agents/contracts/projects/get-file-diff/response";
 import { IgnoreFileResponse } from "@wiki-agents/contracts/projects/ignore-file/response";
@@ -15,7 +16,7 @@ import { ListThreadsResponse } from "@wiki-agents/contracts/threads/list-threads
 import { RemoveWorktreeResponse } from "@wiki-agents/contracts/threads/remove-worktree/response";
 import { ListVaultsResponse } from "@wiki-agents/contracts/vaults/list-vaults/response";
 import { Effect, Stream } from "effect";
-import { HttpClient } from "effect/http";
+import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http";
 import type { OpenSessionInput, ProviderAdapter, ProviderEvent } from "../../src/features/providers/port.js";
 import { makeProviderRegistry } from "../../src/features/providers/registry-live.js";
 import { mcpSession } from "./infrastructure/mcp.js";
@@ -185,6 +186,36 @@ layer(makeTestApp({ vaults: [sharedRoot], providers: makeProviderRegistry(Effect
       expect(sessionOf(plain.id).cwd).toBe(repo);
       expect(sessionOf(plain.id).setup.projectRoots).toEqual([repo, extra, sharedRoot]);
     }));
+
+  test.effect("runs a manager's child in its existing worktree and branch", () => Effect.gen(function* () {
+    const vault = yield* shared;
+    const dir = yield* temp;
+    const repo = repository(join(dir, "repo"), { "app.ts": "main\n" });
+    const project = yield* register({ name: "Manager worktree", workingDirectories: [repo] });
+    const agentId = "worktree-manager";
+    const agent = {
+      name: agentId, description: "", provider: null, model: null, sources: [], mcp: [],
+      autonomy: { ...DEFAULT_AUTONOMY, threads: "allow" }, instructions: "Manage child threads.",
+    };
+    yield* HttpClient.execute(HttpClientRequest.put(`/api/agents/${agentId}`).pipe(
+      HttpClientRequest.bodyJsonUnsafe({ agent, baseHash: null }),
+    )).pipe(Effect.flatMap(HttpClientResponse.filterStatusOk));
+
+    const manager = yield* createThread(vault.id, { agentId, projectId: project.id, worktree: { branch: "manager" } });
+    const events = yield* watch(manager.id);
+    yield* sendOk(manager.id, "wait");
+    yield* events.until(isTag("request.opened"));
+    const tools = yield* mcpSession(sessionOf(manager.id).setup.vaultTools!.token);
+    const child = yield* tools.result<{ threadId: string }>("thread_create", { title: "Write app", prompt: "write app.ts child" });
+
+    const path = sessionOf(manager.id).cwd;
+    expect(sessionOf(child.threadId).cwd).toBe(path);
+    expect((yield* getThread(child.threadId)).thread).toMatchObject({ parentThreadId: manager.id, projectId: project.id });
+    expect(git(path, "branch", "--show-current").trim()).toBe("manager");
+    expect(readFileSync(join(path, "app.ts"), "utf8")).toBe("child\n");
+    expect(readFileSync(join(repo, "app.ts"), "utf8")).toBe("main\n");
+    expect(yield* interrupt(manager.id)).toMatchObject({ status: 200 });
+  }));
 
   test.effect("gives worktrees the main directory's ignored files, in the Diff view and the agent's tool", () =>
     Effect.gen(function* () {
