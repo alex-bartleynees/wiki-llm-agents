@@ -1,6 +1,8 @@
 import { errorMessage } from "#lib/api/client.ts";
 import { getDraft, saveDraft } from "./api.ts";
 
+const SAVE_DELAY_MS = 300;
+
 /** One composer lifetime. Writer + sequence makes rapid typing and unload writes order-independent. */
 export class MessageDraft {
   text = $state("");
@@ -10,6 +12,7 @@ export class MessageDraft {
   #writerId = crypto.randomUUID();
   #baseVersion = 0;
   #sequence = 0;
+  #timer: ReturnType<typeof setTimeout> | undefined;
   #latest: Promise<boolean> = Promise.resolve(true);
 
   constructor(readonly threadId: string) {}
@@ -32,9 +35,16 @@ export class MessageDraft {
   update(text: string) {
     this.text = text;
     if (!this.loaded) return;
-    const sequence = ++this.#sequence;
-    this.pending++;
+    this.#sequence++;
     this.error = null;
+    clearTimeout(this.#timer);
+    this.#timer = setTimeout(() => void this.flush(), SAVE_DELAY_MS);
+  }
+
+  #save() {
+    const text = this.text;
+    const sequence = this.#sequence;
+    this.pending++;
     this.#latest = saveDraft(this.threadId, { text, writerId: this.#writerId, baseVersion: this.#baseVersion, sequence }).then(
       () => true,
       (error: unknown) => {
@@ -44,13 +54,20 @@ export class MessageDraft {
     ).finally(() => this.pending--);
   }
 
-  /** Wait for this text to reach SQLite before sending it. */
+  /** Save queued text immediately and wait for the latest write. */
   flush() {
+    if (this.#timer !== undefined) {
+      clearTimeout(this.#timer);
+      this.#timer = undefined;
+      this.#save();
+    }
     return this.#latest;
   }
 
   retry() {
-    if (this.loaded) this.update(this.text);
-    else void this.load();
+    if (this.loaded) {
+      this.update(this.text);
+      void this.flush();
+    } else void this.load();
   }
 }

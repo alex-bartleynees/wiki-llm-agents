@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MessageDraft } from "./message-draft.svelte.ts";
 
 const api = vi.hoisted(() => ({ getDraft: vi.fn(), saveDraft: vi.fn() }));
@@ -17,19 +17,24 @@ beforeEach(() => {
   api.saveDraft.mockResolvedValue({ draft: { text: "new text", version: 5 } });
 });
 
+afterEach(() => vi.useRealTimers());
+
 describe("server-backed message drafts", () => {
-  it("loads before editing, and saves each edit with the same writer and increasing sequences", async () => {
+  it("saves only the latest edit after typing pauses", async () => {
+    vi.useFakeTimers();
     const draft = new MessageDraft("one");
     await draft.load();
     expect(draft.text).toBe("saved elsewhere");
     draft.update("first");
+    await vi.advanceTimersByTimeAsync(200);
     draft.update("second");
-    await draft.flush();
-    expect(api.saveDraft.mock.calls.map((call) => call[1])).toEqual([
-      { text: "first", baseVersion: 4, writerId: expect.any(String), sequence: 1 },
-      { text: "second", baseVersion: 4, writerId: expect.any(String), sequence: 2 },
-    ]);
-    expect(api.saveDraft.mock.calls[0]![1].writerId).toBe(api.saveDraft.mock.calls[1]![1].writerId);
+    expect(draft.text).toBe("second");
+    await vi.advanceTimersByTimeAsync(299);
+    expect(api.saveDraft).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(api.saveDraft).toHaveBeenCalledExactlyOnceWith("one", {
+      text: "second", baseVersion: 4, writerId: expect.any(String), sequence: 2,
+    });
   });
 
   it("waits for the latest text, keeps failures visible and preserves text for retry", async () => {
@@ -38,9 +43,11 @@ describe("server-backed message drafts", () => {
     const write = later<unknown>();
     api.saveDraft.mockReturnValueOnce(write.promise);
     draft.update("my unfinished thought");
+    expect(api.saveDraft).not.toHaveBeenCalled();
+    const saved = draft.flush();
     expect(draft.pending).toBe(1);
     write.reject(new Error("Cannot save right now"));
-    expect(await draft.flush()).toBe(false);
+    expect(await saved).toBe(false);
     expect(draft.text).toBe("my unfinished thought");
     expect(draft.error).toBe("Cannot save right now");
     draft.retry();

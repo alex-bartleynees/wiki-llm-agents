@@ -23,7 +23,10 @@
 
   let { threadId }: { threadId: string } = $props();
   const draft = untrack(() => new MessageDraft(threadId));
-  $effect(() => { void draft.load(); });
+  $effect(() => {
+    void draft.load();
+    return () => void draft.flush();
+  });
   /** Notes attached as context for the next message. */
   let attached = $state<ReadonlyArray<Attached>>([]);
   let includeOpen = $state(false);
@@ -221,7 +224,9 @@
   };
 </script>
 
-<svelte:window onbeforeunload={(event) => {
+<svelte:document onvisibilitychange={() => document.hidden && void draft.flush()} />
+<svelte:window onpagehide={() => void draft.flush()} onbeforeunload={(event) => {
+  void draft.flush();
   if (draft.error !== null || (draft.pending > 0 && new TextEncoder().encode(JSON.stringify(draft.text)).byteLength >= 59_000)) event.preventDefault();
 }} />
 
