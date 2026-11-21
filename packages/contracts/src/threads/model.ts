@@ -433,6 +433,8 @@ export const ThreadSummary = Schema.Struct({
   doneAt: Schema.NullOr(Schema.Number),
   /** The thread this one continues (Continue in a new thread); null when it continues none. */
   continuedFrom: Schema.NullOr(Schema.String),
+  /** The manager that launched this child app thread. */
+  parentThreadId: Schema.optionalKey(Schema.NullOr(Schema.String)),
   /** The newest thread that continues this one; null when none does. */
   continuedIn: Schema.NullOr(Schema.String),
   /**

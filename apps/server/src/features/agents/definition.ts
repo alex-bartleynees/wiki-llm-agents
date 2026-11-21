@@ -79,6 +79,7 @@ const Frontmatter = Schema.Struct({
       web: Schema.optionalKey(Level),
       tools: Schema.optionalKey(Level),
       subagents: Schema.optionalKey(Level),
+      threads: Schema.optionalKey(Level),
     }),
   ),
   /** Accepted so older files still load; the task queue it was for was dropped (slice 14). */
@@ -163,7 +164,7 @@ export const parseAgent = (id: string, path: string, text: string): Result.Resul
       typeof source === "string" ? source : { vault: source.vault, folders: (source.folders ?? []).map((folder) => normaliseFolder(folder) ?? folder) },
     ),
     mcp: [...new Set(front.mcp ?? [])],
-    autonomy: { read: level("read"), create: level("create"), edit: level("edit"), commands: level("commands"), web: level("web"), tools: level("tools"), subagents: level("subagents") },
+    autonomy: { read: level("read"), create: level("create"), edit: level("edit"), commands: level("commands"), web: level("web"), tools: level("tools"), subagents: level("subagents"), threads: level("threads") },
     path,
     instructions: body,
   });

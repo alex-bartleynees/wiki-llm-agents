@@ -21,13 +21,15 @@ export const threads = sqliteTable(
     nativeSessionId: text("native_session_id"),
     /** The thread this one continues (Continue in a new thread); null when it continues none. */
     continuedFromThreadId: text("continued_from_thread_id"),
+    /** The manager that launched this child app thread. */
+    parentThreadId: text("parent_thread_id"),
     /** When you marked the thread done; cleared by its next message. */
     doneAt: integer("done_at", { mode: "timestamp_ms" }),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
     deletedAt: integer("deleted_at", { mode: "timestamp_ms" }),
   },
-  (table) => [index("threads_vault_idx").on(table.vaultId, table.updatedAt), index("threads_continued_from_idx").on(table.continuedFromThreadId)],
+  (table) => [index("threads_vault_idx").on(table.vaultId, table.updatedAt), index("threads_continued_from_idx").on(table.continuedFromThreadId), index("threads_parent_idx").on(table.parentThreadId)],
 );
 
 /**

@@ -49,7 +49,7 @@ Dig deep.
       model: "opencode/big-pickle",
       sources: ["vault", "web"],
       mcp: ["coffee-journal", "github"],
-      autonomy: { read: "allow", create: "allow", edit: "ask", commands: "deny", web: "allow", tools: "ask", subagents: "ask" },
+      autonomy: { read: "allow", create: "allow", edit: "ask", commands: "deny", web: "allow", tools: "ask", subagents: "ask", threads: "deny" },
       path: PATH,
       instructions: "# Role\n\nDig deep.",
     });
@@ -60,6 +60,7 @@ Dig deep.
     expect(parsed).toMatchObject({ name: "Code reviewer", description: "", provider: null, model: null, sources: [], mcp: [] });
     expect(parsed).not.toHaveProperty("concurrency");
     expect(parsed.autonomy).toEqual(DEFAULT_AUTONOMY);
+    expect(agent("---\nautonomy:\n  threads: ask\n---\nGo.").autonomy.threads).toBe("ask");
     expect(agent("---\nautonomy:\n  commands: deny\n---\nGo.").autonomy).toEqual({ ...DEFAULT_AUTONOMY, commands: "deny" });
   });
 

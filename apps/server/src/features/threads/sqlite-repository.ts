@@ -37,6 +37,7 @@ const summaryColumns = {
   agentId: threads.agentId,
   doneAt: threads.doneAt,
   continuedFrom: threads.continuedFromThreadId,
+  parentThreadId: threads.parentThreadId,
   continuedIn: sql<string | null>`(SELECT c.id FROM threads c WHERE c.continued_from_thread_id = threads.id AND c.deleted_at IS NULL
     ORDER BY c.created_at DESC LIMIT 1)`,
   createdAt: threads.createdAt,

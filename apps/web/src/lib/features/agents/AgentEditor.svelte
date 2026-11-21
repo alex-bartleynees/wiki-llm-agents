@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { AUTONOMY_ACTIONS, type AgentInput, type AutonomyLevel } from "@wiki-agents/contracts/agents/model";
+  import { AUTONOMY_ACTIONS, DEFAULT_AUTONOMY, type AgentInput, type AutonomyLevel } from "@wiki-agents/contracts/agents/model";
   import type { ProviderModel } from "@wiki-agents/contracts/providers/model";
   import { beforeNavigate, goto } from "$app/navigation";
   import { isAbort } from "#lib/api/client.ts";
@@ -89,7 +89,7 @@
   const shownValue = (input: AgentInput, field: keyof AgentInput): string => {
     const value = input[field];
     if (field === "sources") return describeSources(input.sources);
-    if (field === "autonomy") return AUTONOMY_ACTIONS.map((action) => `${ACTION_LABEL[action]}: ${LEVEL_LABEL[input.autonomy[action]]}`).join(" · ");
+    if (field === "autonomy") return AUTONOMY_ACTIONS.map((action) => `${ACTION_LABEL[action]}: ${LEVEL_LABEL[input.autonomy[action] ?? DEFAULT_AUTONOMY[action]]}`).join(" · ");
     if (field === "provider") return value === null ? "The one picked for each thread" : (providers.get(value as string)?.name ?? String(value));
     if (field === "model") return value === null ? "The provider's default" : String(value);
     return String(value) || "(empty)";
@@ -257,7 +257,7 @@
                       <tr>
                         <th scope="row">{ACTION_LABEL[action]}</th>
                         {#each enforcing as entry (entry.providerInstanceId)}
-                          {@const level = entry.autonomy?.[action] ?? "ask"}
+                          {@const level = entry.autonomy?.[action] ?? DEFAULT_AUTONOMY[action]}
                           <td data-level={level}>{LEVEL_LABEL[level]}</td>
                         {/each}
                       </tr>

@@ -30,6 +30,7 @@ export const createThread = Effect.fn("createThread")(function* (
     readonly title?: string;
     readonly draftText?: string;
     readonly continuedFrom?: string;
+    readonly parentThreadId?: string;
     readonly model?: string | null;
     readonly shareWorktree?: Worktree;
   } = {},
@@ -65,6 +66,7 @@ export const createThread = Effect.fn("createThread")(function* (
       title: options.title,
       draftText: options.draftText,
       continuedFrom: options.continuedFrom,
+      parentThreadId: options.parentThreadId,
       createdAt: yield* Clock.currentTimeMillis,
     })
     .pipe(

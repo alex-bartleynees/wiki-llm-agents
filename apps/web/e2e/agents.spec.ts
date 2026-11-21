@@ -28,6 +28,9 @@ test("creates an agent in the app, then edits it over a change made on disk", as
   await form.getByRole("radiogroup", { name: "Edit existing files" }).getByLabel("Never").check();
   await form.getByRole("radiogroup", { name: "Use other MCP servers' tools" }).getByLabel("Allowed").check();
   await form.getByRole("radiogroup", { name: "Start subagents" }).getByLabel("Allowed").check();
+  const childThreads = form.getByRole("radiogroup", { name: "Start child threads" });
+  await expect(childThreads.getByLabel("Never")).toBeChecked();
+  await childThreads.getByLabel("Asks first").check();
   await form.getByLabel("Only these:").check();
   // Only these starts from the thread's vault and the web; leave the web out.
   await form.getByLabel("The web (as its autonomy allows)").uncheck();
@@ -46,6 +49,7 @@ test("creates an agent in the app, then edits it over a change made on disk", as
   expect(written).toContain("  edit: deny\n");
   expect(written).toContain("  tools: allow\n");
   expect(written).toContain("  subagents: allow\n");
+  expect(written).toContain("  threads: ask\n");
   expect(written).toContain("mcp: [ coffee-journal, github ]\n");
   expect(written).toContain("sources:\n  - vault\n  - vault: vault\n    folders:\n      - Projects\n");
   expect(written).toMatch(/---\n\n# Scout\n\nLook around before answering\.\n$/);

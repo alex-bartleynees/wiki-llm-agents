@@ -9,6 +9,7 @@ export const ACTION_LABEL: Readonly<Record<AutonomyAction, string>> = {
   web: "Use the web",
   tools: "Use other MCP servers' tools",
   subagents: "Start subagents",
+  threads: "Start child threads",
 };
 
 export const LEVEL_LABEL: Readonly<Record<AutonomyLevel, string>> = { allow: "Allowed", ask: "Asks first", deny: "Never" };
@@ -22,6 +23,7 @@ const PHRASES: Readonly<Record<AutonomyAction, readonly [string, string, string]
   web: ["uses the web", "using the web", "use the web"],
   tools: ["uses other MCP servers' tools", "using other MCP servers' tools", "use other MCP servers' tools"],
   subagents: ["starts subagents", "starting subagents", "start subagents"],
+  threads: ["starts child threads", "starting child threads", "start child threads"],
 };
 
 const list = (items: ReadonlyArray<string>, conjunction = "and") =>
@@ -30,7 +32,7 @@ const list = (items: ReadonlyArray<string>, conjunction = "and") =>
 /** "It reads files and uses the web without asking; asks before creating files and editing files; won't run commands." */
 export const describeAutonomy = (autonomy: Autonomy) => {
   const by = (level: AutonomyLevel, form: 0 | 1 | 2) =>
-    AUTONOMY_ACTIONS.filter((action) => autonomy[action] === level).map((action) => PHRASES[action][form]);
+    AUTONOMY_ACTIONS.filter((action) => (autonomy[action] ?? DEFAULT_AUTONOMY[action]) === level).map((action) => PHRASES[action][form]);
   const parts = [
     ...(by("allow", 0).length > 0 ? [`${list(by("allow", 0))} without asking`] : []),
     ...(by("ask", 1).length > 0 ? [`asks before ${list(by("ask", 1))}`] : []),

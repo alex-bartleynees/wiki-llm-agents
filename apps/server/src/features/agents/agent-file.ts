@@ -1,4 +1,4 @@
-import { AUTONOMY_ACTIONS, type AgentInput } from "@wiki-agents/contracts/agents/model";
+import { AUTONOMY_ACTIONS, DEFAULT_AUTONOMY, type AgentInput } from "@wiki-agents/contracts/agents/model";
 import { Document, isMap, isScalar, type Pair, parseDocument, YAMLMap } from "yaml";
 import { splitFrontmatter } from "./definition.js";
 
@@ -77,9 +77,9 @@ export const agentFileText = (input: AgentInput, existing: string | null): strin
   else set("mcp", [...new Set(input.mcp)]);
   const autonomy = map.get("autonomy");
   if (isMap(autonomy)) {
-    for (const action of AUTONOMY_ACTIONS) autonomy.set(action, input.autonomy[action]);
+    for (const action of AUTONOMY_ACTIONS) autonomy.set(action, input.autonomy[action] ?? DEFAULT_AUTONOMY[action]);
   } else {
-    set("autonomy", Object.fromEntries(AUTONOMY_ACTIONS.map((action) => [action, input.autonomy[action]])));
+    set("autonomy", Object.fromEntries(AUTONOMY_ACTIONS.map((action) => [action, input.autonomy[action] ?? DEFAULT_AUTONOMY[action]])));
   }
 
   const frontmatter = doc.toString({ lineWidth: 0 }).trimEnd();

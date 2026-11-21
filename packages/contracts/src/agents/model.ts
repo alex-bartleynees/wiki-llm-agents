@@ -11,7 +11,7 @@ export const AutonomyLevel = Schema.Literals(["allow", "ask", "deny"]);
 export type AutonomyLevel = typeof AutonomyLevel.Type;
 
 /** The actions autonomy is set for. */
-export const AUTONOMY_ACTIONS = ["read", "create", "edit", "commands", "web", "tools", "subagents"] as const;
+export const AUTONOMY_ACTIONS = ["read", "create", "edit", "commands", "web", "tools", "subagents", "threads"] as const;
 export type AutonomyAction = (typeof AUTONOMY_ACTIONS)[number];
 
 /**
@@ -26,6 +26,7 @@ export type AutonomyAction = (typeof AUTONOMY_ACTIONS)[number];
  * - `subagents`: start the provider's own subagents (OpenCode's `subagent` tool,
  *   Claude Code's `Agent`); what they then do follows the rest of the autonomy.
  *   With `allow`, a scheduled run may start them too.
+ * - `threads`: start child app threads. Omission means deny.
  */
 export const Autonomy = Schema.Struct({
   read: AutonomyLevel,
@@ -35,11 +36,12 @@ export const Autonomy = Schema.Struct({
   web: AutonomyLevel,
   tools: AutonomyLevel,
   subagents: AutonomyLevel,
+  threads: Schema.optionalKey(AutonomyLevel),
 });
 export type Autonomy = typeof Autonomy.Type;
 
-/** Without an agent, or for actions an agent's file leaves out: read freely, ask for the rest. */
-export const DEFAULT_AUTONOMY: Autonomy = { read: "allow", create: "ask", edit: "ask", commands: "ask", web: "ask", tools: "ask", subagents: "ask" };
+/** Defaults for omitted settings or a thread without a named agent. */
+export const DEFAULT_AUTONOMY = { read: "allow", create: "ask", edit: "ask", commands: "ask", web: "ask", tools: "ask", subagents: "ask", threads: "deny" } satisfies Required<Autonomy>;
 
 /** How a provider enforces an agent's autonomy; it may be stricter than the file asks. */
 export const AutonomyEnforcement = Schema.Struct({

@@ -19,6 +19,7 @@ export interface NewThread {
   readonly draftText?: string | undefined;
   /** The thread it continues (Continue in a new thread). */
   readonly continuedFrom?: string | undefined;
+  readonly parentThreadId?: string | undefined;
   readonly createdAt: number;
 }
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { AUTONOMY_ACTIONS, type AgentSummary } from "@wiki-agents/contracts/agents/model";
+  import { AUTONOMY_ACTIONS, DEFAULT_AUTONOMY, type AgentSummary } from "@wiki-agents/contracts/agents/model";
   import { errorMessage, isAbort } from "#lib/api/client.ts";
   import { providers } from "#lib/features/threads/providers.svelte.ts";
   import { describeSources } from "./agent-form.ts";
@@ -66,12 +66,13 @@
       </thead>
       <tbody>
         {#each AUTONOMY_ACTIONS as action (action)}
+          {@const configured = agent.autonomy[action] ?? DEFAULT_AUTONOMY[action]}
           <tr>
             <th scope="row">{ACTION_LABEL[action]}</th>
-            <td data-level={agent.autonomy[action]}>{LEVEL_LABEL[agent.autonomy[action]]}</td>
+            <td data-level={configured}>{LEVEL_LABEL[configured]}</td>
             {#each enforcing as entry (entry.providerInstanceId)}
-              {@const level = entry.autonomy?.[action] ?? agent.autonomy[action]}
-              <td data-level={level} class:differs={level !== agent.autonomy[action]}>{LEVEL_LABEL[level]}</td>
+              {@const level = entry.autonomy?.[action] ?? configured}
+              <td data-level={level} class:differs={level !== configured}>{LEVEL_LABEL[level]}</td>
             {/each}
           </tr>
         {/each}
