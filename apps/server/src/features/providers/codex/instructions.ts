@@ -31,15 +31,21 @@ export const findGitRoot = (cwd: string, exists: (path: string) => boolean): str
   }
 };
 
+const SUBAGENT_QUESTIONS = [
+  "When delegating, tell the subagent to return any blocking question, the answer choices, and enough context to resume. A native Codex subagent may lack the user-input tool.",
+  "If you are the parent and the child reports a blocking question, call your own request_user_input tool before ending your turn. Put the child's name or role in both the header and question text so the user can see who asked.",
+  "Send the user's answer back to the same native subagent and let it resume the task. If the user supplies no answer, tell the child that the question remains unanswered.",
+].join("\n");
+
 /**
  * The app's instructions as Codex's developer instructions, in their order (later
- * ones win). Null when there is nothing to send.
+ * ones win).
  */
-export const developerInstructions = (instructions: ReadonlyArray<Instruction>, cwd: string, gitRoot: string | null): string | null => {
+export const developerInstructions = (instructions: ReadonlyArray<Instruction>, cwd: string, gitRoot: string | null): string => {
   const sent = instructions.filter((instruction) => !loadedByCodex(instruction, cwd, gitRoot));
-  if (sent.length === 0) return null;
   return [
     "The app you are running in adds these instructions. Where they disagree, later sections win.",
+    `<instructions source="Codex subagent questions">\n${SUBAGENT_QUESTIONS}\n</instructions>`,
     ...sent.map((instruction) => `<instructions source="${instruction.title}">\n${instruction.text.trim()}\n</instructions>`),
   ].join("\n\n");
 };

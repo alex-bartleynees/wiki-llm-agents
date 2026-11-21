@@ -16,11 +16,15 @@ describe("Codex instructions", () => {
     expect(loadedByCodex(vault("/vaults/home/AGENTS.md"), "/code/app", "/code/app")).toBe(false);
   });
 
-  it("sends the rest in order, or nothing", () => {
-    const text = developerInstructions([rules, agent, vault("/vaults/home/AGENTS.md")], "/code/app", null) ?? "";
+  it("sends the app and user instructions in order", () => {
+    const text = developerInstructions([rules, agent, vault("/vaults/home/AGENTS.md")], "/code/app", null);
     expect(text.indexOf("RULES")).toBeLessThan(text.indexOf("AGENT"));
     expect(text).toContain('<instructions source="AGENTS.md in the vault">\nVAULT\n</instructions>');
-    expect(developerInstructions([vault("/vaults/home/AGENTS.md")], "/vaults/home", null)).toBeNull();
+    expect(text.indexOf("Codex subagent questions")).toBeLessThan(text.indexOf("RULES"));
+    const defaults = developerInstructions([vault("/vaults/home/AGENTS.md")], "/vaults/home", null);
+    expect(defaults).not.toContain("VAULT");
+    expect(defaults).toContain("call your own request_user_input tool");
+    expect(defaults).toContain("back to the same native subagent");
   });
 
   it("finds the git repository holding a folder", () => {
