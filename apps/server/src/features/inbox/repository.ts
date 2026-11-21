@@ -1,3 +1,4 @@
+import type { MarkAllDoneTarget } from "@wiki-agents/contracts/inbox/mark-all-done/request";
 import type { InboxItem, InboxItemKind, InboxItemState, InboxSource } from "@wiki-agents/contracts/inbox/model";
 import { Context, type Effect, type Option } from "effect";
 import type { DbError } from "../../shared/persistence/errors.js";
@@ -30,6 +31,8 @@ export interface InboxRepositoryService {
   readonly add: (item: NewInboxItem, channels: ReadonlyArray<string>, at: number) => Effect.Effect<InboxItem, DbError>;
   /** The items that were unread. */
   readonly markRead: (itemIds: ReadonlyArray<string>, at: number) => Effect.Effect<ReadonlyArray<InboxItem>, DbError>;
+  /** Completes only the captured, still eligible versions and returns the changed items. */
+  readonly markAllDone: (targets: ReadonlyArray<MarkAllDoneTarget>, at: number) => Effect.Effect<ReadonlyArray<InboxItem>, DbError>;
   /** Hides the item until `until`, unread, and queues its delivery again for then. */
   readonly snooze: (itemId: string, until: number, channels: ReadonlyArray<string>, at: number) => Effect.Effect<Option.Option<InboxItem>, DbError>;
   readonly setState: (

@@ -1,4 +1,5 @@
 import { expect, type APIRequestContext, type Page, test } from "@playwright/test";
+import { openVault, tab, useReplay } from "./app.ts";
 
 /**
  * Schedules fire on the server's clock, which these flows move with the test hook
@@ -96,6 +97,86 @@ test("snoozes an item until later and dismisses it", async ({ page, request }, i
   await expect(item).toBeVisible();
   await item.getByRole("button", { name: "Dismiss" }).click();
   await expect(item).toHaveCount(0);
+});
+
+test("confirms bulk completion across tabs and preserves requests, snoozes and new arrivals", async ({ page, request, context }, info) => {
+  const titles = ["Complete this", "Keep snoozed", "Keep new arrival"].map((title) => `${title} (${info.project.name})`);
+  const scheduleIds: string[] = [];
+  for (const title of titles) {
+    const response = await request.post("/api/schedules", {
+      data: { kind: "reminder", text: title, recurrence: { _tag: "daily", time: "09:00" }, timezone: "Pacific/Auckland" },
+    });
+    expect(response.ok()).toBe(true);
+    const { schedule } = (await response.json()) as { schedule: ScheduleSummary };
+    scheduleIds.push(schedule.id);
+  }
+  const run = async (index: number) => {
+    expect((await request.post(`/api/schedules/${scheduleIds[index]}/run`, { data: {} })).ok()).toBe(true);
+  };
+  await run(0);
+  await run(1);
+
+  await openVault(page);
+  await tab(page, info, "Chat");
+  await useReplay(page);
+  const created = page.waitForResponse((response) => response.request().method() === "POST" && response.url().endsWith("/threads"));
+  await page.getByRole("button", { name: "New thread", exact: true }).click();
+  const { thread } = (await (await created).json()) as { thread: { id: string } };
+  const message = page.getByRole("textbox", { name: "Message" });
+  await message.fill("Ask me a question");
+  await message.press("Enter");
+  await expect(page.getByText("Where should the new note go?", { exact: true })).toBeVisible();
+
+  await page.goto("/inbox");
+  const open = (target: Page) => target.getByRole("region", { name: "Open", exact: true });
+  const card = (target: Page, index: number) => open(target).getByRole("article", { name: titles[index]! });
+  const waiting = open(page).getByRole("article", { name: "Question: Where should the new note go?" }).filter({
+    has: page.locator(`a[href$="?thread=${thread.id}"]`),
+  });
+  const action = page.getByRole("button", { name: "Mark all as done" });
+  await expect(waiting.getByRole("link", { name: "Answer in the thread" })).toBeVisible();
+  await card(page, 1).getByLabel("Snooze").selectOption({ label: "1 hour" });
+  await expect(card(page, 1)).toHaveCount(0);
+
+  const other = await context.newPage();
+  await other.goto("/inbox");
+  await expect(card(other, 0)).toBeVisible();
+  await action.click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText(/Mark \d+ items? as done\?/);
+  await expect(dialog).toContainText("Approvals, questions, snoozed items and new arrivals stay in the inbox.");
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(card(page, 0)).toBeVisible();
+
+  await action.click();
+  const heading = await dialog.getByRole("heading").textContent();
+  const count = Number(heading?.match(/\d+/)?.[0]);
+  expect(count).toBeGreaterThan(0);
+  await run(2);
+  // The new arrival proves both tabs are subscribed before the completion.
+  await expect(card(other, 2)).toBeVisible();
+  await expect(dialog.getByRole("heading")).toHaveText(heading!);
+  await dialog.getByRole("button", { name: "Mark done", exact: true }).click();
+
+  await expect(page.getByRole("status").filter({ hasText: /^Marked/ })).toHaveText(`Marked ${count} ${count === 1 ? "item" : "items"} done.`);
+  for (const target of [page, other]) {
+    await expect(card(target, 0)).toHaveCount(0);
+    await expect(card(target, 2)).toBeVisible();
+    await target.getByText("Done and dismissed", { exact: true }).click();
+    await expect(target.getByRole("region", { name: "Done and dismissed" }).getByRole("article", { name: titles[0]! })).toBeVisible();
+  }
+  await expect(waiting).toBeVisible();
+  await page.getByText(/^Snoozed \(\d+\)$/).click();
+  await expect(page.getByRole("region", { name: "Snoozed" }).getByRole("article", { name: titles[1]! })).toBeVisible();
+  await card(page, 2).getByRole("button", { name: "Done", exact: true }).click();
+  await expect(action).toBeDisabled();
+
+  await other.close();
+  await waiting.getByRole("link", { name: "Answer in the thread" }).click();
+  await page.getByRole("button", { name: "_Inbox/", exact: true }).click();
+  await expect(page.getByText(/Got it, I'll put it in/)).toBeVisible();
+  for (const id of scheduleIds) expect((await request.delete(`/api/schedules/${id}`)).ok()).toBe(true);
 });
 
 test("links a reminder to a note found by search, and opens it from the inbox", async ({ page, request }, info) => {

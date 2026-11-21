@@ -1,12 +1,14 @@
 import { expect, layer } from "@effect/vitest";
+import { MarkAllDoneResponse } from "@wiki-agents/contracts/inbox/mark-all-done/response";
 import type { InboxItem } from "@wiki-agents/contracts/inbox/model";
 import { MarkReadResponse } from "@wiki-agents/contracts/inbox/mark-read/response";
 import { SnoozeItemResponse } from "@wiki-agents/contracts/inbox/snooze-item/response";
-import { Clock, Effect, Layer, Queue } from "effect";
+import { Clock, Effect, Layer, PubSub, Queue } from "effect";
 import { TestClock } from "effect/testing";
 import { DeliveryChannels, DeliveryFailed, inAppChannel, sentOutcome } from "../../src/features/inbox/delivery.js";
 import { MAX_DELIVERY_ATTEMPTS } from "../../src/features/inbox/delivery-worker.js";
 import { InboxBus } from "../../src/features/inbox/inbox-bus.js";
+import { InboxRepository } from "../../src/features/inbox/repository.js";
 import { makeScriptedProvider } from "./infrastructure/scripted-provider.js";
 import { AKL, createSchedule, inbox, ofKind, watchInbox, advanceTo } from "./infrastructure/schedules.js";
 import { makeTestApp } from "./infrastructure/test-app.js";
@@ -73,6 +75,60 @@ layer(makeTestApp({ providers: provider.registry }))("inbox", (it) => {
       const watching = yield* watchInbox;
       const back = yield* watching.until((candidate) => candidate.id === item.id && candidate.snoozedUntil === null, advanceTo(until));
       expect(back).toMatchObject({ read: false, state: "open" });
+    }),
+  );
+
+  it.effect("bulk completes only captured, still eligible versions and publishes only committed changes", () =>
+    Effect.gen(function* () {
+      const read = yield* reminderNow("Already read");
+      const unread = yield* reminderNow("Still unread");
+      const snoozed = yield* reminderNow("Snooze after snapshot");
+      const dismissed = yield* reminderNow("Dismiss after snapshot");
+      const thread = yield* newThread((yield* newVault).id, "scripted");
+      const watching = yield* watchInbox;
+      const waiting = yield* watching.until((item) => item.kind === "request" && item.source.threadId === thread.id, sendOk(thread.id, "Edit the plan"));
+      const repo = yield* InboxRepository;
+      const at = yield* Clock.currentTimeMillis;
+      const result = yield* repo.putTurnItem(thread.id, { kind: "turn.finished", title: "First result", body: "", source: { threadId: thread.id, turnId: "first" } }, [], at);
+      const prompt = yield* repo.add({ kind: "prompt.result", title: "Scheduled result", body: "", source: { turnId: "scheduled-turn" } }, [], at);
+      const digest = yield* repo.add({ kind: "digest", title: "Digest", body: "", source: {} }, [], at);
+      const targets = [read, unread, snoozed, dismissed, waiting, result, read, prompt, digest].map(({ id, source }) => ({ itemId: id, turnId: source.turnId }));
+      // Span multiple SQLite batches without relying on where in the inbox a row is sorted.
+      targets.splice(1, 0, ...Array.from({ length: 210 }, (_, i) => ({ itemId: `missing-${i}`, turnId: null })));
+
+      yield* post("/api/inbox/read", { itemIds: [read.id] }).pipe(Effect.flatMap(decode(MarkReadResponse)));
+      yield* post(`/api/inbox/${snoozed.id}/snooze`, { until: at + 60_000 }).pipe(Effect.flatMap(decode(SnoozeItemResponse)));
+      yield* act(dismissed, "dismiss");
+      const latest = yield* repo.putTurnItem(thread.id, { kind: "turn.failed", title: "Latest result", body: "", source: { threadId: thread.id, turnId: "latest" } }, [], at);
+      expect(latest.id).toBe(result.id);
+      const arrival = yield* reminderNow("New arrival");
+      const subscription = yield* (yield* InboxBus).subscribe;
+
+      expect((yield* post("/api/inbox/done", { targets: [{ itemId: read.id }] })).status).toBe(400);
+      expect((yield* post("/api/inbox/done", { targets: [{ itemId: read.id, turnId: 1 }] })).status).toBe(400);
+      const complete = post("/api/inbox/done", { targets }).pipe(Effect.flatMap(decode(MarkAllDoneResponse)));
+      const attempts = yield* Effect.all([complete, complete], { concurrency: 2 });
+      const changed = attempts.flatMap(({ items }) => items);
+      expect(attempts.map(({ items }) => items.length).sort()).toEqual([0, 4]);
+      expect(changed).toEqual(expect.arrayContaining([
+        expect.objectContaining({ id: read.id, state: "done", read: true }),
+        expect.objectContaining({ id: unread.id, state: "done", read: false }),
+        expect.objectContaining({ id: prompt.id, state: "done", kind: "prompt.result" }),
+        expect.objectContaining({ id: digest.id, state: "done", kind: "digest" }),
+      ]));
+      expect((yield* complete).items).toEqual([]);
+      expect((yield* post("/api/inbox/done", { targets: [] }).pipe(Effect.flatMap(decode(MarkAllDoneResponse)))).items).toEqual([]);
+
+      const stored = yield* inbox;
+      expect(stored).toEqual(expect.arrayContaining([
+        ...changed,
+        expect.objectContaining({ id: waiting.id, kind: "request", state: "open" }),
+        expect.objectContaining({ id: snoozed.id, snoozedUntil: at + 60_000, state: "open" }),
+        expect.objectContaining({ id: arrival.id, state: "open" }),
+        expect.objectContaining({ id: dismissed.id, state: "dismissed" }),
+        expect.objectContaining({ id: result.id, source: expect.objectContaining({ turnId: "latest" }), state: "open" }),
+      ]));
+      expect(yield* PubSub.takeAll(subscription)).toEqual(changed);
     }),
   );
 

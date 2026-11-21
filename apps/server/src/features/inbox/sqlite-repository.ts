@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNotNull, lte, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { Effect, Layer, Option } from "effect";
 import { DbError } from "../../shared/persistence/errors.js";
 import { Sqlite } from "../../shared/persistence/sqlite.js";
@@ -8,6 +8,11 @@ import { inboxDeliveries, inboxItems } from "./table.js";
 
 /** Done and dismissed items listed after the open ones. */
 const HISTORY = 50;
+
+// Keep each mutation distinguishable even when several writes share a clock tick.
+const updatedAt = (at: number) => sql`max(${inboxItems.updatedAt} + 1, ${at})`;
+
+const openUnsnoozed = and(eq(inboxItems.state, "open"), isNull(inboxItems.snoozedUntil));
 
 const TURN_KINDS = ["turn.finished", "turn.failed"] as const;
 
@@ -42,12 +47,34 @@ export const InboxRepositoryLive = Layer.effect(
       markRead: (itemIds, at) =>
         query(() => {
           if (itemIds.length === 0) return [];
-          const unread = and(inArray(inboxItems.id, [...itemIds]), eq(inboxItems.read, false));
+          const unread = and(inArray(inboxItems.id, [...itemIds]), openUnsnoozed, eq(inboxItems.read, false));
           const changed = db.select({ id: inboxItems.id }).from(inboxItems).where(unread).all();
           if (changed.length === 0) return [];
-          db.update(inboxItems).set({ read: true, updatedAt: new Date(at) }).where(unread).run();
+          db.update(inboxItems).set({ read: true, updatedAt: updatedAt(at) }).where(unread).run();
           const rows = db.select().from(inboxItems).where(inArray(inboxItems.id, changed.map((row) => row.id))).all();
           return toInboxItems(db, rows);
+        }),
+
+      markAllDone: (targets, at) =>
+        query(() => {
+          const unique = [...new Map(targets.map((target) => [JSON.stringify([target.itemId, target.turnId]), target])).values()];
+          return db.transaction((tx) => {
+            const changed = [];
+            // Keep the SQL expression depth and bind count below SQLite limits.
+            const batchSize = 200;
+            for (let offset = 0; offset < unique.length; offset += batchSize) {
+              const matches = unique.slice(offset, offset + batchSize).map(({ itemId, turnId }) =>
+                and(eq(inboxItems.id, itemId), sql`${inboxItems.turnId} IS ${turnId}`),
+              );
+              const rows = tx.update(inboxItems)
+                .set({ state: "done", updatedAt: updatedAt(at) })
+                .where(and(openUnsnoozed, ne(inboxItems.kind, "request"), or(...matches)))
+                .returning()
+                .all();
+              changed.push(...toInboxItems(tx, rows));
+            }
+            return changed;
+          });
         }),
 
       snooze: (itemId, until, channels, at) =>
@@ -55,7 +82,7 @@ export const InboxRepositoryLive = Layer.effect(
           db.transaction((tx) => {
             const updated = tx
               .update(inboxItems)
-              .set({ snoozedUntil: new Date(until), read: false, state: "open", updatedAt: new Date(at) })
+              .set({ snoozedUntil: new Date(until), read: false, state: "open", updatedAt: updatedAt(at) })
               .where(eq(inboxItems.id, itemId))
               .run();
             if (updated.changes === 0) return Option.none();
@@ -67,7 +94,7 @@ export const InboxRepositoryLive = Layer.effect(
       setState: (itemId, state, at, resolution) =>
         query(() => {
           db.update(inboxItems)
-            .set({ state, snoozedUntil: null, updatedAt: new Date(at), ...(resolution === undefined ? {} : { resolution }) })
+            .set({ state, snoozedUntil: null, updatedAt: updatedAt(at), ...(resolution === undefined ? {} : { resolution }) })
             .where(eq(inboxItems.id, itemId))
             .run();
           return read(itemId);
@@ -109,7 +136,7 @@ export const InboxRepositoryLive = Layer.effect(
                 read: false,
                 snoozedUntil: null,
                 turnId: item.source.turnId ?? null,
-                updatedAt: new Date(at),
+                updatedAt: updatedAt(at),
               })
               .where(eq(inboxItems.id, existing.id))
               .run();
@@ -124,7 +151,7 @@ export const InboxRepositoryLive = Layer.effect(
           const open = and(eq(inboxItems.threadId, threadId), inArray(inboxItems.kind, [...TURN_KINDS]), eq(inboxItems.state, "open"));
           const ids = db.select({ id: inboxItems.id }).from(inboxItems).where(open).all().map((row) => row.id);
           if (ids.length === 0) return [];
-          db.update(inboxItems).set({ state: "done", snoozedUntil: null, updatedAt: new Date(at) }).where(inArray(inboxItems.id, ids)).run();
+          db.update(inboxItems).set({ state: "done", snoozedUntil: null, updatedAt: updatedAt(at) }).where(inArray(inboxItems.id, ids)).run();
           return toInboxItems(db, db.select().from(inboxItems).where(inArray(inboxItems.id, ids)).all());
         }),
 
@@ -146,7 +173,7 @@ export const InboxRepositoryLive = Layer.effect(
       beginDelivery: (itemId, at) =>
         query(() => {
           db.update(inboxItems)
-            .set({ snoozedUntil: null, updatedAt: new Date(at) })
+            .set({ snoozedUntil: null, updatedAt: updatedAt(at) })
             .where(and(eq(inboxItems.id, itemId), lte(inboxItems.snoozedUntil, new Date(at))))
             .run();
           return read(itemId);
