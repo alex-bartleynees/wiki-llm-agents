@@ -200,7 +200,7 @@ layer(makeTestApp({ providers: provider.registry }))("scheduled prompts", (it) =
 
       const resolved = (yield* getThread(schedule.threadId!)).events.flatMap(({ event }) => (event._tag === "request.resolved" ? [event.answer] : []));
       expect(resolved).toEqual([{ _tag: "approval", decision: "deny" }, { _tag: "question", text: UNATTENDED_ANSWER }]);
-      expect((yield* inbox).filter((candidate) => candidate.kind === "request" && candidate.source.threadId === schedule.threadId)).toEqual([]);
+      expect((yield* inbox).filter((candidate) => candidate.source.threadId === schedule.threadId).map((candidate) => candidate.id)).toEqual([item.id]);
     }),
   );
 
