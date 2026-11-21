@@ -22,7 +22,7 @@ import type { DbError } from "../../shared/persistence/errors.js";
 import { AgentCatalog } from "../agents/catalog.js";
 import { sessionSetup } from "../agents/session-setup.js";
 import { type BackgroundEvent, ProviderError, type ProviderEvent, type ProviderSession, type SessionSetup, type SubagentState, type TurnImage } from "../providers/port.js";
-import { VaultTools } from "../mcp/vault-tools.js";
+import { ThreadMcpRegistration } from "../mcp/thread-mcp-registration.js";
 import { SecretMaterial } from "../secrets/material.js";
 import { ProviderRegistry } from "../providers/registry.js";
 import { projectInstruction, projectRoots } from "../projects/project-context.js";
@@ -30,7 +30,7 @@ import { ProjectRepository } from "../projects/repository.js";
 import { worktreeProblem } from "../projects/worktrees.js";
 import { DEFAULT_AUTONOMY } from "@wiki-agents/contracts/agents/model";
 import { effectiveAutonomy } from "../agents/sources.js";
-import type { ToolCallCheck } from "../mcp/gateway.js";
+import type { ToolCallCheck } from "../mcp-gateway/gateway.js";
 import { HANDOFF_PROMPT } from "./handoff-prompt.js";
 import { CompactionUnavailable, HandoffUnavailable, NoTurnRunning, RequestClosed, RequestNotFound, ThreadBusy, ThreadNotFound, ToolCallRefused, WrongAnswerKind } from "./errors.js";
 import { finalReply } from "./final-reply.js";
@@ -281,7 +281,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
   });
   // The thread's vault tools token lives as long as the actor; closing it revokes the token.
   // Other MCP servers' `project` connections run in the project's main working directory.
-  const vaultTools = yield* (yield* VaultTools)
+  const mcpRegistration = yield* (yield* ThreadMcpRegistration)
     .open({ threadId, vaultId: vault.id, projectId: project?.id ?? null, cwd: project?.workingDirectories[0] ?? vault.rootPath })
     .pipe(Scope.provide(actorScope));
 
@@ -344,7 +344,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     // Read every turn, so a sign-in or server added in the project reaches threads on their next one.
     const signIns = project === null ? [] : yield* projects.browserSignIns(project.id).pipe(Effect.orElseSucceed(() => []));
     const projectServers = project === null ? [] : yield* projects.mcpServers(project.id).pipe(Effect.orElseSucceed(() => []));
-    const tools = yield* vaultTools.current(agentServers, { servers: projectServers, signIns });
+    const tools = yield* mcpRegistration.current(agentServers, { servers: projectServers, signIns });
     if (tools.notices.length > 0) yield* record(tools.notices.map((text): ThreadEvent => ({ _tag: "notice", turnId, text })));
     const setup: SessionSetup = {
       ...agent,

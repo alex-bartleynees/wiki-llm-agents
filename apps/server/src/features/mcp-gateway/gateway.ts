@@ -46,7 +46,6 @@ export interface ThreadTools {
   readonly notices: ReadonlyArray<string>;
 }
 
-/** An upstream tool as threads get it. */
 export interface GatewayTool {
   /** `<server>__<tool>`. */
   readonly name: string;
@@ -56,7 +55,6 @@ export interface GatewayTool {
   readonly access: AutonomyLevel | null;
   /** The server is a browser given the project's sign-ins: typing a credential's name is checked (`sign-in-guard.ts`). */
   readonly browserSignIns: boolean;
-  /** The server's own description of it, with its own name. */
   readonly tool: McpSchema.Tool;
 }
 
@@ -73,15 +71,11 @@ export interface ToolCallApprovals {
   readonly approve: (threadId: string, call: ToolCallCheck) => Effect.Effect<Effect.Effect<void>, ToolCallRefusal>;
 }
 
-/** What the actor needs to decide on one call. */
 export interface ToolCallCheck {
-  /** The level the call needs, from the agent's effective autonomy. */
   readonly level: (autonomy: Autonomy) => AutonomyLevel;
-  /** What you are asked to approve: server, tool and arguments. */
   readonly prompt: Extract<RequestPrompt, { readonly _tag: "approval" }>;
 }
 
-/** Why a call didn't run, as the agent is told it. */
 export interface ToolCallRefusal {
   readonly message: string;
 }
@@ -93,7 +87,6 @@ export interface ToolCallRefusal {
 export const toolCallLevel = (autonomy: Autonomy, tool: Pick<GatewayTool, "access" | "tool">): AutonomyLevel =>
   tool.access ?? (tool.tool.annotations?.readOnlyHint === true ? autonomy.read : autonomy.tools);
 
-/** Longest argument text shown in an approval. */
 export const MAX_APPROVAL_ARGUMENTS = 4_000;
 
 /** The approval card for a call: `GitHub: create_issue`, then the arguments as JSON. */
@@ -110,7 +103,6 @@ export const approvalPrompt = (tool: Pick<GatewayTool, "serverId" | "serverTitle
   };
 };
 
-/** Longest text a call's result gives the agent, per text block. */
 export const MAX_RESULT_TEXT = 100_000;
 
 /** Cuts long text blocks, saying so, so one huge result can't fill the agent's context. */
@@ -128,7 +120,6 @@ export const truncateResult = <R extends { readonly content: ReadonlyArray<{ rea
 /** Which servers a thread's agent and its project list (ids, as in `mcp/<id>.yaml`). */
 export interface ServerSelection {
   readonly agent: ReadonlyArray<string>;
-  /** Empty for a thread outside any project. */
   readonly project: ReadonlyArray<string>;
 }
 
@@ -145,7 +136,6 @@ export const serversFor = (servers: ReadonlyArray<McpServerSummary>, selection: 
   };
 };
 
-/** A server's tools split into those threads get and those held back, with why. */
 export const toolsOf = (server: Pick<McpServerSummary, "id" | "title" | "access" | "browserSignIns">, tools: ReadonlyArray<McpSchema.Tool>) => {
   const given: Array<GatewayTool> = [];
   const heldBack: Array<{ readonly name: string; readonly problem: string }> = [];
@@ -176,5 +166,4 @@ export const descriptorOf = (tool: GatewayTool) => ({
   annotations: tool.tool.annotations,
 });
 
-/** Identifies a set of tools as agents see them. */
 export const fingerprintOf = (tools: ReadonlyArray<GatewayTool>) => JSON.stringify([...tools].sort((a, b) => a.name.localeCompare(b.name)).map(descriptorOf));

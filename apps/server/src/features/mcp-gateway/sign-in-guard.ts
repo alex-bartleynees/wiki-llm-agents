@@ -10,10 +10,8 @@ import { type BrowserSignIn, originOf } from "@wiki-agents/contracts/projects/mo
  * - never without asking you first, whatever the agent's autonomy.
  */
 
-/** The browser's tools that type a secret's value in place of its name. */
 export const TYPING_TOOLS: ReadonlyArray<string> = ["browser_type", "browser_fill_form"];
 
-/** A credential's name in a call's arguments, with the sign-in it belongs to. */
 export interface TypedCredential {
   readonly variable: string;
   readonly signIn: BrowserSignIn;
@@ -31,7 +29,6 @@ const typedTexts = (tool: string, args: unknown): ReadonlyArray<string> => {
   return [];
 };
 
-/** The credentials a call would type: empty for any other call. */
 export const typedCredentials = (tool: string, args: unknown, signIns: ReadonlyArray<BrowserSignIn>): ReadonlyArray<TypedCredential> => {
   if (!TYPING_TOOLS.includes(tool)) return [];
   const texts = new Set(typedTexts(tool, args));

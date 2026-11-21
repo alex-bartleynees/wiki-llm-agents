@@ -32,9 +32,9 @@ import { McpConnectionsLive } from "../features/mcp-oauth/connections-live.js";
 import { appOrigins, type BrowserSettings } from "../features/mcp-servers/browser.js";
 import { makeMcpServerCatalog } from "../features/mcp-servers/catalog-live.js";
 import { McpPoolLive } from "../features/mcp-servers/pool-live.js";
-import { McpGatewayLive } from "../features/mcp/gateway-live.js";
+import { McpGatewayLive } from "../features/mcp-gateway/gateway-live.js";
 import { McpTokensLive } from "../features/mcp/tokens.js";
-import { VaultToolsLive } from "../features/mcp/vault-tools-live.js";
+import { ThreadMcpRegistrationLive } from "../features/mcp/thread-mcp-registration-live.js";
 import { PinRepositoryLive } from "../features/pins/sqlite-repository.js";
 import type { ProviderRegistry } from "../features/providers/registry.js";
 import { ProviderRegistryLive } from "../features/providers/registry-live.js";
@@ -111,7 +111,7 @@ const indexing = (watch: boolean, pollMs: number | undefined) =>
  * other MCP servers).
  */
 const threads = ThreadActorsLive.pipe(
-  Layer.provideMerge(Layer.merge(ThreadBusLive, VaultToolsLive)),
+  Layer.provideMerge(Layer.merge(ThreadBusLive, ThreadMcpRegistrationLive)),
   Layer.provideMerge(Layer.merge(McpTokensLive, McpGatewayLive)),
 );
 

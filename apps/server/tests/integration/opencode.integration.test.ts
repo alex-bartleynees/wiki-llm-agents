@@ -26,7 +26,7 @@ import { DENIED, makeOpenCodeAdapter, OPENCODE_STOPPED, ROUTE_BACKOFF, SESSION_P
 import { SECRET_DENIED } from "../../src/features/providers/port.js";
 import { type OpenCodeApi, OpenCodeError } from "../../src/features/providers/opencode/api.js";
 import { permissionRules } from "../../src/features/providers/opencode/permissions.js";
-import { entryName } from "../../src/features/mcp/vault-tools.js";
+import { entryName } from "../../src/features/mcp/thread-mcp-registration.js";
 import { SecretMaterial } from "../../src/features/secrets/material.js";
 import { binaryVersion } from "../../src/features/providers/opencode/server.js";
 import { makeProviderRegistry } from "../../src/features/providers/registry-live.js";

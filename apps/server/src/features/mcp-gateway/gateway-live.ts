@@ -2,7 +2,7 @@ import { Context, type Duration, Effect, Layer, Option, Schema } from "effect";
 import { McpSchema, McpServer } from "effect/ai";
 import { McpServerCatalog } from "../mcp-servers/catalog.js";
 import { McpPool, type McpScopeContext } from "../mcp-servers/pool.js";
-import { VaultCaller } from "./auth.js";
+import { VaultCaller } from "../mcp/auth.js";
 import {
   approvalPrompt,
   descriptorOf,
@@ -45,14 +45,12 @@ export const McpGatewayLive = Layer.effect(
     let approvals: ToolCallApprovals | undefined;
     /** The visibility check, built once `/mcp` attaches; every gateway tool is registered with it. */
     let gate: Context.Context<never> | undefined;
-    /** Registered on `/mcp`: name → what it was registered as. */
     const registered = new Map<string, string>();
     /** Prepared before `/mcp` was built; registered when it attaches. */
     const waiting = new Map<string, GatewayTool>();
     const snapshots = new Map<string, ThreadSnapshot>();
     /** Kept after a thread is released, so its next entry never reuses a revision with other tools. */
     const revisions = new Map<string, { readonly fingerprint: string; readonly revision: number }>();
-    /** Each thread's browser page, as its last result said: `<thread>|<server>` → URL. */
     const pages = new Map<string, string>();
     const pageKey = (threadId: string, serverId: string) => `${threadId}|${serverId}`;
 

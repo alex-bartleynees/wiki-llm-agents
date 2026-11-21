@@ -14,7 +14,7 @@ import { SetModelResponse } from "@wiki-agents/contracts/threads/set-model/respo
 import { Context, Effect, Layer, PubSub, Stream } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/http";
 import { makeAttachmentStore } from "../../src/features/attachments/store-live.js";
-import { entryName } from "../../src/features/mcp/vault-tools.js";
+import { entryName } from "../../src/features/mcp/thread-mcp-registration.js";
 import { APP_TOOL_CALL_TIMEOUT_MS, CLAUDE_STOPPED, makeClaudeCodeAdapter, NOT_ALLOWED, SETTING_SOURCES } from "../../src/features/providers/claude-code/adapter.js";
 import { DENIED, ProviderError, vaultToolsUnavailable } from "../../src/features/providers/port.js";
 import { makeProviderRegistry } from "../../src/features/providers/registry-live.js";

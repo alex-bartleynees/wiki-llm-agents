@@ -4,7 +4,6 @@ import { McpSchema } from "effect/ai";
 import { describe, expect, it } from "vitest";
 import { approvalPrompt, MAX_APPROVAL_ARGUMENTS, MAX_RESULT_TEXT, serversFor, toolCallLevel, toolsOf, truncateResult } from "./gateway.js";
 
-/** A tool as a server lists it, decoded as the pool decodes it. */
 const tool = (name: string, annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean }) =>
   Schema.decodeUnknownSync(McpSchema.Tool)({ name, inputSchema: { type: "object" }, ...(annotations === undefined ? {} : { annotations }) });
 

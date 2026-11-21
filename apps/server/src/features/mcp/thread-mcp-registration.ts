@@ -5,7 +5,7 @@ import { Context, type Effect, type Scope } from "effect";
  * How a provider reaches the vault tools for one thread: an MCP server entry with
  * the thread's bearer token. Never log or store it.
  */
-export interface VaultToolsEntry {
+export interface ThreadMcpRegistrationEntry {
   /** The entry's name in the provider, unique per thread: `wiki-agents-<thread id>`. */
   readonly name: string;
   readonly url: string;
@@ -19,14 +19,12 @@ export interface VaultToolsEntry {
   readonly revision: number;
 }
 
-/** What the next turn gets: the entry, and what the user should know about its tools. */
-export interface VaultToolsTurn {
-  readonly entry: VaultToolsEntry;
+export interface ThreadMcpRegistrationTurn {
+  readonly entry: ThreadMcpRegistrationEntry;
   /** Other MCP servers down or missing, tools held back; empty when nothing changed since the last turn. */
   readonly notices: ReadonlyArray<string>;
 }
 
-/** What the thread's project adds to its tools, as it is now. */
 export interface ProjectTools {
   /** MCP servers every thread in the project gets, whatever its agent. */
   readonly servers: ReadonlyArray<string>;
@@ -34,23 +32,21 @@ export interface ProjectTools {
   readonly signIns: ReadonlyArray<BrowserSignIn>;
 }
 
-/** A thread outside any project. */
 export const NO_PROJECT_TOOLS: ProjectTools = { servers: [], signIns: [] };
 
-export interface VaultToolsAccess {
+export interface ThreadMcpRegistrationAccess {
   /**
    * The entry for the next turn, with the tools of the servers every thread gets, of
    * `agentServers` and of the project's servers: the same token until it nears expiry
    * or the tools change, then a new one.
    */
-  readonly current: (agentServers: ReadonlyArray<string>, project?: ProjectTools) => Effect.Effect<VaultToolsTurn>;
+  readonly current: (agentServers: ReadonlyArray<string>, project?: ProjectTools) => Effect.Effect<ThreadMcpRegistrationTurn>;
 }
 
 /** The thread whose tools these are, and where its upstream connections run (see `McpScopeContext`). */
-export interface VaultToolsCaller {
+export interface ThreadMcpRegistrationCaller {
   readonly threadId: string;
   readonly vaultId: string;
-  /** Null (or left out) for a thread outside any project. */
   readonly projectId?: string | null;
   /** The project's main working directory, or the vault's folder. */
   readonly cwd?: string | null;
@@ -60,13 +56,12 @@ export interface VaultToolsCaller {
  * The port the ThreadActor uses to give its provider the vault tools. Access lasts
  * as long as the scope it is opened in (the actor's); its tokens are revoked then.
  */
-export interface VaultToolsService {
-  readonly open: (caller: VaultToolsCaller) => Effect.Effect<VaultToolsAccess, never, Scope.Scope>;
+export interface ThreadMcpRegistrationService {
+  readonly open: (caller: ThreadMcpRegistrationCaller) => Effect.Effect<ThreadMcpRegistrationAccess, never, Scope.Scope>;
 }
 
-export class VaultTools extends Context.Service<VaultTools, VaultToolsService>()("VaultTools") {}
+export class ThreadMcpRegistration extends Context.Service<ThreadMcpRegistration, ThreadMcpRegistrationService>()("ThreadMcpRegistration") {}
 
-/** The provider's name for a thread's entry. Other threads' entries share the prefix. */
 export const ENTRY_PREFIX = "wiki-agents-";
 export const entryName = (threadId: string) => `${ENTRY_PREFIX}${threadId}`;
 
@@ -75,7 +70,7 @@ export const entryName = (threadId: string) => `${ENTRY_PREFIX}${threadId}`;
  * list for as long as the name is registered (OpenCode): `wiki-agents-<thread id>-2`.
  * Revision 0 keeps the plain name.
  */
-export const revisedEntryName = (entry: VaultToolsEntry) => (entry.revision === 0 ? entry.name : `${entry.name}-${entry.revision}`);
+export const revisedEntryName = (entry: ThreadMcpRegistrationEntry) => (entry.revision === 0 ? entry.name : `${entry.name}-${entry.revision}`);
 
 /**
  * The tools that write notes. The server checks the agent's live create/edit autonomy
@@ -91,5 +86,4 @@ export const VAULT_WRITE_TOOLS: ReadonlyArray<string> = ["vault_create_note", "v
 export const isGatewayTool = (tool: string) => tool.includes("__");
 export const GATEWAY_TOOL_PATTERN = "*__*";
 
-/** Tools on the entry that the app's server decides on, not the provider. */
 export const serverDecides = (tool: string) => VAULT_WRITE_TOOLS.includes(tool) || isGatewayTool(tool);

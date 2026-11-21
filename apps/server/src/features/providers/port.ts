@@ -3,7 +3,7 @@ import type { ProviderCapabilities, ProviderModel, ProviderStatus } from "@wiki-
 import type { RequestAnswer, RequestPrompt, SubagentReport, ThreadEvent, TurnUsage } from "@wiki-agents/contracts/threads/model";
 import { Data, type Effect, type Option, type Scope, type Stream } from "effect";
 import type { Protection } from "../../shared/secret-paths.js";
-import type { VaultToolsEntry } from "../mcp/vault-tools.js";
+import type { ThreadMcpRegistrationEntry } from "../mcp/thread-mcp-registration.js";
 
 /**
  * What a provider reports during a turn: the thread events only an agent produces.
@@ -98,7 +98,7 @@ export interface SessionSetup extends AgentSetup {
    * session; null when there is none (the replay provider ignores it). A provider
    * that can't register it still runs the turn, without the tools.
    */
-  readonly vaultTools: VaultToolsEntry | null;
+  readonly vaultTools: ThreadMcpRegistrationEntry | null;
 }
 
 /** An image from the message, for a provider with `capabilities.images`. */

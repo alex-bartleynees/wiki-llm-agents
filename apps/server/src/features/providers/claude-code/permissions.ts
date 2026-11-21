@@ -3,7 +3,7 @@ import type { Autonomy, AutonomyLevel } from "@wiki-agents/contracts/agents/mode
 import { Effect, FileSystem } from "effect";
 import { commandNamesProtected, type Protection, reachesProtected } from "../../../shared/secret-paths.js";
 import { pathsWithinRoots } from "../../../shared/vault/path-scope.js";
-import { ENTRY_PREFIX, serverDecides } from "../../mcp/vault-tools.js";
+import { ENTRY_PREFIX, serverDecides } from "../../mcp/thread-mcp-registration.js";
 
 /**
  * Claude Code's tools per autonomy action. Its own permission rules (and any allow

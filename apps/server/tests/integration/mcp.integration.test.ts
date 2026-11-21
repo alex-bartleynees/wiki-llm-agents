@@ -6,7 +6,7 @@ import { Effect, Exit, Option, Scope } from "effect";
 import { TestClock } from "effect/testing";
 import { McpTokens } from "../../src/features/mcp/tokens.js";
 import { VAULT_TOOL_NAMES } from "../../src/features/mcp/toolkit.js";
-import { VAULT_WRITE_TOOLS, VaultTools } from "../../src/features/mcp/vault-tools.js";
+import { VAULT_WRITE_TOOLS, ThreadMcpRegistration } from "../../src/features/mcp/thread-mcp-registration.js";
 import { KEYWORD_ONLY } from "../../src/features/mcp/tools/vault-search/tool.js";
 import { NO_ATTRIBUTION } from "../../src/features/mcp/tools/vault-recent-changes/tool.js";
 import { mcpSession, postMcp, tokenFor } from "./infrastructure/mcp.js";
@@ -76,7 +76,7 @@ layer(TestApp)("vault MCP server", (it) => {
       const thread = yield* newThread(vault.id);
       const tokens = yield* McpTokens;
       const scope = yield* Scope.make();
-      const access = yield* (yield* VaultTools).open({ threadId: thread.id, vaultId: vault.id }).pipe(Scope.provide(scope));
+      const access = yield* (yield* ThreadMcpRegistration).open({ threadId: thread.id, vaultId: vault.id }).pipe(Scope.provide(scope));
       const { entry: first } = yield* access.current([]);
       expect(first.name).toBe(`wiki-agents-${thread.id}`);
       expect(first.url).toMatch(/^http:\/\/(127\.0\.0\.1|\[::1\]):\d+\/mcp$/);

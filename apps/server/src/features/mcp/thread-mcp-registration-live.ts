@@ -1,9 +1,9 @@
 import { Clock, Duration, Effect, Layer } from "effect";
 import { HttpServer } from "effect/http";
-import { McpGateway } from "./gateway.js";
+import { McpGateway } from "../mcp-gateway/gateway.js";
 import { MCP_PATH } from "./router.js";
 import { type IssuedToken, McpTokens, TOKEN_TTL } from "./tokens.js";
-import { entryName, NO_PROJECT_TOOLS, type ProjectTools, VaultTools } from "./vault-tools.js";
+import { entryName, NO_PROJECT_TOOLS, type ProjectTools, ThreadMcpRegistration } from "./thread-mcp-registration.js";
 
 /**
  * A token is replaced at the start of a turn once it has this long or less left, so a
@@ -18,15 +18,14 @@ const RENEW_BEFORE = Duration.toMillis(TOKEN_TTL) / 2;
 export const localUrl = (address: string, path: string) =>
   `${address.replace(/\/$/, "").replace("//0.0.0.0:", "//127.0.0.1:").replace("//[::]:", "//[::1]:")}${path}`;
 
-/** The vault tools at this server's own address (`http://127.0.0.1:<port>/mcp`), with the gateway's tools. */
-export const VaultToolsLive = Layer.effect(
-  VaultTools,
+export const ThreadMcpRegistrationLive = Layer.effect(
+  ThreadMcpRegistration,
   Effect.gen(function* () {
     const tokens = yield* McpTokens;
     const gateway = yield* McpGateway;
     const server = yield* HttpServer.HttpServer;
     const url = localUrl(HttpServer.formatAddress(server.address), MCP_PATH);
-    return VaultTools.of({
+    return ThreadMcpRegistration.of({
       open: (caller) =>
         Effect.gen(function* () {
           const context = { threadId: caller.threadId, projectId: caller.projectId ?? null, cwd: caller.cwd ?? null };

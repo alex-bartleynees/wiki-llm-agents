@@ -4,7 +4,7 @@ import type { ProposedEdit } from "@wiki-agents/contracts/changes/model";
 import type { RequestPrompt, TurnUsage } from "@wiki-agents/contracts/threads/model";
 import { createPatch } from "diff";
 import { Effect, FileSystem } from "effect";
-import { ENTRY_PREFIX } from "../../mcp/vault-tools.js";
+import { ENTRY_PREFIX } from "../../mcp/thread-mcp-registration.js";
 import { todoSteps } from "../plan.js";
 import type { ProviderEvent } from "../port.js";
 import { writeTarget } from "./permissions.js";

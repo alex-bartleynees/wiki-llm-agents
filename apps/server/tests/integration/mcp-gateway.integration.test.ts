@@ -6,7 +6,7 @@ import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http";
 import { afterAll } from "vitest";
 import { McpTokens } from "../../src/features/mcp/tokens.js";
 import { ThreadActors } from "../../src/features/threads/thread-actors.js";
-import { VaultTools } from "../../src/features/mcp/vault-tools.js";
+import { ThreadMcpRegistration } from "../../src/features/mcp/thread-mcp-registration.js";
 import { mcpSession, tokenFor } from "./infrastructure/mcp.js";
 import { startStandInMcp } from "./infrastructure/stand-in-mcp.js";
 import { TestApp } from "./infrastructure/test-app.js";
@@ -24,7 +24,7 @@ const names = (mcp: Effect.Success<ReturnType<typeof mcpSession>>) =>
 const open = Effect.gen(function* () {
   const vault = yield* newVaultWith({ "index.md": "# Home" });
   const thread = yield* newThread(vault.id);
-  const access = yield* (yield* VaultTools).open({ threadId: thread.id, vaultId: vault.id });
+  const access = yield* (yield* ThreadMcpRegistration).open({ threadId: thread.id, vaultId: vault.id });
   return { thread, access };
 });
 

@@ -6,7 +6,7 @@ import type { ProviderStatus } from "@wiki-agents/contracts/providers/model";
 import { isSubagentActive, type RequestAnswer, type SubagentReport } from "@wiki-agents/contracts/threads/model";
 import { type Cause, Duration, Effect, Exit, FileSystem, Option, PubSub, Queue, RcRef, Scope, Stream } from "effect";
 import { pathsWithinRoots } from "../../../shared/vault/path-scope.js";
-import { revisedEntryName } from "../../mcp/vault-tools.js";
+import { revisedEntryName } from "../../mcp/thread-mcp-registration.js";
 import {
   type BackgroundEvent,
   type CompactInput,

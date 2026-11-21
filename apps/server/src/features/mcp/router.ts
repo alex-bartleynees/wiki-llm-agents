@@ -3,7 +3,7 @@ import { McpProtocol, McpServer } from "effect/ai";
 import { ThreadActors } from "../threads/thread-actors.js";
 import { ManagerThreadRegistrations } from "./manager-thread-toolkit.js";
 import { McpAuth } from "./auth.js";
-import { McpGateway } from "./gateway.js";
+import { McpGateway } from "../mcp-gateway/gateway.js";
 import { SERVER_INSTRUCTIONS } from "./instructions.js";
 import { VaultToolkit, VaultToolkitLive } from "./toolkit.js";
 

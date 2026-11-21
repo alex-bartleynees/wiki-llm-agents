@@ -1,6 +1,6 @@
 import { type Autonomy, DEFAULT_AUTONOMY } from "@wiki-agents/contracts/agents/model";
 import { describe, expect, it } from "vitest";
-import { VAULT_WRITE_TOOLS } from "../../mcp/vault-tools.js";
+import { VAULT_WRITE_TOOLS } from "../../mcp/thread-mcp-registration.js";
 import type { OpenCodePermissionRule } from "./api.js";
 import { enforcedAutonomy, levelBehindNameCheck, permissionRules, ruleEffect } from "./permissions.js";
 

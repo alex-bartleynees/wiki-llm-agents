@@ -5,7 +5,7 @@ import { NodeFileSystem } from "@effect/platform-node";
 import { type Autonomy, DEFAULT_AUTONOMY } from "@wiki-agents/contracts/agents/model";
 import { Effect } from "effect";
 import { afterAll, describe, expect, it } from "vitest";
-import { VAULT_WRITE_TOOLS } from "../../mcp/vault-tools.js";
+import { VAULT_WRITE_TOOLS } from "../../mcp/thread-mcp-registration.js";
 import { decide, enforcedAutonomy } from "./permissions.js";
 import type { Protection } from "../../../shared/secret-paths.js";
 

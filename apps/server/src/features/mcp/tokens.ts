@@ -26,7 +26,6 @@ export interface McpTokensService {
 
 export class McpTokens extends Context.Service<McpTokens, McpTokensService>()("McpTokens") {}
 
-/** How long a token lives. A thread gets a new one well before then (see `vault-tools-live.ts`). */
 export const TOKEN_TTL = Duration.hours(4);
 
 const hash = (token: string) => createHash("sha256").update(token).digest("base64url");

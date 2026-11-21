@@ -2,7 +2,7 @@ import type { SaveNoteResponse } from "@wiki-agents/contracts/notes/save-note/re
 import type { ContextNote } from "@wiki-agents/contracts/threads/context";
 import type { RequestAnswer, ThreadSummary } from "@wiki-agents/contracts/threads/model";
 import { Context, Effect, Layer, RcMap, Semaphore } from "effect";
-import type { ToolCallCheck } from "../mcp/gateway.js";
+import type { ToolCallCheck } from "../mcp-gateway/gateway.js";
 import type { AgentNoteWrite } from "../notes/agent-write/use-case.js";
 import type { ThreadBusy } from "./errors.js";
 import { findThread } from "./find-thread.js";

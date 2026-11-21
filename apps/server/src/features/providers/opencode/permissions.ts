@@ -1,7 +1,7 @@
 import { homedir } from "node:os";
 import type { Autonomy, AutonomyLevel } from "@wiki-agents/contracts/agents/model";
 import { namePatterns, NO_PROTECTION, type Protection, spellings } from "../../../shared/secret-paths.js";
-import { ENTRY_PREFIX, GATEWAY_TOOL_PATTERN, VAULT_WRITE_TOOLS } from "../../mcp/vault-tools.js";
+import { ENTRY_PREFIX, GATEWAY_TOOL_PATTERN, VAULT_WRITE_TOOLS } from "../../mcp/thread-mcp-registration.js";
 import type { OpenCodePermissionRule } from "./api.js";
 
 /**
