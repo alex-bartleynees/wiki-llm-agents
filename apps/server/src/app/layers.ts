@@ -1,4 +1,7 @@
 import { join } from "node:path";
+import { makeSkills, SkillsLive } from "../features/skills/filesystem.js";
+import type { Skills } from "../features/skills/repository.js";
+import type { SecretMaterial } from "../features/secrets/material.js";
 import { ProjectRepositoryLive } from "../features/projects/sqlite-repository.js";
 import { NodeChildProcessSpawner, NodeFileSystem, NodeHttpServer, NodePath } from "@effect/platform-node";
 import { Effect, type FileSystem, Layer, Option } from "effect";
@@ -70,6 +73,7 @@ export const RepositoriesLive = Layer.mergeAll(
 );
 
 export interface AppOptions {
+  readonly skills?: Layer.Layer<Skills, import("effect").Config.ConfigError, SecretMaterial>;
   /** Folders from `--vault`, registered before the server starts. */
   readonly vaults: ReadonlyArray<string>;
   /** Watch vault folders for changes. Off in tests that drive the indexer themselves. */
@@ -147,6 +151,7 @@ export const makeHttpApp = (options: AppOptions) =>
     Layer.provideMerge(McpConnectionsLive),
     // Providers and the pool withhold what SecretMaterial lists, which reads the server list.
     Layer.provideMerge(options.providers ?? ProviderRegistryLive),
+    Layer.provideMerge(options.skills ?? makeSkills(null)),
     Layer.provideMerge(SecretMaterialLive),
     Layer.provideMerge(makeMcpServerCatalog(options.browser ?? null)),
     Layer.provideMerge(Layer.mergeAll(
@@ -192,6 +197,7 @@ export const makeAppLive = (options: Omit<AppOptions, "watch" | "watchPollMs" | 
         watchPollMs: Option.getOrUndefined(pollMs),
         browser,
         agents: AgentCatalogLive,
+        skills: SkillsLive,
         attachments: AttachmentStoreLive,
         worktrees: WorktreeRootLive,
         secrets: SecretStoreLive,

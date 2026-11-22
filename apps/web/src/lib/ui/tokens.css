@@ -294,3 +294,11 @@ a:hover {
 .mono {
   font-family: var(--font-mono);
 }
+
+.catalog-heading {
+  margin: 0;
+  color: var(--ink-3);
+  font: 500 11px/1.45 var(--font-mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}

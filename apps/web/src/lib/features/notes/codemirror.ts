@@ -142,7 +142,9 @@ export const conflictView = (original: string): Extension => [
 const lineSeparatorOf = (text: string): Extension => (text.includes("\r\n") ? EditorState.lineSeparator.of("\r\n") : []);
 
 /** A fresh editor state for `text`: markdown (with YAML frontmatter), history, search, link completion. */
-export const createEditorState = (text: string, options: EditorOptions): EditorState =>
+type MarkdownEditorOptions = Pick<EditorOptions, "onChange" | "onSave" | "merge">;
+
+export const createEditorState = (text: string, options: EditorOptions | MarkdownEditorOptions): EditorState =>
   EditorState.create({
     doc: text,
     extensions: [
@@ -156,7 +158,7 @@ export const createEditorState = (text: string, options: EditorOptions): EditorS
       EditorView.lineWrapping,
       yamlFrontmatter({ content: markdown({ base: markdownLanguage }) }),
       syntaxHighlighting(markdownHighlight),
-      autocompletion({ override: [wikilinkCompletions(options)], icons: false }),
+      "vaultId" in options ? autocompletion({ override: [wikilinkCompletions(options)], icons: false }) : [],
       keymap.of([
         { key: "Mod-s", preventDefault: true, run: () => (options.onSave(), true) },
         ...closeBracketsKeymap,
@@ -166,15 +168,13 @@ export const createEditorState = (text: string, options: EditorOptions): EditorS
         ...defaultKeymap,
         indentWithTab,
       ]),
-      placeholder("Write in markdown. Type [[ to link a note."),
+      placeholder("vaultId" in options ? "Write in markdown. Type [[ to link a note." : "Write in Markdown."),
       // Phone keyboards: sentence capitals and spelling, as in any text field.
-      EditorView.contentAttributes.of({ "aria-label": "Note source", autocapitalize: "sentences", autocorrect: "on", spellcheck: "true" }),
+      EditorView.contentAttributes.of({ "aria-label": "vaultId" in options ? "Note source" : "Skill source", autocapitalize: "sentences", autocorrect: "on", spellcheck: "true" }),
       EditorView.updateListener.of((update) => {
         if (update.docChanged) options.onChange(update.state.sliceDoc());
       }),
-      EditorView.domEventHandlers({ blur: () => options.onSave() }),
-      uploads,
-      imageInput(options),
+      "vaultId" in options ? [EditorView.domEventHandlers({ blur: () => options.onSave() }), uploads, imageInput(options)] : [],
       theme,
       options.merge.of([]),
     ],

@@ -1,0 +1,30 @@
+import { RecoverInstallRequest } from "@wiki-agents/contracts/skills/recover-install/request";
+import { RecoverInstallResponse } from "@wiki-agents/contracts/skills/recover-install/response";
+import { getJson, postJson, putJson } from "#lib/api/client.ts";
+import { GetSettingsResponse } from "@wiki-agents/contracts/skills/get-settings/response";
+import { SaveSettingsRequest } from "@wiki-agents/contracts/skills/save-settings/request";
+import { SaveSettingsResponse } from "@wiki-agents/contracts/skills/save-settings/response";
+import { ListSkillsResponse } from "@wiki-agents/contracts/skills/list-skills/response";
+import { GetSkillResponse } from "@wiki-agents/contracts/skills/get-skill/response";
+import { SaveSkillRequest } from "@wiki-agents/contracts/skills/save-skill/request";
+import { SaveSkillResponse } from "@wiki-agents/contracts/skills/save-skill/response";
+import { ImportSkillRequest } from "@wiki-agents/contracts/skills/import-skill/request";
+import { ImportSkillResponse } from "@wiki-agents/contracts/skills/import-skill/response";
+import { PreviewSettingsRequest } from "@wiki-agents/contracts/skills/preview-settings/request";
+import { PreviewSettingsResponse } from "@wiki-agents/contracts/skills/preview-settings/response";
+import { ReviewInstallRequest } from "@wiki-agents/contracts/skills/review-install/request";
+import { ReviewInstallResponse } from "@wiki-agents/contracts/skills/review-install/response";
+import { ApplyInstallRequest } from "@wiki-agents/contracts/skills/apply-install/request";
+import { ApplyInstallResponse } from "@wiki-agents/contracts/skills/apply-install/response";
+
+export const getSettings = () => getJson("/api/skills/settings", GetSettingsResponse);
+export const saveSettings = (request: SaveSettingsRequest) => putJson("/api/skills/settings", SaveSettingsRequest, request, SaveSettingsResponse);
+export const previewSettings = (request: PreviewSettingsRequest) => postJson("/api/skills/settings/preview", PreviewSettingsRequest, request, PreviewSettingsResponse);
+export const listSkills = (q: string) => getJson(`/api/skills?q=${encodeURIComponent(q)}`, ListSkillsResponse);
+export const getSkill = (skillPath: string) => getJson(`/api/skills/detail?skillPath=${encodeURIComponent(skillPath)}`, GetSkillResponse);
+export const saveSkill = (request: SaveSkillRequest) => putJson("/api/skills/detail", SaveSkillRequest, request, SaveSkillResponse);
+export const importSkill = (request: ImportSkillRequest) => postJson("/api/skills/import", ImportSkillRequest, request, ImportSkillResponse);
+export const reviewInstall = (request: ReviewInstallRequest) => postJson("/api/skills/review", ReviewInstallRequest, request, ReviewInstallResponse);
+export const applyInstall = (request: ApplyInstallRequest) => postJson("/api/skills/apply", ApplyInstallRequest, request, ApplyInstallResponse);
+
+export const recoverInstall = (request: RecoverInstallRequest) => postJson("/api/skills/recover", RecoverInstallRequest, request, RecoverInstallResponse);

@@ -55,6 +55,14 @@ Use the shared `delete-comment` skill for cleanup batches and [the ADRs](docs/ad
   `playwright-driver`; the Playwright config stops with a message when they differ.
   After a nixpkgs update, pin both to the new version and update `npmDepsHash`.
 
+## Skills
+
+Open **Skills** beside **Agents** to choose a host-local library and preview install paths. Use the app-managed library under the configured wiki-agents config directory, or point the app at an existing checkout or synced folder. Add the shared OpenCode and Codex destination, the Claude Code destination, or an absolute host path of your own.
+
+The catalog discovers skill bundles in group folders and shows their library-relative paths. Search by name or description, create from the template, or import a local folder with a root `SKILL.md`. The editor checks for changes on disk before saving. Review the destination and bundle changes before installing, updating, removing or rolling back. Removal keeps the library copy, and installation preserves supporting files and executable bits. Installed scripts are copied as files.
+
+Open a fresh provider session after installation to discover the skill. Keep one wiki-agents server per install destination. [Local install state](docs/adr/0008-local-skill-install-state.md)
+
 ## Vaults
 
 **Settings › Appearance** lets you choose a theme and fonts for this device.

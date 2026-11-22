@@ -6,6 +6,7 @@ import { Layer } from "effect";
 import { HttpRouter, HttpServerResponse } from "effect/http";
 import { eventsRouter } from "../features/events/router.js";
 import { agentsRouter } from "../features/agents/router.js";
+import { skillsRouter } from "../features/skills/router.js";
 import { inboxRouter } from "../features/inbox/router.js";
 import { notificationsRouter } from "../features/notifications/router.js";
 import { indexingRouter } from "../features/indexing/router.js";
@@ -39,6 +40,7 @@ export const router = Layer.mergeAll(
   threadsRouter,
   changesRouter,
   agentsRouter,
+  skillsRouter,
   mcpOAuthRouter,
   mcpServersRouter,
   secretsRouter,

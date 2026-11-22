@@ -34,6 +34,7 @@
 
   const onProjects = $derived(page.url.pathname.startsWith("/projects"));
   const onAgents = $derived(page.url.pathname.startsWith("/agents"));
+  const onSkills = $derived(page.url.pathname === "/skills");
   const onInbox = $derived(page.url.pathname.startsWith("/inbox"));
 
   /** Threads at work right now (working or waiting for you); stopped ones only show on the Running tab. */
@@ -82,9 +83,10 @@
       <span class="brand-name">wiki-agents</span>
     </a>
     <nav aria-label="Sections">
-      <a href={wikiHref} aria-current={onProjects || onInbox || onAgents ? undefined : "page"}>Wiki</a>
+      <a href={wikiHref} aria-current={onProjects || onInbox || onAgents || onSkills ? undefined : "page"}>Wiki</a>
       <a href="/projects" aria-current={onProjects ? "page" : undefined}>Projects</a>
       <a href="/agents" aria-current={onAgents ? "page" : undefined}>Agents</a>
+      <a href="/skills" aria-current={onSkills ? "page" : undefined}>Skills</a>
       <a href="/inbox" aria-current={onInbox ? "page" : undefined}>
         Inbox{#if inbox.unread > 0}<span class="badge" aria-label="{inbox.unread} unread">{inbox.unread}</span>{/if}
       </a>

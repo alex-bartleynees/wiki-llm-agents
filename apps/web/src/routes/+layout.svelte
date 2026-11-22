@@ -28,7 +28,7 @@
   /** The selected project narrows the threads pane when it uses the open vault. */
   const projectId = $derived(vaultId === undefined ? null : projectShownWith(vaultId, projects.selected));
   /** Projects, the inbox and the agent editors are pages of their own, without the vault and threads panes. */
-  const full = $derived(["/projects", "/inbox", "/agents"].some((prefix) => page.url.pathname.startsWith(prefix)));
+  const full = $derived(["/projects", "/inbox", "/agents", "/skills"].some((prefix) => page.url.pathname.startsWith(prefix)));
 </script>
 
 <AppShell {full}>

@@ -46,7 +46,7 @@
     <AgentDetail agent={shown} editHref={agentEditorHref("edit", shown.id, from)} onback={() => (selectedId = null)} />
   {:else}
     <header>
-      <h2 class="mono">Agents</h2>
+      <h2 class="catalog-heading">Agents</h2>
       <span class="header-actions">
         <button type="button" class="refresh" onclick={() => void agents.refresh()}>Reload</button>
         <a class="new" href={agentEditorHref("edit", null, from)}>New agent</a>
@@ -127,14 +127,6 @@
     gap: 8px;
     padding: 14px 16px;
     border-bottom: 1px solid var(--line-soft);
-  }
-  h2 {
-    margin: 0;
-    font-size: 11px;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--ink-3);
   }
   .header-actions {
     display: flex;
