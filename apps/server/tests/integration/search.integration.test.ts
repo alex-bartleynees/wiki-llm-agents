@@ -1,11 +1,12 @@
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { createServer } from "node:http";
 import { dirname, join } from "node:path";
 import { expect, layer } from "@effect/vitest";
 import { ListTagsResponse } from "@wiki-agents/contracts/search/list-tags/response";
 import { QuickSwitchResponse } from "@wiki-agents/contracts/search/quick-switch/response";
 import { SearchNotesResponse } from "@wiki-agents/contracts/search/search-notes/response";
 import { RegisterVaultResponse } from "@wiki-agents/contracts/vaults/register-vault/response";
-import { Context, Effect, Layer, type Schema } from "effect";
+import { ConfigProvider, Context, Effect, Layer, type Schema } from "effect";
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http";
 import type { Vault } from "@wiki-agents/contracts/vaults/model";
 import { Indexer } from "../../src/features/indexing/indexer.js";
@@ -184,6 +185,60 @@ layer(FixtureLive.pipe(Layer.provideMerge(TestApp)))("quick switch", (it) => {
     Effect.gen(function* () {
       expect((yield* switchTo("server.png")).results).toEqual([]);
       expect((yield* switchTo("   ")).results).toEqual([]);
+    }),
+  );
+});
+
+const HybridTestApp = Layer.unwrap(Effect.gen(function* () {
+  const { root } = yield* makeTestVault({ files: FILES });
+  const server = yield* Effect.acquireRelease(
+    Effect.promise(async () => {
+      const server = createServer(async (request, response) => {
+        const body = [];
+        for await (const chunk of request) body.push(chunk);
+        const { query } = JSON.parse(Buffer.concat(body).toString());
+        if (query === "server") {
+          response.writeHead(503).end();
+          return;
+        }
+        response.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify([
+          { source_file: "Notes/Running.md" },
+          { source_file: "Notes/Running.md" },
+          { source_file: "missing.md" },
+        ]));
+      });
+      await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+      return server;
+    }),
+    (server) => Effect.promise(() => new Promise<void>((resolve) => server.close(() => resolve()))),
+  );
+  const address = server.address();
+  if (address === null || typeof address === "string") throw new Error("Expected a TCP address");
+  const config = ConfigProvider.layer(ConfigProvider.fromUnknown({
+    WIKI_AGENTS_RAG_AI_URL: "http://127.0.0.1:" + address.port,
+    WIKI_AGENTS_RAG_AI_VAULT_ROOT: root,
+  }));
+  const fixture = Layer.effect(Fixture, Effect.gen(function* () {
+    const response = yield* HttpClient.execute(
+      HttpClientRequest.post("/api/vaults").pipe(HttpClientRequest.bodyJsonUnsafe({ rootPath: root })),
+    );
+    const { vault } = yield* HttpClientResponse.schemaBodyJson(RegisterVaultResponse)(response);
+    return { vault, root };
+  }));
+  return fixture.pipe(Layer.provideMerge(TestApp.pipe(Layer.provide(config))));
+}));
+
+layer(HybridTestApp)("rag-ai search", (it) => {
+  it.effect("merges indexed semantic hits and falls back to keyword matches when rag-ai is down", () =>
+    Effect.gen(function* () {
+      const hybrid = yield* search({ q: "endurance race" });
+      expect(hybrid.mode).toBe("hybrid");
+      expect(hybrid.results.map((result) => result.path)).toEqual(["Notes/Running.md"]);
+      const filtered = yield* search({ q: "endurance race", tags: "project" });
+      expect(filtered.results).toEqual([]);
+      const fallback = yield* search({ q: "server" });
+      expect(fallback.mode).toBe("keyword-fallback");
+      expect(fallback.results.map((result) => result.path)).toEqual(["Effect Server.md", "Notes/Plain.md"]);
     }),
   );
 });

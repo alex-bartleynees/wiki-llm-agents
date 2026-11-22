@@ -13,7 +13,6 @@ export const DEFAULT_LIMIT = 10;
 export const MAX_LIMIT = 50;
 export const MAX_HOPS = 2;
 
-/** Search is keyword-only until semantic search (rag-ai) arrives. */
 export const KEYWORD_ONLY =
   "Keyword search only (SQLite FTS5): notes that say the same thing in other words are missed. Try synonyms or related terms if a search finds too little.";
 
@@ -35,7 +34,7 @@ const Linked = Schema.Struct({
 export const VaultSearch = vaultTool(
   Tool.make("vault_search", {
     description:
-      "Full-text search over the vault's notes: titles count most, then tags, then the body. Returns paths, titles, tags and a snippet, best match first. With `hops`, also returns notes linked to or from the results.",
+      "Search the vault's notes using keywords and, when configured, semantic matches. For keyword matches, titles count most, then tags, then the body. Returns paths, titles, tags and a snippet, best match first. With `hops`, also returns notes linked to or from the results.",
     parameters: Schema.Struct({
       query: Schema.String.check(Schema.isNonEmpty()).annotate({
         description: 'Words to find; each matches by prefix (`plan` finds "planning"). Put "exact phrases" in double quotes. No other syntax.',
@@ -109,7 +108,8 @@ export const vaultSearch = Effect.fnUntraced(function* (params: Params) {
     frontier = kept.map((note) => note.path);
   }
 
-  notices.push(KEYWORD_ONLY);
+  if (found.mode === "keyword-fallback") notices.push("Semantic search is unavailable. Showing keyword matches.");
+  else if (found.mode !== "hybrid") notices.push(KEYWORD_ONLY);
   return {
     results: found.results.map((result) => ({
       path: result.path,

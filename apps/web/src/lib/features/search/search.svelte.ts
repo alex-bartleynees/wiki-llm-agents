@@ -1,12 +1,12 @@
 import type { TagCount } from "@wiki-agents/contracts/search/list-tags/response";
-import type { SearchResult } from "@wiki-agents/contracts/search/search-notes/response";
+import type { SearchNotesResponse } from "@wiki-agents/contracts/search/search-notes/response";
 import { errorMessage, isAbort } from "#lib/api/client.ts";
 import { shell } from "#lib/ui/layout/shell.svelte.ts";
 import { listTags, searchNotes } from "./api.ts";
 
 type SearchState =
   | { readonly status: "idle" }
-  | { readonly status: "loaded"; readonly results: ReadonlyArray<SearchResult>; readonly truncated: boolean }
+  | ({ readonly status: "loaded" } & SearchNotesResponse)
   | { readonly status: "failed"; readonly message: string };
 
 /**
@@ -78,8 +78,8 @@ class SearchStore {
     const controller = (this.#controller = new AbortController());
     this.busy = true;
     try {
-      const { results, truncated } = await searchNotes(vaultId, { text: this.text, tags: this.tags }, controller.signal);
-      this.state = { status: "loaded", results, truncated };
+      const response = await searchNotes(vaultId, { text: this.text, tags: this.tags }, controller.signal);
+      this.state = { status: "loaded", ...response };
     } catch (error) {
       if (isAbort(error)) return;
       this.state = { status: "failed", message: errorMessage(error, "Search failed") };

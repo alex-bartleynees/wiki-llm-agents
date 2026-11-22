@@ -17,6 +17,13 @@ self:
 let
   cfg = config.services.wiki-agents;
   inherit (lib) mkEnableOption mkIf mkOption types;
+  localRagAi = config.services.rag-ai or { };
+  localRagAiEnabled = localRagAi.enable or false;
+  registeredVaults =
+    cfg.vaults
+    ++ lib.optional (
+      cfg.ragAi.enable && cfg.ragAi.vaultRoot != null && !(builtins.elem cfg.ragAi.vaultRoot cfg.vaults)
+    ) cfg.ragAi.vaultRoot;
   url = "http://${cfg.host}:${toString cfg.port}";
 in
 {
@@ -144,6 +151,30 @@ in
       };
     };
 
+    ragAi = {
+      enable = mkOption {
+        type = types.bool;
+        default = localRagAiEnabled;
+        defaultText = lib.literalExpression "config.services.rag-ai.enable or false";
+        description = "Enable hybrid vault search. Defaults to true when rag-ai is enabled in this Home Manager configuration.";
+      };
+
+      url = mkOption {
+        type = types.nullOr types.str;
+        default = if localRagAiEnabled then "http://127.0.0.1:${toString localRagAi.port}" else null;
+        defaultText = lib.literalExpression "the local rag-ai service URL, or null";
+        example = "https://rag-ai.example.org";
+        description = "Base URL of the rag-ai service.";
+      };
+
+      vaultRoot = mkOption {
+        type = types.nullOr types.str;
+        default = if localRagAiEnabled then localRagAi.docsDir else lib.head (cfg.vaults ++ [ null ]);
+        defaultText = lib.literalExpression "the local rag-ai document directory, or the first configured vault";
+        description = "Absolute path of the local vault indexed by rag-ai. Registered at startup when hybrid search is enabled.";
+      };
+    };
+
     environment = mkOption {
       type = types.attrsOf types.str;
       default = { };
@@ -229,6 +260,17 @@ in
   };
 
   config = mkIf cfg.enable {
+    assertions = [
+      {
+        assertion = !cfg.ragAi.enable || (cfg.ragAi.url != null && cfg.ragAi.url != "");
+        message = "services.wiki-agents.ragAi.url must be set when hybrid search is enabled without a local rag-ai service.";
+      }
+      {
+        assertion = !cfg.ragAi.enable || (cfg.ragAi.vaultRoot != null && lib.hasPrefix "/" cfg.ragAi.vaultRoot);
+        message = "services.wiki-agents.ragAi.vaultRoot must be an absolute path when hybrid search is enabled.";
+      }
+    ];
+
     systemd.user.targets.wiki-agents = {
       Unit.Description = "wiki-agents and its services";
       Install.WantedBy = [ "default.target" ];
@@ -240,7 +282,7 @@ in
         PartOf = [ "wiki-agents.target" ];
       };
       Service = {
-        ExecStart = lib.escapeShellArgs ([ (lib.getExe cfg.package) ] ++ lib.concatMap (vault: [ "--vault" vault ]) cfg.vaults);
+        ExecStart = lib.escapeShellArgs ([ (lib.getExe cfg.package) ] ++ lib.concatMap (vault: [ "--vault" vault ]) registeredVaults);
         # Quoted, so values with spaces stay whole.
         Environment = lib.mapAttrsToList (name: value: "\"${name}=${value}\"") (
           {
@@ -277,6 +319,10 @@ in
           }
           // lib.optionalAttrs (cfg.secretsKey != "auto") { WIKI_AGENTS_SECRETS_KEY = cfg.secretsKey; }
           // { WIKI_AGENTS_PROTECTED_PATHS = lib.concatStringsSep "," cfg.protectedPaths; }
+          // lib.optionalAttrs (cfg.ragAi.enable && cfg.ragAi.url != null && cfg.ragAi.vaultRoot != null) {
+            WIKI_AGENTS_RAG_AI_URL = cfg.ragAi.url;
+            WIKI_AGENTS_RAG_AI_VAULT_ROOT = cfg.ragAi.vaultRoot;
+          }
           // cfg.environment
         );
         Restart = "on-failure";

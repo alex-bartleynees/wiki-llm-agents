@@ -14,5 +14,6 @@ export type SearchResult = typeof SearchResult.Type;
 export const SearchNotesResponse = Schema.Struct({
   results: Schema.Array(SearchResult),
   truncated: Schema.Boolean,
+  mode: Schema.optionalKey(Schema.Literals(["hybrid", "keyword-fallback"])),
 });
 export type SearchNotesResponse = typeof SearchNotesResponse.Type;

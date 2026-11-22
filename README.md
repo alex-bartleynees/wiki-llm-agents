@@ -135,6 +135,31 @@ first edit.
 
 ### Search
 
+When both Home Manager modules are imported and enabled, wiki-agents automatically
+uses the local rag-ai port and registers its document directory as a vault:
+
+```nix
+services.wiki-agents.enable = true;
+services.rag-ai = {
+  enable = true;
+  docsDir = "/home/alexbn/Documents/obsidian-vault";
+};
+```
+
+Both services join `wiki-agents.target` by default. To keep local rag-ai running
+without hybrid search in wiki-agents, set `services.wiki-agents.ragAi.enable = false`.
+
+For a separately hosted instance, set `services.wiki-agents.ragAi.enable = true`
+and `services.wiki-agents.ragAi.url`. The first configured vault is used by default
+when the local rag-ai module is disabled. Set `services.wiki-agents.ragAi.vaultRoot`
+to select a different vault.
+
+Without Home Manager, set `WIKI_AGENTS_RAG_AI_URL` to the service base URL and
+`WIKI_AGENTS_RAG_AI_VAULT_ROOT` to the absolute root of the registered vault that
+rag-ai indexes. Queries fall back to SQLite keyword search when retrieval fails.
+Other vaults, quoted queries, tag-only queries and agents scoped to multiple
+folders use keyword search. Configure the embedding provider in rag-ai.
+
 - **Quick switcher** (⌘K / Ctrl K, or the header box): fuzzy match on note titles
   and paths (`GET /api/vaults/:id/quick-switch?q=`). With nothing typed it lists
   pinned and recent notes; ⌘↵ sends the text to full-text search.

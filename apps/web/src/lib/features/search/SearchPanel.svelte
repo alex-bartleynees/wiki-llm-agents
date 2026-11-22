@@ -87,6 +87,9 @@
         {search.state.message}
       {:else if search.hasQuery}
         {search.busy && search.state.status !== "loaded" ? "Searching…" : resultCount}
+        {#if search.state.status === "loaded" && search.state.mode === "keyword-fallback"}
+          · Semantic search unavailable
+        {/if}
       {/if}
     </p>
 

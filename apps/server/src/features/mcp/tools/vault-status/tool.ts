@@ -2,6 +2,7 @@ import { Effect, Schema } from "effect";
 import { Tool } from "effect/ai";
 import { VaultIndex } from "../../../indexing/vault-index.js";
 import { findVault } from "../../../vaults/find-vault.js";
+import { ragAiUrlForVault } from "../../../search/semantic.js";
 import { VaultCaller } from "../../auth.js";
 import { callerScope, scopeNotices } from "../../scope.js";
 import { Notices, vaultTool } from "../shared.js";
@@ -26,7 +27,6 @@ export const VaultStatus = vaultTool(
 
 /** Features the app doesn't offer agents yet, so agents don't look for them. */
 const NOT_YET: ReadonlyArray<typeof Unavailable.Type> = [
-  { feature: "semantic search", reason: "Not set up yet (rag-ai comes later); vault_search matches keywords only." },
   { feature: "who changed a file", reason: "Not recorded until change review exists; vault_recent_changes shows file times only." },
 ];
 
@@ -61,10 +61,13 @@ export const vaultStatus = (tools: ReadonlyArray<string>) =>
     }
     if (index !== null && index.notes === 0) notices.push("The index has no notes: the vault is empty or still being indexed for the first time.");
     notices.push("The index follows the files on disk as they change, usually within a second.");
+    const semantic = vault !== null && (scope?._tag === "all" || (scope?._tag === "folders" && scope.folders.length === 1))
+      && (yield* ragAiUrlForVault(vault.path)) !== undefined;
+    if (!semantic) unavailable.push({ feature: "semantic search", reason: "Hybrid search is not configured for this vault and scope." });
     return {
       vault,
       index,
-      search: "keyword (SQLite FTS5, bm25 ranking: title, then tags, then body)",
+      search: semantic ? "hybrid (SQLite FTS5 and rag-ai, with keyword fallback)" : "keyword (SQLite FTS5, bm25 ranking: title, then tags, then body)",
       tools: vault === null || scope?._tag === "none" ? [] : tools,
       unavailable,
       notices,

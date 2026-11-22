@@ -26,6 +26,8 @@ export const AppConfig = {
    * events, for vaults whose changes the OS doesn't report (a folder shared into a VM).
    */
   watchPollMs: Config.option(Config.Int("WIKI_AGENTS_WATCH_POLL_MS")),
+  ragAiUrl: Config.option(Config.String("WIKI_AGENTS_RAG_AI_URL")),
+  ragAiVaultRoot: Config.option(Config.String("WIKI_AGENTS_RAG_AI_VAULT_ROOT").pipe(Config.map(absolute))),
   /** The OpenCode executable: a path, or a name looked up on `PATH`. */
   opencodeBinary: Config.String("WIKI_AGENTS_OPENCODE").pipe(Config.withDefault("opencode")),
   /**
