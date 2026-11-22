@@ -4,11 +4,6 @@
   import WorktreeBranchCleanup from "#lib/features/projects/WorktreeBranchCleanup.svelte";
   import { worktrees } from "#lib/features/projects/worktrees.svelte.ts";
 
-  /**
-   * A thread's own git worktree, under its header: the branch and the path (for
-   * lazygit or an editor), and **Remove worktree** while the thread is idle, offered
-   * plainly once the thread is marked done. Nothing for a thread without one.
-   */
   let { thread, idle }: { thread: ThreadSummary; idle: boolean } = $props();
 
   // Loaded when another thread opens, and when this one settles (a turn ended, or it

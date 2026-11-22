@@ -7,12 +7,6 @@ import { gitDirectory } from "../git-directories.js";
 import { gitStatus } from "../git-status.js";
 import { branchStatus } from "../git.js";
 
-/**
- * Pushes the checked-out branch to its upstream, or, for a branch without one and
- * only when you agreed (`setUpstream`), to the same name on that remote, setting it
- * as the upstream. Never forced and never another branch; a rejected push comes back
- * with git's message (sort it out in lazygit).
- */
 export const pushBranch = Effect.fn("pushProjectBranch")(function* (projectId: string, request: PushBranchRequest) {
   const entry = yield* gitDirectory(projectId, request.directory);
   const status = yield* branchStatus(entry.directory);

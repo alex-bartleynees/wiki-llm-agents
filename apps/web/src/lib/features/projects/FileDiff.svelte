@@ -261,7 +261,7 @@
     {#if file.truncated}
       <p class="note">
         {#if whole}
-          Too large to show here; review it in lazygit.
+          This diff exceeds the display limit. Review it with your Git client.
         {:else}
           Diff cut short here.
           <button type="button" class="link" disabled={loadingWhole} onclick={onwhole}>{loadingWhole ? "Loading…" : "Show the whole diff"}</button>

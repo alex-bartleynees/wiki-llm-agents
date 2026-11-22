@@ -404,7 +404,7 @@
             <span class="mono">{totals.files} {totals.files === 1 ? "file" : "files"} · <span class="ins">+{totals.additions}</span> <span class="del">−{totals.deletions}</span>{totals.ignored === 0 ? "" : ` · ${totals.ignored} ignored`}</span> ·
           {/if}
           Compared with HEAD: staged and unstaged changes together, untracked files as new. The overview's changed-file list compares with
-          your last review instead. Commit ticked files beside the list; undo in lazygit.
+          your last review instead. Select files to commit. Use your Git client to discard changes.
         </p>
       </div>
       <div class="tools">

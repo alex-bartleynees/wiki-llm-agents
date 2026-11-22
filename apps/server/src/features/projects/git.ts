@@ -35,7 +35,6 @@ const run = (directory: string, args: ReadonlyArray<string>, literal = false, en
     execFile(
       "git",
       ["--no-pager", ...(literal ? ["--literal-pathspecs"] : []), "-C", directory, ...args],
-      // No index refresh on the way: reading must not take git's lock while an agent or lazygit works.
       { maxBuffer: 1024 * 1024 * 1024, encoding: "utf8", env: { ...process.env, GIT_OPTIONAL_LOCKS: "0", LC_ALL: "C", ...env } },
       (error, stdout, stderr) => resolve({ code: error === null ? 0 : typeof error.code === "number" ? error.code : null, stdout, stderr }),
     ),

@@ -403,7 +403,7 @@ layer(makeTestApp({ vaults: [sharedRoot], providers: makeProviderRegistry(Effect
       const refused = yield* removeWorktree(thread.id);
       expect(refused.status).toBe(409);
       const refusal = yield* refused.text;
-      expect(refusal).toMatch(/contains modified or untracked files\. Commit or discard them first/);
+      expect(refusal).toMatch(/contains modified or untracked files\. Commit the changes in the project’s Diff view or discard them with your Git client/);
       expect(refusal).not.toMatch(/use --force/);
       expect(existsSync(worktree!.directory)).toBe(true);
 

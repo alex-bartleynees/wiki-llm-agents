@@ -3,12 +3,6 @@
   import { errorMessage } from "#lib/api/client.ts";
   import { pushBranch } from "./api.ts";
 
-  /**
-   * A git directory's branch, its upstream and ahead/behind (as of the last fetch), and
-   * **Push**: the checked-out branch to its upstream, never forced. A branch without an
-   * upstream asks first, naming the remote and branch. A rejected push shows git's
-   * message; pull or rebase in lazygit.
-   */
   let { projectId, status, onpushed }: { projectId: string; status: GitStatus; onpushed: (status: GitStatus) => void } = $props();
 
   let pushing = $state(false);
@@ -83,7 +77,7 @@
     </div>
   {/if}
   {#if status.behind !== null && status.behind > 0}
-    <p class="hint">The upstream has {status.behind} {status.behind === 1 ? "commit" : "commits"} this branch lacks; pull or rebase in lazygit before pushing.</p>
+    <p class="hint">The upstream has {status.behind} {status.behind === 1 ? "commit" : "commits"} this branch lacks. Pull or rebase with your Git client before pushing.</p>
   {/if}
   {#if error}<p class="error" role="alert">{error}</p>{/if}
   {#if done}<p class="done" role="status">{done}</p>{/if}

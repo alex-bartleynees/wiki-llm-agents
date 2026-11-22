@@ -291,7 +291,7 @@
               {/each}
             </details>
           {/if}
-          <p class="note">Each worktree is its thread's own checkout on its own branch. Review it in <a href="/projects/{selected.id}/diff">Diff</a>; commit and merge with lazygit.</p>
+          <p class="note">Each worktree is its thread's own checkout on its own branch. Review and commit its changes in <a href="/projects/{selected.id}/diff">Diff</a>. Merge the branch with your Git client.</p>
         </section>
       {/if}
 

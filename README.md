@@ -507,7 +507,7 @@ vault's threads show.
   files listed without a diff. `GET /api/projects/:id/diff` cuts each file's diff
   (1,500 lines / 120 KB; files past 4 MB of diffs in total come without theirs);
   **Show the whole diff** asks `GET /api/projects/:id/diff/file?directory=…&path=…`
-  (20,000 lines / 2 MB, only inside a working directory; past that, use lazygit).
+  (20,000 lines / 2 MB, only inside a working directory).
   A folder outside git lists its changed files (against the baseline) with no diff.
   Reading git uses `execFile`, `-C`, no pager, colour, external diff or textconv,
   literal pathspecs and `GIT_OPTIONAL_LOCKS=0`; the only git writes are the commit
@@ -549,8 +549,7 @@ vault's threads show.
   (`git push <remote> refs/heads/<branch>:refs/heads/<upstream>`), never forced and
   never another branch. A branch without an upstream asks first and is pushed with
   `-u` to the same name on `remote.pushDefault`, `origin` or the only remote
-  (`"setUpstream": {"remote"}`). A rejected push shows git's message: pull or rebase
-  in lazygit. Writes run in their own session (no terminal for ssh to prompt on)
+  (`"setUpstream": {"remote"}`). A rejected push shows Git’s message. Pull or rebase with your Git client. Writes run in their own session (no terminal for ssh to prompt on)
   with `GIT_TERMINAL_PROMPT=0`, `SSH_ASKPASS_REQUIRE=never`, ssh in `BatchMode`
   (your `GIT_SSH_COMMAND` or `core.sshCommand` kept), and time limits (commit 5
   minutes for slow hooks, push 90 s). Push over SSH needs `SSH_AUTH_SOCK` in the
@@ -569,7 +568,7 @@ vault's threads show.
   throwaway session with every action denied and no vault tools. OpenCode keeps that
   session in its own history. The replay provider gives a fixed answer naming the
   first file.
-- Undo code changes with lazygit/git; changes a project thread makes to the shared
+- Undo code changes with your Git client; changes a project thread makes to the shared
   vault get change review (below).
 - Folders are chosen with **Browse…** (project directories, the vault folder) or
   typed. A browser never gives a page a folder's real path, so the picker walks

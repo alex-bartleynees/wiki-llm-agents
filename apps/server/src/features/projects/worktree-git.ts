@@ -71,7 +71,7 @@ export const removeWorktree = (directory: string, path: string) =>
       const message = gitMessage(result.stderr, `git worktree remove failed (exit ${result.code})`);
       const forced = /,? use --force to delete it\.?$/m;
       return yield* new WorktreeRefused({
-        message: forced.test(message) ? `${message.replace(forced, ".")} Commit or discard them first (in lazygit, or ask the agent); the app never forces it.` : message,
+        message: forced.test(message) ? `${message.replace(forced, ".")} Commit the changes in the project’s Diff view or discard them with your Git client before removing the worktree.` : message,
       });
     }
   });
