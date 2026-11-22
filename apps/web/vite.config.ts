@@ -34,6 +34,9 @@ export default defineConfig({
   // Resolve @wiki-agents/contracts from TypeScript source; Vite compiles it.
   resolve: { conditions: ["source", ...defaultClientConditions] },
   ssr: { resolve: { conditions: ["source", ...defaultServerConditions] } },
+  environments: {
+    serviceWorker: { resolve: { conditions: ["source", ...defaultClientConditions] } },
+  },
   server: {
     host: "127.0.0.1",
     // Single origin in development, like production: never bake server URLs into the bundle.
