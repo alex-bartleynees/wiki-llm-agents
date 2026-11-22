@@ -69,6 +69,21 @@
             exec process-compose up --config ${devConfig} "$@"
           '';
         };
+
+        ci = pkgs.writeShellApplication {
+          name = "wiki-agents-ci";
+          text = ''
+            base="${"$"}{1:-HEAD}"
+            if [[ "$base" == 0000000000000000000000000000000000000000 ]]; then
+              base=$(git hash-object -w -t tree /dev/null)
+            fi
+            git diff --check "$base" --
+            npm ci
+            npm test
+            npm run check
+            npm run build
+          '';
+        };
       in
       {
         packages = {
@@ -120,6 +135,13 @@
             grep -q 'enable-linger' ${home.activationPackage}/activate
             touch $out
           '';
+
+        apps.ci = {
+          type = "app";
+          program = "${pkgs.writeShellScript "wiki-agents-ci-in-dev-shell" ''
+            exec nix develop -c ${ci}/bin/wiki-agents-ci "$@"
+          ''}";
+        };
 
         apps.dev = {
           type = "app";

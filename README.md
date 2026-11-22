@@ -30,7 +30,10 @@ All commands run through the Nix dev shell; there is no global Node.
 | `nix build` | Package to `result/bin/wiki-agents` |
 | `nix develop -c npm run db:generate -w @wiki-agents/server` | Generate a Drizzle migration after changing a `table.ts` |
 
-Gate before every commit: `npm test`, `npm run check`, `npm run build`, `git diff --check`.
+Run `nix run .#ci` locally to check whitespace, reinstall dependencies from the lockfile
+with `npm ci`, and run the tests, type checks and build. GitHub Actions runs the same
+Nix app on pull requests and pushes to `main`. Use `nix run .#ci -- <base-ref>`
+to check whitespace in a branch's changes against a specific base.
 
 `npm run check` includes the source comment lint. It checks TypeScript, JavaScript,
 Svelte, CSS, HTML, SVG, Nix, and SQL. The design export, build output, and Drizzle's
