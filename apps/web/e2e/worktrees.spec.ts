@@ -99,7 +99,7 @@ test(`from ${entry}: runs a thread in its own worktree, reviews its diff, and re
   await page.getByRole("button", { name: "Mark done" }).click();
   await expect(bar).toContainText("This thread is done. Remove its worktree?");
   await bar.getByRole("button", { name: "Remove worktree" }).click();
-  await expect(bar.getByRole("alert")).toContainText("contains modified or untracked files. Commit or discard them first");
+  await expect(bar.getByRole("alert")).toContainText("contains modified or untracked files. Commit the changes in the project’s Diff view or discard them with your Git client");
 
   await page.goto(`/projects/${project.id}`);
   const doneWorktrees = overview.getByText("done · 1", { exact: true });
