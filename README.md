@@ -393,7 +393,11 @@ In the agent editor, **Restrict child thread workers** limits other agents the m
 An empty list permits self-delegation, while leaving the restriction off permits any configured agent.
 Creating a child or sending it a follow-up follows that
 autonomy setting. A child inherits the manager's workspace, including its
-worktree, and can run with a different agent. Children have their own
+worktree, and uses the manager's provider and model by default. The manager can
+select a different agent, provider, or model when creating the child. When the
+manager selects a different provider and leaves the model blank, the worker uses
+its applicable agent or provider default. Marking a manager done also marks its
+children done once the whole family is idle. Children have their own
 conversation, approvals, and status, and link back to the manager. Find them below
 their manager in the thread list or in **Running** while active or waiting.
 Finished turns report back in the manager's **Child thread results** card,

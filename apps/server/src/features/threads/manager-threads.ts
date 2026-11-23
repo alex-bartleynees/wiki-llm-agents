@@ -41,9 +41,6 @@ interface WorkerOverrides {
 const permitsWorker = (manager: AgentDefinition, agentId: string) =>
   manager.id === agentId || manager.workers === null || manager.workers.includes(agentId);
 
-const defaultWorkerProviderId = (manager: ThreadSummary, worker: AgentDefinition, appDefaultId: string) =>
-  (worker.id === manager.agentId ? manager.providerInstanceId : worker.provider) ?? appDefaultId;
-
 const readinessOf = (status: ProviderStatus): ProviderReadiness =>
   status._tag === "unavailable" ? status : { _tag: "ready" };
 
@@ -58,7 +55,6 @@ export const discoverWorkers = Effect.fnUntraced(function* (manager: ThreadSumma
   const { agents } = yield* catalog.current;
   const registry = yield* ProviderRegistry;
   const providers = yield* registry.list;
-  const defaultProvider = yield* registry.defaultInstance;
   const listed = yield* Effect.forEach(providers, (instance) =>
     registry.get(instance.id).pipe(
       Effect.flatMap(({ adapter }) => Effect.map(adapter.status, readinessOf)),
@@ -68,7 +64,7 @@ export const discoverWorkers = Effect.fnUntraced(function* (manager: ThreadSumma
   const instances = new Map(listed.map((entry) => [entry.instance.id, entry]));
   return {
     workers: agents.filter((worker) => permitsWorker(agent, worker.id)).map((worker) => {
-      const providerInstanceId = defaultWorkerProviderId(manager, worker, defaultProvider.id);
+      const providerInstanceId = manager.providerInstanceId;
       const entry = instances.get(providerInstanceId);
       return {
         agentId: worker.id,
@@ -77,7 +73,7 @@ export const discoverWorkers = Effect.fnUntraced(function* (manager: ThreadSumma
         providerInstanceId,
         providerConfigured: entry !== undefined,
         status: entry?.status ?? unconfiguredProvider(providerInstanceId),
-        model: entry === undefined ? null : applicableAgentModel(worker, entry.instance),
+        model: manager.model,
       };
     }),
     providers: listed.map(({ instance: { id, name, capabilities }, status }) => ({
@@ -95,7 +91,7 @@ const resolveProvider = Effect.fnUntraced(function* (manager: ThreadSummary, inp
   }
   const agent = agentId === managerAgent.id ? managerAgent : yield* catalog.get(agentId);
   const registry = yield* ProviderRegistry;
-  const providerId = input.providerInstanceId ?? defaultWorkerProviderId(manager, agent, (yield* registry.defaultInstance).id);
+  const providerId = input.providerInstanceId ?? manager.providerInstanceId;
   const { instance, adapter } = yield* registry.get(providerId);
   const agentDefault = applicableAgentModel(agent, instance);
   return { agent, instance, adapter, agentDefault };
@@ -112,11 +108,13 @@ export const discoverWorkerModels = Effect.fnUntraced(function* (manager: Thread
 
 export const resolveChildWorker = Effect.fnUntraced(function* (manager: ThreadSummary, input: WorkerOverrides) {
   const { agent, instance, agentDefault } = yield* resolveProvider(manager, input);
+  const inheritsModel = instance.id === manager.providerInstanceId;
+  const defaultModel = inheritsModel ? manager.model : agentDefault;
   return {
     agentId: agent.id,
     providerInstanceId: instance.id,
-    model: input.model ?? agentDefault,
-    modelSource: input.model !== undefined ? "explicit" : agentDefault !== null ? "agent-default" : "provider-default",
+    model: input.model ?? defaultModel,
+    modelSource: input.model !== undefined ? "explicit" : defaultModel === null ? "provider-default" : inheritsModel ? "inherited" : "agent-default",
   } as const satisfies ChildWorkerSelection;
 });
 

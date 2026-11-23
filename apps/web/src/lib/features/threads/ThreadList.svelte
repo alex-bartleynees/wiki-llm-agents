@@ -121,7 +121,7 @@
       {#if thread.parentThreadId != null}
         <span class="meta mono worker">
           {providers.get(thread.providerInstanceId)?.name ?? thread.providerInstanceId}
-          · {thread.model ?? "Provider default"}{thread.childModelSource === "agent-default" ? " (agent default)" : thread.childModelSource === "explicit" ? " (explicit)" : ""}
+          · {thread.model ?? "Provider default"}{thread.childModelSource === "agent-default" ? " (agent default)" : thread.childModelSource === "explicit" ? " (explicit)" : thread.childModelSource === "inherited" ? " (inherited)" : ""}
         </span>
       {/if}
     </button>

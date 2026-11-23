@@ -49,4 +49,13 @@ test("opens a child from Running, shows it under its manager, and delivers its r
   await expect(page.getByText("Thread reported", { exact: true })).toBeVisible();
   await page.getByText("Child thread results", { exact: true }).click();
   await expect(page.getByText(/Got it, I'll put it in/)).toBeVisible();
+
+  await page.getByRole("button", { name: "_Inbox", exact: true }).click();
+  await expect(page.locator(".turn-end").last()).toHaveText(/^Done/);
+  await page.getByRole("button", { name: "Mark done" }).click();
+  await expect(page.getByRole("button", { name: "Reopen", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "All threads" }).click();
+  await page.getByText(/^done · \d+$/).click();
+  await page.getByRole("list", { name: "Done threads" }).getByRole("button", { name: `Review the plan ${agentId}` }).click();
+  await expect(page.getByRole("button", { name: "Reopen", exact: true })).toBeVisible();
 });

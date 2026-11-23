@@ -14,7 +14,7 @@ export interface NewThread {
   readonly agentId: string | null;
   /** The model to start with; null for the provider's default. */
   readonly model: string | null;
-  readonly childModelSource?: "explicit" | "agent-default" | "provider-default";
+  readonly childModelSource?: "explicit" | "agent-default" | "provider-default" | "inherited";
   /** Otherwise the first message names it. */
   readonly title?: string | undefined;
   /** The composer draft it starts with (a handoff); empty otherwise. */
@@ -109,7 +109,7 @@ export interface ThreadRepositoryService {
   readonly inactivityPolicyChanged: Effect.Effect<void>;
   readonly inactiveCandidates: (cutoff: number, after?: { readonly at: number; readonly id: string }) => Effect.Effect<ReadonlyArray<{ readonly at: number; readonly id: string }>, DbError>;
   readonly completeInactive: (threadId: string, now: number) => Effect.Effect<ThreadSummary | undefined, DbError>;
-  readonly setDone: (threadId: string, done: boolean, at: number) => Effect.Effect<ThreadSummary, DbError>;
+  readonly setDone: (threadId: string, done: boolean, at: number) => Effect.Effect<{ readonly thread: ThreadSummary; readonly children: ReadonlyArray<ThreadSummary> } | undefined, DbError>;
   /**
    * Most recently updated first. With `scope`, only that project's threads (for a null
    * `projectId`, the vault's own threads); without, every thread in the vault.

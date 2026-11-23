@@ -9,7 +9,7 @@ import { ToolFailure, vaultTool } from "../shared.js";
 export const ThreadWorkers = vaultTool(Tool.make("thread_workers", {
   failure: ToolFailure,
   dependencies: [VaultCaller],
-  description: "List eligible agents with their applicable model defaults and default launch provider instances, and show readiness or a reason for every provider instance.",
+  description: "List eligible agents with the provider and model they inherit from your thread, and show readiness or a reason for every provider instance.",
   success: Schema.Struct({
     workers: Schema.Array(Schema.Struct({
       agentId: Schema.String,

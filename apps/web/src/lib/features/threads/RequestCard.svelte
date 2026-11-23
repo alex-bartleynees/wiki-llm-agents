@@ -37,7 +37,7 @@
       <div class="edit">
         <p class="path">Agent · {worker.agentId}</p>
         <p class="path">Provider · {worker.providerInstanceId}</p>
-        <p class="path">Model · {worker.modelSource === "provider-default" ? "Provider default" : `${worker.model} (${worker.modelSource === "agent-default" ? "agent default" : "explicit"})`}</p>
+        <p class="path">Model · {worker.modelSource === "provider-default" ? "Provider default" : `${worker.model} (${worker.modelSource === "agent-default" ? "agent default" : worker.modelSource === "inherited" ? "inherited" : "explicit"})`}</p>
       </div>
     {/if}
     {#if edits.length > 0}

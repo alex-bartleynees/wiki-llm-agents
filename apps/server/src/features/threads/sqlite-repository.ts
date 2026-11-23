@@ -226,15 +226,24 @@ export const ThreadRepositoryLive = Layer.effect(
       }),
 
       setDone: (threadId, done, at) =>
-        query(() => {
-          db.update(threads)
-            .set(done ? { doneAt: sql`COALESCE(${threads.doneAt}, ${at})` } : {
+        query(() => db.transaction((tx) => {
+          const target = eq(threads.id, threadId);
+          const family = and(isNull(threads.deletedAt), done ? or(target, eq(threads.parentThreadId, threadId)) : target);
+          if (done && tx.select({ id: threads.id }).from(threads).where(and(family, sql`NOT (${noOutstandingWork})`)).get()) {
+            return undefined;
+          }
+
+          const updated = tx.update(threads)
+            .set(done ? { doneAt: new Date(at) } : {
               doneAt: null, doneReason: null, activityAt: sql`MAX(COALESCE(${threads.activityAt}, 0), ${at})`,
             })
-            .where(eq(threads.id, threadId))
-            .run();
-          return Option.getOrThrow(findSync(threadId));
-        }),
+            .where(and(family, done ? isNull(threads.doneAt) : undefined))
+            .returning({ id: threads.id }).all();
+          return {
+            thread: Option.getOrThrow(findSync(threadId)),
+            children: updated.filter(({ id }) => id !== threadId).map(({ id }) => Option.getOrThrow(findSync(id))),
+          };
+        })),
 
       listByVault: (vaultId, scope) =>
         query(() =>

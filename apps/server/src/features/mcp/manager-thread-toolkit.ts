@@ -24,7 +24,7 @@ const common = { failure: ToolFailure, dependencies: [VaultCaller] };
 const ManagerTools = Toolkit.make(
   vaultTool(Tool.make("thread_create", {
     ...common,
-    description: "Start a child app thread in this project's workspace. Use thread_workers and thread_worker_models to pick overrides, or inherit your agent and provider with the applicable default model.",
+    description: "Start a child app thread in this project's workspace. Use thread_workers and thread_worker_models to pick overrides, or inherit your agent, provider, and model.",
     parameters: Schema.Struct({
       title: Text.check(Schema.isMaxLength(80)),
       prompt: Text.check(Schema.isMaxLength(4000)),

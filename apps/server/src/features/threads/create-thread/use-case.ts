@@ -34,7 +34,7 @@ export const createThread = Effect.fn("createThread")(function* (
     readonly parentThreadId?: string;
     readonly model?: string | null;
     readonly shareWorktree?: Worktree;
-    readonly childModelSource?: "explicit" | "agent-default" | "provider-default";
+    readonly childModelSource?: "explicit" | "agent-default" | "provider-default" | "inherited";
   } = {},
 ) {
   const vault = yield* findVault(request.vaultId);

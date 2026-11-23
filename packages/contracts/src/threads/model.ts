@@ -145,7 +145,7 @@ export const ToolFinished = Schema.TaggedStruct("tool.finished", {
   writes: Schema.optionalKey(Schema.Array(Schema.String)),
 });
 
-export const ChildModelSource = Schema.Literals(["explicit", "agent-default", "provider-default", "unknown"]);
+export const ChildModelSource = Schema.Literals(["explicit", "agent-default", "provider-default", "inherited", "unknown"]);
 export type ChildModelSource = typeof ChildModelSource.Type;
 
 export const ChildWorkerSelection = Schema.Struct({

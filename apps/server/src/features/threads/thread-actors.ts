@@ -93,7 +93,7 @@ export const ThreadActorsLive = Layer.effect(
       setModel: (threadId, model) => withActor(threadId, (actor) => actor.setModel(model)),
       setAgent: (threadId, agentId) => withActor(threadId, (actor) => actor.setAgent(agentId)),
       completeInactive: (threadId) => withThreadMutation(threadId, withActor(threadId, (actor) => actor.completeInactive)),
-      setDone: (threadId, done) => withActor(threadId, (actor) => actor.setDone(done)),
+      setDone: (threadId, done) => withThreadMutation(threadId, withActor(threadId, (actor) => Effect.uninterruptible(actor.setDone(done)))),
       writeNote: (threadId, input) => withActor(threadId, (actor) => actor.writeNote(input)),
       approveToolCall: (threadId, call) => withActor(threadId, (actor) => actor.approveToolCall(call)),
       recordContext: (threadId, note) => withActor(threadId, (actor) => actor.recordContext(note)),

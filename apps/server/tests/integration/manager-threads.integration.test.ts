@@ -20,7 +20,7 @@ import { makeTestApp, ReplayOnly, TestApp, TestAttachments, TestSecrets, TestWor
 import { CreateThreadResponse } from "@wiki-agents/contracts/threads/create-thread/response";
 import { RegisterVaultResponse } from "@wiki-agents/contracts/vaults/register-vault/response";
 import { makeTestVault } from "./infrastructure/test-vault.js";
-import { answer, decode, getThread, interrupt, isTag, newThread, newVault, post, requestIdOf, sendOk, setAgent, watch } from "./infrastructure/threads.js";
+import { answer, decode, getThread, interrupt, isTag, markDone, newThread, reopen, newVault, post, requestIdOf, sendOk, setAgent, watch } from "./infrastructure/threads.js";
 
 const putAgent = (id: string, agent: object, baseHash: string | null = null) =>
   HttpClient.execute(HttpClientRequest.put(`/api/agents/${id}`).pipe(
@@ -144,6 +144,30 @@ layer(TestApp)("manager thread tools", (it) => {
     expect((yield* policy(false)).status).toBe(200);
   }));
 
+  it.effect("marks an idle manager and all its children done together", () => Effect.gen(function* () {
+    const { manager, mcp, events, requestId } = yield* setup("allow");
+    const first = yield* mcp.result<{ threadId: string }>("thread_create", task);
+    const second = yield* mcp.result<{ threadId: string }>("thread_create", task);
+    yield* answer(manager.id, requestId, { _tag: "question", text: "Wait for the children" });
+    yield* events.until(isTag("turn.finished"));
+    expect((yield* markDone(manager.id)).status).toBe(409);
+    expect((yield* getThread(manager.id)).thread.doneAt).toBeNull();
+    expect((yield* getThread(first.threadId)).thread.doneAt).toBeNull();
+    expect((yield* getThread(second.threadId)).thread.doneAt).toBeNull();
+
+    expect((yield* interrupt(manager.id)).status).toBe(200);
+    expect((yield* markDone(first.threadId)).status).toBe(200);
+    const firstDoneAt = (yield* getThread(first.threadId)).thread.doneAt;
+    yield* TestClock.adjust(1);
+    expect((yield* markDone(manager.id)).status).toBe(200);
+    const managerDoneAt = (yield* getThread(manager.id)).thread.doneAt;
+    expect(managerDoneAt).not.toBeNull();
+    expect((yield* getThread(first.threadId)).thread.doneAt).toBe(firstDoneAt);
+    expect((yield* getThread(second.threadId)).thread.doneAt).toBe(managerDoneAt);
+    expect((yield* reopen(manager.id)).status).toBe(200);
+    expect((yield* getThread(second.threadId)).thread.doneAt).toBe(managerDoneAt);
+  }));
+
   it.effect("stops a waiting child when the manager stops", () => Effect.gen(function* () {
     const { manager, mcp } = yield* setup("allow");
     const child = yield* mcp.result<{ threadId: string; turnId: string }>("thread_create", task);
@@ -192,23 +216,23 @@ layer(makeTestApp({ providers: makeProviderRegistry(Effect.succeed([ReplayAdapte
     const { mcp, manager, agentId } = yield* setup("allow", undefined, { workers: ["worker"], provider: "worker-provider", model: "agent-model" });
     const discovery = yield* mcp.result<{ workers: Array<{ agentId: string }> }>("thread_workers");
     expect(discovery.workers.map(({ agentId }) => agentId).sort()).toEqual([agentId, "worker"].sort());
-    expect(discovery.workers).toContainEqual(expect.objectContaining({ agentId: "worker", description: worker.description, model: "agent-model" }));
-    expect(yield* mcp.result("thread_worker_models", { agentId: "worker" })).toMatchObject({
+    expect(discovery.workers).toContainEqual(expect.objectContaining({ agentId: "worker", description: worker.description, providerInstanceId: manager.providerInstanceId, model: null }));
+    expect(yield* mcp.result("thread_worker_models", { agentId: "worker", providerInstanceId: "worker-provider" })).toMatchObject({
       providerInstanceId: "worker-provider", agentDefault: "agent-model", defaultModel: "explicit-model", models,
     });
     expect((yield* mcp.call("thread_create", { ...task, agentId: "researcher" })).content[0]?.text).toContain("worker allowlist");
     expect((yield* mcp.call("thread_worker_models", { agentId: "researcher" })).isError).toBe(true);
-    expect((yield* mcp.call("thread_create", { ...task, agentId: "worker", model: "missing" })).content[0]?.text).toContain("Use thread_worker_models");
+    expect((yield* mcp.call("thread_create", { ...task, agentId: "worker", providerInstanceId: "worker-provider", model: "missing" })).content[0]?.text).toContain("Use thread_worker_models");
     expect((yield* mcp.call("thread_create", { ...task, providerInstanceId: "missing" })).content[0]?.text).toContain("Use thread_workers");
     expect(yield* mcp.result("thread_list")).toEqual({ children: [] });
 
     const inherited = yield* mcp.result("thread_create", { ...task, agentId });
     expect(inherited).toMatchObject({ agentId, providerInstanceId: manager.providerInstanceId, model: null, modelSource: "provider-default" });
-    const selected = yield* mcp.result("thread_create", { ...task, agentId: "worker" });
+    const selected = yield* mcp.result("thread_create", { ...task, agentId: "worker", providerInstanceId: "worker-provider" });
     expect(selected).toMatchObject({ agentId: "worker", providerInstanceId: "worker-provider", model: "agent-model", modelSource: "agent-default" });
-    const explicit = yield* mcp.result("thread_create", { ...task, agentId: "worker", model: "explicit-model" });
+    const explicit = yield* mcp.result("thread_create", { ...task, agentId: "worker", providerInstanceId: "worker-provider", model: "explicit-model" });
     expect(explicit).toMatchObject({ agentId: "worker", providerInstanceId: "worker-provider", model: "explicit-model", modelSource: "explicit" });
-    const override = yield* mcp.result("thread_create", { ...task, agentId: "worker", providerInstanceId: "replay" });
+    const override = yield* mcp.result("thread_create", { ...task, agentId: "worker" });
     expect(override).toMatchObject({ agentId: "worker", providerInstanceId: "replay", model: null, modelSource: "provider-default" });
     expect(yield* mcp.result("thread_list")).toMatchObject({ children: expect.arrayContaining([
       expect.objectContaining({ threadId: selected.threadId, model: "agent-model", modelSource: "agent-default" }),
@@ -216,13 +240,16 @@ layer(makeTestApp({ providers: makeProviderRegistry(Effect.succeed([ReplayAdapte
     ]) });
   }));
 
-  it.effect("inherits the manager's agent and provider without copying its explicit thread model", () => Effect.gen(function* () {
+  it.effect("inherits the manager's model and honours a model override on the same provider", () => Effect.gen(function* () {
     const { mcp, manager, agentId } = yield* setup("allow", undefined, {
       workers: [], provider: "worker-provider", model: "agent-model", threadProvider: "worker-provider", threadModel: "explicit-model",
     });
     expect(manager.model).toBe("explicit-model");
     expect(yield* mcp.result("thread_create", task)).toMatchObject({
-      agentId, providerInstanceId: "worker-provider", model: "agent-model", modelSource: "agent-default",
+      agentId, providerInstanceId: "worker-provider", model: "explicit-model", modelSource: "inherited",
+    });
+    expect(yield* mcp.result("thread_create", { ...task, model: "agent-model" })).toMatchObject({
+      agentId, providerInstanceId: "worker-provider", model: "agent-model", modelSource: "explicit",
     });
   }));
 
@@ -291,13 +318,13 @@ layer(makeTestApp({ providers: makeProviderRegistry(Effect.succeed([ReplayAdapte
       ]),
       workers: expect.arrayContaining([
         expect.objectContaining({ agentId, providerInstanceId: "replay", status: { _tag: "ready" } }),
-        expect.objectContaining({ agentId: "offline-worker", providerConfigured: true, status: { _tag: "unavailable", reason: expect.stringContaining("Install") } }),
+        expect.objectContaining({ agentId: "offline-worker", providerInstanceId: "replay", providerConfigured: true, status: { _tag: "ready" } }),
       ]),
     });
     expect(yield* mcp.result("thread_worker_models", { providerInstanceId: "missing-binary" })).toMatchObject({
       status: { _tag: "unavailable", reason: expect.stringContaining("Install") }, models: [], defaultModel: null,
     });
-    expect((yield* mcp.call("thread_create", { ...task, agentId: "offline-worker" })).content[0]?.text).toContain("Install the Worker CLI");
+    expect((yield* mcp.call("thread_create", { ...task, agentId: "offline-worker", providerInstanceId: "missing-binary" })).content[0]?.text).toContain("Install the Worker CLI");
     expect((yield* mcp.call("thread_create", {
       ...task, providerInstanceId: "missing-binary", model: "explicit-model",
     })).content[0]?.text).toContain("Install the Worker CLI");
