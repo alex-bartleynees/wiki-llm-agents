@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { InstallAction, InstallTarget } from "@wiki-agents/contracts/skills/model";
   import { installLabels } from "./install-labels.ts";
+  import InstallStatus from "./InstallStatus.svelte";
 
   let { targets, busy, editing, recover, prepare, openSettings }: {
     targets: ReadonlyArray<InstallTarget>;
@@ -32,7 +33,7 @@
     <div class="target">
       <strong>{target.destination.labels.join(" · ")}</strong>
       <code>{target.path}</code>
-      <span class="install-status" data-status={target.status}>{installLabels[target.status]}</span>
+      <InstallStatus status={target.status} text={installLabels[target.status]} />
       {#if target.status === "external installed" || target.status === "external differs"}<p>Managed outside wiki-agents</p>{/if}
       {#if target.differences?.length}
         <div class="install-differences" role="group" aria-label="Differences from library">
@@ -57,3 +58,38 @@
     <button type="button" class="text-button" disabled={busy || editing} onclick={openSettings}>Add destination →</button>
   {/each}
 </section>
+
+<style>
+  .installations {
+    scroll-margin: 12px;
+
+    &:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+  }
+
+  .empty-installs {
+    border-style: dashed;
+  }
+
+  .target {
+    display: grid;
+    gap: 6px;
+    padding-block: 8px;
+    overflow-wrap: anywhere;
+
+    + .target {
+      border-top: 1px solid var(--line);
+    }
+
+    .buttons:empty {
+      display: none;
+    }
+  }
+
+  .install-differences {
+    color: var(--ink-2);
+    font-size: 13px;
+  }
+</style>

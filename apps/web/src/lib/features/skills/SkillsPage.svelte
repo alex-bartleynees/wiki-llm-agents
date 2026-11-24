@@ -5,15 +5,17 @@
   import type { GetSettingsResponse } from "@wiki-agents/contracts/skills/get-settings/response";
   import type { ListSkillsResponse } from "@wiki-agents/contracts/skills/list-skills/response";
   import { ApiError, errorMessage } from "#lib/api/client.ts";
+  import "./skills.css";
   import * as api from "./api.ts";
   import { installLabels } from "./install-labels.ts";
+  import InstallStatus from "./InstallStatus.svelte";
+  import PathChip from "./PathChip.svelte";
   import SkillCatalog from "./SkillCatalog.svelte";
   import SkillInstallReview from "./SkillInstallReview.svelte";
   import SkillInstalls from "./SkillInstalls.svelte";
   import SkillLibraryHeader from "./SkillLibraryHeader.svelte";
   import SkillSettings from "./SkillSettings.svelte";
   import SkillSourcePanel from "./SkillSourcePanel.svelte";
-  import "./skills.css";
 
   let settings = $state.raw<GetSettingsResponse | null>(null);
   let catalog = $state.raw<ListSkillsResponse>({ skills: [], problems: [] });
@@ -263,16 +265,13 @@
           <div class="mobile-back"><button type="button" disabled={busy} onclick={backToSkills}>← Skills</button></div>
           <div class="detail-header">
             <div>
-              <div class="title-line"><h2 tabindex="-1" bind:this={detailHeading}>{selected.name}</h2>{#if selected.version}<code class="version">{selected.version}</code>{/if}<span class="badge valid">✓ Valid</span></div>
+              <div class="title-line"><h2 tabindex="-1" bind:this={detailHeading}>{selected.name}</h2>{#if selected.version}<code class="version">{selected.version}</code>{/if}<span class="badge">✓ Valid</span></div>
               <p class="description">{selected.description}</p>
-              <div class="path-chip source-path">
-                <code title={selected.path + "/SKILL.md"}>{selected.skillPath}/SKILL.md</code>
-                <button class="text-button" type="button" disabled={busy} onclick={() => selected && copyPath(selected.path + "/SKILL.md")}>Copy</button>
-              </div>
+              <PathChip label={selected.skillPath + "/SKILL.md"} path={selected.path + "/SKILL.md"} {busy} copy={copyPath} />
             </div>
             {#if !editing}
               <div class="buttons detail-actions">
-                <output class="install-summary" data-status={installCounts.length > 1 ? "mixed" : installCounts[0]?.status} aria-label="Install status">{installSummary}</output>
+                <InstallStatus element="output" ariaLabel="Install status" status={installCounts.length > 1 ? "mixed" : installCounts[0]?.status} text={installSummary} />
                 <button type="button" disabled={busy} onclick={() => void showInstalls()}>{managed ? "Manage installs" : "Install"}</button>
                 <button type="button" class="primary" disabled={busy} onclick={() => { panel = "source"; void run(startEditing); }}>Edit SKILL.md</button>
               </div>
@@ -316,3 +315,283 @@
   {/if}
 </div>
 {/if}
+
+<style>
+  .skills {
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    box-sizing: border-box;
+    max-width: 1280px;
+    height: 100%;
+  }
+
+  .feedback {
+    margin-block: 12px;
+    color: var(--ink-3);
+
+    &[role="alert"] {
+      color: var(--del);
+    }
+  }
+
+  .library-feedback:empty {
+    display: none;
+  }
+
+  .layout {
+    display: grid;
+    grid-row: 3;
+    grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
+    align-items: start;
+    gap: 24px;
+    min-height: 0;
+  }
+
+  .detail,
+  .empty-detail {
+    min-width: 0;
+    border: 1px solid var(--line);
+    border-radius: var(--skill-radius);
+    background: var(--surface);
+  }
+
+  .detail {
+    box-sizing: border-box;
+    height: 100%;
+    overflow: auto;
+  }
+
+  .empty-detail {
+    padding: 16px;
+  }
+
+  .mobile-tabs,
+  .mobile-back {
+    display: none;
+  }
+
+  .detail-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 18px;
+    padding: 23px 24px 21px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .title-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 9px;
+  }
+
+  .badge {
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--ok) 13%, var(--surface));
+    color: var(--ok);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .valid-text {
+    color: var(--ok);
+  }
+
+  .version {
+    padding: 2px 8px;
+    border-radius: var(--radius);
+    background: var(--sunken);
+    color: var(--ink-2);
+    font-size: 12px;
+  }
+
+  .description {
+    margin-block: 10px 12px;
+    color: var(--ink-2);
+    font-family: var(--font-read);
+    font-size: 16px;
+    line-height: 1.5;
+  }
+
+  .detail-actions {
+    display: grid;
+    grid-template-columns: auto auto;
+    justify-content: end;
+  }
+
+  .detail-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(180px, 240px);
+    gap: 24px;
+    padding: 24px;
+  }
+
+  .detail-sidebar,
+  .metadata {
+    display: grid;
+    align-content: start;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  .detail-sidebar {
+    :global(h3) {
+      margin-bottom: 6px;
+      color: var(--ink-3);
+    }
+
+    :global(p) {
+      color: var(--ink-2);
+    }
+
+    dl {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 5px 12px;
+    }
+
+    dt {
+      color: var(--ink-3);
+    }
+
+    dd {
+      margin: 0;
+    }
+  }
+
+  .detail-actions > :global(.install-status) {
+    grid-column: 1 / -1;
+    justify-self: end;
+    max-width: 260px;
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+
+  @media (max-width: 1050px) and (min-width: 700px) {
+    .layout {
+      grid-template-columns: minmax(190px, 250px) minmax(0, 1fr);
+      gap: 16px;
+    }
+
+    .detail-body {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  @media (max-width: 699px) {
+    .layout {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .detail {
+      border: 0;
+      background: transparent;
+    }
+
+    .empty-detail,
+    .skills:not(.show-detail) .detail {
+      display: none;
+    }
+
+    .show-detail {
+      height: auto;
+      padding-bottom: 120px;
+
+      :global(.catalog),
+      :global(.library-header) {
+        display: none;
+      }
+
+      .detail {
+        height: auto;
+        overflow: visible;
+      }
+    }
+
+    .mobile-back {
+      display: block;
+      margin-bottom: 14px;
+
+      button {
+        padding-left: 0;
+        border: 0;
+        background: transparent;
+      }
+    }
+
+    .detail-header {
+      display: block;
+      padding: 0;
+      border: 0;
+    }
+
+    .detail-header :global(.path-chip) {
+      width: 100%;
+      background: var(--surface);
+    }
+
+    .mobile-tabs {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+      margin-block: 18px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: var(--skill-radius);
+      background: var(--surface);
+
+      button {
+        border-color: transparent;
+        color: var(--ink-3);
+
+        &[aria-pressed="true"] {
+          background: var(--sunken);
+          color: var(--ink);
+          font-weight: 600;
+        }
+      }
+    }
+
+    .detail-body {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 14px;
+      padding: 0;
+
+      &:not([data-panel="source"]) :global(.source-column),
+      &[data-panel="source"] .detail-sidebar,
+      &[data-panel="details"] :global(.installations),
+      &[data-panel="install"] .metadata {
+        display: none;
+      }
+    }
+
+    .detail-sidebar :global(.card) {
+      background: var(--surface);
+    }
+
+    .detail-actions {
+      display: grid;
+      grid-template-columns: 1fr 1.35fr;
+      position: fixed;
+      inset: auto 0 0;
+      z-index: 2;
+      padding: 11px 16px max(11px, env(safe-area-inset-bottom));
+      border-top: 1px solid var(--line);
+      background: var(--surface);
+
+      button {
+        min-height: 46px;
+      }
+    }
+
+    .detail-actions > :global(.install-status) {
+      justify-self: start;
+      max-width: none;
+      text-align: left;
+    }
+  }
+</style>

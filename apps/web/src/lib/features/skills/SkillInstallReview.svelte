@@ -30,3 +30,11 @@
     <button onclick={cancel}>Cancel review</button>
   </div>
 </section>
+
+<style>
+  .install-review {
+    display: grid;
+    grid-column: 1 / -1;
+    gap: 10px;
+  }
+</style>

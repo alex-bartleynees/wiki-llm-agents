@@ -129,6 +129,7 @@
 
 <style>
   .skills-settings { max-width: 880px; }
+  h1 { font: 600 30px/1.2 var(--font-read); }
   header { margin-bottom: 22px; }
   .host-hint { max-width: 550px; margin-top: 10px; }
   .settings-heading, .section-heading { display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 10px; }

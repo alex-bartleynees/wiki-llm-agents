@@ -47,3 +47,53 @@
     </div>
   {/if}
 </div>
+
+<style>
+  .source-column {
+    min-width: 0;
+  }
+
+  .preview {
+    border: 1px solid var(--line);
+    border-radius: var(--skill-radius);
+    overflow: hidden;
+  }
+
+  .preview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--ink-3);
+    font-size: 12px;
+  }
+
+  .source-line {
+    display: grid;
+    grid-template-columns: 2em minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .line-number {
+    color: var(--ink-3);
+    text-align: right;
+    user-select: none;
+  }
+
+  .heading-line > span:last-child {
+    color: var(--accent-ink);
+    font-weight: 600;
+  }
+
+  fieldset {
+    display: grid;
+    gap: 12px;
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--skill-radius);
+  }
+</style>
