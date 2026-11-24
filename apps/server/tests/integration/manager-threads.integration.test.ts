@@ -168,6 +168,21 @@ layer(TestApp)("manager thread tools", (it) => {
     expect((yield* getThread(second.threadId)).thread.doneAt).toBe(managerDoneAt);
   }));
 
+  it.effect("keeps a manager open while a child's report is on its way", () => Effect.gen(function* () {
+    const { manager, mcp, events } = yield* setup("allow");
+    const child = yield* mcp.result<{ threadId: string }>("thread_create", task);
+    const childEvents = yield* watch(child.threadId);
+    const opened = yield* childEvents.until(isTag("request.opened"));
+    yield* answer(child.threadId, requestIdOf(opened), { _tag: "question", text: "Done" });
+    yield* childEvents.until(isTag("turn.finished"));
+    yield* TestClock.adjust("1 second");
+    yield* interrupt(manager.id).pipe(Effect.flatMap(HttpClientResponse.filterStatusOk));
+    expect((yield* getThread(manager.id)).thread.status).toBe("idle");
+    expect((yield* markDone(manager.id)).status).toBe(409);
+    expect((yield* getThread(child.threadId)).thread.doneAt).toBeNull();
+    yield* events.until((event) => event._tag === "user.message" && event.childReports !== undefined);
+  }));
+
   it.effect("stops a waiting child when the manager stops", () => Effect.gen(function* () {
     const { manager, mcp } = yield* setup("allow");
     const child = yield* mcp.result<{ threadId: string; turnId: string }>("thread_create", task);

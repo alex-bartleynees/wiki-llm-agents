@@ -30,13 +30,10 @@ const remoteTarget = Effect.fnUntraced(function* (directory: string) {
   const url = yield* git(directory, ["remote", "get-url", "--", remote]);
   if (url.code !== 0) return null;
   const remoteUrl = url.stdout.trim();
-  // This project's merge target is fixed even if origin changes its default.
-  const fixed = remote === "origin" && /(?:^|[:/])alex-bartleynees\/wiki-llm-agents(?:\.git)?\/?$/i.test(remoteUrl);
-  const requested = fixed ? "refs/heads/main" : "HEAD";
-  const advertised = yield* queryRemoteForCleanup(directory, ["ls-remote", "--symref", "--exit-code", "--", remote, requested]);
+  const advertised = yield* queryRemoteForCleanup(directory, ["ls-remote", "--symref", "--exit-code", "--", remote, "HEAD"]);
   const rows = advertised.split("\n");
-  const ref = fixed ? requested : rows.find((row) => row.startsWith("ref: refs/heads/") && row.endsWith("\tHEAD"))?.slice(5, -5);
-  const tip = rows.find((row) => /^(?:[a-f0-9]{40}|[a-f0-9]{64})\t/.test(row) && row.endsWith(`\t${requested}`))?.split("\t")[0];
+  const ref = rows.find((row) => row.startsWith("ref: refs/heads/") && row.endsWith("\tHEAD"))?.slice(5, -5);
+  const tip = rows.find((row) => /^(?:[a-f0-9]{40}|[a-f0-9]{64})\t/.test(row) && row.endsWith("\tHEAD"))?.split("\t")[0];
   if (ref === undefined || tip === undefined || (yield* git(directory, ["check-ref-format", ref])).code !== 0) return null;
   const branch = ref.slice("refs/heads/".length);
   const tracking = `refs/remotes/${remote}/${branch}`;

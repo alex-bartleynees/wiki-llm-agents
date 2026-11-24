@@ -6,12 +6,13 @@ keeps that behavior. An empty list restricts delegation to the manager's own age
 A populated list permits self and the listed IDs. Thread autonomy still determines
 whether the manager can launch a child and whether the launch needs approval.
 
-An explicit provider instance wins. Otherwise self uses the manager's provider
-instance and another agent uses its configured instance or the app default. An
-explicit model wins. Otherwise the agent's default applies on its configured
-provider, or on any provider with model support if the agent names no provider.
-The provider supplies the remaining default. The parent's thread model does not
-participate.
+An explicit provider instance wins. Otherwise every child uses the manager's
+current provider instance, including a worker whose agent names another provider.
+A manager selects that provider explicitly to use it. An explicit model wins.
+Otherwise a child on the manager's provider instance inherits the manager's
+thread model. On a different instance the agent's default applies if the agent
+names that provider, or names no provider and the instance supports models. The
+provider supplies the remaining default.
 
 Discovery and explicit model validation use the inherited workspace, including
 a shared worktree. The manager sees the resolved selection before approval. The
@@ -37,5 +38,5 @@ creation retains its existing behavior.
 
 Child listings use the thread's stored selection. Provider defaults stay unset
 so the provider can apply its configuration. The database records whether a
-model was explicitly chosen or came from the agent. Older children with a
+model was explicitly chosen, inherited from the manager, or came from the agent. Older children with a
 stored model have unknown provenance. A user-initiated model change is explicit.

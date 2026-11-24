@@ -12,5 +12,5 @@ child work reopens the manager. A manually completed manager stays Done until
 its usual reopen action or an accepted message in that manager thread.
 
 The pre-inactivity schema did not retain a reopen timestamp, so the migration
-uses migration time as the earliest activity timestamp for legacy threads. It
-preserves later recorded activity and existing completion timestamps.
+starts legacy threads' inactivity period at migration time. It preserves
+existing completion timestamps.

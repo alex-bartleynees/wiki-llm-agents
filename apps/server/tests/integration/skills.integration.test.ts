@@ -81,7 +81,8 @@ layer(app)("local skills", (it) => {
     expect(existsSync(installFolder)).toBe(false);
     const install = yield* review("install");
     expect(install.files.map((file) => file.path)).toContain("helper.sh");
-    expect((yield* apply("install", install.token)).status).toBe(200);
+    const applied = yield* Effect.all([apply("install", install.token), apply("install", install.token)], { concurrency: "unbounded" });
+    expect(applied.map(({ status }) => status).sort()).toEqual([200, 409]);
     expect(statSync(join(installFolder, "helper.sh")).mode & 0o111).toBe(0o111);
 
     const records = stateFolder(initial.defaults.library, destination, name);
@@ -132,7 +133,7 @@ layer(app)("local skills", (it) => {
     writeFileSync(join(folder, "from-checkout", "SKILL.md"), source("from-checkout", "Searchable description"));
     const saved = yield* send("PUT", settingsPath, { library: folder, destinations: [], baseHash: current.hash }).pipe(Effect.flatMap(decode(SettingsView)));
     expect(saved.settings?.library).toBe(folder);
-    const catalog = yield* HttpClient.get("/api/skills?q=searchable").pipe(Effect.flatMap(decode(Catalog)));
+    const catalog = yield* HttpClient.get("/api/skills").pipe(Effect.flatMap(decode(Catalog)));
     expect(catalog.skills.map((skill) => skill.name)).toEqual(["from-checkout"]);
 
     const incoming = join(folder, "..", "incoming");
@@ -150,6 +151,10 @@ layer(app)("local skills", (it) => {
     expect((yield* importSkill().pipe(Effect.flatMap(decode(Detail)))).files).toEqual(["references/notes.txt"]);
     expect(readFileSync(join(folder, "copied", "references", "notes.txt"), "utf8")).toBe("Supporting text");
     expect((yield* importSkill()).status).toBe(409);
+    mkdirSync(join(folder, "claimed"));
+    expect((yield* putSkill("claimed", "", null)).status).toBe(409);
+    expect(readdirSync(join(folder, "claimed"))).toEqual([]);
+    expect(readdirSync(folder).filter((entry) => entry.startsWith(".skill-"))).toEqual([]);
   }));
 
   it.effect("uses nested paths for edits, reviews and ownership while keeping provider installs flat", () => Effect.gen(function* () {
@@ -170,7 +175,7 @@ layer(app)("local skills", (it) => {
     symlinkSync(join(library, "..", "outside"), join(library, "linked"));
     const settings = { library, destinations: [{ label: "Provider", path: destination }], baseHash: current.hash };
     expect((yield* send("PUT", settingsPath, settings)).status).toBe(200);
-    const catalog = yield* HttpClient.get("/api/skills?q=review").pipe(Effect.flatMap(decode(Catalog)));
+    const catalog = yield* HttpClient.get("/api/skills").pipe(Effect.flatMap(decode(Catalog)));
     expect(catalog.skills.map((skill) => skill.skillPath)).toEqual([direct, "delete-comment", nested]);
     expect((yield* HttpClient.get(skillUrl("linked/escape"))).status).toBe(404);
     expect((yield* HttpClient.get(skillUrl("../outside/escape"))).status).toBe(422);
@@ -267,14 +272,14 @@ layer(app)("local skills", (it) => {
       { label: "OpenCode and Codex", path: "~/.agents/skills" },
       { label: "Claude Code", path: "~/.claude/skills" },
     ];
-    const settings = { library, destinations, baseHash: current.hash };
+    const settings = { library: "~/alias-library", destinations, baseHash: current.hash };
     const preview = (body: unknown) => send("POST", settingsPath + "/preview", body).pipe(Effect.flatMap(decode(SettingsPreview)));
     const valid = yield* preview(settings);
     expect(valid.destinations).toEqual(destinations.map(({ label, path }) => ({ label, enteredPath: path, resolvedPath: primary })));
     expect(valid.diagnostics.map(({ kind }) => kind)).toEqual(["alias"]);
     const bad = { ...settings, destinations: [...destinations, { label: "Nested", path: join(primary, "nested") }, { label: "Library alias", path: library }] };
     const invalid = yield* preview(bad);
-    expect(invalid.library).toEqual({ enteredPath: library, resolvedPath: library });
+    expect(invalid.library).toEqual({ enteredPath: settings.library, resolvedPath: library });
     expect(invalid.destinations[2]?.resolvedPath).toBe(join(primary, "nested"));
     expect(invalid.diagnostics.map(({ kind }) => kind)).toEqual(["overlap", "alias", "overlap", "overlap"]);
     expect((yield* send("PUT", settingsPath, bad)).status).toBe(422);
@@ -282,6 +287,7 @@ layer(app)("local skills", (it) => {
 
     const saved = yield* send("PUT", settingsPath, settings).pipe(Effect.flatMap(decode(SettingsView)));
     expect(saved.settings?.destinations).toEqual(destinations.map((entry) => ({ ...entry, resolvedPath: primary })));
+    expect(saved.settings).toMatchObject({ library: settings.library, libraryResolvedPath: library });
     const skillPath = "alias-review";
     expect((yield* putSkill(skillPath, "", null)).status).toBe(200);
     const created = yield* detail(skillPath);

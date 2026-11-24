@@ -5,7 +5,7 @@ import { Schema } from "effect";
 import type { BundleDifference, InstallAction, InstallTarget, PhysicalDestination, Review } from "@wiki-agents/contracts/skills/model";
 import { sha256 } from "../../shared/config-files.js";
 import { bundleChanges, type Bundle, type Guard, info, installedBundleDifferences, markdown, readBundle, writeBundle } from "./bundle.js";
-import { SkillProblem } from "./problem.js";
+import { SkillConflict, isSkillProblem } from "./errors.js";
 import { readJson, writeAtomic } from "./state-file.js";
 
 const Digest = Schema.String.check(Schema.isPattern(/^[a-f0-9]{64}$/));
@@ -23,7 +23,7 @@ export function installStateFolder(dataDir: string, destination: string, name: s
 function checkDirectory(path: string, guard: Guard) {
   guard(path);
   const stat = info(path);
-  if (stat && !stat.isDirectory()) throw new SkillProblem("The destination or its management directory is unsafe.", 409);
+  if (stat && !stat.isDirectory()) throw new SkillConflict({ message: "The destination or its management directory is unsafe." });
 }
 
 function removeTree(path: string) {
@@ -90,14 +90,14 @@ class Installation {
     try {
       return (this.read(path)?.digest ?? null) === digest;
     } catch (error) {
-      if (!(error instanceof SkillProblem)) throw error;
+      if (!isSkillProblem(error)) throw error;
       return false;
     }
   }
 
   private requireOwner(state: State | null, pending: Journal) {
     const owner = state !== null && state.current !== null ? state.skillPath : pending.next.skillPath;
-    if (owner !== this.skillPath) throw new SkillProblem(`This destination name is managed for ${owner}.`, 409);
+    if (owner !== this.skillPath) throw new SkillConflict({ message: `This destination name is managed for ${owner}.` });
   }
 
   inspect() {
@@ -116,7 +116,7 @@ class Installation {
     if (state?.transaction !== pending.workspace) {
       if (this.activated(pending)) writeAtomic(this.record, JSON.stringify(pending.next));
       else if (info(moved)) {
-        if (info(this.path)) throw new SkillProblem("The interrupted install has conflicting files. Inspect the destination before retrying.", 409);
+        if (info(this.path)) throw new SkillConflict({ message: "The interrupted install has conflicting files. Inspect the destination before retrying." });
         renameSync(moved, this.path);
       }
     }
@@ -136,7 +136,7 @@ class Installation {
       if (value === null && !info(path)) return null;
       return Schema.decodeUnknownSync(schema)(value);
     } catch {
-      throw new SkillProblem("The destination management record is unreadable.", 409);
+      throw new SkillConflict({ message: "The destination management record is unreadable." });
     }
   }
 
@@ -145,14 +145,14 @@ class Installation {
     try {
       return this.read(this.path);
     } catch (error) {
-      if (!(error instanceof SkillProblem)) throw error;
+      if (!isSkillProblem(error)) throw error;
       return null;
     }
   }
 
   snapshot(digest: string) {
     const bundle = this.read(join(this.folder, digest));
-    if (bundle?.digest !== digest) throw new SkillProblem("The rollback snapshot is missing or has changed.", 409);
+    if (bundle?.digest !== digest) throw new SkillConflict({ message: "The rollback snapshot is missing or has changed." });
     return bundle;
   }
 
@@ -165,7 +165,7 @@ class Installation {
     const temp = mkdtempSync(join(this.folder, "copy-"));
     try {
       writeBundle(temp, bundle, this.guard);
-      if (readBundle(temp, this.guard).digest !== bundle.digest) throw new SkillProblem("The rollback snapshot failed verification.", 409);
+      if (readBundle(temp, this.guard).digest !== bundle.digest) throw new SkillConflict({ message: "The rollback snapshot failed verification." });
       renameSync(temp, snapshot);
     } finally {
       removeTree(temp);
@@ -173,6 +173,10 @@ class Installation {
   }
 
   activate(state: State | null, next: Bundle | null, current: Bundle | null) {
+    const latest = this.inspect();
+    if (latest.interrupted || latest.state?.transaction !== state?.transaction) {
+      throw new SkillConflict({ message: "The install changed since review. Review it again." });
+    }
     mkdirSync(this.folder, { recursive: true, mode: 0o700 });
     mkdirSync(this.destination.path, { recursive: true });
     if (current !== null) this.keepSnapshot(current);
@@ -187,15 +191,15 @@ class Installation {
       if (next !== null) {
         mkdirSync(staged, { mode: 0o700 });
         writeBundle(staged, next, this.guard);
-        if (!this.holds(staged, next.digest)) throw new SkillProblem("The staged bundle failed verification.", 409);
+        if (!this.holds(staged, next.digest)) throw new SkillConflict({ message: "The staged bundle failed verification." });
       }
-      if (!this.holds(this.path, before)) throw new SkillProblem("The destination changed since review.", 409);
+      if (!this.holds(this.path, before)) throw new SkillConflict({ message: "The destination changed since review." });
       if (current !== null) {
         renameSync(this.path, moved);
-        if (!this.holds(moved, before)) throw new SkillProblem("The destination changed as it was moved. The replacement was not published.", 409);
+        if (!this.holds(moved, before)) throw new SkillConflict({ message: "The destination changed as it was moved. The replacement was not published." });
       }
       if (next !== null) {
-        if (info(this.path)) throw new SkillProblem("The destination was created concurrently.", 409);
+        if (info(this.path)) throw new SkillConflict({ message: "The destination was created concurrently." });
         renameSync(staged, this.path);
       }
     } catch (error) {
@@ -260,10 +264,10 @@ export function installTarget(dataDir: string, destination: PhysicalDestination,
 export function installPlan(dataDir: string, destination: PhysicalDestination, name: string, skillPath: string, action: InstallAction, source: Source, guard: Guard) {
   const install = new Installation(dataDir, destination, name, skillPath, guard);
   const { state, interrupted } = install.inspect();
-  if (interrupted) throw new SkillProblem(interruptedProblem, 409);
+  if (interrupted) throw new SkillConflict({ message: interruptedProblem });
   const before = install.live(state);
   const target = install.target(state, before, source);
-  if (!target.actions.includes(action)) throw new SkillProblem(target.problem ?? `Cannot ${action}: destination status is ${target.status}.`, 409);
+  if (!target.actions.includes(action)) throw new SkillConflict({ message: target.problem ?? `Cannot ${action}: destination status is ${target.status}.` });
   const after = action === "remove" ? null : action === "rollback" ? install.snapshot(state!.previous!) : source.bundle;
   const review: Review = {
     path: install.path,

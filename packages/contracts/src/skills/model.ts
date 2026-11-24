@@ -2,7 +2,7 @@ import { Schema } from "effect";
 
 export const NullableHash = Schema.NullOr(Schema.String);
 export const Destination = Schema.Struct({ label: Schema.String, path: Schema.String, resolvedPath: Schema.optional(Schema.String) });
-export const Settings = Schema.Struct({ library: Schema.String, destinations: Schema.Array(Destination) });
+export const Settings = Schema.Struct({ library: Schema.String, libraryResolvedPath: Schema.optional(Schema.String), destinations: Schema.Array(Destination) });
 export const SettingsView = Schema.Struct({ settings: Schema.NullOr(Settings), defaults: Settings, hash: NullableHash });
 const ResolvedPath = Schema.Struct({ enteredPath: Schema.String, resolvedPath: Schema.NullOr(Schema.String) });
 export const SettingsPreview = Schema.Struct({

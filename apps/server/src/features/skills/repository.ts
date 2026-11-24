@@ -1,22 +1,27 @@
-import type { RecoverInstallRequest } from "@wiki-agents/contracts/skills/recover-install/request";
-import type { ApplyInstallRequest } from "@wiki-agents/contracts/skills/apply-install/request";
-import type { ImportSkillRequest } from "@wiki-agents/contracts/skills/import-skill/request";
-import type { ListSkillsRequest } from "@wiki-agents/contracts/skills/list-skills/request";
-import type { ReviewInstallRequest } from "@wiki-agents/contracts/skills/review-install/request";
+import type { Catalog, Detail, InstallAction, Review, Settings, SettingsPreview, SettingsView } from "@wiki-agents/contracts/skills/model";
 import type { SaveSettingsRequest } from "@wiki-agents/contracts/skills/save-settings/request";
-import type { SaveSkillRequest } from "@wiki-agents/contracts/skills/save-skill/request";
-import type { Catalog, Detail, Review, Settings, SettingsPreview, SettingsView } from "@wiki-agents/contracts/skills/model";
 import { Context, type Effect } from "effect";
+import type { SkillError } from "./errors.js";
+
+export interface InstallPlan {
+  readonly review: Review;
+  readonly apply: Effect.Effect<void, SkillError>;
+}
+
+interface InstallLocation {
+  readonly skillPath: string;
+  readonly destination: string;
+}
 
 export class Skills extends Context.Service<Skills, {
-  settings(): Effect.Effect<typeof SettingsView.Type, unknown>;
-  previewSettings(request: Settings): Effect.Effect<SettingsPreview, unknown>;
-  configure(request: SaveSettingsRequest): Effect.Effect<typeof SettingsView.Type, unknown>;
-  list(request: ListSkillsRequest): Effect.Effect<typeof Catalog.Type, unknown>;
-  detail(request: { skillPath: string }): Effect.Effect<Detail, unknown>;
-  save(request: SaveSkillRequest): Effect.Effect<Detail, unknown>;
-  importFolder(request: ImportSkillRequest): Effect.Effect<Detail, unknown>;
-  review(request: ReviewInstallRequest): Effect.Effect<Review, unknown>;
-  recover(request: RecoverInstallRequest): Effect.Effect<Detail, unknown>;
-  apply(request: ApplyInstallRequest): Effect.Effect<Detail, unknown>;
+  settings(): Effect.Effect<typeof SettingsView.Type, SkillError>;
+  previewSettings(request: Settings): Effect.Effect<SettingsPreview, SkillError>;
+  configure(request: SaveSettingsRequest): Effect.Effect<typeof SettingsView.Type, SkillError>;
+  list(): Effect.Effect<typeof Catalog.Type, SkillError>;
+  detail(request: { readonly skillPath: string }): Effect.Effect<Detail, SkillError>;
+  create(skillPath: string, content: string): Effect.Effect<void, SkillError>;
+  update(skillPath: string, content: string, baseHash: string): Effect.Effect<void, SkillError>;
+  importFolder(path: string): Effect.Effect<string, SkillError>;
+  plan(request: InstallLocation & { readonly action: InstallAction }): Effect.Effect<InstallPlan, SkillError>;
+  recover(request: InstallLocation): Effect.Effect<void, SkillError>;
 }>()("Skills") {}

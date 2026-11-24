@@ -20,7 +20,7 @@ import { ApplyInstallResponse } from "@wiki-agents/contracts/skills/apply-instal
 export const getSettings = () => getJson("/api/skills/settings", GetSettingsResponse);
 export const saveSettings = (request: SaveSettingsRequest) => putJson("/api/skills/settings", SaveSettingsRequest, request, SaveSettingsResponse);
 export const previewSettings = (request: PreviewSettingsRequest) => postJson("/api/skills/settings/preview", PreviewSettingsRequest, request, PreviewSettingsResponse);
-export const listSkills = (q: string) => getJson(`/api/skills?q=${encodeURIComponent(q)}`, ListSkillsResponse);
+export const listSkills = () => getJson("/api/skills", ListSkillsResponse);
 export const getSkill = (skillPath: string) => getJson(`/api/skills/detail?skillPath=${encodeURIComponent(skillPath)}`, GetSkillResponse);
 export const saveSkill = (request: SaveSkillRequest) => putJson("/api/skills/detail", SaveSkillRequest, request, SaveSkillResponse);
 export const importSkill = (request: ImportSkillRequest) => postJson("/api/skills/import", ImportSkillRequest, request, ImportSkillResponse);

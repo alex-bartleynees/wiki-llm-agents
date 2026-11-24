@@ -880,9 +880,11 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     return summary;
   });
 
+  const hasUnfinishedWork = () =>
+    turn !== undefined || pending.size > 0 || subagents.size > 0 || startedTurns.length > 0 || reportWakeScheduled || reportsWaiting;
+
   const setDone = Effect.fnUntraced(function* (done: boolean) {
-    // A pending request belongs to the running turn or a subagent at work, so this also covers "waiting".
-    if (done && (turn !== undefined || subagents.size > 0)) return yield* new ThreadBusy({ threadId });
+    if (done && hasUnfinishedWork()) return yield* new ThreadBusy({ threadId });
     const result = yield* repository.setDone(threadId, done, yield* clock.now);
     if (result === undefined) return yield* new ThreadBusy({ threadId });
     yield* bus.publishThread(result.thread);
@@ -891,7 +893,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
   });
 
   const completeInactive = Effect.gen(function* () {
-    if (turn !== undefined || pending.size > 0 || subagents.size > 0 || startedTurns.length > 0 || reportWakeScheduled || reportsWaiting) return;
+    if (hasUnfinishedWork()) return;
     const summary = yield* repository.completeInactive(threadId, yield* clock.now);
     if (summary !== undefined) yield* bus.publishThread(summary);
   });

@@ -2,11 +2,14 @@ import { ImportSkillRequest } from "@wiki-agents/contracts/skills/import-skill/r
 import { ImportSkillResponse } from "@wiki-agents/contracts/skills/import-skill/response";
 import { Effect } from "effect";
 import { HttpServerRequest, HttpServerResponse } from "effect/http";
-import { skillErrors } from "../http.js";
-import { Skills } from "../repository.js";
+import { internalError } from "../../../shared/http-errors.js";
+import { skillBodyResponses } from "../http.js";
+import { importSkill } from "./use-case.js";
 
 export const importSkillEndpoint = Effect.gen(function* () {
   const request = yield* HttpServerRequest.schemaBodyJson(ImportSkillRequest);
-  const skills = yield* Skills;
-  return yield* HttpServerResponse.schemaJson(ImportSkillResponse)(yield* skills.importFolder(request));
-}).pipe(skillErrors("import skill"));
+  return yield* HttpServerResponse.schemaJson(ImportSkillResponse)(yield* importSkill(request));
+}).pipe(
+  Effect.catchTags(skillBodyResponses),
+  Effect.catch(internalError("import skill")),
+);

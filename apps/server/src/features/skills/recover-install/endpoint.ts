@@ -2,11 +2,14 @@ import { RecoverInstallRequest } from "@wiki-agents/contracts/skills/recover-ins
 import { RecoverInstallResponse } from "@wiki-agents/contracts/skills/recover-install/response";
 import { Effect } from "effect";
 import { HttpServerRequest, HttpServerResponse } from "effect/http";
-import { skillErrors } from "../http.js";
-import { Skills } from "../repository.js";
+import { internalError } from "../../../shared/http-errors.js";
+import { skillBodyResponses } from "../http.js";
+import { recoverInstall } from "./use-case.js";
 
 export const recoverInstallEndpoint = Effect.gen(function* () {
   const request = yield* HttpServerRequest.schemaBodyJson(RecoverInstallRequest);
-  const skills = yield* Skills;
-  return yield* HttpServerResponse.schemaJson(RecoverInstallResponse)(yield* skills.recover(request));
-}).pipe(skillErrors("recover install"));
+  return yield* HttpServerResponse.schemaJson(RecoverInstallResponse)(yield* recoverInstall(request));
+}).pipe(
+  Effect.catchTags(skillBodyResponses),
+  Effect.catch(internalError("recover install")),
+);

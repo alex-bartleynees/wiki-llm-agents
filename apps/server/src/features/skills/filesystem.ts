@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, renameSync, rmdirSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { type Catalog, type Detail, type Settings as SkillSettings, Settings } from "@wiki-agents/contracts/skills/model";
@@ -10,12 +10,32 @@ import { SecretMaterial } from "../secrets/material.js";
 import { info, markdown, MAX_MARKDOWN_BYTES, metadata, readBundle, readRegular, writeBundle } from "./bundle.js";
 import { installPlan, installTarget, recoverInstall } from "./installs.js";
 import { configuredPath, disjoint, librarySkill, pathGuard, physicalDestinations, previewPaths } from "./paths.js";
-import { SkillProblem } from "./problem.js";
+import { isSkillProblem, SkillConflict, type SkillError, SkillInvalid, SkillNotFound, SkillStorageError } from "./errors.js";
 import { Skills } from "./repository.js";
 import { writeAtomic } from "./state-file.js";
 
 type Options = { configDir: string; dataDir: string; home: string };
-const template = (name: string) => `---\nname: ${JSON.stringify(name)}\ndescription: Describe when to use this skill.\n---\n\n# ${name}\n\nWrite the skill instructions here.\n`;
+function claimDirectory(path: string) {
+  try {
+    mkdirSync(path);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") throw new SkillConflict({ message: "A skill folder with this name already exists in the library." });
+    throw error;
+  }
+}
+
+function removeIfEmpty(path: string) {
+  try {
+    rmdirSync(path);
+  } catch (error) {
+    if (!["ENOENT", "ENOTEMPTY"].includes((error as NodeJS.ErrnoException).code ?? "")) throw error;
+  }
+}
+
+function checkContent(content: string, name: string) {
+  if (Buffer.byteLength(content) > MAX_MARKDOWN_BYTES) throw new SkillInvalid({ message: "SKILL.md exceeds the size limit." });
+  metadata(content, name);
+}
 
 class LocalSkills {
   readonly defaults: SkillSettings;
@@ -47,18 +67,20 @@ class LocalSkills {
   paths(settings: SkillSettings) {
     const preview = this.preview(settings);
     const problems = preview.diagnostics.filter(({ kind }) => kind !== "alias");
-    if (problems.length) throw new SkillProblem(problems.map(({ message }) => message).join("\n"));
+    if (problems.length) throw new SkillInvalid({ message: problems.map(({ message }) => message).join("\n") });
     const destinations = preview.destinations.map(({ label, enteredPath, resolvedPath }) => {
       const path = enteredPath.trim();
       return path === resolvedPath ? { label, path } : { label, path, resolvedPath: resolvedPath! };
     });
-    return { library: preview.library.resolvedPath!, destinations };
+    const library = preview.library.enteredPath.trim();
+    const libraryResolvedPath = preview.library.resolvedPath!;
+    return library === libraryResolvedPath ? { library, destinations } : { library, libraryResolvedPath, destinations };
   }
 
   configure(settings: SkillSettings, baseHash: string | null) {
-    if (this.settings().hash !== baseHash) throw new SkillProblem("Settings changed. Reload them and try again.", 409);
+    if (this.settings().hash !== baseHash) throw new SkillConflict({ message: "Settings changed. Reload them and try again." });
     const resolved = this.paths(settings);
-    mkdirSync(resolved.library, { recursive: true });
+    mkdirSync(resolved.libraryResolvedPath ?? resolved.library, { recursive: true });
     mkdirSync(dirname(this.file), { recursive: true });
     writeAtomic(this.file, JSON.stringify(resolved));
     return this.settings();
@@ -66,26 +88,26 @@ class LocalSkills {
 
   configured() {
     const { settings } = this.settings();
-    if (settings === null) throw new SkillProblem("Configure a local skills library first.");
+    if (settings === null) throw new SkillInvalid({ message: "Configure a local skills library first." });
     const resolved = this.paths(settings);
-    if (settings.library !== resolved.library || settings.destinations.some((entry, index) => {
+    const library = resolved.libraryResolvedPath ?? resolved.library;
+    if ((settings.libraryResolvedPath ?? settings.library) !== library || settings.destinations.some((entry, index) => {
       const actual = resolved.destinations[index]!;
       return (entry.resolvedPath ?? entry.path) !== (actual.resolvedPath ?? actual.path);
     })) {
-      throw new SkillProblem("A configured folder now resolves to a different path. Review Skills settings.", 409);
+      throw new SkillConflict({ message: "A configured folder now resolves to a different path. Review Skills settings." });
     }
-    return { library: resolved.library, destinations: physicalDestinations(resolved.destinations) };
+    return { library, destinations: physicalDestinations(resolved.destinations) };
   }
 
-  list(query = "") {
+  list() {
     if (this.settings().settings === null) return { skills: [], problems: [] };
-    return this.scan(this.configured().library, query);
+    return this.scan(this.configured().library);
   }
 
-  private scan(library: string, query: string) {
+  private scan(library: string) {
     const skills: Array<(typeof Catalog.Type)["skills"][number]> = [];
     const problems: Array<(typeof Catalog.Type)["problems"][number]> = [];
-    const needle = query.trim().toLowerCase();
     if (!info(library)) return { skills, problems: [{ path: library, message: "The library folder is missing." }] };
     const walk = (parent: string, prefix: string) => {
       for (const entry of readdirSync(parent, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
@@ -105,11 +127,9 @@ class LocalSkills {
             continue;
           }
           const result = markdown(path, this.guard, name);
-          if (`${name} ${result.description}`.toLowerCase().includes(needle)) {
-            skills.push({ name, skillPath, description: result.description, path });
-          }
+          skills.push({ name, skillPath, description: result.description, path });
         } catch (error) {
-          problems.push({ path, message: error instanceof SkillProblem ? error.message : "Could not read this library folder." });
+          problems.push({ path, message: isSkillProblem(error) ? error.message : "Could not read this library folder." });
         }
       }
     };
@@ -120,12 +140,12 @@ class LocalSkills {
   source(settings: Pick<SkillSettings, "library">, skillPath: string) {
     const { path, name } = librarySkill(settings.library, skillPath, this.guard);
     const stat = info(path);
-    if (!stat) throw new SkillProblem("The skill is missing from the library.", 404);
-    if (!stat.isDirectory()) throw new SkillProblem("The library skill must be a regular directory.");
+    if (!stat) throw new SkillNotFound({ message: "The skill is missing from the library." });
+    if (!stat.isDirectory()) throw new SkillInvalid({ message: "The library skill must be a regular directory." });
     const document = markdown(path, this.guard, name);
     const bundle = readBundle(path, this.guard);
     if (document.content !== bundle.content) {
-      throw new SkillProblem("SKILL.md changed while it was being read. Try again.", 409);
+      throw new SkillConflict({ message: "SKILL.md changed while it was being read. Try again." });
     }
     return { path, document, bundle };
   }
@@ -134,7 +154,7 @@ class LocalSkills {
     const source = this.source(settings, skillPath);
     let candidates: Array<{ path: string; digest: string | null }> | undefined;
     const copyStatus = (digest: string) => {
-      candidates ??= this.scan(settings.library, source.document.name).skills
+      candidates ??= this.scan(settings.library).skills
         .filter((candidate) => candidate.name === source.document.name)
         .map((candidate) => {
           if (candidate.skillPath === skillPath) return { path: skillPath, digest: source.bundle.digest };
@@ -165,7 +185,7 @@ class LocalSkills {
         try {
           return installTarget(this.options.dataDir, destination, document.name, skillPath, source, this.guard);
         } catch (error) {
-          if (!(error instanceof SkillProblem)) throw error;
+          if (!isSkillProblem(error)) throw error;
           return { destination, path: join(destination.path, document.name), status: "conflict", actions: [], problem: error.message };
         }
       }),
@@ -175,56 +195,59 @@ class LocalSkills {
   private add(library: string, name: string, writer: (stage: string) => void) {
     const target = join(library, name);
     this.guard(target);
-    if (info(target)) throw new SkillProblem("A skill folder with this name already exists in the library.", 409);
+    if (info(target)) throw new SkillConflict({ message: "A skill folder with this name already exists in the library." });
     mkdirSync(library, { recursive: true });
     const stage = mkdtempSync(join(library, ".skill-"));
     try {
       writer(stage);
-      if (info(target)) throw new SkillProblem("A skill folder with this name already exists in the library.", 409);
-      renameSync(stage, target);
+      claimDirectory(target);
+      try {
+        renameSync(stage, target);
+      } catch (error) {
+        removeIfEmpty(target);
+        throw error;
+      }
     } finally {
       rmSync(stage, { recursive: true, force: true });
     }
   }
 
-  save(skillPath: string, incoming: string, baseHash: string | null) {
-    const { library } = this.configured();
-    const { path, parent, name } = librarySkill(library, skillPath, this.guard);
-    const content = baseHash === null && incoming === "" ? template(name) : incoming;
-    if (Buffer.byteLength(content) > MAX_MARKDOWN_BYTES) throw new SkillProblem("SKILL.md exceeds the size limit.");
-    metadata(content, name);
-    if (baseHash === null) {
-      this.add(parent, name, (stage) => writeFileSync(join(stage, "SKILL.md"), content));
-    } else {
-      const file = join(path, "SKILL.md");
-      this.guard(file);
-      if (!info(path)?.isDirectory() || !info(file)?.isFile()) throw new SkillProblem("SKILL.md was removed or replaced. Reload before saving.", 409);
-      const current = readRegular(file, MAX_MARKDOWN_BYTES);
-      if (sha256(current.bytes) !== baseHash) throw new SkillProblem("SKILL.md changed on disk. Review the disk version before saving.", 409);
-      writeAtomic(file, content, current.mode);
-    }
-    return this.detail(skillPath);
+  create(skillPath: string, content: string) {
+    const { parent, name } = librarySkill(this.configured().library, skillPath, this.guard);
+    checkContent(content, name);
+    this.add(parent, name, (stage) => writeFileSync(join(stage, "SKILL.md"), content));
+  }
+
+  update(skillPath: string, content: string, baseHash: string) {
+    const { path, name } = librarySkill(this.configured().library, skillPath, this.guard);
+    checkContent(content, name);
+    const file = join(path, "SKILL.md");
+    this.guard(file);
+    if (!info(path)?.isDirectory() || !info(file)?.isFile()) throw new SkillConflict({ message: "SKILL.md was removed or replaced. Reload before saving." });
+    const current = readRegular(file, MAX_MARKDOWN_BYTES);
+    if (sha256(current.bytes) !== baseHash) throw new SkillConflict({ message: "SKILL.md changed on disk. Review the disk version before saving." });
+    writeAtomic(file, content, current.mode);
   }
 
   importFolder(input: string) {
     const { library, destinations } = this.configured();
     const path = configuredPath(input, this.guard, this.options.home);
     disjoint([library, path, ...destinations.map((destination) => destination.path)]);
-    if (!info(path)) throw new SkillProblem("The import folder does not exist.", 404);
+    if (!info(path)) throw new SkillNotFound({ message: "The import folder does not exist." });
     const document = markdown(path, this.guard);
     const bundle = readBundle(path, this.guard);
-    if (document.content !== bundle.content) throw new SkillProblem("The import changed while it was being read.", 409);
+    if (document.content !== bundle.content) throw new SkillConflict({ message: "The import changed while it was being read." });
     this.add(library, document.name, (stage) => {
       writeBundle(stage, bundle, this.guard);
-      if (readBundle(stage, this.guard).digest !== bundle.digest) throw new SkillProblem("The staged import failed verification.");
+      if (readBundle(stage, this.guard).digest !== bundle.digest) throw new SkillInvalid({ message: "The staged import failed verification." });
     });
-    return this.detail(document.name);
+    return document.name;
   }
 
   destination(path: string) {
     const settings = this.configured();
     const destination = settings.destinations.find((entry) => entry.path === path);
-    if (destination === undefined) throw new SkillProblem("The install destination is no longer configured.", 409);
+    if (destination === undefined) throw new SkillConflict({ message: "The install destination is no longer configured." });
     return { settings, destination };
   }
 
@@ -232,7 +255,6 @@ class LocalSkills {
     const { settings, destination } = this.destination(path);
     const { document } = this.source(settings, skillPath);
     recoverInstall(this.options.dataDir, destination, document.name, skillPath, this.guard);
-    return this.detail(skillPath);
   }
 
   plan(skillPath: string, path: string, action: Parameters<typeof installPlan>[4]) {
@@ -242,33 +264,30 @@ class LocalSkills {
   }
 }
 
+const attempt = <A>(operation: () => A): Effect.Effect<A, SkillError> =>
+  Effect.try({ try: operation, catch: (cause) => isSkillProblem(cause) ? cause : new SkillStorageError({ cause }) });
+
 export const makeSkills = (options: Options | null) => Layer.effect(Skills, Effect.gen(function* () {
   const material = yield* SecretMaterial;
   const local = <A>(operation: (store: LocalSkills) => A) => material.current.pipe(Effect.flatMap((protection) =>
-    Effect.try({
-      try: () => {
-        if (options === null) throw new SkillProblem("Local skills storage is unavailable.");
-        return operation(new LocalSkills(options, protection));
-      },
-      catch: (error) => error,
+    attempt(() => {
+      if (options === null) throw new SkillInvalid({ message: "Local skills storage is unavailable." });
+      return operation(new LocalSkills(options, protection));
     }),
   ));
   return Skills.of({
     settings: () => local((store) => store.settings()),
     previewSettings: (settings) => local((store) => store.preview(settings)),
     configure: ({ baseHash, ...settings }) => local((store) => store.configure(settings, baseHash)),
-    list: ({ q }) => local((store) => store.list(q)),
+    list: () => local((store) => store.list()),
     detail: ({ skillPath }) => local((store) => store.detail(skillPath)),
-    save: ({ skillPath, content, baseHash }) => local((store) => store.save(skillPath, content, baseHash)),
-    importFolder: ({ path }) => local((store) => store.importFolder(path)),
-    review: ({ skillPath, destination, action }) => local((store) => store.plan(skillPath, destination, action).review),
+    create: (skillPath, content) => local((store) => store.create(skillPath, content)),
+    update: (skillPath, content, baseHash) => local((store) => store.update(skillPath, content, baseHash)),
+    importFolder: (path) => local((store) => store.importFolder(path)),
+    plan: ({ skillPath, destination, action }) => local((store) => store.plan(skillPath, destination, action)).pipe(
+      Effect.map(({ review, apply }) => ({ review, apply: attempt(apply) })),
+    ),
     recover: ({ skillPath, destination }) => local((store) => store.recover(skillPath, destination)),
-    apply: ({ skillPath, destination, action, token }) => local((store) => {
-      const plan = store.plan(skillPath, destination, action);
-      if (plan.review.token !== token) throw new SkillProblem("The files changed since review. Review the new diff.", 409);
-      plan.apply();
-      return store.detail(skillPath);
-    }),
   });
 }));
 
