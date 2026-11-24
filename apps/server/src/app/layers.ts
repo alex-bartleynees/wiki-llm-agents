@@ -1,10 +1,10 @@
 import { join } from "node:path";
-import { makeSkills, SkillsLive } from "../features/skills/filesystem.js";
-import type { Skills } from "../features/skills/repository.js";
+import { makeSkills, SkillsLive } from "../features/skills/skills-live.js";
+import type { Skills } from "../features/skills/skills.js";
 import type { SecretMaterial } from "../features/secrets/material.js";
 import { ProjectRepositoryLive } from "../features/projects/sqlite-repository.js";
 import { NodeChildProcessSpawner, NodeFileSystem, NodeHttpServer, NodePath } from "@effect/platform-node";
-import { Effect, type FileSystem, Layer, Option } from "effect";
+import { type Config, Effect, type FileSystem, Layer, Option } from "effect";
 import { HttpRouter } from "effect/http";
 import type { ChildProcessSpawner } from "effect/process";
 import type { AgentCatalog } from "../features/agents/catalog.js";
@@ -73,7 +73,7 @@ export const RepositoriesLive = Layer.mergeAll(
 );
 
 export interface AppOptions {
-  readonly skills?: Layer.Layer<Skills, import("effect").Config.ConfigError, SecretMaterial>;
+  readonly skills?: Layer.Layer<Skills, Config.ConfigError, SecretMaterial | FileSystem.FileSystem>;
   /** Folders from `--vault`, registered before the server starts. */
   readonly vaults: ReadonlyArray<string>;
   /** Watch vault folders for changes. Off in tests that drive the indexer themselves. */

@@ -328,7 +328,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
    */
   const currentSetup = (turnId: string) => Effect.gen(function* () {
     if (worktree !== null) {
-      const problem = yield* worktreeProblem(threadId).pipe(Effect.provideService(ProjectRepository, projects));
+      const problem = yield* worktreeProblem(threadId).pipe(Effect.provideService(ProjectRepository, projects), Effect.provideService(FileSystem.FileSystem, fs));
       if (problem !== null) return yield* new ProviderError({ message: problem });
     }
     const { agentId } = yield* repository.providerSession(threadId);

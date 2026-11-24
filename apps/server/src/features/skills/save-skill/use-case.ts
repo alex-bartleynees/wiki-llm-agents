@@ -1,6 +1,6 @@
 import type { SaveSkillRequest } from "@wiki-agents/contracts/skills/save-skill/request";
 import { Effect } from "effect";
-import { Skills } from "../repository.js";
+import { Skills } from "../skills.js";
 
 const template = (name: string) => `---\nname: ${JSON.stringify(name)}\ndescription: Describe when to use this skill.\n---\n\n# ${name}\n\nWrite the skill instructions here.\n`;
 

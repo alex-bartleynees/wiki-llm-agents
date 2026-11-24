@@ -1,0 +1,12 @@
+{
+  "apps/server/src/features/mcp-oauth/oauth-client.ts": ["fetch"],
+  "apps/server/src/features/notifications/push-sender.ts": ["fs", "fetch"],
+  "apps/server/src/features/providers/binary.ts": ["child_process", "fs"],
+  "apps/server/src/features/providers/codex/adapter.ts": ["fs"],
+  "apps/server/src/features/providers/codex/app-server.ts": ["child_process"],
+  "apps/server/src/features/providers/opencode/server.ts": ["child_process"],
+  "apps/server/src/features/providers/replay/adapter.ts": ["fs"],
+  "apps/server/src/features/providers/replay/vault-tools.ts": ["fetch"],
+  "apps/server/src/shared/node-files.ts": ["fs", "fs/promises"],
+  "apps/server/src/shared/persistence/sqlite.ts": ["fs"]
+}

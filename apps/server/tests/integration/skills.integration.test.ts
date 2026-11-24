@@ -8,9 +8,11 @@ import { Effect, Layer } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/http";
 import { readBundle } from "../../src/features/skills/bundle.js";
 import { installStateFolder } from "../../src/features/skills/installs.js";
-import { makeSkills } from "../../src/features/skills/filesystem.js";
+import { makeSkills } from "../../src/features/skills/skills-live.js";
 import { makeTestApp } from "./infrastructure/test-app.js";
 import { decode } from "./infrastructure/threads.js";
+
+const bundleDigest = (path: string) => Effect.map(readBundle(path, () => Effect.void), ({ digest }) => digest);
 
 const root = realpathSync(tmpdir());
 const testSkills = Layer.unwrap(Effect.map(
@@ -327,7 +329,7 @@ layer(app)("local skills", (it) => {
     mkdirSync(staging, { recursive: true });
     const stage = join(staging, "stage");
     cpSync(directory, stage, { recursive: true });
-    const digest = readBundle(directory, () => undefined).digest;
+    const digest = yield* bundleDigest(directory);
     const pending = { next: { current: digest, previous: null, skillPath: name, transaction: workspace },
       workspace, before: null };
     const journal = join(local, "pending.json");
@@ -356,7 +358,7 @@ layer(app)("local skills", (it) => {
     const local = stateFolder(initial.defaults.library, destination, name);
     const workspace = randomUUID();
     const stage = join(destination, ".wiki-agents-stage-" + workspace);
-    const digest = readBundle(live, () => undefined).digest;
+    const digest = yield* bundleDigest(live);
     const interrupt = (current: string | null) => {
       const next = { current, previous: digest, skillPath: name, transaction: workspace };
       const encoded = JSON.stringify({ next, workspace, before: digest });
@@ -387,7 +389,7 @@ layer(app)("local skills", (it) => {
   it.effect("finishes a published update and an interrupted removal", () => Effect.gen(function* () {
     const name = "publish-skill";
     const install = yield* managed(name, "publish");
-    const updated = install.interrupt(readBundle(join(install.library, name), () => undefined).digest);
+    const updated = install.interrupt(yield* bundleDigest(join(install.library, name)));
     cpSync(install.live, join(install.stage, "old"), { recursive: true });
     expect((yield* recover(name, install.destination)).status).toBe(200);
     expect(install.state()).toEqual(updated.next);
@@ -482,7 +484,7 @@ layer(app)("local skills", (it) => {
         return yield* send("POST", "/api/skills/apply", { ...body, token: plan.token });
       });
       expect((yield* apply("install")).status).toBe(200);
-      const original = readBundle(live, () => undefined).digest;
+      const original = yield* bundleDigest(live);
       writeFileSync(join(folder, "SKILL.md"), source(name, "After"));
       expect((yield* apply("update")).status).toBe(200);
       expect(readdirSync(destination)).toEqual([name]);
@@ -523,11 +525,11 @@ layer(app)("local skills", (it) => {
     });
     yield* apply("install");
     const live = join(destination, name);
-    const first = readBundle(live, () => undefined).digest;
+    const first = yield* bundleDigest(live);
     const secondContent = source(name, "Second revision");
     draft = yield* putSkill(name, secondContent, draft.hash).pipe(Effect.flatMap(decode(Detail)));
     yield* apply("update");
-    const second = readBundle(live, () => undefined).digest;
+    const second = yield* bundleDigest(live);
     const records = stateFolder(initial.defaults.library, destination, name);
     const damaged = join(records, first, "SKILL.md");
     writeFileSync(damaged, "Damaged obsolete snapshot");
@@ -537,8 +539,8 @@ layer(app)("local skills", (it) => {
 
     expect(updated.targets[0]?.status).toBe("installed");
     expect(readFileSync(join(live, "SKILL.md"), "utf8")).toBe(thirdContent);
-    const current = readBundle(live, () => undefined).digest;
-    expect(readBundle(join(records, second), () => undefined).digest).toBe(second);
+    const current = yield* bundleDigest(live);
+    expect(yield* bundleDigest(join(records, second))).toBe(second);
     expect(readFileSync(join(records, second, "SKILL.md"), "utf8")).toBe(secondContent);
     expect(readFileSync(damaged, "utf8")).toBe("Damaged obsolete snapshot");
     expect(JSON.parse(readFileSync(join(records, "state.json"), "utf8"))).toMatchObject({ current, previous: second });

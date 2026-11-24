@@ -1,8 +1,14 @@
 import type { SearchResult } from "@wiki-agents/contracts/search/search-notes/response";
-import { Effect, Option, Schema } from "effect";
+import { Effect, Layer, Option, Schema } from "effect";
+import { FetchHttpClient, HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http";
 import { AppConfig } from "../../shared/config.js";
 
 const Chunks = Schema.Array(Schema.Struct({ source_file: Schema.String }));
+const TIMEOUT = "3 seconds";
+
+const RagAiHttp = Layer.fresh(FetchHttpClient.layer).pipe(
+  Layer.provide(Layer.succeed(FetchHttpClient.RequestInit)({ redirect: "error" })),
+);
 
 export const ragAiUrlForVault = (rootPath: string) =>
   Effect.all([AppConfig.ragAiUrl, AppConfig.ragAiVaultRoot]).pipe(
@@ -10,20 +16,24 @@ export const ragAiUrlForVault = (rootPath: string) =>
     Effect.orElseSucceed(() => undefined),
   );
 
-export const searchPaths = (baseUrl: string, query: string, k: number, folder?: string) =>
-  Effect.tryPromise(async (signal) => {
-    const url = new URL(baseUrl);
-    if (url.protocol !== "http:" && url.protocol !== "https:") throw new Error("Expected an HTTP rag-ai URL");
+const searchUrl = (baseUrl: string) =>
+  Effect.gen(function* () {
+    const url = yield* Schema.decodeUnknownEffect(Schema.URLFromString)(baseUrl);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return yield* Effect.fail("Expected an HTTP rag-ai URL" as const);
     url.pathname = url.pathname.replace(/\/$/, "") + "/search";
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ query, k, path_prefix: folder === undefined ? undefined : folder + "/" }),
-      redirect: "error",
-      signal: AbortSignal.any([signal, AbortSignal.timeout(3000)]),
-    });
-    if (!response.ok) throw new Error("rag-ai search failed with HTTP " + response.status);
-    const chunks = Schema.decodeUnknownSync(Chunks)(await response.json());
+    return url;
+  });
+
+export const searchPaths = (baseUrl: string, query: string, k: number, folder?: string) =>
+  Effect.gen(function* () {
+    const url = yield* searchUrl(baseUrl);
+    const body = { query, k, path_prefix: folder === undefined ? undefined : folder + "/" };
+    const chunks = yield* HttpClient.execute(HttpClientRequest.post(url).pipe(HttpClientRequest.bodyJsonUnsafe(body))).pipe(
+      Effect.flatMap(HttpClientResponse.filterStatusOk),
+      Effect.flatMap(HttpClientResponse.schemaBodyJson(Chunks)),
+      Effect.timeout(TIMEOUT),
+      Effect.provide(RagAiHttp),
+    );
     return [...new Set(chunks.slice(0, k).map((chunk) => chunk.source_file))];
   }).pipe(Effect.option);
 

@@ -1,7 +1,7 @@
 import type { ApplyInstallRequest } from "@wiki-agents/contracts/skills/apply-install/request";
 import { Effect } from "effect";
 import { SkillConflict } from "../errors.js";
-import { Skills } from "../repository.js";
+import { Skills } from "../skills.js";
 
 export const applyInstall = Effect.fn("applyInstall")(function* (request: ApplyInstallRequest) {
   const skills = yield* Skills;

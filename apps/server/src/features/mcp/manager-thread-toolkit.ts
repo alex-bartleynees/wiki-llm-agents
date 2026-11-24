@@ -1,6 +1,7 @@
 import { ChildWorkerSelection, type RequestPrompt, type ThreadSummary, TurnOutcome } from "@wiki-agents/contracts/threads/model";
 import { Effect, Layer, Option, Schema, type FileSystem } from "effect";
 import { McpServer, Tool, Toolkit } from "effect/ai";
+import type { ChildProcessSpawner } from "effect/process";
 import { AgentCatalog } from "../agents/catalog.js";
 import type { ProjectRepository } from "../projects/repository.js";
 import type { WorktreeRoot } from "../projects/worktrees.js";
@@ -82,7 +83,7 @@ const ManagerVisibility = McpServer.visibility(Effect.gen(function* () {
   );
 }));
 
-type Services = WallClock | ThreadActors | ThreadRepository | ThreadBus | AgentCatalog | ProjectRepository | ProviderRegistry | VaultRepository | WorktreeRoot | FileSystem.FileSystem;
+type Services = WallClock | ThreadActors | ThreadRepository | ThreadBus | AgentCatalog | ProjectRepository | ProviderRegistry | VaultRepository | WorktreeRoot | FileSystem.FileSystem | ChildProcessSpawner.ChildProcessSpawner;
 
 const managerHandlers = ManagerTools.toLayer(Effect.gen(function* () {
   const services = yield* Effect.context<Services>();

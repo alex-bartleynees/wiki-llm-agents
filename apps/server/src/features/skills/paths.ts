@@ -1,90 +1,89 @@
 import type { Destination, PhysicalDestination, Settings, SettingsPreview } from "@wiki-agents/contracts/skills/model";
-import { realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
+import { Effect, FileSystem, type PlatformError } from "effect";
 import { isProtectedName, type Protection } from "../../shared/secret-paths.js";
 import { isInside } from "../../shared/vault/path-guard.js";
-import { checkName, info } from "./bundle.js";
-import { SkillInvalid, SkillNotFound, isSkillProblem } from "./errors.js";
+import { checkName, type Guard, info, isDirectory } from "./bundle.js";
+import { SkillInvalid, SkillNotFound } from "./errors.js";
 
-export function canonical(path: string): string {
-  if (info(path)) return realpathSync(path);
-  return join(canonical(dirname(path)), basename(path));
-}
+const invalid = (message: string) => new SkillInvalid({ message });
 
-export function configuredPath(input: string, guard: (path: string) => void, home = homedir()) {
+export const canonical = (path: string): Effect.Effect<string, PlatformError.PlatformError, FileSystem.FileSystem> =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    if (yield* info(path)) return yield* fs.realPath(path);
+    return join(yield* canonical(dirname(path)), basename(path));
+  });
+
+export const configuredPath = Effect.fnUntraced(function* (input: string, guard: Guard, home = homedir()) {
   const expanded = input.startsWith("~/") ? join(home, input.slice(2)) : input;
-  if (!isAbsolute(expanded) || expanded.includes("\0")) throw new SkillInvalid({ message: "Use an absolute host path or a path starting with ~/." });
+  if (!isAbsolute(expanded) || expanded.includes("\0")) return yield* invalid("Use an absolute host path or a path starting with ~/.");
   const written = resolve(expanded);
-  guard(written);
-  let path: string;
-  try {
-    path = canonical(written);
-  } catch {
-    throw new SkillInvalid({ message: "Could not resolve this folder." });
-  }
-  guard(path);
-  if (dirname(path) === path || path === home) throw new SkillInvalid({ message: "Choose a dedicated folder." });
-  if (info(path) && !info(path)?.isDirectory()) throw new SkillInvalid({ message: "The path must be a directory." });
+  yield* guard(written);
+  const path = yield* canonical(written).pipe(Effect.mapError(() => invalid("Could not resolve this folder.")));
+  yield* guard(path);
+  if (dirname(path) === path || path === home) return yield* invalid("Choose a dedicated folder.");
+  const stat = yield* info(path);
+  if (stat !== undefined && stat.type !== "Directory") return yield* invalid("The path must be a directory.");
   return path;
-}
+});
 
-export function pathGuard(protection: Protection) {
-  return (path: string) => {
-    if (protection.paths.some((protectedPath) => isInside(protectedPath, path)) ||
-        path.split("/").some((part) => part && (part === ".git" || isProtectedName(protection.names, part)))) {
-      throw new SkillInvalid({ message: "The path contains protected material." });
-    }
-  };
-}
+export const pathGuard = (protection: Protection): Guard => (path) =>
+  Effect.suspend(() =>
+    protection.paths.some((protectedPath) => isInside(protectedPath, path)) ||
+    path.split("/").some((part) => part && (part === ".git" || isProtectedName(protection.names, part)))
+      ? Effect.fail(invalid("The path contains protected material."))
+      : Effect.void,
+  );
 
-export function disjoint(paths: readonly string[]) {
-  for (const [index, path] of paths.entries()) {
-    if (paths.slice(index + 1).some((other) => isInside(path, other) || isInside(other, path))) {
-      throw new SkillInvalid({ message: "Library and destination folders must be separate and cannot contain one another." });
-    }
-  }
-}
+export const disjoint = (paths: readonly string[]) =>
+  paths.some((path, index) => paths.slice(index + 1).some((other) => isInside(path, other) || isInside(other, path)))
+    ? Effect.fail(invalid("Library and destination folders must be separate and cannot contain one another."))
+    : Effect.void;
 
-export function librarySkill(root: string, skillPath: string, guard: (path: string) => void) {
+export const librarySkill = Effect.fnUntraced(function* (root: string, skillPath: string, guard: Guard) {
   const parts = skillPath.split("/");
   if (parts.some((part) => !part || part.startsWith(".") || part.includes("\\") || part.includes("\0"))) {
-    throw new SkillInvalid({ message: "Use a library-relative skill path." });
+    return yield* invalid("Use a library-relative skill path.");
   }
   const name = parts.pop()!;
-  checkName(name);
+  yield* checkName(name);
   let parent = root;
   for (const part of parts) {
     parent = join(parent, part);
-    guard(parent);
-    if (!info(parent)?.isDirectory()) throw new SkillNotFound({ message: "The library group is missing or is not a regular directory." });
-    if (info(join(parent, "SKILL.md"))) throw new SkillNotFound({ message: "The selected path is inside a skill bundle." });
+    yield* guard(parent);
+    if (!(yield* isDirectory(parent))) return yield* new SkillNotFound({ message: "The library group is missing or is not a regular directory." });
+    if (yield* info(join(parent, "SKILL.md"))) return yield* new SkillNotFound({ message: "The selected path is inside a skill bundle." });
   }
   const path = join(parent, name);
-  guard(path);
+  yield* guard(path);
   return { name, parent, path };
-}
+});
 
-export function previewPaths(settings: Settings, dataDir: string, home: string, guard: (path: string) => void): SettingsPreview {
+export const previewPaths = Effect.fnUntraced(function* (settings: Settings, dataDir: string, home: string, guard: Guard) {
   const diagnostics: Array<SettingsPreview["diagnostics"][number]> = [];
-  function resolvePath(enteredPath: string, label: string) {
-    try {
-      return { enteredPath, resolvedPath: configuredPath(enteredPath.trim(), guard, home) };
-    } catch (error) {
-      if (!isSkillProblem(error)) throw error;
-      diagnostics.push({ kind: "invalid", message: label + ": " + error.message });
-      return { enteredPath, resolvedPath: null };
-    }
-  }
+  const resolvePath = (enteredPath: string, label: string) =>
+    configuredPath(enteredPath.trim(), guard, home).pipe(
+      Effect.catchTag("SkillInvalid", (error) =>
+        Effect.sync(() => {
+          diagnostics.push({ kind: "invalid", message: label + ": " + error.message });
+          return null;
+        }),
+      ),
+      Effect.map((resolvedPath) => ({ enteredPath, resolvedPath })),
+    );
 
   if (settings.destinations.length > 12) diagnostics.push({ kind: "invalid", message: "Configure up to 12 install destinations." });
-  const library = resolvePath(settings.library, "Library");
-  const destinations = settings.destinations.map(({ label, path }) => {
-    if (!label.trim() || label.length > 100) diagnostics.push({ kind: "invalid", message: "Enter a label of up to 100 characters for each destination." });
-    return { label: label.trim(), ...resolvePath(path, label.trim() || "Destination") };
-  });
+  const library = yield* resolvePath(settings.library, "Library");
+  const destinations = yield* Effect.forEach(settings.destinations, ({ label, path }) =>
+    Effect.gen(function* () {
+      if (!label.trim() || label.length > 100) diagnostics.push({ kind: "invalid", message: "Enter a label of up to 100 characters for each destination." });
+      return { label: label.trim(), ...(yield* resolvePath(path, label.trim() || "Destination")) };
+    }),
+  );
   const roots = [
-    { label: "App data", resolvedPath: canonical(dataDir), destination: false },
+    { label: "App data", resolvedPath: yield* canonical(dataDir), destination: false },
     { label: "Library", resolvedPath: library.resolvedPath, destination: false },
     ...destinations.map((entry) => ({ ...entry, destination: true })),
   ];
@@ -100,8 +99,8 @@ export function previewPaths(settings: Settings, dataDir: string, home: string, 
       }
     }
   }
-  return { library, destinations, diagnostics };
-}
+  return { library, destinations, diagnostics } satisfies SettingsPreview;
+});
 
 export function physicalDestinations(destinations: readonly Destination[]): PhysicalDestination[] {
   const groups = new Map<string, Set<string>>();

@@ -20,6 +20,9 @@ Read `README.md` first. Design decisions are in the user's vault at
   never import each other.
 - Endpoints decode the request, call a use case or repository, map errors, and
   encode the response. No SQL or file IO in endpoints.
+- Server IO uses Effect's `FileSystem`, `ChildProcess` and `HttpClient`, not `node:fs`,
+  `node:child_process` or `fetch`. `npm run check` enforces it; record an exception in
+  `docs/adr/0009-effect-io.md` and `scripts/effect-io-exceptions.json`.
 - A feature never imports another feature's adapter (`sqlite-repository.ts`).
 - Each feature owns its tables in `features/<feature>/table.ts`; generate a
   migration with `npm run db:generate -w @wiki-agents/server`; never edit

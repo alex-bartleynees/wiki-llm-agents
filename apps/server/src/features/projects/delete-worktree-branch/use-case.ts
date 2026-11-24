@@ -14,12 +14,9 @@ export const deleteWorktreeBranch = Effect.fn("deleteWorktreeBranch")(function* 
   }
   // Finish reconciliation even if the request closes after Git starts the mutation.
   return yield* Effect.uninterruptible(Effect.gen(function* () {
-    const removed = yield* Effect.tryPromise({
-      try: () => deleteVerifiedRef(state.directory, state.repository, state.ref, state.tip, state.identity, state.target.tracking, state.target.tip),
-      catch: () => false,
-    }).pipe(Effect.orElseSucceed(() => false));
+    const removed = yield* deleteVerifiedRef(state.directory, state.repository, state.ref, state.tip, state.identity, state.target.tracking, state.target.tip);
     if (!removed) {
-      const local = yield* Effect.promise(() => inspectBranch(state.directory, state.ref, state.repository));
+      const local = yield* inspectBranch(state.directory, state.ref, state.repository);
       if (local.status !== "missing") {
         return yield* new BranchCleanupRefused({
           message: local.status === "present" && local.occupied

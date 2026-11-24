@@ -27,7 +27,7 @@ export const listWorktrees = Effect.fn("listProjectWorktrees")(function* (projec
         const exists = yield* worktreeExists(worktree);
         const changedFiles = exists ? (yield* changedPaths(worktree.directory)).filter((change) => !ignored.has(change.path)).length : null;
         const branchDeleted = worktree.branchDeletedAt !== null || (worktree.removedAt !== null &&
-          (yield* Effect.promise(() => inspectBranch(main, `refs/heads/${worktree.branch}`))).status === "missing");
+          (yield* inspectBranch(main, `refs/heads/${worktree.branch}`)).status === "missing");
         return { ...worktree, exists, changedFiles, branchDeleted, sharedWith: sharedWith(worktree.threadId) };
       }),
     { concurrency: 4 },

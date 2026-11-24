@@ -1,7 +1,6 @@
-import { stat } from "node:fs/promises";
 import { isAbsolute, join, relative } from "node:path";
 import type { Project, Worktree } from "@wiki-agents/contracts/projects/model";
-import { Clock, Context, Data, Effect, Layer, Option } from "effect";
+import { Clock, Context, Data, Effect, FileSystem, Layer, Option } from "effect";
 import { AppConfig } from "../../shared/config.js";
 import { captureRemovedBranch } from "./branch-cleanup-git.js";
 import { InvalidProject } from "./errors.js";
@@ -30,7 +29,10 @@ export const WorktreeRootLive = Layer.unwrap(
 
 export class WorktreeNotFound extends Data.TaggedError("WorktreeNotFound")<{ readonly threadId: string }> {}
 
-const exists = (path: string) => Effect.promise(() => stat(path).then((info) => info.isDirectory(), () => false));
+const exists = Effect.fnUntraced(function* (path: string) {
+  const fs = yield* FileSystem.FileSystem;
+  return yield* fs.stat(path).pipe(Effect.map((info) => info.type === "Directory"), Effect.orElseSucceed(() => false));
+});
 
 const isWithin = (root: string, path: string) => {
   const rel = relative(root, path);
@@ -152,7 +154,7 @@ export const removeThreadWorktree = Effect.fn("removeThreadWorktree")(function* 
   if (yield* exists(worktree.path)) {
     const project = yield* findProject(worktree.projectId);
     const main = mainDirectory(project);
-    identity = yield* Effect.promise(() => captureRemovedBranch(main, worktree.path, worktree.branch));
+    identity = yield* captureRemovedBranch(main, worktree.path, worktree.branch);
     yield* removeWorktree(main, worktree.path);
     yield* removeEmptyParents(worktree.path, (yield* WorktreeRoot).directory);
   }

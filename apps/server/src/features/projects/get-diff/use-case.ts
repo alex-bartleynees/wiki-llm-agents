@@ -38,7 +38,7 @@ export const getDiff = Effect.fn("getProjectDiff")(function* (projectId: string)
   const ignoredIn = (directory: string) => ignoredFiles.filter((file) => file.directory === directory).map((file) => file.path);
   const diffs = yield* Effect.forEach(
     directories,
-    (directory, index): Effect.Effect<DirectoryDiff, Effect.Error<ReturnType<typeof diffDirectory>>> => {
+    (directory, index): Effect.Effect<DirectoryDiff, Effect.Error<ReturnType<typeof reviewable>>, Effect.Services<ReturnType<typeof reviewable>>> => {
       const ignored = ignoredIn(directory);
       return inGit[index]
         ? reviewable(directory).pipe(Effect.map(({ head, files }) => ({ directory, git: true, head, files, changes: [], ignored })))

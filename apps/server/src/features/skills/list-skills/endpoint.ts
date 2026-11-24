@@ -4,7 +4,7 @@ import { Effect } from "effect";
 import { HttpServerRequest, HttpServerResponse } from "effect/http";
 import { internalError } from "../../../shared/http-errors.js";
 import { skillResponses } from "../http.js";
-import { Skills } from "../repository.js";
+import { Skills } from "../skills.js";
 
 export const listSkillsEndpoint = Effect.gen(function* () {
   yield* HttpServerRequest.schemaSearchParams(ListSkillsRequest);

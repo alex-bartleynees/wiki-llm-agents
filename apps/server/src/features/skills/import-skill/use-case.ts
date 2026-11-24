@@ -1,6 +1,6 @@
 import type { ImportSkillRequest } from "@wiki-agents/contracts/skills/import-skill/request";
 import { Effect } from "effect";
-import { Skills } from "../repository.js";
+import { Skills } from "../skills.js";
 
 export const importSkill = Effect.fn("importSkill")(function* ({ path }: ImportSkillRequest) {
   const skills = yield* Skills;

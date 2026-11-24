@@ -10,7 +10,8 @@
   "scripts": {
     "dev": "nix run .#dev",
     "lint:comments": "node scripts/comment-lint.mjs",
-    "check": "npm run lint:comments && npm run check --workspaces --if-present",
+    "lint:effect-io": "node scripts/effect-io-lint.mjs",
+    "check": "npm run lint:comments && npm run lint:effect-io && npm run check --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "build": "npm run build --workspaces --if-present"
   },

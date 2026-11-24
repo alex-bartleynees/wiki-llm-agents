@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { chmodSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, renameSync, rmdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { Schema } from "effect";
+import { Effect, FileSystem, Schema } from "effect";
 import type { BundleDifference, InstallAction, InstallTarget, PhysicalDestination, Review } from "@wiki-agents/contracts/skills/model";
 import { sha256 } from "../../shared/config-files.js";
-import { bundleChanges, type Bundle, type Guard, info, installedBundleDifferences, markdown, readBundle, writeBundle } from "./bundle.js";
+import { removeEmptyDirectory } from "../../shared/node-files.js";
+import { bundleChanges, type Bundle, type Guard, info, installedBundleDifferences, markdown, readBundle, readRegular, type StorageFailure, writeBundle } from "./bundle.js";
 import { SkillConflict, isSkillProblem } from "./errors.js";
-import { readJson, writeAtomic } from "./state-file.js";
+import { writeAtomic } from "./state-file.js";
 
 const Digest = Schema.String.check(Schema.isPattern(/^[a-f0-9]{64}$/));
 const Version = Schema.NullOr(Digest);
@@ -20,255 +20,246 @@ export function installStateFolder(dataDir: string, destination: string, name: s
   return join(dataDir, "skill-installs", sha256(Buffer.from(destination)), name);
 }
 
-function checkDirectory(path: string, guard: Guard) {
-  guard(path);
-  const stat = info(path);
-  if (stat && !stat.isDirectory()) throw new SkillConflict({ message: "The destination or its management directory is unsafe." });
-}
+const conflict = (message: string) => new SkillConflict({ message });
 
-function removeTree(path: string) {
-  const stat = info(path);
-  if (!stat) return;
-  if (!stat.isDirectory()) {
-    rmSync(path);
-    return;
-  }
-  if ((stat.mode & 0o700) !== 0o700) chmodSync(path, (stat.mode & 0o777) | 0o700);
-  for (const entry of readdirSync(path)) removeTree(join(path, entry));
-  rmdirSync(path);
-}
+const checkDirectory = Effect.fnUntraced(function* (path: string, guard: Guard) {
+  yield* guard(path);
+  const stat = yield* info(path);
+  if (stat !== undefined && stat.type !== "Directory") return yield* conflict("The destination or its management directory is unsafe.");
+});
+
+export const removeTree = (path: string): Effect.Effect<void, StorageFailure, FileSystem.FileSystem> =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const stat = yield* info(path);
+    if (stat === undefined) return;
+    if (stat.type !== "Directory") return yield* fs.remove(path);
+    if ((stat.mode & 0o700) !== 0o700) yield* fs.chmod(path, (stat.mode & 0o777) | 0o700);
+    for (const entry of yield* fs.readDirectory(path)) yield* removeTree(join(path, entry));
+    yield* removeEmptyDirectory(path);
+  });
 
 type ExternalStatus = "external installed" | "external differs" | "unmanaged";
-type Source = { path: string; bundle: Bundle; copyStatus: (digest: string) => ExternalStatus };
+type External = { status: ExternalStatus; differences?: BundleDifference[] };
+type Source = { path: string; bundle: Bundle; copyStatus: (digest: string) => Effect.Effect<ExternalStatus, StorageFailure, FileSystem.FileSystem> };
 
-function externalInstall(path: string, name: string, source: Source, guard: Guard): { status: ExternalStatus; differences?: BundleDifference[] } {
-  try {
-    const stat = info(path);
-    if (stat?.isSymbolicLink()) {
-      return { status: realpathSync(path) === source.path ? "external installed" : "unmanaged" };
+const externalInstall = (path: string, name: string, source: Source, guard: Guard) =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const stat = yield* info(path);
+    if (stat?.type === "SymbolicLink") {
+      const external: External = { status: (yield* fs.realPath(path)) === source.path ? "external installed" : "unmanaged" };
+      return external;
     }
-    if (!stat?.isDirectory()) return { status: "unmanaged" };
-    const document = markdown(path, guard, name);
-    const copy = readBundle(path, guard);
-    const status = document.content === copy.content ? source.copyStatus(copy.digest) : "unmanaged";
-    return status === "external differs"
-      ? { status, differences: installedBundleDifferences(copy, source.bundle) }
-      : { status };
-  } catch {
-    return { status: "unmanaged" };
+    if (stat?.type !== "Directory") return { status: "unmanaged" } satisfies External;
+    const document = yield* markdown(path, guard, name);
+    const copy = yield* readBundle(path, guard);
+    const status: ExternalStatus = document.content === copy.content ? yield* source.copyStatus(copy.digest) : "unmanaged";
+    const external: External = status === "external differs" ? { status, differences: installedBundleDifferences(copy, source.bundle) } : { status };
+    return external;
+  }).pipe(Effect.catch(() => Effect.succeed<External>({ status: "unmanaged" })));
+
+const loadRecord = <S extends Schema.ConstraintDecoder<unknown>>(schema: S, path: string, guard: Guard) =>
+  Effect.gen(function* () {
+    yield* guard(path);
+    if ((yield* info(path)) === undefined) return null;
+    const { bytes } = yield* readRegular(path, 128 * 1024);
+    const value = yield* Schema.decodeUnknownEffect(Schema.fromJsonString(Schema.Unknown))(bytes.toString("utf8"));
+    return yield* Schema.decodeUnknownEffect(schema)(value);
+  }).pipe(Effect.mapError(() => conflict("The destination management record is unreadable.")));
+
+const openInstallation = Effect.fnUntraced(function* (dataDir: string, destination: PhysicalDestination, name: string, skillPath: string, guard: Guard) {
+  const fs = yield* FileSystem.FileSystem;
+  const path = join(destination.path, name);
+  const folder = installStateFolder(dataDir, destination.path, name);
+  const record = join(folder, "state.json");
+  const journal = join(folder, "pending.json");
+  const installs = join(dataDir, "skill-installs");
+  for (const directory of [destination.path, installs, join(installs, sha256(Buffer.from(destination.path))), folder]) {
+    yield* checkDirectory(directory, guard);
   }
-}
+  for (const file of [path, record, journal]) yield* guard(file);
 
-class Installation {
-  readonly path: string;
-  readonly folder: string;
-  readonly record: string;
-  readonly journal: string;
-
-  constructor(dataDir: string, readonly destination: PhysicalDestination, readonly name: string, readonly skillPath: string, readonly guard: Guard) {
-    this.path = join(destination.path, name);
-    this.folder = installStateFolder(dataDir, destination.path, name);
-    this.record = join(this.folder, "state.json");
-    this.journal = join(this.folder, "pending.json");
-    for (const directory of [destination.path, join(dataDir, "skill-installs"), join(dataDir, "skill-installs", sha256(Buffer.from(destination.path))), this.folder]) {
-      checkDirectory(directory, guard);
-    }
-    for (const file of [this.path, this.record, this.journal]) guard(file);
-  }
-
-  private workspace(id: string) {
-    const root = join(this.destination.path, ".wiki-agents-stage-" + id);
-    checkDirectory(root, this.guard);
+  const openWorkspace = Effect.fnUntraced(function* (id: string) {
+    const root = join(destination.path, ".wiki-agents-stage-" + id);
+    yield* checkDirectory(root, guard);
     return { root, moved: join(root, "old"), staged: join(root, "stage") };
-  }
+  });
 
-  private read(path: string) {
-    return info(path) ? readBundle(path, this.guard) : null;
-  }
+  const read = Effect.fnUntraced(function* (location: string) {
+    return (yield* info(location)) === undefined ? null : yield* readBundle(location, guard);
+  });
 
-  private holds(path: string, digest: string | null) {
-    try {
-      return (this.read(path)?.digest ?? null) === digest;
-    } catch (error) {
-      if (!isSkillProblem(error)) throw error;
-      return false;
-    }
-  }
+  const holds = (location: string, digest: string | null) =>
+    read(location).pipe(
+      Effect.map((bundle) => (bundle?.digest ?? null) === digest),
+      Effect.catchIf(isSkillProblem, () => Effect.succeed(false)),
+    );
 
-  private requireOwner(state: State | null, pending: Journal) {
+  const requireOwner = (state: State | null, pending: Journal) => {
     const owner = state !== null && state.current !== null ? state.skillPath : pending.next.skillPath;
-    if (owner !== this.skillPath) throw new SkillConflict({ message: `This destination name is managed for ${owner}.` });
-  }
+    return owner === skillPath ? Effect.void : Effect.fail(conflict(`This destination name is managed for ${owner}.`));
+  };
 
-  inspect() {
-    const state = this.load(State, this.record);
-    const pending = this.load(Journal, this.journal);
-    if (pending) this.requireOwner(state, pending);
-    return { state, interrupted: pending !== null };
-  }
+  const load = Effect.gen(function* () {
+    const state: State | null = yield* loadRecord(State, record, guard);
+    const pending: Journal | null = yield* loadRecord(Journal, journal, guard);
+    if (pending !== null) yield* requireOwner(state, pending);
+    return { state, pending };
+  });
 
-  reconcile() {
-    const state = this.load(State, this.record);
-    const pending = this.load(Journal, this.journal);
-    if (!pending) return;
-    this.requireOwner(state, pending);
-    const { root, moved } = this.workspace(pending.workspace);
+  const inspect = Effect.map(load, ({ state, pending }) => ({ state, interrupted: pending !== null }));
+
+  const activated = Effect.fnUntraced(function* ({ next, workspace, before }: Journal) {
+    const { root, moved, staged } = yield* openWorkspace(workspace);
+    return (yield* info(root)) !== undefined &&
+      (yield* info(staged)) === undefined &&
+      (yield* holds(moved, before)) &&
+      (yield* holds(path, next.current));
+  });
+
+  const reconcile = Effect.gen(function* () {
+    const { state, pending } = yield* load;
+    if (pending === null) return;
+    const { root, moved } = yield* openWorkspace(pending.workspace);
     if (state?.transaction !== pending.workspace) {
-      if (this.activated(pending)) writeAtomic(this.record, JSON.stringify(pending.next));
-      else if (info(moved)) {
-        if (info(this.path)) throw new SkillConflict({ message: "The interrupted install has conflicting files. Inspect the destination before retrying." });
-        renameSync(moved, this.path);
+      if (yield* activated(pending)) yield* writeAtomic(record, JSON.stringify(pending.next));
+      else if (yield* info(moved)) {
+        if (yield* info(path)) return yield* conflict("The interrupted install has conflicting files. Inspect the destination before retrying.");
+        yield* fs.rename(moved, path);
       }
     }
-    removeTree(root);
-    rmSync(this.journal);
-  }
+    yield* removeTree(root);
+    yield* fs.remove(journal);
+  });
 
-  private activated({ next, workspace, before }: Journal) {
-    const { root, moved, staged } = this.workspace(workspace);
-    return info(root) !== undefined && info(staged) === undefined && this.holds(moved, before) && this.holds(this.path, next.current);
-  }
+  const live = (state: State | null) =>
+    state === null || state.current === null
+      ? Effect.succeed(null)
+      : read(path).pipe(Effect.catchIf(isSkillProblem, () => Effect.succeed(null)));
 
-  private load<S extends Schema.ConstraintDecoder<unknown>>(schema: S, path: string): S["Type"] | null {
-    try {
-      this.guard(path);
-      const value = readJson(path);
-      if (value === null && !info(path)) return null;
-      return Schema.decodeUnknownSync(schema)(value);
-    } catch {
-      throw new SkillConflict({ message: "The destination management record is unreadable." });
-    }
-  }
-
-  live(state: State | null) {
-    if (state === null || state.current === null) return null;
-    try {
-      return this.read(this.path);
-    } catch (error) {
-      if (!isSkillProblem(error)) throw error;
-      return null;
-    }
-  }
-
-  snapshot(digest: string) {
-    const bundle = this.read(join(this.folder, digest));
-    if (bundle?.digest !== digest) throw new SkillConflict({ message: "The rollback snapshot is missing or has changed." });
+  const snapshot = Effect.fnUntraced(function* (digest: string) {
+    const bundle = yield* read(join(folder, digest));
+    if (bundle?.digest !== digest) return yield* conflict("The rollback snapshot is missing or has changed.");
     return bundle;
-  }
+  });
 
-  private keepSnapshot(bundle: Bundle) {
-    const snapshot = join(this.folder, bundle.digest);
-    if (info(snapshot)) {
-      this.snapshot(bundle.digest);
+  const keepSnapshot = Effect.fnUntraced(function* (bundle: Bundle) {
+    const target = join(folder, bundle.digest);
+    if (yield* info(target)) {
+      yield* snapshot(bundle.digest);
       return;
     }
-    const temp = mkdtempSync(join(this.folder, "copy-"));
-    try {
-      writeBundle(temp, bundle, this.guard);
-      if (readBundle(temp, this.guard).digest !== bundle.digest) throw new SkillConflict({ message: "The rollback snapshot failed verification." });
-      renameSync(temp, snapshot);
-    } finally {
-      removeTree(temp);
-    }
-  }
+    yield* Effect.acquireUseRelease(
+      fs.makeTempDirectory({ directory: folder, prefix: "copy-" }),
+      (temp) =>
+        Effect.gen(function* () {
+          yield* writeBundle(temp, bundle, guard);
+          if ((yield* readBundle(temp, guard)).digest !== bundle.digest) return yield* conflict("The rollback snapshot failed verification.");
+          yield* fs.rename(temp, target);
+        }),
+      removeTree,
+    );
+  });
 
-  activate(state: State | null, next: Bundle | null, current: Bundle | null) {
-    const latest = this.inspect();
+  const discardSnapshot = (digest: string) =>
+    snapshot(digest).pipe(Effect.andThen(removeTree(join(folder, digest))), Effect.ignore);
+
+  const activate = Effect.fnUntraced(function* (state: State | null, next: Bundle | null, current: Bundle | null) {
+    const latest = yield* inspect;
     if (latest.interrupted || latest.state?.transaction !== state?.transaction) {
-      throw new SkillConflict({ message: "The install changed since review. Review it again." });
+      return yield* conflict("The install changed since review. Review it again.");
     }
-    mkdirSync(this.folder, { recursive: true, mode: 0o700 });
-    mkdirSync(this.destination.path, { recursive: true });
-    if (current !== null) this.keepSnapshot(current);
+    yield* fs.makeDirectory(folder, { recursive: true, mode: 0o700 });
+    yield* fs.makeDirectory(destination.path, { recursive: true });
+    if (current !== null) yield* keepSnapshot(current);
 
     const workspace = randomUUID();
-    const { root, moved, staged } = this.workspace(workspace);
+    const { root, moved, staged } = yield* openWorkspace(workspace);
     const before = current?.digest ?? null;
-    const updated: State = { current: next?.digest ?? null, previous: before, skillPath: this.skillPath, transaction: workspace };
-    writeAtomic(this.journal, JSON.stringify({ next: updated, workspace, before }));
-    try {
-      mkdirSync(root, { mode: 0o700 });
+    const updated: State = { current: next?.digest ?? null, previous: before, skillPath, transaction: workspace };
+    yield* writeAtomic(journal, JSON.stringify({ next: updated, workspace, before }));
+    yield* Effect.gen(function* () {
+      yield* fs.makeDirectory(root, { mode: 0o700 });
       if (next !== null) {
-        mkdirSync(staged, { mode: 0o700 });
-        writeBundle(staged, next, this.guard);
-        if (!this.holds(staged, next.digest)) throw new SkillConflict({ message: "The staged bundle failed verification." });
+        yield* fs.makeDirectory(staged, { mode: 0o700 });
+        yield* writeBundle(staged, next, guard);
+        if (!(yield* holds(staged, next.digest))) return yield* conflict("The staged bundle failed verification.");
       }
-      if (!this.holds(this.path, before)) throw new SkillConflict({ message: "The destination changed since review." });
+      if (!(yield* holds(path, before))) return yield* conflict("The destination changed since review.");
       if (current !== null) {
-        renameSync(this.path, moved);
-        if (!this.holds(moved, before)) throw new SkillConflict({ message: "The destination changed as it was moved. The replacement was not published." });
+        yield* fs.rename(path, moved);
+        if (!(yield* holds(moved, before))) return yield* conflict("The destination changed as it was moved. The replacement was not published.");
       }
       if (next !== null) {
-        if (info(this.path)) throw new SkillConflict({ message: "The destination was created concurrently." });
-        renameSync(staged, this.path);
+        if (yield* info(path)) return yield* conflict("The destination was created concurrently.");
+        yield* fs.rename(staged, path);
       }
-    } catch (error) {
-      this.reconcile();
-      throw error;
-    }
-    this.reconcile();
+    }).pipe(Effect.catchCause((cause) => Effect.andThen(reconcile, Effect.failCause(cause))));
+    yield* reconcile;
     const obsolete = state?.previous ?? null;
-    if (obsolete !== null && obsolete !== updated.previous) this.discardSnapshot(obsolete);
-  }
+    if (obsolete !== null && obsolete !== updated.previous) yield* discardSnapshot(obsolete);
+  });
 
-  private discardSnapshot(digest: string) {
-    try {
-      this.snapshot(digest);
-      removeTree(join(this.folder, digest));
-    } catch {
-      return;
-    }
-  }
-
-  target(state: State | null, live: Bundle | null, source: Source): InstallTarget {
-    const exists = info(this.path) !== undefined;
+  const target = Effect.fnUntraced(function* (state: State | null, installed: Bundle | null, source: Source) {
+    const exists = (yield* info(path)) !== undefined;
     const owner = state?.skillPath;
     const current = state?.current ?? null;
-    if (current !== null && owner !== this.skillPath) {
+    if (current !== null && owner !== skillPath) {
       return {
-        destination: this.destination,
-        path: this.path,
+        destination,
+        path,
         status: "conflict",
         actions: [],
         problem: `This destination name is managed for ${owner}. Remove that install before installing this skill.`,
-      };
+      } satisfies InstallTarget;
     }
     if (current === null && exists) {
-      return { destination: this.destination, path: this.path, actions: [], ...externalInstall(this.path, this.name, source, this.guard) };
+      return { destination, path, actions: [], ...(yield* externalInstall(path, name, source, guard)) } satisfies InstallTarget;
     }
     const status = current === null
       ? "absent"
       : !exists ? "missing"
-      : current !== live?.digest ? "modified"
-      : source.bundle.digest === live.digest ? "installed" : "update available";
+      : current !== installed?.digest ? "modified"
+      : source.bundle.digest === installed.digest ? "installed" : "update available";
     const actions: InstallAction[] = [];
     if (status === "absent" || status === "missing") actions.push("install");
     if (status === "update available") actions.push("update");
     if (status === "installed" || status === "update available") actions.push("remove");
-    if (owner === this.skillPath && state?.previous != null && ["installed", "update available", "absent"].includes(status)) actions.push("rollback");
-    return { destination: this.destination, path: this.path, status, actions };
-  }
-}
+    if (owner === skillPath && state?.previous != null && ["installed", "update available", "absent"].includes(status)) actions.push("rollback");
+    return { destination, path, status, actions } satisfies InstallTarget;
+  });
+
+  return { path, inspect, reconcile, live, snapshot, activate, target };
+});
 
 const interruptedProblem = "An interrupted install needs recovery.";
 
-export function installTarget(dataDir: string, destination: PhysicalDestination, name: string, skillPath: string, source: Source, guard: Guard) {
-  const install = new Installation(dataDir, destination, name, skillPath, guard);
-  const { state, interrupted } = install.inspect();
-  if (interrupted) {
-    return { destination, path: install.path, status: "conflict" as const, actions: [], problem: interruptedProblem, needsRecovery: true };
-  }
-  return install.target(state, install.live(state), source);
-}
+export const installTarget = Effect.fnUntraced(function* (dataDir: string, destination: PhysicalDestination, name: string, skillPath: string, source: Source, guard: Guard) {
+  const install = yield* openInstallation(dataDir, destination, name, skillPath, guard);
+  const { state, interrupted } = yield* install.inspect;
+  const target: InstallTarget = interrupted
+    ? { destination, path: install.path, status: "conflict", actions: [], problem: interruptedProblem, needsRecovery: true }
+    : yield* install.target(state, yield* install.live(state), source);
+  return target;
+});
 
-export function installPlan(dataDir: string, destination: PhysicalDestination, name: string, skillPath: string, action: InstallAction, source: Source, guard: Guard) {
-  const install = new Installation(dataDir, destination, name, skillPath, guard);
-  const { state, interrupted } = install.inspect();
-  if (interrupted) throw new SkillConflict({ message: interruptedProblem });
-  const before = install.live(state);
-  const target = install.target(state, before, source);
-  if (!target.actions.includes(action)) throw new SkillConflict({ message: target.problem ?? `Cannot ${action}: destination status is ${target.status}.` });
-  const after = action === "remove" ? null : action === "rollback" ? install.snapshot(state!.previous!) : source.bundle;
+export const installPlan = Effect.fnUntraced(function* (
+  dataDir: string,
+  destination: PhysicalDestination,
+  name: string,
+  skillPath: string,
+  action: InstallAction,
+  source: Source,
+  guard: Guard,
+) {
+  const install = yield* openInstallation(dataDir, destination, name, skillPath, guard);
+  const { state, interrupted } = yield* install.inspect;
+  if (interrupted) return yield* conflict(interruptedProblem);
+  const before = yield* install.live(state);
+  const target: InstallTarget = yield* install.target(state, before, source);
+  if (!target.actions.includes(action)) return yield* conflict(target.problem ?? `Cannot ${action}: destination status is ${target.status}.`);
+  const after = action === "remove" ? null : action === "rollback" ? yield* install.snapshot(state!.previous!) : source.bundle;
   const review: Review = {
     path: install.path,
     token: sha256(Buffer.from(JSON.stringify([install.path, skillPath, action, state, before?.digest, after?.digest]))),
@@ -276,9 +267,10 @@ export function installPlan(dataDir: string, destination: PhysicalDestination, n
     after: after?.content ?? "",
     files: bundleChanges(before, after),
   };
-  return { review, apply: () => install.activate(state, after, before) };
-}
+  return { review, apply: install.activate(state, after, before) };
+});
 
-export function recoverInstall(dataDir: string, destination: PhysicalDestination, name: string, skillPath: string, guard: Guard) {
-  new Installation(dataDir, destination, name, skillPath, guard).reconcile();
-}
+export const recoverInstall = Effect.fnUntraced(function* (dataDir: string, destination: PhysicalDestination, name: string, skillPath: string, guard: Guard) {
+  const install = yield* openInstallation(dataDir, destination, name, skillPath, guard);
+  yield* install.reconcile;
+});

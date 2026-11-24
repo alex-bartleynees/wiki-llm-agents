@@ -201,6 +201,14 @@ const HybridTestApp = Layer.unwrap(Effect.gen(function* () {
           response.writeHead(503).end();
           return;
         }
+        if (query === "redirect marathon" && request.url === "/search") {
+          response.writeHead(307, { location: "/elsewhere" }).end();
+          return;
+        }
+        if (query === "malformed marathon") {
+          response.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify([{ path: "Notes/Running.md" }]));
+          return;
+        }
         response.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify([
           { source_file: "Notes/Running.md" },
           { source_file: "Notes/Running.md" },
@@ -239,6 +247,8 @@ layer(HybridTestApp)("rag-ai search", (it) => {
       const fallback = yield* search({ q: "server" });
       expect(fallback.mode).toBe("keyword-fallback");
       expect(fallback.results.map((result) => result.path)).toEqual(["Effect Server.md", "Notes/Plain.md"]);
+      expect((yield* search({ q: "redirect marathon" })).mode).toBe("keyword-fallback");
+      expect((yield* search({ q: "malformed marathon" })).mode).toBe("keyword-fallback");
     }),
   );
 });

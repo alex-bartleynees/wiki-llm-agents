@@ -1,5 +1,6 @@
 import { Effect, type FileSystem } from "effect";
 import { Toolkit } from "effect/ai";
+import type { ChildProcessSpawner } from "effect/process";
 import type { WallClock } from "../../shared/wall-clock.js";
 import type { AgentCatalog } from "../agents/catalog.js";
 import type { ChangeLog } from "../changes/change-log.js";
@@ -67,6 +68,7 @@ type HandlerServices =
   | VaultIndex
   | VaultRepository
   | FileSystem.FileSystem
+  | ChildProcessSpawner.ChildProcessSpawner
   | ThreadActors
   | ThreadBus
   | ChangeLog

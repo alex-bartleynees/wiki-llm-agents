@@ -1,6 +1,6 @@
 import type { RecoverInstallRequest } from "@wiki-agents/contracts/skills/recover-install/request";
 import { Effect } from "effect";
-import { Skills } from "../repository.js";
+import { Skills } from "../skills.js";
 
 export const recoverInstall = Effect.fn("recoverInstall")(function* (request: RecoverInstallRequest) {
   const skills = yield* Skills;

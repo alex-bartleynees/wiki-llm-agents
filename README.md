@@ -25,7 +25,7 @@ All commands run through the Nix dev shell; there is no global Node.
 | `nix run .#dev` | Server (watch mode, port 4317) and Vite (port 5173) together; open http://127.0.0.1:5173. The server always uses `127.0.0.1:4317`, `.data/` (or `WIKI_AGENTS_DEV_DATA_DIR`) and this checkout's migrations, even when the shell exports an installed service's `WIKI_AGENTS_*` settings |
 | `nix develop -c npm test` | All tests, including the UI flows |
 | `nix develop -c npm run test:e2e -w @wiki-agents/web` | UI flows only (Playwright, desktop and phone widths) |
-| `nix develop -c npm run check` | Type checks (tsc, svelte-check) |
+| `nix develop -c npm run check` | Comment and Effect IO lints, then type checks (tsc, svelte-check) |
 | `nix develop -c npm run build` | Build contracts, server, and web app |
 | `nix build` | Package to `result/bin/wiki-agents` |
 | `nix develop -c npm run db:generate -w @wiki-agents/server` | Generate a Drizzle migration after changing a `table.ts` |

@@ -4,7 +4,7 @@ import { Effect } from "effect";
 import { HttpServerRequest, HttpServerResponse } from "effect/http";
 import { internalError } from "../../../shared/http-errors.js";
 import { skillBodyResponses } from "../http.js";
-import { Skills } from "../repository.js";
+import { Skills } from "../skills.js";
 
 export const previewSettingsEndpoint = Effect.gen(function* () {
   const request = yield* HttpServerRequest.schemaBodyJson(PreviewSettingsRequest);
