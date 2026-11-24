@@ -2,7 +2,6 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { type Catalog, type Detail, type InstallAction, type InstallTarget, type Settings as SkillSettings, Settings } from "@wiki-agents/contracts/skills/model";
 import { Effect, FileSystem, Layer, Schema, Semaphore } from "effect";
-import { sha256 } from "../../shared/config-files.js";
 import { AppConfig } from "../../shared/config.js";
 import { removeEmptyDirectory } from "../../shared/node-files.js";
 import { type Protection } from "../../shared/secret-paths.js";
@@ -44,8 +43,8 @@ const openSkills = (options: Options, protection: Protection) => Effect.gen(func
 
   const settings = Effect.gen(function* () {
     if ((yield* info(file)) === undefined) return { settings: null, defaults, hash: null };
-    const { bytes } = yield* readRegular(file, 128 * 1024);
-    return { settings: yield* Schema.decodeUnknownEffect(Schema.fromJsonString(Settings))(bytes.toString("utf8")), defaults, hash: sha256(bytes) };
+    const { bytes, digest } = yield* readRegular(file, 128 * 1024);
+    return { settings: yield* Schema.decodeUnknownEffect(Schema.fromJsonString(Settings))(bytes.toString("utf8")), defaults, hash: digest };
   });
 
   const preview = (request: SkillSettings) => previewPaths(request, options.dataDir, options.home, guard);
@@ -212,7 +211,7 @@ const openSkills = (options: Options, protection: Protection) => Effect.gen(func
       return yield* new SkillConflict({ message: "SKILL.md was removed or replaced. Reload before saving." });
     }
     const current = yield* readRegular(document, MAX_MARKDOWN_BYTES);
-    if (sha256(current.bytes) !== baseHash) return yield* new SkillConflict({ message: "SKILL.md changed on disk. Review the disk version before saving." });
+    if (current.digest !== baseHash) return yield* new SkillConflict({ message: "SKILL.md changed on disk. Review the disk version before saving." });
     yield* writeAtomic(document, content, current.mode);
   });
 

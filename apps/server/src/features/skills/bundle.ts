@@ -61,12 +61,12 @@ export const markdown = Effect.fnUntraced(function* (path: string, guard: Guard,
   const file = join(path, "SKILL.md");
   yield* guard(file);
   if ((yield* info(file))?.type !== "File") return yield* invalid("SKILL.md is required and must be a regular file.");
-  const { bytes } = yield* readRegular(file, MAX_MARKDOWN_BYTES);
+  const { bytes, digest } = yield* readRegular(file, MAX_MARKDOWN_BYTES);
   const content = yield* Effect.try({
     try: () => new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes),
     catch: () => invalid("SKILL.md must be UTF-8."),
   });
-  return { ...(yield* metadata(content, expectedName)), content, hash: sha256(bytes) };
+  return { ...(yield* metadata(content, expectedName)), content, hash: digest };
 });
 
 export const readBundle = Effect.fnUntraced(function* (root: string, guard: Guard) {
@@ -88,9 +88,9 @@ export const readBundle = Effect.fnUntraced(function* (root: string, guard: Guar
           yield* walk(path, relative + "/", depth + 1);
         } else {
           if (stat?.type !== "File") return yield* invalid("The bundle must contain regular files and directories only.");
-          const { bytes, mode } = yield* readRegular(path, Math.min(MAX_BYTES - total, relative === "SKILL.md" ? MAX_MARKDOWN_BYTES : MAX_BYTES));
+          const { bytes, digest, mode } = yield* readRegular(path, Math.min(MAX_BYTES - total, relative === "SKILL.md" ? MAX_MARKDOWN_BYTES : MAX_BYTES));
           total += bytes.length;
-          files.set(relative, { path: relative, mode, file: { bytes, digest: sha256(bytes) } });
+          files.set(relative, { path: relative, mode, file: { bytes, digest } });
         }
       }
     });
