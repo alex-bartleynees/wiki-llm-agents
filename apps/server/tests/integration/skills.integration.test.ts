@@ -1,7 +1,7 @@
 import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
-import { basename, dirname, join } from "node:path";
+import { dirname, join } from "node:path";
 import { expect, layer } from "@effect/vitest";
 import { Catalog, Detail, Review, SettingsPreview, SettingsView } from "@wiki-agents/contracts/skills/model";
 import { Effect, Layer } from "effect";
@@ -22,20 +22,8 @@ const testSkills = Layer.unwrap(Effect.map(
     configDir: join(path, "config"),
     dataDir: join(path, "data"),
     home: path,
-    beforePlacement: (from, to) => {
-      if ((basename(to) === "publish-race" && basename(from) === "stage") || (basename(to) === "restore-race" && basename(from) === "old")) mkdirSync(to);
-    },
-    moveLive: (from, to) => {
-      if (basename(from.toString()) === "race-skill") writeFileSync(join(from.toString(), "SKILL.md"), source("race-skill", "External edit during rename"));
-      renameSync(from, to);
-    },
   }),
 ));
-
-const identityOf = (path: string) => {
-  const stat = statSync(path, { bigint: true });
-  return stat.dev.toString() + ":" + stat.ino.toString();
-};
 
 const stateFolder = (configLibrary: string, destination: string, name: string) =>
   installStateFolder(join(dirname(dirname(configLibrary)), "data"), destination, name);
@@ -98,7 +86,6 @@ layer(app)("local skills", (it) => {
 
     const records = stateFolder(initial.defaults.library, destination, name);
     expect(existsSync(join(records, "state.json"))).toBe(true);
-    expect(existsSync(join(destination, ".wiki-agents-skills"))).toBe(false);
     expect((yield* detail(name)).targets[0]?.status).toBe("installed");
     const second = source(name, "Second revision");
     const edited = yield* putSkill(name, second, (yield* detail(name)).hash).pipe(Effect.flatMap(decode(Detail)));
@@ -117,7 +104,7 @@ layer(app)("local skills", (it) => {
     const workspace = randomUUID();
     const staging = join(destination, ".wiki-agents-stage-" + workspace);
     mkdirSync(staging);
-    const pending = { old: current, next: { current: current.previous, previous: current.current }, workspace, before: current.current, workspaceIdentity: identityOf(staging), oldIdentity: identityOf(installFolder) };
+    const pending = { next: { current: "0".repeat(64), previous: current.current, skillPath: name, transaction: workspace }, workspace, before: current.current };
     writeFileSync(join(records, "pending.json"), JSON.stringify(pending));
     renameSync(installFolder, join(staging, "old"));
     expect((yield* detail(name)).targets[0]).toMatchObject({ status: "conflict", needsRecovery: true });
@@ -251,8 +238,7 @@ layer(app)("local skills", (it) => {
         expect((yield* send("POST", "/api/skills/review", body)).status).toBe(409);
         expect((yield* send("POST", "/api/skills/apply", { ...body, token: "unowned" })).status).toBe(409);
       }
-      expect(existsSync(join(destination, ".wiki-agents-skills"))).toBe(false);
-      expect(existsSync(stateFolder(current.defaults.library, destination, name))).toBe(false);
+        expect(existsSync(stateFolder(current.defaults.library, destination, name))).toBe(false);
     }
     const nested = "external/" + name;
     mkdirSync(join(library, "external"));
@@ -319,87 +305,6 @@ layer(app)("local skills", (it) => {
     expect(readdirSync(redirected)).toEqual([]);
   }));
 
-  it.effect("recovers a pending legacy replacement and migrates verified rollback bytes before retiring ownership records", () => Effect.gen(function* () {
-    const initial = yield* readSettings();
-    const library = join(initial.defaults.library, "..", "migration-library");
-    const destination = join(library, "..", "migration-target");
-    const skillPath = "migrated-skill";
-    const live = join(destination, skillPath);
-    const legacy = join(destination, ".wiki-agents-skills", skillPath);
-    const local = stateFolder(initial.defaults.library, destination, skillPath);
-    const before = source(skillPath, "Before upgrade");
-    const after = source(skillPath, "After upgrade");
-    const older = source(skillPath, "Legacy rollback");
-    mkdirSync(join(library, skillPath), { recursive: true });
-    writeFileSync(join(library, skillPath, "SKILL.md"), after);
-    mkdirSync(live, { recursive: true });
-    writeFileSync(join(live, "SKILL.md"), before);
-    const digest = readBundle(live, () => undefined).digest;
-    mkdirSync(join(legacy, "backup"), { recursive: true });
-    writeFileSync(join(legacy, "backup", "SKILL.md"), older);
-    const previous = readBundle(join(legacy, "backup"), () => undefined).digest;
-    renameSync(join(legacy, "backup"), join(legacy, previous));
-    cpSync(join(library, skillPath), join(legacy, "stage"), { recursive: true });
-    const next = readBundle(join(legacy, "stage"), () => undefined).digest;
-    const old = { current: digest, previous };
-    writeFileSync(join(legacy, "state.json"), JSON.stringify(old));
-    writeFileSync(join(legacy, "pending.json"), JSON.stringify({ old, next: { current: next, previous: digest, skillPath } }));
-    writeFileSync(join(legacy, "keep.txt"), "Unknown file");
-    renameSync(live, join(legacy, "old"));
-
-    const settings = { library, destinations: [{ label: "Legacy", path: destination }], baseHash: initial.hash };
-    expect((yield* send("PUT", settingsPath, settings)).status).toBe(200);
-    expect((yield* detail(skillPath)).targets[0]).toMatchObject({ status: "conflict", needsRecovery: true });
-    expect(existsSync(local)).toBe(false);
-    expect(existsSync(live)).toBe(false);
-    expect(existsSync(join(legacy, "pending.json"))).toBe(true);
-    expect((yield* recover(skillPath, destination)).status).toBe(409);
-    expect(existsSync(live)).toBe(false);
-    expect(existsSync(join(legacy, "old", "SKILL.md"))).toBe(true);
-    renameSync(join(legacy, "old"), live);
-    expect((yield* recover(skillPath, destination)).status).toBe(200);
-    expect((yield* detail(skillPath)).targets[0]?.status).toBe("update available");
-    expect(readFileSync(join(live, "SKILL.md"), "utf8")).toBe(before);
-    expect(readFileSync(join(local, previous, "SKILL.md"), "utf8")).toBe(older);
-    expect(JSON.parse(readFileSync(join(local, "state.json"), "utf8"))).toEqual(old);
-    expect(readdirSync(legacy).sort()).toEqual(["keep.txt", "stage"]);
-
-    const request = (action: string) => ({ skillPath, destination, action });
-    const apply = (action: string) => Effect.gen(function* () {
-      const body = request(action);
-      const review = yield* send("POST", "/api/skills/review", body).pipe(Effect.flatMap(decode(Review)));
-      return yield* send("POST", "/api/skills/apply", { ...body, token: review.token });
-    });
-    expect((yield* apply("rollback")).status).toBe(200);
-    expect(readFileSync(join(live, "SKILL.md"), "utf8")).toBe(older);
-    rmSync(live, { recursive: true });
-    expect((yield* apply("install")).status).toBe(200);
-    expect(readFileSync(join(live, "SKILL.md"), "utf8")).toBe(after);
-
-    const localState = JSON.parse(readFileSync(join(local, "state.json"), "utf8"));
-    const liveBundle = readBundle(live, () => undefined);
-    const workspace = randomUUID();
-    const staging = join(destination, ".wiki-agents-stage-" + workspace);
-    mkdirSync(staging);
-    writeFileSync(join(local, "pending.json"), JSON.stringify({
-      old: localState,
-      next: { current: null, previous: liveBundle.digest, skillPath, transaction: workspace },
-      before: liveBundle.digest,
-      workspaceIdentity: identityOf(staging),
-      oldIdentity: identityOf(live),
-      workspace,
-    }));
-    renameSync(live, join(staging, "old"));
-    expect((yield* detail(skillPath)).targets[0]?.needsRecovery).toBe(true);
-    expect(existsSync(staging)).toBe(true);
-    expect((yield* recover(skillPath, destination)).status).toBe(200);
-    expect((yield* detail(skillPath)).targets[0]?.status).toBe("absent");
-    expect(existsSync(staging)).toBe(false);
-    expect(readFileSync(join(local, liveBundle.digest, "SKILL.md"), "utf8")).toBe(after);
-    expect((yield* apply("rollback")).status).toBe(200);
-    expect(readFileSync(join(live, "SKILL.md"), "utf8")).toBe(after);
-  }));
-
   it.effect("never adopts an identical external copy placed during a pending first install", () => Effect.gen(function* () {
     const initial = yield* readSettings();
     const library = join(initial.defaults.library, "..", "race-library");
@@ -416,10 +321,9 @@ layer(app)("local skills", (it) => {
     mkdirSync(staging, { recursive: true });
     const stage = join(staging, "stage");
     cpSync(directory, stage, { recursive: true });
-    const staged = statSync(stage, { bigint: true });
     const digest = readBundle(directory, () => undefined).digest;
-    const pending = { old: { current: null, previous: null }, next: { current: digest, previous: null, skillPath: name, transaction: workspace },
-      workspace, before: null, workspaceIdentity: identityOf(staging), stagedIdentity: staged.dev.toString() + ":" + staged.ino.toString() };
+    const pending = { next: { current: digest, previous: null, skillPath: name, transaction: workspace },
+      workspace, before: null };
     const journal = join(local, "pending.json");
     writeFileSync(journal, JSON.stringify(pending));
     const live = join(destination, name);
@@ -433,198 +337,119 @@ layer(app)("local skills", (it) => {
     expect((yield* detail(name)).targets[0]).toMatchObject({ status: "external installed", actions: [] });
   }));
 
-  it.effect("restores an edit made between verification and rename and retries committed cleanup independently", () => Effect.gen(function* () {
+  const managed = (name: string, label: string) => Effect.gen(function* () {
     const initial = yield* readSettings();
-    const library = join(initial.defaults.library, "..", "move-library");
-    const destination = join(library, "..", "move-target");
-    const name = "race-skill";
-    expect((yield* send("PUT", settingsPath, { library, destinations: [{ label: "Target", path: destination }], baseHash: initial.hash })).status).toBe(200);
-    const created = yield* putSkill(name, "", null).pipe(Effect.flatMap(decode(Detail)));
-    const apply = (action: string) => Effect.gen(function* () {
-      const request = { skillPath: name, destination, action };
-      const review = yield* send("POST", "/api/skills/review", request).pipe(Effect.flatMap(decode(Review)));
-      return yield* send("POST", "/api/skills/apply", { ...request, token: review.token });
-    });
-    expect((yield* apply("install")).status).toBe(200);
+    const library = join(initial.defaults.library, "..", label + "-library");
+    const destination = join(library, "..", label + "-target");
+    expect((yield* send("PUT", settingsPath, { library, destinations: [{ label, path: destination }], baseHash: initial.hash })).status).toBe(200);
+    expect((yield* putSkill(name, "", null)).status).toBe(200);
+    const body = { skillPath: name, destination, action: "install" };
+    const plan = yield* send("POST", "/api/skills/review", body).pipe(Effect.flatMap(decode(Review)));
+    expect((yield* send("POST", "/api/skills/apply", { ...body, token: plan.token })).status).toBe(200);
     const live = join(destination, name);
     const local = stateFolder(initial.defaults.library, destination, name);
-    const previous = JSON.parse(readFileSync(join(local, "state.json"), "utf8"));
-    expect((yield* putSkill(name, source(name, "Replacement"), created.hash)).status).toBe(200);
-    expect((yield* apply("update")).status).toBe(409);
-    expect(readFileSync(join(live, "SKILL.md"), "utf8")).toContain("External edit during rename");
-    expect(JSON.parse(readFileSync(join(local, "state.json"), "utf8"))).toEqual(previous);
-    expect(existsSync(join(local, "pending.json"))).toBe(false);
-
     const workspace = randomUUID();
     const stage = join(destination, ".wiki-agents-stage-" + workspace);
-    mkdirSync(join(stage, "old"), { recursive: true });
-    writeFileSync(join(stage, "old", "remaining"), "Partially deleted old bundle");
     const digest = readBundle(live, () => undefined).digest;
-    const next = { current: digest, previous: previous.current, skillPath: name, transaction: workspace };
-    writeFileSync(join(local, "state.json"), JSON.stringify(next));
-    writeFileSync(join(local, "pending.json"), JSON.stringify({ old: previous, next, workspace, before: previous.current,
-      stagedIdentity: identityOf(live), workspaceIdentity: identityOf(stage), oldIdentity: identityOf(join(stage, "old")) }));
-    writeFileSync(join(live, "SKILL.md"), source(name, "Edited after commit"));
+    const interrupt = (current: string | null) => {
+      const next = { current, previous: digest, skillPath: name, transaction: workspace };
+      const encoded = JSON.stringify({ next, workspace, before: digest });
+      writeFileSync(join(local, "pending.json"), encoded);
+      mkdirSync(stage);
+      return { next, encoded };
+    };
+    const state = () => JSON.parse(readFileSync(join(local, "state.json"), "utf8"));
+    return { library, destination, live, local, stage, digest, interrupt, state };
+  });
+
+  it.effect("restores the old install when publication was interrupted, including an edit made as it moved", () => Effect.gen(function* () {
+    const name = "race-skill";
+    const install = yield* managed(name, "move");
+    const before = install.state();
+    install.interrupt("0".repeat(64));
+    cpSync(join(install.library, name), join(install.stage, "stage"), { recursive: true });
+    renameSync(install.live, join(install.stage, "old"));
+    writeFileSync(join(install.stage, "old", "SKILL.md"), source(name, "External edit during rename"));
     expect((yield* detail(name)).targets[0]?.needsRecovery).toBe(true);
-    expect(existsSync(join(stage, "old", "remaining"))).toBe(true);
-    expect((yield* recover(name, destination)).status).toBe(200);
-    expect(existsSync(stage)).toBe(false);
-    expect(existsSync(join(local, "pending.json"))).toBe(false);
-    expect(JSON.parse(readFileSync(join(local, "state.json"), "utf8"))).toEqual(next);
+    expect((yield* recover(name, install.destination)).status).toBe(200);
+    expect(readFileSync(join(install.live, "SKILL.md"), "utf8")).toContain("External edit during rename");
+    expect(install.state()).toEqual(before);
+    expect(existsSync(install.stage)).toBe(false);
     expect((yield* detail(name)).targets[0]?.status).toBe("modified");
-    expect(readFileSync(join(live, "SKILL.md"), "utf8")).toContain("Edited after commit");
   }));
 
-  it.effect("scopes legacy and pending recovery to the library-relative owner", () => Effect.gen(function* () {
-    const initial = yield* readSettings();
-    const library = join(initial.defaults.library, "..", "owner-library");
-    const destination = join(library, "..", "owner-target");
+  it.effect("finishes a published update and an interrupted removal", () => Effect.gen(function* () {
+    const name = "publish-skill";
+    const install = yield* managed(name, "publish");
+    const updated = install.interrupt(readBundle(join(install.library, name), () => undefined).digest);
+    cpSync(install.live, join(install.stage, "old"), { recursive: true });
+    expect((yield* recover(name, install.destination)).status).toBe(200);
+    expect(install.state()).toEqual(updated.next);
+    expect((yield* detail(name)).targets[0]?.status).toBe("installed");
+
+    rmSync(join(install.local, "state.json"));
+    writeFileSync(join(install.local, "state.json"), JSON.stringify({ ...updated.next, transaction: randomUUID() }));
+    const removed = install.interrupt(null);
+    renameSync(install.live, join(install.stage, "old"));
+    expect((yield* recover(name, install.destination)).status).toBe(200);
+    expect(install.state()).toEqual(removed.next);
+    expect((yield* detail(name)).targets[0]?.status).toBe("absent");
+    expect(existsSync(install.stage)).toBe(false);
+  }));
+
+  it.effect("restores an edited install instead of completing its interrupted removal", () => Effect.gen(function* () {
+    const name = "edited-removal";
+    const install = yield* managed(name, "edited-removal");
+    install.interrupt(null);
+    renameSync(install.live, join(install.stage, "old"));
+    writeFileSync(join(install.stage, "old", "SKILL.md"), source(name, "Edited"));
+    expect((yield* recover(name, install.destination)).status).toBe(200);
+    expect(readFileSync(join(install.live, "SKILL.md"), "utf8")).toContain("Edited");
+    expect((yield* detail(name)).targets[0]?.status).toBe("modified");
+  }));
+
+  it.effect("keeps both copies when a foreign folder blocks restoration", () => Effect.gen(function* () {
+    const name = "restore-race";
+    const install = yield* managed(name, "restore");
+    const { encoded } = install.interrupt("0".repeat(64));
+    cpSync(join(install.library, name), join(install.stage, "stage"), { recursive: true });
+    renameSync(install.live, join(install.stage, "old"));
+    mkdirSync(install.live);
+    writeFileSync(join(install.live, "foreign.txt"), "Foreign");
+    expect((yield* recover(name, install.destination)).status).toBe(409);
+    expect(readFileSync(join(install.live, "foreign.txt"), "utf8")).toBe("Foreign");
+    expect(existsSync(join(install.stage, "old", "SKILL.md"))).toBe(true);
+    expect(readFileSync(join(install.local, "pending.json"), "utf8")).toBe(encoded);
+  }));
+
+  it.effect("retries partial cleanup of a committed update without touching a later edit", () => Effect.gen(function* () {
+    const name = "cleanup-skill";
+    const install = yield* managed(name, "cleanup");
+    const { next } = install.interrupt(install.digest);
+    writeFileSync(join(install.local, "state.json"), JSON.stringify(next));
+    mkdirSync(join(install.stage, "old"));
+    writeFileSync(join(install.stage, "old", "remaining"), "Partially deleted");
+    writeFileSync(join(install.live, "SKILL.md"), source(name, "Edited after commit"));
+    expect((yield* recover(name, install.destination)).status).toBe(200);
+    expect(existsSync(install.stage)).toBe(false);
+    expect(install.state()).toEqual(next);
+    expect((yield* detail(name)).targets[0]?.status).toBe("modified");
+  }));
+
+  it.effect("scopes recovery to the library-relative owner", () => Effect.gen(function* () {
     const name = "same-leaf";
     const nested = "group/" + name;
-    for (const path of [name, nested]) {
-      mkdirSync(join(library, path), { recursive: true });
-      writeFileSync(join(library, path, "SKILL.md"), source(name, path));
-    }
-    expect((yield* send("PUT", settingsPath, { library, destinations: [{ label: "Owner", path: destination }], baseHash: initial.hash })).status).toBe(200);
-    const live = join(destination, name);
-    cpSync(join(library, name), live, { recursive: true });
-    const digest = readBundle(live, () => undefined).digest;
-    const legacy = join(destination, ".wiki-agents-skills", name);
-    mkdirSync(legacy, { recursive: true });
-    const record = join(legacy, "state.json");
-    writeFileSync(record, JSON.stringify({ current: digest, previous: null }));
-    const local = stateFolder(initial.defaults.library, destination, name);
+    const install = yield* managed(name, "owner");
+    mkdirSync(join(install.library, "group"));
+    cpSync(join(install.library, name), join(install.library, nested), { recursive: true });
+    const { encoded } = install.interrupt(null);
     expect((yield* detail(name)).targets[0]?.needsRecovery).toBe(true);
     expect((yield* detail(nested)).targets[0]).toMatchObject({ status: "conflict", actions: [] });
     expect((yield* detail(nested)).targets[0]?.needsRecovery).toBeUndefined();
-    expect((yield* recover(nested, destination)).status).toBe(409);
-    expect(existsSync(record)).toBe(true);
-    expect(existsSync(local)).toBe(false);
-    expect((yield* recover(name, destination)).status).toBe(200);
+    expect((yield* recover(nested, install.destination)).status).toBe(409);
+    expect(readFileSync(join(install.local, "pending.json"), "utf8")).toBe(encoded);
+    expect((yield* recover(name, install.destination)).status).toBe(200);
     expect((yield* detail(name)).targets[0]?.status).toBe("installed");
-
-    const workspace = randomUUID();
-    const journal = join(local, "pending.json");
-    const state = { current: digest, previous: null, skillPath: nested };
-    writeFileSync(join(local, "state.json"), JSON.stringify(state));
-    const pending = JSON.stringify({ old: state, next: { ...state, current: null, transaction: workspace }, workspace, before: digest });
-    writeFileSync(journal, pending);
-    expect((yield* detail(nested)).targets[0]?.needsRecovery).toBe(true);
-    expect((yield* detail(name)).targets[0]?.needsRecovery).toBeUndefined();
-    expect((yield* recover(name, destination)).status).toBe(409);
-    expect(readFileSync(journal, "utf8")).toBe(pending);
-    expect((yield* recover(nested, destination)).status).toBe(200);
-    expect(existsSync(journal)).toBe(false);
-  }));
-
-  it.effect("atomically refuses empty directories created during publish and restore and keeps evidence", () => Effect.gen(function* () {
-    const initial = yield* readSettings();
-    const library = join(initial.defaults.library, "..", "atomic-library");
-    const destination = join(library, "..", "atomic-target");
-    expect((yield* send("PUT", settingsPath, { library, destinations: [{ label: "Atomic", path: destination }], baseHash: initial.hash })).status).toBe(200);
-    const pub = "publish-race";
-    expect((yield* putSkill(pub, "", null)).status).toBe(200);
-    const request = { skillPath: pub, destination, action: "install" };
-    const plan = yield* send("POST", "/api/skills/review", request).pipe(Effect.flatMap(decode(Review)));
-    expect((yield* send("POST", "/api/skills/apply", { ...request, token: plan.token })).status).toBe(409);
-    const pubState = stateFolder(initial.defaults.library, destination, pub);
-    const pubPending = JSON.parse(readFileSync(join(pubState, "pending.json"), "utf8"));
-    expect(existsSync(join(pubState, "state.json"))).toBe(false);
-    expect(readdirSync(join(destination, pub))).toEqual([]);
-    expect(existsSync(join(destination, ".wiki-agents-stage-" + pubPending.workspace, "stage", "SKILL.md"))).toBe(true);
-
-    const restore = "restore-race";
-    expect((yield* putSkill(restore, "", null)).status).toBe(200);
-    const local = stateFolder(initial.defaults.library, destination, restore);
-    const workspace = randomUUID();
-    const stage = join(destination, ".wiki-agents-stage-" + workspace);
-    mkdirSync(stage, { recursive: true });
-    cpSync(join(library, restore), join(stage, "old"), { recursive: true });
-    const current = readBundle(join(stage, "old"), () => undefined).digest;
-    const old = { current, previous: null, skillPath: restore };
-    mkdirSync(local, { recursive: true });
-    writeFileSync(join(local, "state.json"), JSON.stringify(old));
-    const pending = JSON.stringify({ old, next: { ...old, transaction: workspace }, workspace, before: current,
-      workspaceIdentity: identityOf(stage), oldIdentity: identityOf(join(stage, "old")) });
-    writeFileSync(join(local, "pending.json"), pending);
-    expect((yield* recover(restore, destination)).status).toBe(409);
-    expect(readdirSync(join(destination, restore))).toEqual([]);
-    expect(existsSync(join(stage, "old", "SKILL.md"))).toBe(true);
-    expect(readFileSync(join(local, "pending.json"), "utf8")).toBe(pending);
-  }));
-
-  it.effect("retires a committed journal in the previous format without touching its unverifiable workspace", () => Effect.gen(function* () {
-    const initial = yield* readSettings();
-    const library = join(initial.defaults.library, "..", "old-journal-library");
-    const destination = join(library, "..", "old-journal-target");
-    const name = "old-journal-skill";
-    expect((yield* send("PUT", settingsPath, { library, destinations: [{ label: "Previous", path: destination }], baseHash: initial.hash })).status).toBe(200);
-    const created = yield* putSkill(name, "", null).pipe(Effect.flatMap(decode(Detail)));
-    const live = join(destination, name);
-    cpSync(join(library, name), live, { recursive: true });
-    const current = readBundle(live, () => undefined).digest;
-    const local = stateFolder(initial.defaults.library, destination, name);
-    mkdirSync(local, { recursive: true });
-    const workspace = randomUUID();
-    const stage = join(destination, ".wiki-agents-stage-" + workspace);
-    cpSync(live, join(stage, "old"), { recursive: true });
-    const rollback = readBundle(join(stage, "old"), () => undefined).digest;
-    cpSync(join(stage, "old"), join(local, rollback), { recursive: true });
-    const next = { current, previous: rollback, skillPath: name, transaction: workspace };
-    writeFileSync(join(local, "state.json"), JSON.stringify(next));
-    const journal = join(local, "pending.json");
-    const previousFormat = JSON.stringify({ old: { current: rollback, previous: null, skillPath: name }, next, workspace, before: rollback,
-      stagedIdentity: identityOf(live) });
-    writeFileSync(journal, previousFormat);
-    writeFileSync(join(local, rollback, "SKILL.md"), "Damaged rollback");
-    expect((yield* recover(name, destination)).status).toBe(409);
-    expect(existsSync(journal)).toBe(true);
-    writeFileSync(join(local, rollback, "SKILL.md"), created.content);
-    const identity = identityOf(join(stage, "old"));
-    expect((yield* recover(name, destination)).status).toBe(200);
-    expect(existsSync(journal)).toBe(false);
-    expect(identityOf(join(stage, "old"))).toBe(identity);
-    expect(readFileSync(join(stage, "old", "SKILL.md"), "utf8")).toBe(created.content);
-    const retained = join(destination, "retained-workspace");
-    renameSync(stage, retained);
-    symlinkSync(retained, stage);
-    writeFileSync(journal, previousFormat);
-    expect((yield* recover(name, destination)).status).toBe(200);
-    expect(existsSync(journal)).toBe(false);
-    expect(identityOf(join(retained, "old"))).toBe(identity);
-    expect(realpathSync(stage)).toBe(retained);
-    expect((yield* detail(name)).targets[0]?.status).toBe("installed");
-  }));
-
-  it.effect("keeps a substituted old directory even when its contents are identical", () => Effect.gen(function* () {
-    const initial = yield* readSettings();
-    const library = join(initial.defaults.library, "..", "substitution-library");
-    const destination = join(library, "..", "substitution-target");
-    const name = "substituted-skill";
-    expect((yield* send("PUT", settingsPath, { library, destinations: [{ label: "Substitution", path: destination }], baseHash: initial.hash })).status).toBe(200);
-    expect((yield* putSkill(name, "", null)).status).toBe(200);
-    const local = stateFolder(initial.defaults.library, destination, name);
-    const workspace = randomUUID();
-    const stage = join(destination, ".wiki-agents-stage-" + workspace);
-    const old = join(stage, "old");
-    cpSync(join(library, name), old, { recursive: true });
-    const digest = readBundle(old, () => undefined).digest;
-    const state = { current: digest, previous: null, skillPath: name };
-    mkdirSync(local, { recursive: true });
-    writeFileSync(join(local, "state.json"), JSON.stringify(state));
-    const journal = join(local, "pending.json");
-    const encoded = JSON.stringify({ old: state, next: { ...state, current: null, previous: digest, transaction: workspace }, workspace,
-      before: digest, workspaceIdentity: identityOf(stage), oldIdentity: identityOf(old) });
-    writeFileSync(journal, encoded);
-    renameSync(old, join(stage, "original"));
-    cpSync(join(stage, "original"), old, { recursive: true });
-    expect(readBundle(old, () => undefined).digest).toBe(digest);
-    const substituted = identityOf(old);
-    expect((yield* recover(name, destination)).status).toBe(409);
-    expect(existsSync(join(destination, name))).toBe(false);
-    expect(identityOf(old)).toBe(substituted);
-    expect(readFileSync(journal, "utf8")).toBe(encoded);
-    expect(JSON.parse(readFileSync(join(local, "state.json"), "utf8"))).toEqual(state);
   }));
 
   it.effect("cleans verified 0555 supporting directories while preserving live and rollback modes", () => Effect.gen(function* () {
@@ -661,10 +486,8 @@ layer(app)("local skills", (it) => {
       cpSync(snapshot, old, { recursive: true });
       chmodSync(join(old, supporting), 0o555);
       const next = { ...JSON.parse(readFileSync(join(local, "state.json"), "utf8")), transaction: workspace };
-      const originalState = { current: original, previous: null, skillPath: name };
       writeFileSync(join(local, "state.json"), JSON.stringify(next));
-      writeFileSync(join(local, "pending.json"), JSON.stringify({ old: originalState, next, before: original, workspace,
-        workspaceIdentity: identityOf(stage), oldIdentity: identityOf(old), stagedIdentity: identityOf(live) }));
+      writeFileSync(join(local, "pending.json"), JSON.stringify({ next, before: original, workspace }));
       rmSync(join(old, "SKILL.md"));
       expect(statSync(join(old, supporting)).mode & 0o777).toBe(0o555);
       expect((yield* recover(name, destination)).status).toBe(200);

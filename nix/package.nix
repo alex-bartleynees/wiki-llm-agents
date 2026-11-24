@@ -1,4 +1,4 @@
-{ lib, buildNpmPackage, nodejs, python3, makeWrapper, atomicRename }:
+{ lib, buildNpmPackage, nodejs, python3, makeWrapper }:
 
 buildNpmPackage {
   pname = "wiki-agents";
@@ -48,7 +48,6 @@ buildNpmPackage {
 
     makeWrapper ${nodejs}/bin/node $out/bin/wiki-agents \
       --add-flags "$app/apps/server/dist/index.js" \
-      --set WIKI_AGENTS_ATOMIC_RENAME "${atomicRename}/bin/wiki-agents-rename-noreplace" \
       --set-default WIKI_AGENTS_STATIC_DIR "$app/apps/web/build" \
       --set-default WIKI_AGENTS_MIGRATIONS_DIR "$app/apps/server/drizzle"
 

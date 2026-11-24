@@ -14,7 +14,7 @@ import { SkillProblem } from "./problem.js";
 import { Skills } from "./repository.js";
 import { writeAtomic } from "./state-file.js";
 
-type Options = { configDir: string; dataDir: string; home: string; moveLive?: typeof renameSync; beforePlacement?: (from: string, to: string) => void };
+type Options = { configDir: string; dataDir: string; home: string };
 const template = (name: string) => `---\nname: ${JSON.stringify(name)}\ndescription: Describe when to use this skill.\n---\n\n# ${name}\n\nWrite the skill instructions here.\n`;
 
 class LocalSkills {
@@ -231,14 +231,14 @@ class LocalSkills {
   recover(skillPath: string, path: string) {
     const { settings, destination } = this.destination(path);
     const { document } = this.source(settings, skillPath);
-    recoverInstall(this.options.dataDir, destination, document.name, skillPath, this.guard, this.options.beforePlacement);
+    recoverInstall(this.options.dataDir, destination, document.name, skillPath, this.guard);
     return this.detail(skillPath);
   }
 
   plan(skillPath: string, path: string, action: Parameters<typeof installPlan>[4]) {
     const { settings, destination } = this.destination(path);
     const source = this.installSource(settings, skillPath);
-    return installPlan(this.options.dataDir, destination, source.document.name, skillPath, action, source, this.guard, this.options.moveLive, this.options.beforePlacement);
+    return installPlan(this.options.dataDir, destination, source.document.name, skillPath, action, source, this.guard);
   }
 }
 

@@ -21,26 +21,7 @@
         pkgs = import nixpkgs { inherit system; };
         nodejs = pkgs.nodejs_22;
 
-        atomicRenameSource = pkgs.writeText "wiki-agents-rename-noreplace.c" ''
-          #define _GNU_SOURCE
-          #include <errno.h>
-          #include <fcntl.h>
-          #include <stdio.h>
-
-          int main(int argc, char **argv) {
-            if (argc != 3) return 2;
-            if (renameat2(AT_FDCWD, argv[1], AT_FDCWD, argv[2], RENAME_NOREPLACE) == 0) return 0;
-            if (errno == EEXIST || errno == ENOTEMPTY) return 3;
-            perror("renameat2");
-            return 1;
-          }
-        '';
-        atomicRename = pkgs.runCommand "wiki-agents-rename-noreplace" { nativeBuildInputs = [ pkgs.stdenv.cc ]; } ''
-          mkdir -p "$out/bin"
-          cc -Wall -Wextra -Werror ${atomicRenameSource} -o "$out/bin/wiki-agents-rename-noreplace"
-        '';
-
-        wiki-agents = pkgs.callPackage ./nix/package.nix { inherit nodejs atomicRename; };
+        wiki-agents = pkgs.callPackage ./nix/package.nix { inherit nodejs; };
 
         # One command for development: server in watch mode + Vite dev server.
         devConfig = pkgs.writeText "process-compose.yaml" (builtins.toJSON {
@@ -63,7 +44,7 @@
 
         dev = pkgs.writeShellApplication {
           name = "wiki-agents-dev";
-          runtimeInputs = [ nodejs pkgs.process-compose atomicRename ];
+          runtimeInputs = [ nodejs pkgs.process-compose ];
           text = ''
             if [ ! -d node_modules ]; then npm install; fi
             exec process-compose up --config ${devConfig} "$@"
@@ -151,7 +132,6 @@
         devShells.default = pkgs.mkShell {
           packages = [
             nodejs
-            atomicRename
             pkgs.python3 # node-gyp, for better-sqlite3
             pkgs.gcc
             pkgs.gnumake
