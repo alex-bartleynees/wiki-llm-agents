@@ -7,6 +7,7 @@
   import { listSecrets } from "#lib/features/secrets/api.ts";
   import { getBrowserSignIns, saveBrowserSignIns } from "./api.ts";
   import { blankSignIn, type SignInForm, signInFromForm, signInToForm } from "./sign-in-form.ts";
+  import Button from "#lib/ui/primitives/Button.svelte";
 
   /**
    * The project's browser sign-ins: test accounts the built-in browser signs in to local
@@ -142,33 +143,33 @@
                   {#if secretMissing(credential.secret)}<option value={credential.secret}>{credential.secret} (not stored)</option>{/if}
                   {#each secrets as secret (secret.name)}<option value={secret.name}>{secret.name}</option>{/each}
                 </select>
-                <button
-                  type="button"
-                  class="link"
+                <Button
+                  variant="link"
                   aria-label="Remove {credential.variable || 'credential'}"
                   onclick={() => {
                     form.credentials.splice(row, 1);
                     saved = false;
-                  }}>Remove</button
+                  }}>Remove</Button
                 >
               </div>
             {/each}
-            <button
-              type="button"
-              class="link"
+            <Button
+              variant="link"
+              class="start"
               onclick={() => {
                 form.credentials.push({ key: crypto.randomUUID(), variable: "", secret: "" });
                 saved = false;
-              }}>Add credential</button
+              }}>Add credential</Button
             >
           </div>
-          <button
-            type="button"
-            class="link danger"
+          <Button
+            variant="link"
+            danger
+            class="start"
             onclick={() => {
               forms.splice(index, 1);
               saved = false;
-            }}>Remove sign-in</button
+            }}>Remove sign-in</Button
           >
         </fieldset>
       {/each}
@@ -182,8 +183,8 @@
         </ul>
       {/if}
       <div class="actions">
-        <button type="button" class="secondary" onclick={add}>Add sign-in</button>
-        <button type="submit" class="primary" disabled={!changed || problems.length > 0 || saving}>{saving ? "Saving…" : "Save sign-ins"}</button>
+        <Button onclick={add}>Add sign-in</Button>
+        <Button type="submit" variant="primary" disabled={!changed || problems.length > 0 || saving}>{saving ? "Saving…" : "Save sign-ins"}</Button>
         {#if saved && !changed}<span class="hint" role="status">Saved.</span>{/if}
       </div>
     </form>
@@ -266,18 +267,8 @@
   .mono {
     font-family: var(--font-mono);
   }
-  .link {
+  .sign-in :global(.start) {
     align-self: flex-start;
-    padding: 0;
-    border: 0;
-    background: none;
-    color: var(--accent-ink);
-    font: inherit;
-    font-size: 13px;
-    cursor: pointer;
-  }
-  .danger {
-    color: var(--del);
   }
   .problems {
     margin: 0;
@@ -290,30 +281,6 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 10px;
-  }
-  .primary,
-  .secondary {
-    height: 34px;
-    padding: 0 14px;
-    border-radius: var(--radius);
-    font: inherit;
-    font-size: 13px;
-    cursor: pointer;
-  }
-  .primary {
-    border: 0;
-    background: var(--accent);
-    color: var(--on-accent);
-    font-weight: 600;
-  }
-  .primary:disabled {
-    opacity: 0.6;
-    cursor: default;
-  }
-  .secondary {
-    border: 1px solid var(--line);
-    background: var(--surface);
-    color: var(--ink);
   }
   .hint {
     font-size: 13px;

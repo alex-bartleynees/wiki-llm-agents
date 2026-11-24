@@ -19,6 +19,7 @@
   import { canSignIn, connectionText, connectLabel, SIGN_IN_CHANNEL } from "./connection.ts";
   import { BLANK_FORM, describeTransport, formFromServer, idFromTitle, inputFromForm, isValidId, SCOPE_LABELS, type ServerForm } from "./server-form.ts";
   import { statusText } from "./status.ts";
+  import Button from "#lib/ui/primitives/Button.svelte";
 
   /**
    * The MCP servers in the app's config directory (`mcp/<id>.yaml`): listed, added,
@@ -307,9 +308,9 @@
               <span class={["status", status.state]}>{statusText(status)}</span>
               {#if status.problem}<span class="problem">{status.problem}</span>{/if}
               {#if status.tools !== null && status.tools.length > 0}
-                <button type="button" class="link" onclick={() => toggleTools(server.id)} aria-expanded={showingTools.has(server.id)}>
+                <Button variant="link" class="toggle-tools" onclick={() => toggleTools(server.id)} aria-expanded={showingTools.has(server.id)}>
                   {showingTools.has(server.id) ? "Hide tools" : "Show tools"}
-                </button>
+                </Button>
                 {#if showingTools.has(server.id)}
                   <ul class="tools" aria-label={`Tools of ${server.title}`}>
                     {#each status.tools as tool (tool.name)}
@@ -324,24 +325,24 @@
             {/if}
           </div>
           <div class="buttons">
-            <button type="button" onclick={() => void check(server, "test")} disabled={checking !== null} aria-label={`Test ${server.title}`}>
+            <Button onclick={() => void check(server, "test")} disabled={checking !== null} aria-label={`Test ${server.title}`}>
               {checking?.serverId === server.id && checking.action === "test" ? "Testing…" : "Test"}
-            </button>
+            </Button>
             {#if status && (status.connections > 0 || status.state === "failed")}
-              <button type="button" onclick={() => void check(server, "restart")} disabled={checking !== null} aria-label={`Restart ${server.title}`}>
+              <Button onclick={() => void check(server, "restart")} disabled={checking !== null} aria-label={`Restart ${server.title}`}>
                 {checking?.serverId === server.id && checking.action === "restart" ? "Restarting…" : "Restart"}
-              </button>
+              </Button>
             {/if}
             {#if canSignIn(server)}
               {@const connection = connections.get(server.id)}
-              <button type="button" onclick={() => void connect(server)} disabled={connecting !== null} aria-label={`${connectLabel(connection)} ${server.title}`}>
+              <Button onclick={() => void connect(server)} disabled={connecting !== null} aria-label={`${connectLabel(connection)} ${server.title}`}>
                 {connecting === server.id ? "…" : connectLabel(connection)}
-              </button>
+              </Button>
               {#if connection && connection.state !== "disconnected"}
-                <button type="button" onclick={() => void signOut(server)} disabled={connecting !== null} aria-label={`Sign out of ${server.title}`}>Sign out</button>
+                <Button onclick={() => void signOut(server)} disabled={connecting !== null} aria-label={`Sign out of ${server.title}`}>Sign out</Button>
               {/if}
             {/if}
-            <button type="button" onclick={() => void edit(server)} aria-label={`Edit ${server.title}`}>Edit</button>
+            <Button onclick={() => void edit(server)} aria-label={`Edit ${server.title}`}>Edit</Button>
           </div>
         </li>
       {/each}
@@ -361,9 +362,9 @@
   {#if signingIn}
     <section class="signing-in" aria-label={`Sign in to ${signingIn.title}`}>
       <p>
-        <a href={signingIn.authorizationUrl} target="_blank" rel="noopener noreferrer" class="open">Open the sign-in page</a>
-        <button type="button" onclick={() => void copyLink()}>{copied ? "Copied" : "Copy link"}</button>
-        <button type="button" onclick={() => (signingIn = null)}>Cancel</button>
+        <Button href={signingIn.authorizationUrl} target="_blank" rel="noopener noreferrer" variant="primary">Open the sign-in page</Button>
+        <Button onclick={() => void copyLink()}>{copied ? "Copied" : "Copy link"}</Button>
+        <Button onclick={() => (signingIn = null)}>Cancel</Button>
       </p>
       <p class="hint">
         Sign in there, on this device or another, within ten minutes. It sends you back to <code>{signingIn.redirectUri}</code>, which
@@ -380,7 +381,7 @@
           <span class="label">If that address didn't load, paste it here</span>
           <input bind:value={pasted} aria-label="Address after signing in" inputmode="url" autocapitalize="off" autocomplete="off" spellcheck="false" />
         </label>
-        <button type="submit" disabled={pasted.trim() === ""}>Finish signing in</button>
+        <Button type="submit" disabled={pasted.trim() === ""}>Finish signing in</Button>
       </form>
     </section>
   {/if}
@@ -390,7 +391,7 @@
 
   {#if editing === null}
     <div class="actions">
-      <button type="button" class="primary" onclick={() => open({ id: null, hash: null, builtIn: false }, { ...BLANK_FORM })}>Add server</button>
+      <Button variant="primary" onclick={() => open({ id: null, hash: null, builtIn: false }, { ...BLANK_FORM })}>Add server</Button>
     </div>
   {:else}
     <form
@@ -530,13 +531,13 @@
       {/if}
 
       <div class="actions">
-        <button type="submit" class="primary" disabled={saving}>{saving ? "Saving…" : editing.id === null ? "Add" : "Save"}</button>
-        <button type="button" onclick={close} disabled={saving}>Cancel</button>
+        <Button type="submit" variant="primary" disabled={saving}>{saving ? "Saving…" : editing.id === null ? "Add" : "Save"}</Button>
+        <Button onclick={close} disabled={saving}>Cancel</Button>
         {#if editing.id !== null && editing.hash !== null}
           {#if confirmingDelete}
-            <button type="button" class="danger" onclick={() => void remove()} disabled={saving}>Move {editing.id} to the trash</button>
+            <Button danger class="delete" onclick={() => void remove()} disabled={saving}>Move {editing.id} to the trash</Button>
           {:else}
-            <button type="button" class="danger" onclick={() => (confirmingDelete = true)} disabled={saving}>Delete</button>
+            <Button danger class="delete" onclick={() => (confirmingDelete = true)} disabled={saving}>Delete</Button>
           {/if}
         {/if}
       </div>
@@ -614,14 +615,8 @@
   .status.failed {
     color: var(--del);
   }
-  .link {
+  .about > :global(.toggle-tools) {
     align-self: flex-start;
-    height: auto;
-    padding: 0;
-    border: 0;
-    background: none;
-    color: var(--accent);
-    font-size: 12px;
   }
   .tools {
     display: flex;
@@ -681,17 +676,6 @@
   }
   .signing-in form label {
     flex: 1 1 240px;
-  }
-  .open {
-    display: inline-flex;
-    align-items: center;
-    height: 36px;
-    padding: 0 14px;
-    border-radius: var(--radius);
-    background: var(--accent);
-    color: var(--on-accent);
-    font-weight: 600;
-    text-decoration: none;
   }
   .where {
     overflow: hidden;
@@ -767,27 +751,7 @@
     align-items: center;
     gap: 12px;
   }
-  button {
-    height: 36px;
-    padding: 0 14px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: var(--surface);
-    color: var(--ink);
-    font: inherit;
-    cursor: pointer;
-  }
-  button:disabled {
-    opacity: 0.6;
-    cursor: default;
-  }
-  .primary {
-    border: 0;
-    background: var(--accent);
-    color: var(--on-accent);
-    font-weight: 600;
-  }
-  .danger {
+  .actions > :global(.delete) {
     margin-left: auto;
     border-color: var(--del);
     color: var(--del);
@@ -806,9 +770,6 @@
     .buttons {
       justify-content: flex-start;
     }
-    .open {
-      height: 40px;
-    }
     select,
     input:not([type="checkbox"]) {
       height: 40px;
@@ -816,9 +777,6 @@
     }
     textarea {
       font-size: 16px;
-    }
-    button {
-      height: 40px;
     }
   }
 </style>

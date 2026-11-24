@@ -8,6 +8,7 @@
   import { foldersInside, parentFolder } from "#lib/features/notes/vault-folders.ts";
   import FolderPicker, { type FolderListing } from "#lib/ui/primitives/FolderPicker.svelte";
   import { registerProject } from "./api.ts";
+  import Button from "#lib/ui/primitives/Button.svelte";
 
   /**
    * `vault`: the shared vault new projects use, when known; `vaultLabel` says which
@@ -115,7 +116,7 @@
         autocomplete="off"
         spellcheck="false"
       />
-      <button type="button" class="browse" onclick={() => pickMachine("main")}>Browse…</button>
+      <Button class="browse" onclick={() => pickMachine("main")}>Browse…</Button>
     </div>
     {#if kind === "new"}
       <input class="mono" aria-label="New folder name" bind:value={newFolderName} required placeholder="New folder name" autocomplete="off" spellcheck="false" />
@@ -133,7 +134,7 @@
         <button type="button" aria-label="Remove {path}" onclick={() => (more = more.filter((other) => other !== path))}>×</button>
       </div>
     {/each}
-    <button type="button" class="browse wide" onclick={() => pickMachine("more")}>Add directory…</button>
+    <Button class="browse wide" onclick={() => pickMachine("more")}>Add directory…</Button>
   </div>
   {/if}
 
@@ -146,12 +147,12 @@
     <span>Notes folder{kind === "vault" ? "" : " (optional)"}</span>
     <div class="path">
       <input class="mono" aria-label="Notes folder" bind:value={notesFolder} required={kind === "vault"} placeholder="1-Active/homelab-rebuild" autocomplete="off" spellcheck="false" />
-      <button type="button" class="browse" disabled={vault === null} onclick={openNotes}>Browse…</button>
+      <Button class="browse" disabled={vault === null} onclick={openNotes}>Browse…</Button>
     </div>
   </div>
 
   {#if error}<p class="error" role="alert">{error}</p>{/if}
-  <button class="submit" disabled={busy || (vault === null && vaultLabel === null)}>{busy ? "Registering…" : "Register"}</button>
+  <Button type="submit" variant="primary" disabled={busy || (vault === null && vaultLabel === null)}>{busy ? "Registering…" : "Register"}</Button>
 </form>
 
 <FolderPicker
@@ -233,23 +234,10 @@
   .path input {
     flex: 1;
   }
-  .browse {
-    flex: 0 0 auto;
-    height: 36px;
-    padding: 0 12px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: transparent;
-    color: var(--ink);
-    font: inherit;
-    font-size: 13px;
-    cursor: pointer;
+  .path > :global(.browse) {
+    flex: none;
   }
-  .browse:disabled {
-    color: var(--ink-3);
-    cursor: default;
-  }
-  .browse.wide {
+  .field > :global(.wide) {
     align-self: flex-start;
   }
   .hint {
@@ -289,21 +277,6 @@
     background: var(--sunken);
     color: var(--ink);
     font-size: 14px;
-  }
-  .submit {
-    height: 40px;
-    border: 0;
-    border-radius: var(--radius);
-    background: var(--accent);
-    color: var(--on-accent);
-    font: inherit;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  .submit:disabled {
-    opacity: 0.6;
-    cursor: default;
   }
   .error {
     margin: 0;

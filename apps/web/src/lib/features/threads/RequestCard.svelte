@@ -2,6 +2,8 @@
   import type { TimelineItem } from "./timeline.ts";
   import { openThread } from "./open-thread.svelte.ts";
   import DiffView from "#lib/features/changes/DiffView.svelte";
+  import Button from "#lib/ui/primitives/Button.svelte";
+  import Input from "#lib/ui/primitives/Input.svelte";
 
   let { request }: { request: Extract<TimelineItem, { kind: "request" }> } = $props();
 
@@ -55,8 +57,8 @@
     {/if}
     {#if pending}
       <div class="actions">
-        <button type="button" class="primary" disabled={busy} onclick={() => answer({ _tag: "approval", decision: "approve" })}>{edits.length > 0 ? "Apply" : "Approve"}</button>
-        <button type="button" disabled={busy} onclick={() => answer({ _tag: "approval", decision: "deny" })}>Deny</button>
+        <Button variant="primary" disabled={busy} onclick={() => answer({ _tag: "approval", decision: "approve" })}>{edits.length > 0 ? "Apply" : "Approve"}</Button>
+        <Button disabled={busy} onclick={() => answer({ _tag: "approval", decision: "deny" })}>Deny</Button>
       </div>
     {/if}
   {:else}
@@ -65,7 +67,7 @@
     {#if pending}
       <div class="actions wrap">
         {#each request.prompt.options as option (option)}
-          <button type="button" disabled={busy} onclick={() => answer({ _tag: "question", text: option })}>{option}</button>
+          <Button disabled={busy} onclick={() => answer({ _tag: "question", text: option })}>{option}</Button>
         {/each}
       </div>
       <form
@@ -74,8 +76,8 @@
           if (text.trim() !== "") void answer({ _tag: "question", text: text.trim() });
         }}
       >
-        <input bind:value={text} placeholder="Or type an answer" aria-label="Answer" disabled={busy} />
-        <button type="submit" class="primary" disabled={busy || text.trim() === ""}>Answer</button>
+        <Input bind:value={text} placeholder="Or type an answer" aria-label="Answer" disabled={busy} />
+        <Button type="submit" variant="primary" disabled={busy || text.trim() === ""}>Answer</Button>
       </form>
     {/if}
   {/if}
@@ -141,36 +143,6 @@
     display: flex;
     gap: 8px;
     margin-top: 8px;
-  }
-  input {
-    flex: 1 1 auto;
-    min-width: 0;
-    height: 32px;
-    padding: 0 8px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: var(--surface);
-    color: var(--ink);
-    font: inherit;
-  }
-  button {
-    min-height: 32px;
-    padding: 0 12px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: var(--surface);
-    color: var(--ink);
-    font: inherit;
-    cursor: pointer;
-  }
-  button.primary {
-    border-color: var(--accent);
-    background: var(--accent);
-    color: var(--on-accent);
-  }
-  button:disabled {
-    opacity: 0.6;
-    cursor: default;
   }
   .outcome {
     margin-top: 6px;

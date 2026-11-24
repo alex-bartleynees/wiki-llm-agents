@@ -4,6 +4,7 @@
   import { errorMessage } from "#lib/api/client.ts";
   import { listMcpServers } from "#lib/features/mcp-servers/api.ts";
   import { getProjectMcpServers, saveProjectMcpServers } from "./api.ts";
+  import Button from "#lib/ui/primitives/Button.svelte";
 
   /**
    * The MCP servers every thread in the project gets, whatever its agent: ticked from
@@ -123,7 +124,7 @@
         </ul>
       {/if}
       <div class="actions">
-        <button type="submit" class="primary" disabled={!changed || saving}>{saving ? "Saving…" : "Save MCP servers"}</button>
+        <Button type="submit" variant="primary" disabled={!changed || saving}>{saving ? "Saving…" : "Save MCP servers"}</Button>
         {#if saved && !changed}<span class="hint" role="status">Saved.</span>{/if}
       </div>
     </form>
@@ -200,22 +201,6 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 10px;
-  }
-  .primary {
-    height: 34px;
-    padding: 0 14px;
-    border: 0;
-    border-radius: var(--radius);
-    background: var(--accent);
-    color: var(--on-accent);
-    font: inherit;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  .primary:disabled {
-    opacity: 0.6;
-    cursor: default;
   }
   .hint {
     font-size: 13px;

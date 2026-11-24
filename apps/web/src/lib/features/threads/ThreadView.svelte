@@ -22,6 +22,7 @@
   import { threads } from "./threads.svelte.ts";
   import { hasConversation, isCompacting, isHandingOff, pendingRequests, reportLabel, routingLabel, type TimelineItem, usageLabel } from "./timeline.ts";
   import WorktreeBar from "./WorktreeBar.svelte";
+  import Button from "#lib/ui/primitives/Button.svelte";
 
   const timeline = $derived(openThread.timeline);
   const status = $derived(pendingRequests(timeline).length > 0 ? "waiting" : timeline.runningTurn !== null ? "running" : "idle");
@@ -179,7 +180,7 @@
     {:else if item.kind === "handoff"}
       <div class="handoff">
         <span>The handoff is ready. Review it, then carry on in a new thread with a fresh session.</span>
-        <button type="button" onclick={() => continueWith(item.text)}>Continue in a new thread</button>
+        <Button variant="primary" onclick={() => continueWith(item.text)}>Continue in a new thread</Button>
       </div>
     {:else if item.kind === "routing"}
       <p class="routing mono" title="The provider chose the model for this answer. The thread stays on {item.selected}.">{routingLabel(item)}</p>
@@ -438,23 +439,6 @@
   }
   .handoff span {
     flex: 1 1 240px;
-  }
-  .handoff button {
-    flex: 0 0 auto;
-    height: 30px;
-    padding: 0 12px;
-    border: 1px solid var(--accent);
-    border-radius: var(--radius);
-    background: var(--accent);
-    color: var(--on-accent);
-    font: inherit;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  @media (max-width: 899px) {
-    .handoff button {
-      height: 40px;
-    }
   }
   .routing {
     align-self: flex-start;

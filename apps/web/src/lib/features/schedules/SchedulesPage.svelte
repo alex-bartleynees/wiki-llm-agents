@@ -9,6 +9,7 @@
   import { usageLabel } from "#lib/features/threads/timeline.ts";
   import ScheduleForm from "./ScheduleForm.svelte";
   import { schedules } from "./schedules.svelte.ts";
+  import Button from "#lib/ui/primitives/Button.svelte";
 
   onMount(() => void schedules.load());
 
@@ -43,7 +44,7 @@
 <div class="schedules-page">
   <header>
     <InboxViewSwitch view="schedules" />
-    {#if !creating}<a class="new" href="{SCHEDULES_PATH}?new">New schedule</a>{/if}
+    {#if !creating}<Button variant="primary" href="{SCHEDULES_PATH}?new">New schedule</Button>{/if}
   </header>
 
   {#if creating}
@@ -78,12 +79,12 @@
           <div class="actions">
             <a href={scheduleHref(schedule.id)}>Edit</a>
             {#if schedule.status === "active"}
-              <button type="button" onclick={() => void schedules.pause(schedule.id)}>Pause</button>
+              <Button size="small" onclick={() => void schedules.pause(schedule.id)}>Pause</Button>
             {:else if schedule.status === "paused"}
-              <button type="button" onclick={() => void schedules.resume(schedule.id)}>Resume</button>
+              <Button size="small" onclick={() => void schedules.resume(schedule.id)}>Resume</Button>
             {/if}
-            <button type="button" onclick={() => void schedules.runNow(schedule.id)}>Run now</button>
-            <button type="button" class="danger" onclick={() => remove(schedule)}>Delete</button>
+            <Button size="small" onclick={() => void schedules.runNow(schedule.id)}>Run now</Button>
+            <Button danger size="small" onclick={() => remove(schedule)}>Delete</Button>
           </div>
           {#if schedule.runs.length > 0}
             <details class="runs">
@@ -122,14 +123,6 @@
     align-items: center;
     gap: 12px;
     flex-wrap: wrap;
-  }
-  .new {
-    padding: 6px 14px;
-    border-radius: var(--radius);
-    background: var(--accent);
-    color: var(--on-accent);
-    font-size: 14px;
-    text-decoration: none;
   }
   .list {
     display: flex;
@@ -183,18 +176,6 @@
     gap: 8px;
     margin-top: 10px;
     font-size: 13px;
-  }
-  .actions button {
-    padding: 4px 10px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: var(--bg);
-    color: var(--ink);
-    font: inherit;
-    cursor: pointer;
-  }
-  .actions .danger {
-    color: var(--del);
   }
   .runs {
     margin-top: 10px;

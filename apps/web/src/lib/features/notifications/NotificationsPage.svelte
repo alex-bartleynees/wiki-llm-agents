@@ -2,6 +2,8 @@
   import type { NotificationPreferences, PushRoute, PushRoutes } from "@wiki-agents/contracts/notifications/model";
   import InboxViewSwitch from "#lib/features/inbox/InboxViewSwitch.svelte";
   import { notifications } from "./notifications.svelte.ts";
+  import Button from "#lib/ui/primitives/Button.svelte";
+  import Card from "#lib/ui/primitives/Card.svelte";
 
   $effect(() => {
     void notifications.load();
@@ -38,7 +40,7 @@
 
   {#if notifications.error}<p class="error" role="alert">{notifications.error}</p>{/if}
 
-  <section aria-labelledby="this-device">
+  <Card aria-labelledby="this-device">
     <h2 id="this-device">This device</h2>
     {#if notifications.support === "insecure"}
       <p class="muted">
@@ -55,22 +57,22 @@
     {:else if notifications.thisDevice}
       <p>Notifications are on for <strong>{notifications.thisDevice.name}</strong>.</p>
       <div class="actions">
-        <button type="button" onclick={() => void notifications.test(notifications.thisDeviceId!)}>Send test</button>
-        <button type="button" disabled={notifications.busy} onclick={() => void notifications.disable()}>Turn off here</button>
+        <Button onclick={() => void notifications.test(notifications.thisDeviceId!)}>Send test</Button>
+        <Button disabled={notifications.busy} onclick={() => void notifications.disable()}>Turn off here</Button>
       </div>
     {:else if notifications.permission === "denied"}
       <p class="muted">Notifications are blocked for this site. Allow them in the browser's site settings, then reload.</p>
     {:else}
       <p class="muted">Get reminders, answers and agents waiting for you here, even with the app closed.</p>
       <div class="actions">
-        <button type="button" class="primary" disabled={notifications.busy || notifications.status !== "loaded"} onclick={() => void notifications.enable()}>
+        <Button variant="primary" disabled={notifications.busy || notifications.status !== "loaded"} onclick={() => void notifications.enable()}>
           {notifications.busy ? "Turning on…" : "Enable notifications"}
-        </button>
+        </Button>
       </div>
     {/if}
-  </section>
+  </Card>
 
-  <section aria-labelledby="devices">
+  <Card aria-labelledby="devices">
     <h2 id="devices">Devices</h2>
     {#if notifications.status === "loading"}
       <p class="muted">Loading…</p>
@@ -95,18 +97,18 @@
             {/if}
             {#if notifications.tests[device.id]}<p class="muted" role="status">{notifications.tests[device.id]}</p>{/if}
             <div class="actions">
-              <button type="button" onclick={() => void notifications.test(device.id)}>Send test</button>
-              <button type="button" disabled={notifications.busy} onclick={() => void notifications.remove(device.id)}>Remove</button>
+              <Button onclick={() => void notifications.test(device.id)}>Send test</Button>
+              <Button disabled={notifications.busy} onclick={() => void notifications.remove(device.id)}>Remove</Button>
             </div>
           </li>
         {/each}
       </ul>
     {/if}
-  </section>
+  </Card>
 
   {#if notifications.preferences}
     {@const preferences = notifications.preferences}
-    <section aria-labelledby="preferences">
+    <Card aria-labelledby="preferences">
       <h2 id="preferences">What notifies you</h2>
       <label class="check">
         <input type="checkbox" checked={preferences.muted} onchange={(event) => save({ muted: event.currentTarget.checked })} />
@@ -138,7 +140,7 @@
           />
         </label>
       </div>
-    </section>
+    </Card>
   {/if}
 </div>
 
@@ -153,12 +155,6 @@
   }
   header {
     display: flex;
-  }
-  section {
-    padding: 12px 14px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: var(--surface);
   }
   h2 {
     margin: 0 0 8px;
@@ -184,7 +180,6 @@
     gap: 8px;
     margin-top: 8px;
   }
-  button,
   select,
   input[type="time"] {
     padding: 4px 10px;
@@ -194,18 +189,6 @@
     color: var(--ink);
     font: inherit;
     font-size: 13px;
-  }
-  button {
-    cursor: pointer;
-  }
-  button.primary {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: var(--on-accent);
-  }
-  button:disabled {
-    opacity: 0.6;
-    cursor: default;
   }
   .devices {
     list-style: none;

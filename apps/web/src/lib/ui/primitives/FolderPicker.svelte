@@ -12,6 +12,9 @@
 </script>
 
 <script lang="ts">
+  import Button from "#lib/ui/primitives/Button.svelte";
+  import Input from "#lib/ui/primitives/Input.svelte";
+
   import { errorMessage } from "#lib/api/client.ts";
 
   let {
@@ -95,14 +98,14 @@
 
     {#if typed}
       <form class="go" onsubmit={(event) => (event.preventDefault(), void show(goTo))}>
-        <input
-          class="mono"
+        <Input
+          mono
           bind:value={goTo}
           oninput={() => (edited = true)}
           onfocus={() => (focused = true)}
           onblur={() => (focused = false)}
           aria-label="Folder path" autocomplete="off" autocapitalize="off" spellcheck="false" />
-        <button type="submit">Go</button>
+        <Button type="submit">Go</Button>
       </form>
     {:else if listing}
       <p class="current mono">{listing.label}</p>
@@ -124,8 +127,8 @@
     </ul>
 
     <footer>
-      <button type="button" onclick={() => (open = false)}>Cancel</button>
-      <button type="button" class="primary" disabled={listing === null || loading} onclick={choose}>Choose this folder</button>
+      <Button onclick={() => (open = false)}>Cancel</Button>
+      <Button variant="primary" disabled={listing === null || loading} onclick={choose}>Choose this folder</Button>
     </footer>
   </div>
 </dialog>
@@ -180,16 +183,6 @@
     display: flex;
     gap: 8px;
     padding: 12px 16px 8px;
-  }
-  .go input {
-    flex: 1;
-    min-width: 0;
-    height: 34px;
-    padding: 0 10px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: var(--bg);
-    color: var(--ink);
   }
   .current {
     margin: 0;
@@ -247,28 +240,6 @@
     gap: 8px;
     padding: 12px 16px;
     border-top: 1px solid var(--line-soft);
-  }
-  footer button,
-  .go button {
-    height: 34px;
-    padding: 0 14px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: transparent;
-    color: var(--ink);
-    font: inherit;
-    font-size: 13px;
-    cursor: pointer;
-  }
-  footer .primary {
-    border-color: var(--accent);
-    background: var(--accent);
-    color: var(--on-accent);
-    font-weight: 600;
-  }
-  footer .primary:disabled {
-    opacity: 0.6;
-    cursor: default;
   }
 
   @media (max-width: 899px) {

@@ -5,6 +5,7 @@
   import { agents } from "./agents.svelte.ts";
   import { RulesEditor } from "./rules-editor.svelte.ts";
   import TextDiff from "./TextDiff.svelte";
+  import Button from "#lib/ui/primitives/Button.svelte";
 
   /** Edits `rules/<rulesId>.md`, or creates a rules file when it is null. */
   let { rulesId, onclose }: { rulesId: string | null; onclose: () => void } = $props();
@@ -58,7 +59,7 @@
 
 <div class="editor-page">
   <header>
-    <button type="button" class="back" aria-label="Back" onclick={close}>←</button>
+    <Button class="back" aria-label="Back" onclick={close}>←</Button>
     <h1>{editor.isNew ? "New rules" : `Rules: ${editor.savedId}`}</h1>
   </header>
 
@@ -79,12 +80,12 @@
           <TextDiff before={editor.conflict.disk.content} after={editor.content} label="On disk, then yours" />
         {/if}
         <div class="actions">
-          <button type="button" class="primary" disabled={editor.saving} onclick={() => void editor.keepMine()}>
+          <Button variant="primary" disabled={editor.saving} onclick={() => void editor.keepMine()}>
             {editor.conflict.disk === null ? "Save mine again" : "Save mine over it"}
-          </button>
-          <button type="button" disabled={editor.saving} onclick={() => editor.useDisk()}>
+          </Button>
+          <Button disabled={editor.saving} onclick={() => editor.useDisk()}>
             {editor.conflict.disk === null ? "Discard mine" : "Use the disk version"}
-          </button>
+          </Button>
         </div>
       </section>
     {/if}
@@ -113,12 +114,12 @@
       {#each editor.problems as problem (problem)}<p class="error" role="alert">{problem}</p>{/each}
       <p class="hint">Every agent in every vault gets these, rules files in name order, then its own instructions. Threads use a saved change from their next message.</p>
       <div class="actions">
-        <button type="submit" class="primary" disabled={editor.saving || (!editor.dirty && !editor.isNew) || editor.conflict !== null}>
+        <Button type="submit" variant="primary" disabled={editor.saving || (!editor.dirty && !editor.isNew) || editor.conflict !== null}>
           {editor.saving ? "Saving…" : editor.isNew ? "Create rules" : "Save"}
-        </button>
-        <button type="button" onclick={close}>{editor.dirty ? "Cancel" : "Done"}</button>
+        </Button>
+        <Button onclick={close}>{editor.dirty ? "Cancel" : "Done"}</Button>
         {#if !editor.isNew}
-          <button type="button" class="danger" disabled={editor.saving} onclick={() => void remove()}>Delete</button>
+          <Button danger class="delete" disabled={editor.saving} onclick={() => void remove()}>Delete</Button>
         {/if}
         <span class="status" role="status">{editor.dirty ? "Unsaved changes" : editor.isNew ? "" : "Saved"}</span>
       </div>
@@ -144,10 +145,9 @@
     font-size: 18px;
     font-weight: 600;
   }
-  .back {
+  header > :global(.back) {
     flex: 0 0 auto;
-    width: 32px;
-    height: 32px;
+    width: 34px;
     padding: 0;
   }
   .rules-form {
@@ -215,25 +215,7 @@
     align-items: center;
     gap: 8px;
   }
-  button {
-    padding: 6px 14px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: var(--bg);
-    color: var(--ink);
-    font: inherit;
-    cursor: pointer;
-  }
-  button:disabled {
-    opacity: 0.55;
-    cursor: default;
-  }
-  .primary {
-    border-color: var(--accent);
-    background: var(--accent);
-    color: var(--on-accent, #fff);
-  }
-  .danger {
+  .actions > :global(.delete) {
     margin-left: auto;
     color: var(--del);
   }

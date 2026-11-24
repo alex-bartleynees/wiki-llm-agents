@@ -6,6 +6,7 @@
   import { threads } from "#lib/features/threads/threads.svelte.ts";
   import { displayPath, location, type WorktreeDirectory } from "./review-message.ts";
   import { review } from "./review.svelte.ts";
+  import Button from "#lib/ui/primitives/Button.svelte";
 
   /**
    * The review's draft comments and where to send them: one of the project's open
@@ -85,7 +86,7 @@
         <li>
           <span class="where mono">{location(shownPath(comment.directory, comment.path), comment.lines)}</span>
           <span class="text">{comment.text}</span>
-          <button type="button" class="link" aria-label="Delete comment on {comment.path}" onclick={() => review.remove(project.id, comment.id)}>Delete</button>
+          <Button variant="link" class="remove" aria-label="Delete comment on {comment.path}" onclick={() => review.remove(project.id, comment.id)}>Delete</Button>
         </li>
       {/each}
     </ul>
@@ -103,8 +104,8 @@
       </select>
     </label>
     <div class="actions">
-      <button type="button" class="link" onclick={() => review.clear(project.id)} disabled={sending}>Discard all</button>
-      <button type="button" class="primary" onclick={send} disabled={sending}>{sending ? "Sending…" : "Send to thread"}</button>
+      <Button variant="link" onclick={() => review.clear(project.id)} disabled={sending}>Discard all</Button>
+      <Button variant="primary" onclick={send} disabled={sending}>{sending ? "Sending…" : "Send to thread"}</Button>
     </div>
   {/if}
   {#if error}<p class="error" role="alert">{error}</p>{/if}
@@ -163,7 +164,7 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
-  li .link {
+  li > :global(.remove) {
     grid-column: 2;
     grid-row: 1 / span 2;
     align-self: start;
@@ -186,30 +187,6 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-  }
-  .link {
-    padding: 0;
-    border: 0;
-    background: transparent;
-    color: var(--accent-ink);
-    font: inherit;
-    font-size: 13px;
-    cursor: pointer;
-  }
-  .primary {
-    height: 36px;
-    padding: 0 16px;
-    border: 0;
-    border-radius: var(--radius);
-    background: var(--accent);
-    color: var(--on-accent);
-    font: inherit;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  .primary:disabled {
-    opacity: 0.6;
-    cursor: default;
   }
   .error {
     margin: 0;

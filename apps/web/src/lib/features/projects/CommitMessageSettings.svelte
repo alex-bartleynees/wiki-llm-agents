@@ -6,6 +6,7 @@
   import { listProviderModels } from "#lib/features/agents/api.ts";
   import { listProviders } from "#lib/features/threads/api.ts";
   import { getCommitMessageSettings, saveCommitMessageSettings } from "./api.ts";
+  import Button from "#lib/ui/primitives/Button.svelte";
 
   /**
    * Which provider and model write **Suggest message** in the Diff view. The default is
@@ -113,7 +114,7 @@
   {/if}
   {#if view !== null}<p class="hint" aria-live="polite">Suggestions now use {effectiveLabel}</p>{/if}
   <div class="actions">
-    <button type="submit" class="primary" disabled={!changed || saving} aria-label="Save commit message settings">{saving ? "Saving…" : "Save"}</button>
+    <Button type="submit" variant="primary" disabled={!changed || saving} aria-label="Save commit message settings">{saving ? "Saving…" : "Save"}</Button>
     {#if saved && !changed}<span class="hint" role="status">Saved.</span>{/if}
   </div>
   {#if error}<p class="error" role="alert">{error}</p>{/if}
@@ -154,21 +155,6 @@
     display: flex;
     align-items: center;
     gap: 12px;
-  }
-  .primary {
-    height: 36px;
-    padding: 0 16px;
-    border: 0;
-    border-radius: var(--radius);
-    background: var(--accent);
-    color: var(--on-accent);
-    font: inherit;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  .primary:disabled {
-    opacity: 0.6;
-    cursor: default;
   }
   .error {
     margin: 0;

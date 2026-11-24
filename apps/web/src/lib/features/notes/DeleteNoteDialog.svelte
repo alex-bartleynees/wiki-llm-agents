@@ -4,6 +4,7 @@
   import { deleteNote, getNoteSource } from "./api.ts";
   import { discardEditor, flushEditor, hasUnsavedEdits } from "./note-editor.svelte.ts";
   import { recent } from "./recent.svelte.ts";
+  import Button from "#lib/ui/primitives/Button.svelte";
 
   let {
     open = $bindable(false),
@@ -93,8 +94,8 @@
     {/if}
   </div>
   <footer>
-    <button type="button" onclick={() => (open = false)}>Cancel</button>
-    <button type="button" class="danger" disabled={hash === null || deleting} onclick={remove}>{deleting ? "Deleting…" : "Delete"}</button>
+    <Button onclick={() => (open = false)}>Cancel</Button>
+    <Button variant="primary" danger disabled={hash === null || deleting} onclick={remove}>{deleting ? "Deleting…" : "Delete"}</Button>
   </footer>
 </dialog>
 
@@ -161,31 +162,5 @@
     gap: 8px;
     padding: 12px 16px;
     border-top: 1px solid var(--line-soft);
-  }
-  footer button {
-    height: 34px;
-    padding: 0 14px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: transparent;
-    color: var(--ink);
-    font: inherit;
-    font-size: 13px;
-    cursor: pointer;
-  }
-  footer .danger {
-    border-color: var(--del);
-    background: var(--del);
-    color: var(--on-accent);
-    font-weight: 600;
-  }
-  footer .danger:disabled {
-    opacity: 0.6;
-    cursor: default;
-  }
-  @media (max-width: 899px) {
-    footer button {
-      height: 40px;
-    }
   }
 </style>

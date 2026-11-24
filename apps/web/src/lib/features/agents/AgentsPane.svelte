@@ -8,6 +8,7 @@
   import { agents } from "./agents.svelte.ts";
   import { describeAutonomy } from "./autonomy.ts";
   import { agentEditorHref } from "./leave.ts";
+  import Button from "#lib/ui/primitives/Button.svelte";
 
   let { inWiki = false }: { inWiki?: boolean } = $props();
   const from = $derived(inWiki ? page.url.pathname + page.url.search + page.url.hash : null);
@@ -48,8 +49,8 @@
     <header>
       <h2 class="catalog-heading">Agents</h2>
       <span class="header-actions">
-        <button type="button" class="refresh" onclick={() => void agents.refresh()}>Reload</button>
-        <a class="new" href={agentEditorHref("edit", null, from)}>New agent</a>
+        <Button size="small" onclick={() => void agents.refresh()}>Reload</Button>
+        <Button variant="primary" size="small" href={agentEditorHref("edit", null, from)}>New agent</Button>
       </span>
     </header>
 
@@ -133,17 +134,6 @@
     align-items: center;
     gap: 6px;
   }
-  .new {
-    display: inline-flex;
-    align-items: center;
-    height: 30px;
-    padding: 0 10px;
-    border-radius: var(--radius);
-    background: var(--accent);
-    color: var(--on-accent, #fff);
-    font-size: 12px;
-    text-decoration: none;
-  }
   .rules {
     margin: 4px 12px 0;
     padding: 10px 4px;
@@ -171,17 +161,6 @@
   .add {
     font-size: 12px;
     color: var(--accent-ink);
-  }
-  .refresh {
-    height: 30px;
-    padding: 0 10px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: transparent;
-    color: var(--ink-2);
-    font: inherit;
-    font-size: 12px;
-    cursor: pointer;
   }
   .body {
     flex: 1 1 auto;

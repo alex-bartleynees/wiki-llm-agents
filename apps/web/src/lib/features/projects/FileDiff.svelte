@@ -4,6 +4,7 @@
   import { diffSyntaxColours } from "#lib/features/changes/diff-syntax.svelte.ts";
   import { location, type ReviewComment } from "./review-message.ts";
   import { review } from "./review.svelte.ts";
+  import Button from "#lib/ui/primitives/Button.svelte";
 
   /**
    * One file's diff from HEAD with line numbers. Click (tap) a line to comment on it;
@@ -177,9 +178,9 @@
       </span>
       {#if !file.binary}<span class="counts mono"><span class="ins">+{file.additions}</span> <span class="del">−{file.deletions}</span></span>{/if}
       {#if ignored}<span class="tag">ignored</span>{/if}
-      <button
-        type="button"
-        class="link ignore"
+      <Button
+        variant="link"
+        class="ignore"
         disabled={ignoring}
         aria-label="{ignored ? 'Stop ignoring' : 'Ignore'} {file.path}"
         title={ignored ? "Bring the file back into the review" : "Set the file aside in this project's reviews, such as local changes you never merge"}
@@ -187,7 +188,7 @@
           // Inside the summary: don't fold the file.
           event.preventDefault();
           onignore();
-        }}>{ignored ? "Stop ignoring" : "Ignore"}</button
+        }}>{ignored ? "Stop ignoring" : "Ignore"}</Button
       >
     </summary>
 
@@ -220,7 +221,7 @@
             <div class="comment">
               <span class="where mono">{location(file.path, comment.lines)}</span>
               <p>{comment.text}</p>
-              <button type="button" class="link" onclick={() => review.remove(projectId, comment.id)}>Delete</button>
+              <Button variant="link" class="remove" onclick={() => review.remove(projectId, comment.id)}>Delete</Button>
             </div>
           {/each}
           {#if index === last}
@@ -250,8 +251,8 @@
                 }}
               ></textarea>
               <span class="buttons">
-                <button type="button" class="link" onclick={cancel}>Cancel</button>
-                <button type="submit" class="primary" disabled={text.trim() === ""}>Add comment</button>
+                <Button variant="link" onclick={cancel}>Cancel</Button>
+                <Button type="submit" variant="primary" disabled={text.trim() === ""}>Add comment</Button>
               </span>
             </form>
           {/if}
@@ -264,7 +265,7 @@
           This diff exceeds the display limit. Review it with your Git client.
         {:else}
           Diff cut short here.
-          <button type="button" class="link" disabled={loadingWhole} onclick={onwhole}>{loadingWhole ? "Loading…" : "Show the whole diff"}</button>
+          <Button variant="link" disabled={loadingWhole} onclick={onwhole}>{loadingWhole ? "Loading…" : "Show the whole diff"}</Button>
         {/if}
       </p>
     {/if}
@@ -315,8 +316,7 @@
     color: var(--ink-3);
     font-size: 11px;
   }
-  .ignore {
-    font-size: 12px;
+  summary > :global(.ignore) {
     white-space: nowrap;
   }
   .ins {
@@ -427,7 +427,7 @@
     white-space: pre-wrap;
     overflow-wrap: anywhere;
   }
-  .comment .link {
+  .comment > :global(.remove) {
     align-self: flex-start;
   }
   .where {
@@ -450,33 +450,6 @@
     justify-content: flex-end;
     align-items: center;
     gap: 14px;
-  }
-  .link {
-    padding: 0;
-    border: 0;
-    background: transparent;
-    color: var(--accent-ink);
-    font: inherit;
-    font-size: 13px;
-    cursor: pointer;
-  }
-  .link:disabled {
-    color: var(--ink-3);
-  }
-  .primary {
-    height: 32px;
-    padding: 0 14px;
-    border: 0;
-    border-radius: var(--radius);
-    background: var(--accent);
-    color: var(--on-accent);
-    font: inherit;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  .primary:disabled {
-    opacity: 0.5;
-    cursor: default;
   }
 
   @media (max-width: 899px) {

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Button from "#lib/ui/primitives/Button.svelte";
   let { label, path, busy, copy }: {
     label: string;
     path: string;
@@ -8,8 +9,8 @@
 </script>
 
 <div class="path-chip">
-  <code title={path}>{label}</code>
-  <button class="text-button" type="button" disabled={busy} onclick={() => copy(path)}>Copy</button>
+  <code class="mono" title={path}>{label}</code>
+  <Button variant="link" class="copy" disabled={busy} onclick={() => copy(path)}>Copy</Button>
 </div>
 
 <style>
@@ -23,7 +24,7 @@
     max-width: 100%;
     padding: 3px 9px;
     border: 1px solid var(--line);
-    border-radius: var(--skill-control-radius);
+    border-radius: var(--radius-md);
     background: var(--bg);
     color: var(--ink-2);
     font-size: 12px;
@@ -34,10 +35,9 @@
       white-space: nowrap;
     }
 
-    .text-button {
+    :global(.copy) {
       flex: 0 0 auto;
       min-height: 28px;
-      font-size: 12px;
     }
   }
 </style>

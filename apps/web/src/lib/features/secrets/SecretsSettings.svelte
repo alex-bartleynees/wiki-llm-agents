@@ -4,6 +4,8 @@
   import { errorMessage } from "#lib/api/client.ts";
   import { deleteSecret, listSecrets, setSecret } from "./api.ts";
   import { dateFromExpiry, describeExpiry, describeUse, expiryFromDate, isValidName, KEY_SOURCE_LABELS, usesOf } from "./secret-form.ts";
+  import Button from "#lib/ui/primitives/Button.svelte";
+  import Input from "#lib/ui/primitives/Input.svelte";
 
   /**
    * Secrets MCP servers use as `${secret:<name>}`: stored encrypted on this machine
@@ -135,15 +137,14 @@
             </div>
             {#if secret.source === "stored"}
               <div class="buttons">
-                <button type="button" onclick={() => open(secret)} aria-label={`Replace ${secret.name}`} disabled={store?.state === "unreadable"}>Replace</button>
-                <button
-                  type="button"
-                  class="danger"
+                <Button onclick={() => open(secret)} aria-label={`Replace ${secret.name}`} disabled={store?.state === "unreadable"}>Replace</Button>
+                <Button
+                  danger
                   onclick={() => {
                     confirming = secret.name;
                     deleteError = null;
                   }}
-                  aria-label={`Delete ${secret.name}`}>Delete</button
+                  aria-label={`Delete ${secret.name}`}>Delete</Button
                 >
               </div>
             {/if}
@@ -158,10 +159,10 @@
               </span>
               {#if deleteError}<span class="error" role="alert">{deleteError}</span>{/if}
               <div class="buttons">
-                <button type="button" class="danger" onclick={() => void remove(secret)} disabled={saving}>
+                <Button danger onclick={() => void remove(secret)} disabled={saving}>
                   {uses.length === 0 ? `Forget ${secret.name}` : `Forget ${secret.name} anyway`}
-                </button>
-                <button type="button" onclick={() => (confirming = null)} disabled={saving}>Keep it</button>
+                </Button>
+                <Button onclick={() => (confirming = null)} disabled={saving}>Keep it</Button>
               </div>
             </div>
           {/if}
@@ -182,7 +183,7 @@
 
   {#if editing === null}
     <div class="actions">
-      <button type="button" class="primary" onclick={() => open(null)} disabled={store?.state === "unreadable"}>Add secret</button>
+      <Button variant="primary" onclick={() => open(null)} disabled={store?.state === "unreadable"}>Add secret</Button>
     </div>
   {:else}
     <form
@@ -197,15 +198,15 @@
       <label>
         <span class="label">Name</span>
         {#if editing.name === null}
-          <input bind:value={name} aria-label="Secret name" placeholder="github" autocapitalize="off" autocomplete="off" spellcheck="false" />
+          <Input bind:value={name} aria-label="Secret name" placeholder="github" autocapitalize="off" autocomplete="off" spellcheck="false" />
           <span class="hint">Servers refer to it as <code>{`\${secret:${name.trim() === "" ? "name" : name.trim()}}`}</code>.</span>
         {:else}
-          <input value={editing.name} aria-label="Secret name" disabled />
+          <Input value={editing.name} aria-label="Secret name" disabled />
         {/if}
       </label>
       <label>
         <span class="label">Value{editing.name === null ? "" : " (the new one; the old one is never shown)"}</span>
-        <input
+        <Input
           type="password"
           bind:value
           aria-label="Secret value"
@@ -218,7 +219,7 @@
       </label>
       <label>
         <span class="label">Expires (optional)</span>
-        <input type="date" bind:value={expiry} aria-label="Expires" />
+        <Input type="date" bind:value={expiry} aria-label="Expires" />
         <span class="hint">When the token stops working, so you can see it coming.</span>
       </label>
 
@@ -229,8 +230,8 @@
       {/if}
 
       <div class="actions">
-        <button type="submit" class="primary" disabled={saving}>{saving ? "Saving…" : editing.name === null ? "Add" : "Replace"}</button>
-        <button type="button" onclick={close} disabled={saving}>Cancel</button>
+        <Button type="submit" variant="primary" disabled={saving}>{saving ? "Saving…" : editing.name === null ? "Add" : "Replace"}</Button>
+        <Button onclick={close} disabled={saving}>Cancel</Button>
       </div>
     </form>
   {/if}
@@ -323,20 +324,6 @@
     font-size: 12px;
     color: var(--ink-3);
   }
-  input {
-    box-sizing: border-box;
-    width: 100%;
-    height: 36px;
-    padding: 0 8px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: var(--surface);
-    color: var(--ink);
-    font: inherit;
-  }
-  input:disabled {
-    color: var(--ink-3);
-  }
   .hint {
     margin: 0;
     color: var(--ink-3);
@@ -348,30 +335,6 @@
     align-items: center;
     gap: 12px;
   }
-  button {
-    height: 36px;
-    padding: 0 14px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: var(--surface);
-    color: var(--ink);
-    font: inherit;
-    cursor: pointer;
-  }
-  button:disabled {
-    opacity: 0.6;
-    cursor: default;
-  }
-  .primary {
-    border: 0;
-    background: var(--accent);
-    color: var(--on-accent);
-    font-weight: 600;
-  }
-  .danger {
-    border-color: var(--del);
-    color: var(--del);
-  }
   .error {
     margin: 0;
     padding: 0;
@@ -379,13 +342,4 @@
     list-style: none;
   }
   /* Phone: 16px so focusing doesn't zoom. */
-  @media (max-width: 899px) {
-    input {
-      height: 40px;
-      font-size: 16px;
-    }
-    button {
-      height: 40px;
-    }
-  }
 </style>

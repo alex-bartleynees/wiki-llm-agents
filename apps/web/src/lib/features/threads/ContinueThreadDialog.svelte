@@ -8,6 +8,7 @@
   import { openThread } from "./open-thread.svelte.ts";
   import { providers } from "./providers.svelte.ts";
   import { threads } from "./threads.svelte.ts";
+  import Button from "#lib/ui/primitives/Button.svelte";
 
   /**
    * Continue in a new thread: the handoff to review and edit, what the new thread
@@ -96,7 +97,7 @@
 
     {#if handoff === null}
       <div class="ask">
-        <button type="button" class="secondary" disabled={!idle || openThread.handingOff} onclick={ask}>Ask {agent?.name ?? "the agent"} to write it</button>
+        <Button disabled={!idle || openThread.handingOff} onclick={ask}>Ask {agent?.name ?? "the agent"} to write it</Button>
         <span>A turn in this thread: it uses some of your usage. Or write it yourself below.</span>
       </div>
     {/if}
@@ -155,12 +156,11 @@
     {/if}
   </div>
   <footer>
-    <button type="button" onclick={() => (open = false)}>Cancel</button>
-    <button
-      type="button"
-      class="primary"
+    <Button onclick={() => (open = false)}>Cancel</Button>
+    <Button
+      variant="primary"
       disabled={starting || text.trim() === "" || (choice === "worktree" && branch.trim() === "")}
-      onclick={start}>{starting ? "Starting…" : "Start new thread"}</button
+      onclick={start}>{starting ? "Starting…" : "Start new thread"}</Button
     >
   </footer>
 </dialog>
@@ -308,32 +308,6 @@
     padding: 12px 16px;
     border-top: 1px solid var(--line-soft);
   }
-  footer button,
-  .secondary {
-    height: 34px;
-    padding: 0 14px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: transparent;
-    color: var(--ink);
-    font: inherit;
-    font-size: 13px;
-    cursor: pointer;
-  }
-  .secondary {
-    border-color: var(--accent);
-    color: var(--accent-ink);
-  }
-  footer .primary {
-    border-color: var(--accent);
-    background: var(--accent);
-    color: var(--on-accent);
-    font-weight: 600;
-  }
-  button:disabled {
-    opacity: 0.6;
-    cursor: default;
-  }
   @media (max-width: 899px) {
     dialog {
       margin-top: 12px;
@@ -344,10 +318,6 @@
     }
     .branch input {
       height: 36px;
-    }
-    footer button,
-    .secondary {
-      height: 40px;
     }
   }
 </style>

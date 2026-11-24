@@ -14,6 +14,7 @@
   import InstructionDraft from "./InstructionDraft.svelte";
   import SourcesPicker from "./SourcesPicker.svelte";
   import TextDiff from "./TextDiff.svelte";
+  import Button from "#lib/ui/primitives/Button.svelte";
 
   /** Edits `agentId`'s file, or creates a new agent when it is null. */
   let { agentId, onclose }: { agentId: string | null; onclose: () => void } = $props();
@@ -114,7 +115,7 @@
 
 <div class="editor-page">
   <header>
-    <button type="button" class="back" aria-label="Back" onclick={close}>←</button>
+    <Button class="back" aria-label="Back" onclick={close}>←</Button>
     <h1>{editor.isNew ? "New agent" : `Edit ◆ ${editor.base?.input.name ?? editor.savedId}`}</h1>
   </header>
 
@@ -149,12 +150,12 @@
           </dl>
         {/if}
         <div class="actions">
-          <button type="button" class="primary" disabled={editor.saving} onclick={() => void editor.keepMine()}>
+          <Button variant="primary" disabled={editor.saving} onclick={() => void editor.keepMine()}>
             {editor.conflict.disk === null ? "Save mine again" : "Save mine over it"}
-          </button>
-          <button type="button" disabled={editor.saving} onclick={() => editor.useDisk()}>
+          </Button>
+          <Button disabled={editor.saving} onclick={() => editor.useDisk()}>
             {editor.conflict.disk === null ? "Discard mine" : "Use the disk version"}
-          </button>
+          </Button>
         </div>
       </section>
     {/if}
@@ -324,18 +325,18 @@
           />
         {:else}
           <div class="actions">
-            <button type="button" onclick={() => (drafting = true)}>Draft instructions</button>
+            <Button onclick={() => (drafting = true)}>Draft instructions</Button>
           </div>
         {/if}
         <p class="hint">Rules files and a vault's own AGENTS.md are added for every agent. Threads use a saved change from their next message.</p>
 
         <div class="actions">
-          <button type="submit" class="primary" disabled={editor.saving || (!editor.dirty && !editor.isNew) || editor.conflict !== null}>
+          <Button type="submit" variant="primary" disabled={editor.saving || (!editor.dirty && !editor.isNew) || editor.conflict !== null}>
             {editor.saving ? "Saving…" : editor.isNew ? "Create agent" : "Save"}
-          </button>
-          <button type="button" onclick={close}>{editor.dirty ? "Cancel" : "Done"}</button>
+          </Button>
+          <Button onclick={close}>{editor.dirty ? "Cancel" : "Done"}</Button>
           {#if !editor.isNew}
-            <button type="button" class="danger" disabled={editor.saving} onclick={() => void remove()}>Delete</button>
+            <Button danger class="delete" disabled={editor.saving} onclick={() => void remove()}>Delete</Button>
           {/if}
           <span class="status" role="status">{editor.dirty ? "Unsaved changes" : editor.isNew ? "" : "Saved"}</span>
         </div>
@@ -363,10 +364,9 @@
     font-weight: 600;
     color: var(--agent);
   }
-  .back {
+  header > :global(.back) {
     flex: 0 0 auto;
-    width: 32px;
-    height: 32px;
+    width: 34px;
     padding: 0;
   }
   .agent-form {
@@ -549,25 +549,7 @@
     align-items: center;
     gap: 8px;
   }
-  button {
-    padding: 6px 14px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: var(--bg);
-    color: var(--ink);
-    font: inherit;
-    cursor: pointer;
-  }
-  button:disabled {
-    opacity: 0.55;
-    cursor: default;
-  }
-  .primary {
-    border-color: var(--accent);
-    background: var(--accent);
-    color: var(--on-accent, #fff);
-  }
-  .danger {
+  .actions > :global(.delete) {
     margin-left: auto;
     color: var(--del);
   }

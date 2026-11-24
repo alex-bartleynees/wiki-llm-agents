@@ -5,7 +5,6 @@
   import type { GetSettingsResponse } from "@wiki-agents/contracts/skills/get-settings/response";
   import type { ListSkillsResponse } from "@wiki-agents/contracts/skills/list-skills/response";
   import { ApiError, errorMessage } from "#lib/api/client.ts";
-  import "./skills.css";
   import * as api from "./api.ts";
   import { installLabels } from "./install-labels.ts";
   import InstallStatus from "./InstallStatus.svelte";
@@ -16,6 +15,8 @@
   import SkillLibraryHeader from "./SkillLibraryHeader.svelte";
   import SkillSettings from "./SkillSettings.svelte";
   import SkillSourcePanel from "./SkillSourcePanel.svelte";
+  import Card from "#lib/ui/primitives/Card.svelte";
+  import Button from "#lib/ui/primitives/Button.svelte";
 
   let settings = $state.raw<GetSettingsResponse | null>(null);
   let catalog = $state.raw<ListSkillsResponse>({ skills: [], problems: [] });
@@ -252,7 +253,7 @@
     </SkillSettings>
   {/key}
 {:else}
-<div class="skills skills-page" class:show-detail={mobileDetail && selected !== null}>
+<div class="skills" class:show-detail={mobileDetail && selected !== null}>
   <SkillLibraryHeader {settings} {busy} {editing} bind:author create={createSkill} importFolder={importSkill} {copyPath} openSettings={() => (showSettings = true)} />
   <div class="library-feedback">{@render feedback()}</div>
 
@@ -262,18 +263,18 @@
 
       {#if selected}
         <section class="detail" aria-label="Skill detail">
-          <div class="mobile-back"><button type="button" disabled={busy} onclick={backToSkills}>← Skills</button></div>
+          <div class="mobile-back"><Button variant="link" size="large" disabled={busy} onclick={backToSkills}>← Skills</Button></div>
           <div class="detail-header">
             <div>
-              <div class="title-line"><h2 tabindex="-1" bind:this={detailHeading}>{selected.name}</h2>{#if selected.version}<code class="version">{selected.version}</code>{/if}<span class="badge">✓ Valid</span></div>
+              <div class="title-line"><h2 tabindex="-1" bind:this={detailHeading}>{selected.name}</h2>{#if selected.version}<code class="mono version">{selected.version}</code>{/if}<span class="badge">✓ Valid</span></div>
               <p class="description">{selected.description}</p>
               <PathChip label={selected.skillPath + "/SKILL.md"} path={selected.path + "/SKILL.md"} {busy} copy={copyPath} />
             </div>
             {#if !editing}
               <div class="buttons detail-actions">
                 <InstallStatus element="output" ariaLabel="Install status" status={installCounts.length > 1 ? "mixed" : installCounts[0]?.status} text={installSummary} />
-                <button type="button" disabled={busy} onclick={() => void showInstalls()}>{managed ? "Manage installs" : "Install"}</button>
-                <button type="button" class="primary" disabled={busy} onclick={() => { panel = "source"; void run(startEditing); }}>Edit SKILL.md</button>
+                <Button size="large" disabled={busy} onclick={() => void showInstalls()}>{managed ? "Manage installs" : "Install"}</Button>
+                <Button variant="primary" size="large" disabled={busy} onclick={() => { panel = "source"; void run(startEditing); }}>Edit SKILL.md</Button>
               </div>
             {/if}
           </div>
@@ -286,20 +287,20 @@
             <SkillSourcePanel {selected} {disk} bind:draft {editing} {dirty} {busy} {editor} {saveDraft} {select} />
             <aside class="detail-sidebar">
               <div class="metadata">
-                <section class="card" aria-label="Details">
+                <Card size="medium" aria-label="Details">
                   <h3>Details</h3>
-                  <dl><dt>Status</dt><dd class="valid-text">Valid</dd>{#if selected.version}<dt>Version</dt><dd><code>{selected.version}</code></dd>{/if}<dt>Folder</dt><dd><code>{selected.skillPath}</code></dd><dt>Entry file</dt><dd><code>SKILL.md</code></dd></dl>
-                </section>
-                <section class="card" aria-label="Supporting files">
+                  <dl><dt>Status</dt><dd class="valid-text">Valid</dd>{#if selected.version}<dt>Version</dt><dd><code class="mono">{selected.version}</code></dd>{/if}<dt>Folder</dt><dd><code class="mono">{selected.skillPath}</code></dd><dt>Entry file</dt><dd><code class="mono">SKILL.md</code></dd></dl>
+                </Card>
+                <Card size="medium" aria-label="Supporting files">
                   <h3>Supporting files</h3>
                   {#if selected.files.length}
                     <ul>
-                      {#each selected.files as path}<li><code>{path}</code></li>{/each}
+                      {#each selected.files as path}<li><code class="mono">{path}</code></li>{/each}
                     </ul>
                   {:else}
                     <p>No supporting files.</p>
                   {/if}
-                </section>
+                </Card>
               </div>
               <SkillInstalls bind:this={installs} targets={selected.targets} {busy} {editing} {recover} {prepare} openSettings={() => (showSettings = true)} />
             </aside>
@@ -317,7 +318,49 @@
 {/if}
 
 <style>
+  h2,
+  p,
+  dl {
+    margin: 0;
+  }
+
+  h2 {
+    font-size: 27px;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    overflow-wrap: anywhere;
+  }
+
+  h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  ul {
+    margin: 0;
+    padding-left: 18px;
+  }
+
+  code {
+    overflow-wrap: anywhere;
+  }
+
+  .muted {
+    color: var(--ink-3);
+  }
+
+  .buttons {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
   .skills {
+    margin: 0 auto;
+    padding: 28px 24px 40px;
     display: grid;
     grid-template-rows: auto auto minmax(0, 1fr);
     box-sizing: border-box;
@@ -351,7 +394,7 @@
   .empty-detail {
     min-width: 0;
     border: 1px solid var(--line);
-    border-radius: var(--skill-radius);
+    border-radius: var(--radius-lg);
     background: var(--surface);
   }
 
@@ -481,6 +524,14 @@
   }
 
   @media (max-width: 699px) {
+    h2 {
+      font-size: 24px;
+    }
+
+    .skills {
+      padding: 16px 16px 94px;
+    }
+
     .layout {
       display: flex;
       flex-direction: column;
@@ -496,7 +547,7 @@
       display: none;
     }
 
-    .show-detail {
+    .skills.show-detail {
       height: auto;
       padding-bottom: 120px;
 
@@ -514,12 +565,6 @@
     .mobile-back {
       display: block;
       margin-bottom: 14px;
-
-      button {
-        padding-left: 0;
-        border: 0;
-        background: transparent;
-      }
     }
 
     .detail-header {
@@ -540,12 +585,23 @@
       margin-block: 18px;
       padding: 4px;
       border: 1px solid var(--line);
-      border-radius: var(--skill-radius);
+      border-radius: var(--radius-lg);
       background: var(--surface);
 
       button {
-        border-color: transparent;
+        min-height: 44px;
+        padding: 0 13px;
+        border: 0;
+        border-radius: var(--radius-md);
+        background: transparent;
         color: var(--ink-3);
+        font: inherit;
+        cursor: pointer;
+
+        &:disabled {
+          opacity: 0.6;
+          cursor: default;
+        }
 
         &[aria-pressed="true"] {
           background: var(--sunken);
@@ -563,14 +619,10 @@
 
       &:not([data-panel="source"]) :global(.source-column),
       &[data-panel="source"] .detail-sidebar,
-      &[data-panel="details"] :global(.installations),
+      &[data-panel="details"] :global(.installs),
       &[data-panel="install"] .metadata {
         display: none;
       }
-    }
-
-    .detail-sidebar :global(.card) {
-      background: var(--surface);
     }
 
     .detail-actions {
@@ -582,10 +634,6 @@
       padding: 11px 16px max(11px, env(safe-area-inset-bottom));
       border-top: 1px solid var(--line);
       background: var(--surface);
-
-      button {
-        min-height: 46px;
-      }
     }
 
     .detail-actions > :global(.install-status) {

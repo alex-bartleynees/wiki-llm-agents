@@ -2,6 +2,7 @@
   import type { GitStatus } from "@wiki-agents/contracts/projects/model";
   import { errorMessage } from "#lib/api/client.ts";
   import { pushBranch } from "./api.ts";
+  import Button from "#lib/ui/primitives/Button.svelte";
 
   let { projectId, status, onpushed }: { projectId: string; status: GitStatus; onpushed: (status: GitStatus) => void } = $props();
 
@@ -63,16 +64,16 @@
     {:else if branch !== null}
       <span class="upstream">no upstream</span>
     {/if}
-    <button type="button" class="push" onclick={start} disabled={pushing || blocked !== null || confirming} title={blocked ?? undefined}>
+    <Button size="small" class="push" onclick={start} disabled={pushing || blocked !== null || confirming} title={blocked ?? undefined}>
       {pushing ? "Pushing…" : "Push"}
-    </button>
+    </Button>
   </div>
   {#if confirming && status.pushRemote !== null && branch !== null}
     <div class="confirm" role="alertdialog" aria-label="Push a new branch">
       <p>{branch} has no upstream. Push it to <span class="mono">{status.pushRemote}/{branch}</span> and track it?</p>
       <div class="actions">
-        <button type="button" class="link" onclick={() => (confirming = false)} disabled={pushing}>Cancel</button>
-        <button type="button" class="primary" onclick={() => push(true)} disabled={pushing}>{pushing ? "Pushing…" : `Push to ${status.pushRemote}`}</button>
+        <Button variant="link" onclick={() => (confirming = false)} disabled={pushing}>Cancel</Button>
+        <Button variant="primary" onclick={() => push(true)} disabled={pushing}>{pushing ? "Pushing…" : `Push to ${status.pushRemote}`}</Button>
       </div>
     </div>
   {/if}
@@ -107,21 +108,8 @@
   .counts {
     color: var(--ink-3);
   }
-  .push {
+  .line > :global(.push) {
     margin-left: auto;
-    height: 28px;
-    padding: 0 12px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: var(--surface);
-    color: var(--ink);
-    font: inherit;
-    font-family: var(--font-ui);
-    cursor: pointer;
-  }
-  .push:disabled {
-    color: var(--ink-3);
-    cursor: default;
   }
   .confirm {
     display: flex;
@@ -141,29 +129,6 @@
     align-items: center;
     justify-content: space-between;
   }
-  .link {
-    padding: 0;
-    border: 0;
-    background: transparent;
-    color: var(--accent-ink);
-    font: inherit;
-    cursor: pointer;
-  }
-  .primary {
-    height: 32px;
-    padding: 0 12px;
-    border: 0;
-    border-radius: var(--radius);
-    background: var(--accent);
-    color: var(--on-accent);
-    font: inherit;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  .primary:disabled {
-    opacity: 0.6;
-    cursor: default;
-  }
   .hint,
   .error,
   .done {
@@ -177,11 +142,5 @@
   }
   .error {
     color: var(--del);
-  }
-  @media (max-width: 899px) {
-    .push {
-      height: 36px;
-      font-size: 14px;
-    }
   }
 </style>

@@ -3,6 +3,8 @@
   import { machineFolders } from "#lib/features/folders/api.ts";
   import FolderPicker from "#lib/ui/primitives/FolderPicker.svelte";
   import PathChip from "./PathChip.svelte";
+  import Input from "#lib/ui/primitives/Input.svelte";
+  import Button from "#lib/ui/primitives/Button.svelte";
 
   let { settings, busy, editing, author = $bindable(), create, importFolder, copyPath, openSettings }: {
     settings: GetSettingsResponse | null;
@@ -38,26 +40,26 @@
         <PathChip label={settings.settings.library} path={settings.settings.library} {busy} copy={copyPath} />
       </div>
       <div class="buttons">
-        <button type="button" class="import-action" disabled={busy || editing} aria-expanded={author === "import"} onclick={() => (author = author === "import" ? null : "import")}>Import</button>
-        <button type="button" class="settings-action" aria-label="Skills settings" disabled={busy || editing} onclick={openSettings}>Settings</button>
-        <button type="button" class="primary new-skill" disabled={busy || editing} aria-expanded={author === "create"} onclick={() => (author = author === "create" ? null : "create")}>+ New skill</button>
+        <Button size="large" class="import-action" disabled={busy || editing} aria-expanded={author === "import"} onclick={() => (author = author === "import" ? null : "import")}>Import</Button>
+        <Button size="large" class="settings-action" aria-label="Skills settings" disabled={busy || editing} onclick={openSettings}>Settings</Button>
+        <Button variant="primary" size="large" class="new-skill" disabled={busy || editing} aria-expanded={author === "create"} onclick={() => (author = author === "create" ? null : "create")}>+ New skill</Button>
       </div>
     </div>
     {#if author === "create"}
       <form class="author-form" onsubmit={submitCreate}>
-        <label>New skill name <input bind:value={name} required pattern="[a-z0-9]+(-[a-z0-9]+)*" maxlength="64" /></label>
-        <button class="primary" disabled={busy || editing}>Create skill</button>
+        <label>New skill name <Input size="large" bind:value={name} required pattern="[a-z0-9]+(-[a-z0-9]+)*" maxlength={64} /></label>
+        <Button variant="primary" size="large" type="submit" disabled={busy || editing}>Create skill</Button>
       </form>
     {:else if author === "import"}
       <form class="author-form" onsubmit={submitImport}>
         <div class="import-field">
           <label for="skill-import-folder">Local folder to import</label>
           <div class="import-path">
-            <input id="skill-import-folder" class="mono-input" bind:value={importPath} required placeholder="/path/to/skill" autocomplete="off" autocapitalize="off" spellcheck="false" />
-            <button type="button" disabled={busy} onclick={() => (pickingImport = true)}>Browse…</button>
+            <Input size="large" id="skill-import-folder" mono bind:value={importPath} required placeholder="/path/to/skill" autocomplete="off" autocapitalize="off" spellcheck="false" />
+            <Button size="large" class="browse" disabled={busy} onclick={() => (pickingImport = true)}>Browse…</Button>
           </div>
         </div>
-        <button class="primary" disabled={busy || editing}>Import skill</button>
+        <Button variant="primary" size="large" type="submit" disabled={busy || editing}>Import skill</Button>
       </form>
       <FolderPicker
         bind:open={pickingImport}
@@ -69,11 +71,23 @@
       />
     {/if}
   {:else if settings}
-    <button class="primary" onclick={openSettings}>Set up Skills</button>
+    <Button variant="primary" size="large" onclick={openSettings}>Set up Skills</Button>
   {/if}
 </header>
 
 <style>
+  .buttons {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  label {
+    display: grid;
+    gap: 5px;
+  }
+
   .library-header {
     display: grid;
     gap: 8px;
@@ -110,7 +124,7 @@
     gap: 8px;
     padding: 12px;
     border: 1px solid var(--line);
-    border-radius: var(--skill-radius);
+    border-radius: var(--radius-lg);
     background: var(--surface);
 
     label {
@@ -128,11 +142,7 @@
     align-items: center;
     gap: 8px;
 
-    input {
-      flex: 1;
-    }
-
-    button {
+    > :global(.browse) {
       flex: none;
     }
   }
@@ -158,11 +168,11 @@
       display: none;
     }
 
-    .import-action {
+    .toolbar :global(.import-action) {
       order: 1;
     }
 
-    .new-skill {
+    .toolbar :global(.new-skill) {
       position: fixed;
       right: 16px;
       bottom: calc(16px + env(safe-area-inset-bottom));

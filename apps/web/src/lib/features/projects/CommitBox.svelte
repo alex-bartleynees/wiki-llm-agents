@@ -6,6 +6,7 @@
   import { usageLabel } from "#lib/features/threads/timeline.ts";
   import { commitChanges, suggestCommitMessage } from "./api.ts";
   import { commitRequest } from "./commit-request.ts";
+  import Button from "#lib/ui/primitives/Button.svelte";
 
   /**
    * A message and **Commit** for one git directory: commits exactly the ticked files,
@@ -127,7 +128,7 @@
   {#if suggestion}
     <p class="suggested" role="status" aria-label="Suggested by">
       Suggested by {suggestedBy(suggestion)}{suggestion.truncated ? " · some diffs left out" : ""}
-      {#if before !== null}<button type="button" class="link" onclick={restore}>Put back yours</button>{/if}
+      {#if before !== null}<Button variant="link" class="restore" onclick={restore}>Put back yours</Button>{/if}
     </p>
   {/if}
   <div class="actions">
@@ -136,10 +137,10 @@
       {count === 1 ? "file" : "files"}{ignoredCount === 0 ? "" : `, ${ignoredCount} ignored`}
     </span>
     <span class="buttons">
-      <button type="button" class="secondary" onclick={suggest} disabled={count === 0 || suggesting || committing}>
+      <Button onclick={suggest} disabled={count === 0 || suggesting || committing}>
         {suggesting ? "Suggesting…" : "Suggest message"}
-      </button>
-      <button type="submit" class="primary" disabled={!ready}>{committing ? "Committing…" : "Commit"}</button>
+      </Button>
+      <Button type="submit" variant="primary" disabled={!ready}>{committing ? "Committing…" : "Commit"}</Button>
     </span>
   </div>
   {#if error}<p class="error" role="alert">{error}</p>{/if}
@@ -186,48 +187,13 @@
     align-items: center;
     gap: 6px;
   }
-  .secondary {
-    height: 32px;
-    padding: 0 10px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: var(--surface);
-    color: var(--ink);
-    font: inherit;
-    cursor: pointer;
-  }
-  .secondary:disabled {
-    color: var(--ink-3);
-    cursor: default;
-  }
   .suggested {
     margin: 0;
     color: var(--ink-3);
     overflow-wrap: anywhere;
   }
-  .link {
+  .suggested :global(.restore) {
     margin-left: 6px;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    color: var(--accent-ink);
-    font: inherit;
-    cursor: pointer;
-  }
-  .primary {
-    height: 32px;
-    padding: 0 14px;
-    border: 0;
-    border-radius: var(--radius);
-    background: var(--accent);
-    color: var(--on-accent);
-    font: inherit;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  .primary:disabled {
-    opacity: 0.6;
-    cursor: default;
   }
   .note,
   .done,
@@ -259,11 +225,6 @@
   @media (max-width: 899px) {
     textarea {
       font-size: 16px;
-    }
-    .primary,
-    .secondary {
-      height: 40px;
-      font-size: 15px;
     }
   }
 </style>

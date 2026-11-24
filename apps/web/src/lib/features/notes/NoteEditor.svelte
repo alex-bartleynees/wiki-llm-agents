@@ -8,6 +8,7 @@
   import { imageFiles } from "./images.ts";
   import { noteEditor } from "./note-editor.svelte.ts";
   import { tree } from "./tree.svelte.ts";
+  import Button from "#lib/ui/primitives/Button.svelte";
 
   let { vaultId, path }: { vaultId: string; path: string } = $props();
 
@@ -106,20 +107,20 @@
 <section class="editor" aria-label="Edit note">
   {#if editor.status === "failed"}
     <p class="muted">{editor.loadError}</p>
-    <button type="button" onclick={() => editor.load()}>Retry</button>
+    <Button onclick={() => editor.load()}>Retry</Button>
   {:else}
     <div class="top">
       <div class="bar">
         <span class="status mono" class:failed={editor.saveStatus === "failed"} role="status" aria-live="polite">{statusText}</span>
         {#if editor.saveError !== null}
           <span class="error">{editor.saveError}</span>
-          <button type="button" onclick={() => editor.retry()}>Retry</button>
+          <Button onclick={() => editor.retry()}>Retry</Button>
         {/if}
         {#if imageError !== null}
           <span class="error" role="alert">{imageError}</span>
-          <button type="button" onclick={() => (imageError = null)}>Dismiss</button>
+          <Button onclick={() => (imageError = null)}>Dismiss</Button>
         {/if}
-        <button type="button" class="image" title="Add an image to assets/ and link it here (or paste or drop one)" disabled={view === undefined} onclick={() => picker?.click()}>Image</button>
+        <Button size="small" class="image" title="Add an image to assets/ and link it here (or paste or drop one)" disabled={view === undefined} onclick={() => picker?.click()}>Image</Button>
         <input bind:this={picker} type="file" accept="image/*" multiple hidden onchange={(event) => addChosen(event.currentTarget.files)} />
       </div>
       {#if editor.conflict !== null}
@@ -133,9 +134,9 @@
             </p>
           {/if}
           <div class="actions">
-            <button type="button" class="primary" onclick={() => editor.keepMine()}>{editor.conflict.disk === null ? "Save again" : "Save this version"}</button>
+            <Button variant="primary" onclick={() => editor.keepMine()}>{editor.conflict.disk === null ? "Save again" : "Save this version"}</Button>
             {#if editor.conflict.disk !== null}
-              <button type="button" onclick={() => editor.takeDisk()}>Use the disk version</button>
+              <Button onclick={() => editor.takeDisk()}>Use the disk version</Button>
             {/if}
           </div>
         </div>
@@ -196,6 +197,9 @@
     flex-wrap: wrap;
     gap: 8px;
   }
+  .bar > :global(.image) {
+    margin-left: auto;
+  }
   .host {
     min-height: 60vh;
   }
@@ -206,38 +210,9 @@
   .muted {
     color: var(--ink-3);
   }
-  button {
-    height: 32px;
-    padding: 0 12px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: var(--surface);
-    font: inherit;
-    font-size: 13px;
-    color: var(--ink-2);
-    cursor: pointer;
-  }
-  button.image {
-    margin-left: auto;
-    height: 26px;
-    padding: 0 10px;
-    font-size: 12px;
-  }
-  button:disabled {
-    opacity: 0.5;
-    cursor: default;
-  }
-  button.primary {
-    border-color: var(--accent);
-    background: var(--accent);
-    color: var(--on-accent);
-  }
   @media (max-width: 899px) {
     .host :global(.cm-editor) {
       font-size: 16px;
-    }
-    button {
-      height: 40px;
     }
   }
 </style>

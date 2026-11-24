@@ -4,6 +4,8 @@
   import { machineFolders } from "#lib/features/folders/api.ts";
   import FolderPicker from "#lib/ui/primitives/FolderPicker.svelte";
   import { vaults } from "./vaults.svelte.ts";
+  import Button from "#lib/ui/primitives/Button.svelte";
+  import Input from "#lib/ui/primitives/Input.svelte";
 
   let { onadded }: { onadded: (vault: Vault) => void } = $props();
 
@@ -33,9 +35,9 @@
   <div class="field">
     <label for="vault-folder">Folder</label>
     <div class="path">
-      <input
+      <Input
         id="vault-folder"
-        class="mono"
+        mono
         bind:value={rootPath}
         required
         placeholder="~/Documents/obsidian-vault"
@@ -43,17 +45,17 @@
         autocapitalize="off"
         spellcheck="false"
       />
-      <button type="button" class="browse" onclick={() => (picking = true)}>Browse…</button>
+      <Button class="browse" onclick={() => (picking = true)}>Browse…</Button>
     </div>
   </div>
   <label>
     <span>Name <em>(optional)</em></span>
-    <input bind:value={name} placeholder="Defaults to the folder name" autocomplete="off" />
+    <Input bind:value={name} placeholder="Defaults to the folder name" autocomplete="off" />
   </label>
   {#if error}
     <p class="error" role="alert">{error}</p>
   {/if}
-  <button type="submit" disabled={saving || rootPath.trim() === ""}>{saving ? "Adding…" : "Add vault"}</button>
+  <Button variant="primary" class="submit" type="submit" disabled={saving || rootPath.trim() === ""}>{saving ? "Adding…" : "Add vault"}</Button>
   <p class="hint">Agents and the editor write to the vault; every agent change can be reviewed and undone.</p>
 </form>
 
@@ -87,53 +89,15 @@
     display: flex;
     gap: 6px;
   }
-  .path input {
-    flex: 1;
-    min-width: 0;
+  .path > :global(.browse) {
+    flex: none;
   }
-  .browse {
-    flex: 0 0 auto;
-    height: 38px;
-    padding: 0 12px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: transparent;
-    color: var(--ink);
-    font: inherit;
-    font-size: 13px;
-    cursor: pointer;
+  form > :global(.submit) {
+    justify-self: start;
   }
   em {
     font-style: normal;
     color: var(--ink-3);
-  }
-  input {
-    height: 38px;
-    padding: 0 10px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: var(--surface);
-    font-size: 14px;
-    color: var(--ink);
-  }
-  input:not(.mono) {
-    font-family: inherit;
-  }
-  button {
-    justify-self: start;
-    height: 38px;
-    padding: 0 16px;
-    border: 0;
-    border-radius: var(--radius);
-    background: var(--accent);
-    font: inherit;
-    font-weight: 600;
-    color: var(--on-accent);
-    cursor: pointer;
-  }
-  button:disabled {
-    opacity: 0.5;
-    cursor: default;
   }
   .error {
     margin: 0;

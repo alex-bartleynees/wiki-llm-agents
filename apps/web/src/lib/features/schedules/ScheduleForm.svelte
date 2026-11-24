@@ -10,6 +10,7 @@
   import { vaults } from "#lib/features/vaults/vaults.svelte.ts";
   import { modelPlaceholder, modelSource } from "./schedule-model.ts";
   import { schedules } from "./schedules.svelte.ts";
+  import Button from "#lib/ui/primitives/Button.svelte";
 
   /** A new schedule, or `schedule` to edit. */
   let { schedule, onsaved, oncancel }: { schedule?: Schedule; onsaved: (schedule: Schedule) => void; oncancel: () => void } = $props();
@@ -232,8 +233,8 @@
 
   {#if error}<p class="error" role="alert">{error}</p>{/if}
   <div class="actions">
-    <button type="submit" class="primary" disabled={saving}>{initial === undefined ? "Create schedule" : "Save changes"}</button>
-    <button type="button" onclick={oncancel}>Cancel</button>
+    <Button type="submit" variant="primary" disabled={saving}>{initial === undefined ? "Create schedule" : "Save changes"}</Button>
+    <Button onclick={oncancel}>Cancel</Button>
   </div>
 </form>
 
@@ -308,19 +309,5 @@
   .actions {
     display: flex;
     gap: 8px;
-  }
-  button {
-    padding: 6px 14px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: var(--bg);
-    color: var(--ink);
-    font: inherit;
-    cursor: pointer;
-  }
-  .primary {
-    border-color: var(--accent);
-    background: var(--accent);
-    color: var(--on-accent, #fff);
   }
 </style>

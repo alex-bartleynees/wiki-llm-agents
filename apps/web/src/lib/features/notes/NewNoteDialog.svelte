@@ -8,6 +8,7 @@
   import { EDIT_PARAM } from "./edit-param.ts";
   import { foldersOf, newNotePath, noteFileName, renderTemplate, templatesIn } from "./templates.ts";
   import { tree } from "./tree.svelte.ts";
+  import Button from "#lib/ui/primitives/Button.svelte";
 
   let {
     open = $bindable(false),
@@ -132,14 +133,14 @@
           {error}
           {#if existing !== null}
             {@const target = existing}
-            <button type="button" class="link" onclick={() => openNote(target)}>Open it</button>
+            <Button variant="link" onclick={() => openNote(target)}>Open it</Button>
           {/if}
         </p>
       {/if}
     </div>
     <footer>
-      <button type="button" onclick={() => (open = false)}>Cancel</button>
-      <button type="submit" class="primary" disabled={path === undefined || creating}>{creating ? "Creating…" : "Create"}</button>
+      <Button onclick={() => (open = false)}>Cancel</Button>
+      <Button type="submit" variant="primary" disabled={path === undefined || creating}>{creating ? "Creating…" : "Create"}</Button>
     </footer>
   </form>
 </dialog>
@@ -218,42 +219,12 @@
   .mono {
     font-family: var(--font-mono);
   }
-  .link {
-    padding: 0;
-    border: 0;
-    background: transparent;
-    font: inherit;
-    color: var(--accent-ink);
-    text-decoration: underline;
-    cursor: pointer;
-  }
   footer {
     display: flex;
     justify-content: flex-end;
     gap: 8px;
     padding: 12px 16px;
     border-top: 1px solid var(--line-soft);
-  }
-  footer button {
-    height: 34px;
-    padding: 0 14px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: transparent;
-    color: var(--ink);
-    font: inherit;
-    font-size: 13px;
-    cursor: pointer;
-  }
-  footer .primary {
-    border-color: var(--accent);
-    background: var(--accent);
-    color: var(--on-accent);
-    font-weight: 600;
-  }
-  footer .primary:disabled {
-    opacity: 0.6;
-    cursor: default;
   }
   @media (max-width: 899px) {
     dialog {
@@ -263,9 +234,6 @@
     select {
       height: 42px;
       font-size: 16px;
-    }
-    footer button {
-      height: 40px;
     }
   }
 </style>

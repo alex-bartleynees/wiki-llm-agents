@@ -1,5 +1,7 @@
 <script lang="ts">
   import type { ListSkillsResponse } from "@wiki-agents/contracts/skills/list-skills/response";
+  import Input from "#lib/ui/primitives/Input.svelte";
+  import Button from "#lib/ui/primitives/Button.svelte";
 
   let { catalog, selectedPath, busy, open, query = $bindable(), filter = $bindable() }: {
     catalog: ListSkillsResponse;
@@ -21,12 +23,12 @@
 </script>
 
 <section class="catalog" aria-label="Skills library">
-  <input type="search" aria-label="Search skills" placeholder="Search skills" bind:value={query} />
+  <Input size="large" class="search" type="search" aria-label="Search skills" placeholder="Search skills" bind:value={query} />
   <div class="filters" role="group" aria-label="Filter skills">
     {#each filters as item}
-      <button type="button" aria-pressed={filter === item.id} onclick={() => (filter = item.id)}>
+      <Button size="small" pill aria-pressed={filter === item.id} onclick={() => (filter = item.id)}>
         {item.label} {item.id === "all" ? visible.length + visibleProblems.length : item.id === "valid" ? visible.length : visibleProblems.length}
-      </button>
+      </Button>
     {/each}
   </div>
   <div class="results" role="region" aria-label="Skill results">
@@ -35,7 +37,7 @@
         <button class="skill" type="button" aria-pressed={selectedPath === skill.skillPath} disabled={busy} onclick={() => open(skill.skillPath)}>
           <strong>{skill.name}</strong>
           <span>{skill.description}</span>
-          {#if skill.skillPath !== skill.name}<code title={skill.skillPath}>{skill.skillPath}</code>{/if}
+          {#if skill.skillPath !== skill.name}<code class="mono" title={skill.skillPath}>{skill.skillPath}</code>{/if}
         </button>
       {/each}
     {/if}
@@ -52,6 +54,14 @@
 </section>
 
 <style>
+  p {
+    margin: 0;
+  }
+
+  .muted {
+    color: var(--ink-3);
+  }
+
   .catalog {
     display: flex;
     flex-direction: column;
@@ -61,10 +71,10 @@
     max-height: 100%;
     padding: 14px;
     border: 1px solid var(--line);
-    border-radius: var(--skill-radius);
+    border-radius: var(--radius-lg);
     background: var(--surface);
 
-    > input {
+    > :global(.search) {
       flex: none;
     }
   }
@@ -75,18 +85,22 @@
     flex-wrap: wrap;
     gap: 6px;
     margin-block: 11px 12px;
-
-    button {
-      min-height: 31px;
-      padding-inline: 11px;
-      border-radius: 999px;
-      color: var(--ink-3);
-      font-size: 13px;
-    }
   }
 
-  .filters button[aria-pressed="true"],
-  button.skill[aria-pressed="true"] {
+  button.skill:enabled:hover {
+    background: var(--sunken);
+  }
+
+  button.skill:enabled {
+    cursor: pointer;
+  }
+
+  button.skill:disabled {
+    opacity: 0.6;
+  }
+
+  button.skill[aria-pressed="true"],
+  button.skill[aria-pressed="true"]:hover {
     border-color: var(--accent);
     background: var(--accent-soft);
     color: var(--ink);
@@ -112,7 +126,10 @@
     min-width: 0;
     padding: 7px 10px;
     border: 1px solid transparent;
-    border-radius: var(--skill-control-radius);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    color: var(--ink);
+    font: inherit;
     text-align: left;
     overflow-wrap: anywhere;
 
@@ -173,7 +190,7 @@
       border: 0;
       background: transparent;
 
-      > input {
+      > :global(.search) {
         background: var(--surface);
       }
     }
@@ -185,7 +202,7 @@
     .skill {
       padding: 9px 12px;
       border-color: var(--line);
-      border-radius: var(--skill-radius);
+      border-radius: var(--radius-lg);
       background: var(--surface);
     }
 
