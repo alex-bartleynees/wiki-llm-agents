@@ -80,4 +80,14 @@ describe("server-backed message drafts", () => {
     await draft.load();
     expect(draft.text).toBe("saved elsewhere");
   });
+
+  it("does not bring back a sent message when reloading the draft fails", async () => {
+    const draft = new MessageDraft("one");
+    await draft.load();
+    api.getDraft.mockRejectedValueOnce(new Error("Offline"));
+    await draft.sent();
+    expect(draft.text).toBe("");
+    expect(draft.error).toBe("Offline");
+    expect(api.saveDraft).not.toHaveBeenCalled();
+  });
 });

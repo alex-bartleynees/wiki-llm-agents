@@ -41,6 +41,11 @@ export class MessageDraft {
     this.#timer = setTimeout(() => void this.flush(), SAVE_DELAY_MS);
   }
 
+  async sent() {
+    this.text = "";
+    await this.load();
+  }
+
   #save() {
     const text = this.text;
     const sequence = this.#sequence;

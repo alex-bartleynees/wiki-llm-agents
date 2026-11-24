@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Route } from "@playwright/test";
 import { openVault, tab, useReplay } from "./app.ts";
 
 test("starts a thread with a note picked by @, and answers its approval", async ({ page }, info) => {
@@ -133,6 +133,32 @@ test("keeps separate message drafts across navigation and reload, clearing only 
   await expect(message).toHaveValue("");
 });
 
+
+test("clears the message box as soon as it is sent and restores it when sending fails", async ({ page }, info) => {
+  await openVault(page);
+  await tab(page, info, "Chat");
+  await useReplay(page);
+  await page.getByRole("button", { name: "New thread", exact: true }).click();
+  const message = page.getByRole("textbox", { name: "Message" });
+  const held = () => new Promise<Route>((resolve) => void page.route(/\/threads\/[^/]+\/messages$/, resolve, { times: 1 }));
+
+  const refused = held();
+  await message.fill("Keep this if it fails");
+  await message.press("Enter");
+  const refusedRoute = await refused;
+  await expect(message).toHaveValue("");
+  await refusedRoute.abort();
+  await expect(message).toHaveValue("Keep this if it fails");
+  await expect(page.getByRole("alert")).toBeVisible();
+
+  const accepted = held();
+  await message.press("Enter");
+  const acceptedRoute = await accepted;
+  await expect(message).toHaveValue("");
+  await acceptedRoute.continue();
+  await expect(page.locator(".turn-end").last()).toHaveText(/^Done/);
+  await expect(message).toHaveValue("");
+});
 
 test("resumes a draft in an independent browser session", async ({ page, browser }, info) => {
   await openVault(page);

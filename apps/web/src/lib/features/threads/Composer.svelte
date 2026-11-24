@@ -55,6 +55,7 @@
   let picker: HTMLInputElement | undefined = $state();
   /** Files are being dragged over the composer. */
   let dropping = $state(false);
+  let submitting = $state(false);
   /** Send this message's images as files, for a model that can't see images. */
   let imagesAsFiles = $state(true);
 
@@ -97,10 +98,10 @@
     dropping = false;
     if (!hasFiles(event.dataTransfer)) return;
     event.preventDefault();
+    if (submitting) return;
     files.add(event.dataTransfer?.files ?? []);
   }
 
-  let submitting = $state(false);
   const canSend = $derived(!submitting && draft.loaded && !openThread.sending && !files.uploading && !files.failed && (draft.text.trim() !== "" || files.ready.length > 0));
 
   // Notes matching the `@name` (recent notes for a bare `@`), without those attached.
@@ -214,7 +215,7 @@
       const asFiles = blindModel !== null && imagesAsFiles;
       if (await openThread.send(message, notes, sent.length === 0 ? {} : { attachments: sent, ...(asFiles ? { imagesAsFiles: true } : {}) })) {
         // The server cleared the matching draft atomically with accepting the message.
-        await draft.load();
+        await draft.sent();
         attached = [];
         selection = "";
         includeOpen = false;
@@ -237,15 +238,15 @@
 <!-- Dropping files anywhere on the composer attaches them; the Attach button does the same from the keyboard. -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="composer" class:dropping {ondragover} ondragleave={() => (dropping = false)} {ondrop}>
-  <div class="context" role="group" aria-label="Context for your next message">
+  <div class="context" role="group" aria-label="Context for your next message" inert={submitting}>
     <span class="label">context:</span>
-    {#each attached as note (note.path)}
+    {#each submitting ? [] : attached as note (note.path)}
       <span class="chip" title={note.path}>
         @{note.name}
         <button type="button" aria-label="Remove {note.name}" onclick={() => (attached = attached.filter((other) => other.path !== note.path))}>×</button>
       </span>
     {/each}
-    {#if openPath !== null && (includeOpen || selection !== "")}
+    {#if !submitting && openPath !== null && (includeOpen || selection !== "")}
       <span class="chip" title={openPath}>
         @{noteName(openPath)}{selection === "" ? "" : ` · selection · ${selectionLines} ${selectionLines === 1 ? "line" : "lines"}`}
         <button
@@ -280,7 +281,7 @@
     />
   </div>
 
-  {#if files.items.length > 0}
+  {#if !submitting && files.items.length > 0}
     <ul class="files" aria-label="Files to send">
       {#each files.items as item (item.key)}
         {@const image = item.preview !== null && item.attachment?.kind !== "file"}
@@ -304,12 +305,12 @@
   {#if files.refused}
     <p class="note error" role="alert">{files.refused}</p>
   {/if}
-  {#if blindModel !== null}
+  {#if !submitting && blindModel !== null}
     <p class="note">
       {blindModel.name} can't see images.
       <label><input type="checkbox" bind:checked={imagesAsFiles} /> Send them as files</label>
     </p>
-  {:else if providerBlind}
+  {:else if !submitting && providerBlind}
     <p class="note">{provider?.name} can't see images; they go as files.</p>
   {/if}
 
@@ -319,7 +320,7 @@
       void submit();
     }}
   >
-    {#if mention !== null && suggestions.length > 0}
+    {#if !submitting && mention !== null && suggestions.length > 0}
       <ul class="suggestions" id="note-suggestions" role="listbox" aria-label="Notes to add">
         {#each suggestions as note, index (note.path)}
           <!-- The message box keeps focus and handles the keyboard; options only need the pointer. -->
@@ -340,7 +341,7 @@
     {/if}
     <textarea
       bind:this={textarea}
-      value={draft.text}
+      value={submitting ? "" : draft.text}
       disabled={!draft.loaded || submitting || openThread.sending}
       rows="2"
       placeholder={running ? "The agent is working…" : "Reply, or type @ to add a note"}
