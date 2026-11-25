@@ -1,5 +1,5 @@
 import { Data, Effect } from "effect";
-import { deleteVerifiedRef, inspectBranch } from "../branch-cleanup-git.js";
+import { deleteVerifiedRef, inspectBranch } from "../git/index.js";
 import { confirmationFor, recordBranchDeleted, verifyRemovedBranch } from "../branch-cleanup.js";
 
 export class BranchCleanupRefused extends Data.TaggedError("BranchCleanupRefused")<{ readonly message: string }> {}

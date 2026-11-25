@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 import { InvalidProject } from "./errors.js";
 import { findProject } from "./find-project.js";
-import { workTrees } from "./git.js";
+import { workTrees } from "./git/index.js";
 import { liveWorktrees } from "./worktrees.js";
 
 /** A directory the Diff view shows with a branch: a working directory in git, or a thread's worktree. */

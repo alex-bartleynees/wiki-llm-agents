@@ -1,12 +1,13 @@
 import type { CommitChangesRequest } from "@wiki-agents/contracts/projects/commit-changes/request";
 import type { CommitChangesResponse } from "@wiki-agents/contracts/projects/commit-changes/response";
 import { Effect } from "effect";
-import { addPaths, commitPaths, describeCommit, GitRefused, unstagePaths } from "../commit-git.js";
+import { contentHashes } from "../content-hashes.js";
 import { InvalidProject, StaleReview } from "../errors.js";
+import { IGNORED } from "../files.js";
 import { gitDirectory } from "../git-directories.js";
 import { gitStatus } from "../git-status.js";
-import { changedPaths, contentHashes, headCommit, untrackedAmong } from "../git.js";
-import { isInsidePath } from "../git-diff.js";
+import { changedPaths, commitExactly, headCommit } from "../git/index.js";
+import { isInsidePath } from "../paths.js";
 
 /** At most this many paths are named in a refusal. */
 const NAMED = 5;
@@ -33,17 +34,13 @@ export const commitChanges = Effect.fn("commitProjectChanges")(function* (projec
 
   const head = yield* headCommit(directory);
   if (head !== request.head) return yield* new StaleReview({ message: "A commit was made here since you reviewed the changes. Review them again." });
-  const changed = new Set((yield* changedPaths(directory)).map((change) => change.path));
+  const changed = new Set((yield* changedPaths(directory, IGNORED)).map((change) => change.path));
   const unchanged = paths.filter((path) => !changed.has(path));
   if (unchanged.length > 0) return yield* new StaleReview({ message: `No longer changed: ${named(unchanged)}. Review the changes again.` });
   const hashes = yield* contentHashes(directory, paths);
   const moved = request.files.filter((file) => hashes.get(file.path) !== file.hash).map((file) => file.path);
   if (moved.length > 0) return yield* new StaleReview({ message: `Changed since you reviewed them: ${named(moved)}. Review the changes again.` });
 
-  const added = yield* untrackedAmong(directory, paths);
-  yield* addPaths(directory, added);
-  const output = yield* commitPaths(directory, paths, message).pipe(Effect.tapError(() => unstagePaths(directory, added)));
-  const after = yield* headCommit(directory);
-  if (after === null || after === head) return yield* new GitRefused({ message: "git finished without making a commit" });
-  return { commit: yield* describeCommit(directory, after), output, status: yield* gitStatus(entry) } satisfies CommitChangesResponse;
+  const made = yield* commitExactly(directory, head, paths, message, IGNORED);
+  return { ...made, status: yield* gitStatus(entry) } satisfies CommitChangesResponse;
 });

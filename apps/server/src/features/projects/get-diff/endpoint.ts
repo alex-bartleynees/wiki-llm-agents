@@ -13,6 +13,7 @@ export const getDiffEndpoint = Effect.gen(function* () {
   Effect.catchTags({
     SchemaError: () => Effect.succeed(badRequest()),
     ProjectNotFound: () => Effect.succeed(notFound("Project not found")),
+    GitFailed: (error) => Effect.succeed(conflict(error.message)),
     ProjectFilesError: (error) => Effect.succeed(conflict(error.message)),
   }),
   Effect.catch(internalError("get project diff")),

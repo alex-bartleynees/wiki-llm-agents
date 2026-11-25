@@ -13,7 +13,7 @@ import { RegisterProjectResponse } from "@wiki-agents/contracts/projects/registe
 import { UnignoreFileResponse } from "@wiki-agents/contracts/projects/unignore-file/response";
 import { Effect } from "effect";
 import { HttpClient } from "effect/http";
-import { FILE_LIMITS, LIST_LIMITS } from "../../src/features/projects/git-diff.js";
+import { FILE_LIMITS, LIST_LIMITS } from "../../src/features/projects/diff-limits.js";
 import { NOT_IN_A_PROJECT } from "../../src/features/mcp/tools/project-ignored-files/tool.js";
 import { mcpSession, tokenFor } from "./infrastructure/mcp.js";
 import { makeTestApp } from "./infrastructure/test-app.js";

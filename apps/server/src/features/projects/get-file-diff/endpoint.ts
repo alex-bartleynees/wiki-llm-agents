@@ -18,6 +18,7 @@ export const getFileDiffEndpoint = Effect.gen(function* () {
     InvalidProject: (error) => Effect.succeed(badRequest(error.message)),
     ProjectNotFound: () => Effect.succeed(notFound("Project not found")),
     FileDiffNotFound: () => Effect.succeed(notFound("The file has no changes")),
+    GitFailed: (error) => Effect.succeed(conflict(error.message)),
     ProjectFilesError: (error) => Effect.succeed(conflict(error.message)),
   }),
   Effect.catch(internalError("get project file diff")),

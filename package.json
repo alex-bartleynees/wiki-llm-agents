@@ -11,7 +11,8 @@
     "dev": "nix run .#dev",
     "lint:comments": "node scripts/comment-lint.mjs",
     "lint:effect-io": "node scripts/effect-io-lint.mjs",
-    "check": "npm run lint:comments && npm run lint:effect-io && npm run check --workspaces --if-present",
+    "lint:git-boundary": "node scripts/git-boundary-lint.mjs",
+    "check": "npm run lint:comments && npm run lint:effect-io && npm run lint:git-boundary && npm run check --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "build": "npm run build --workspaces --if-present"
   },

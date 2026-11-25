@@ -1,7 +1,7 @@
 import type { GitStatus } from "@wiki-agents/contracts/projects/model";
 import { Effect } from "effect";
 import type { GitDirectory } from "./git-directories.js";
-import { branchStatus } from "./git.js";
+import { branchStatus } from "./git/index.js";
 
 /** The directory's `GitStatus`. */
 export const gitStatus = (entry: GitDirectory) =>

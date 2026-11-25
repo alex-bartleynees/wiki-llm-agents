@@ -5,9 +5,10 @@ import { complete } from "../../providers/complete.js";
 import { commitMessageProvider } from "../commit-message-provider.js";
 import { cleanMessage, COMMIT_SYSTEM, commitPrompt, RECENT_SUBJECTS, SUGGEST_LIMITS } from "../commit-prompt.js";
 import { InvalidProject, StaleReview } from "../errors.js";
+import { IGNORED } from "../files.js";
 import { gitDirectory } from "../git-directories.js";
-import { diffDirectory, recentSubjects } from "../git.js";
-import { isInsidePath } from "../git-diff.js";
+import { diffDirectory, recentSubjects } from "../git/index.js";
+import { isInsidePath } from "../paths.js";
 
 /** More ticked files than this is a sweeping change; name it yourself. */
 const MAX_PATHS = 500;
@@ -25,7 +26,7 @@ export const suggestCommitMessage = Effect.fn("suggestCommitMessage")(function* 
   if (!request.paths.every(isInsidePath)) return yield* new InvalidProject({ message: "Paths must be relative and inside the working directory" });
   const ticked = new Set(request.paths);
   // Every diff, then only the ticked ones: the prompt's own budget decides what is left out.
-  const files = (yield* diffDirectory(directory, SUGGEST_LIMITS, Number.POSITIVE_INFINITY)).filter((file) => ticked.has(file.path));
+  const files = (yield* diffDirectory(directory, SUGGEST_LIMITS, Number.POSITIVE_INFINITY, IGNORED)).filter((file) => ticked.has(file.path));
   if (files.length === 0) return yield* new StaleReview({ message: "None of the ticked files has changes now. Review the changes again." });
   const { prompt, truncated } = commitPrompt(files, yield* recentSubjects(directory, RECENT_SUBJECTS));
   const { adapter, provider } = yield* commitMessageProvider;

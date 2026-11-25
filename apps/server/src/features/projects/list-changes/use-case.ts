@@ -1,9 +1,9 @@
 import type { ListChangesResponse } from "@wiki-agents/contracts/projects/list-changes/response";
 import { Effect } from "effect";
 import { changedFiles } from "../changed-files.js";
-import { fileKey } from "../files.js";
+import { fileKey, IGNORED } from "../files.js";
 import { findProject } from "../find-project.js";
-import { changedPaths, workTrees } from "../git.js";
+import { changedPaths, workTrees } from "../git/index.js";
 import { ProjectRepository } from "../repository.js";
 
 /**
@@ -19,7 +19,7 @@ export const listChanges = Effect.fn("listProjectChanges")(function* (projectId:
   const outside = directories.filter((_, index) => !inGit[index]);
   const fromBaseline = outside.length === 0 ? [] : yield* changedFiles(outside, yield* repository.baseline(projectId));
   const ignored = new Set((yield* repository.ignoredFiles(projectId)).map(fileKey));
-  const fromGit = (yield* Effect.forEach(gitDirectories, changedPaths, { concurrency: 4 })).flat().filter((change) => !ignored.has(fileKey(change)));
+  const fromGit = (yield* Effect.forEach(gitDirectories, (directory) => changedPaths(directory, IGNORED), { concurrency: 4 })).flat().filter((change) => !ignored.has(fileKey(change)));
   const changes = [...fromGit, ...fromBaseline].sort((a, b) => a.directory.localeCompare(b.directory) || a.path.localeCompare(b.path));
   return { changes, gitDirectories } satisfies ListChangesResponse;
 });

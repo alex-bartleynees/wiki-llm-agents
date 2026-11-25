@@ -12,12 +12,6 @@ export interface DiffLimits {
   readonly chars: number;
 }
 
-/** Each file in the project's diff: enough to review most changes in place. */
-export const LIST_LIMITS: DiffLimits = { lines: 1500, chars: 120_000 };
-export const FILE_LIMITS: DiffLimits = { lines: 20_000, chars: 2_000_000 };
-/** Diff text in one project diff; files past it come without their diff, to load one at a time. */
-export const LIST_BUDGET_CHARS = 4_000_000;
-
 /** A file `git diff --name-status -z` reported. */
 export interface NameStatus {
   readonly status: Exclude<DiffStatus, "untracked">;
@@ -116,7 +110,3 @@ export const untrackedFile = (path: string, content: Uint8Array, limits: DiffLim
 
 /** A file whose diff was left out to keep the whole response bounded. */
 export const withoutDiff = (file: DiffFile): DiffFile => (file.diff === "" ? file : { ...file, diff: "", truncated: true });
-
-/** A relative path that stays inside its directory: no `..`, not absolute, not empty. */
-export const isInsidePath = (path: string) =>
-  path !== "" && !path.startsWith("/") && !path.includes("\0") && !path.split("/").some((part) => part === ".." || part === "." || part === "");

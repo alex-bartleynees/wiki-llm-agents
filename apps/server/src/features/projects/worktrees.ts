@@ -1,13 +1,14 @@
-import { isAbsolute, join, relative } from "node:path";
+import { dirname, isAbsolute, join, relative } from "node:path";
 import type { Project, Worktree } from "@wiki-agents/contracts/projects/model";
 import { Clock, Context, Data, Effect, FileSystem, Layer, Option } from "effect";
 import { AppConfig } from "../../shared/config.js";
-import { captureRemovedBranch } from "./branch-cleanup-git.js";
-import { InvalidProject } from "./errors.js";
+import { removeEmptyDirectory } from "../../shared/node-files.js";
+import { InvalidProject, WorktreeRefused } from "./errors.js";
+import { ProjectFilesError } from "./files.js";
 import { findProject } from "./find-project.js";
+import { addWorktree, captureRemovedBranch, checkBranch, type GitFailed, type GitRefused, removeWorktree, worktreeSource } from "./git/index.js";
 import { mainDirectory } from "./project-context.js";
 import { ProjectRepository } from "./repository.js";
-import { addWorktree, checkBranch, removeEmptyParents, removeWorktree, worktreePath, worktreeSource } from "./worktree-git.js";
 
 /**
  * Opt-in git worktrees for threads (slice 14b): a thread can run in its own checkout of
@@ -28,6 +29,20 @@ export const WorktreeRootLive = Layer.unwrap(
 );
 
 export class WorktreeNotFound extends Data.TaggedError("WorktreeNotFound")<{ readonly threadId: string }> {}
+
+const refused = (error: GitRefused) => new WorktreeRefused({ message: error.message });
+const unreadable = (error: GitFailed) => new ProjectFilesError({ message: error.message, cause: error.cause });
+
+/** Removes the folders a branch name like `wiki-agents/abc` left behind, while empty, up to `root`. */
+const removeEmptyParents = (path: string, root: string) =>
+  Effect.gen(function* () {
+    for (let folder = dirname(path); relative(root, folder) !== "" && !relative(root, folder).startsWith(".."); folder = dirname(folder)) {
+      if (!(yield* removeEmptyDirectory(folder).pipe(Effect.as(true), Effect.orElseSucceed(() => false)))) return;
+    }
+  });
+
+/** Where a thread's worktree goes: `<root>/<project id>/<branch>`. */
+const worktreePath = (root: string, projectId: string, branch: string) => join(root, projectId, branch);
 
 const exists = Effect.fnUntraced(function* (path: string) {
   const fs = yield* FileSystem.FileSystem;
@@ -64,8 +79,10 @@ export const createWorktree = Effect.fn("createWorktree")(function* (project: Pr
   const main = mainDirectory(project);
   const availability = yield* worktreeAvailability(project, vaultRoot);
   if (!availability.available) return yield* new InvalidProject({ message: availability.reason });
-  yield* checkBranch(main, branch);
-  const path = yield* addWorktree(main, branch, worktreePath((yield* WorktreeRoot).directory, project.id, branch));
+  yield* checkBranch(main, branch).pipe(Effect.mapError(refused));
+  const path = yield* addWorktree(main, branch, worktreePath((yield* WorktreeRoot).directory, project.id, branch)).pipe(
+    Effect.mapError((error) => (error._tag === "GitRefused" ? refused(error) : unreadable(error))),
+  );
   const prefix = availability.prefix;
   const worktree: Worktree = {
     threadId,
@@ -155,7 +172,7 @@ export const removeThreadWorktree = Effect.fn("removeThreadWorktree")(function* 
     const project = yield* findProject(worktree.projectId);
     const main = mainDirectory(project);
     identity = yield* captureRemovedBranch(main, worktree.path, worktree.branch);
-    yield* removeWorktree(main, worktree.path);
+    yield* removeWorktree(main, worktree.path).pipe(Effect.mapError(refused));
     yield* removeEmptyParents(worktree.path, (yield* WorktreeRoot).directory);
   }
   const removedAt = yield* Clock.currentTimeMillis;

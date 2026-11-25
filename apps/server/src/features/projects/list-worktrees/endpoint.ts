@@ -14,7 +14,7 @@ export const listWorktreesEndpoint = Effect.gen(function* () {
     SchemaError: () => Effect.succeed(badRequest()),
     ProjectNotFound: () => Effect.succeed(notFound("Project not found")),
     VaultNotFound: () => Effect.succeed(notFound("The project's vault is gone")),
-    ProjectFilesError: (error) => Effect.succeed(conflict(error.message)),
+    GitFailed: (error) => Effect.succeed(conflict(error.message)),
   }),
   Effect.catch(internalError("list project worktrees")),
 );

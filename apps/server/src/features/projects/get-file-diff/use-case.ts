@@ -1,10 +1,13 @@
 import type { GetFileDiffRequest } from "@wiki-agents/contracts/projects/get-file-diff/request";
 import type { GetFileDiffResponse } from "@wiki-agents/contracts/projects/get-file-diff/response";
 import { Effect } from "effect";
+import { withHashes } from "../content-hashes.js";
+import { FILE_LIMITS } from "../diff-limits.js";
 import { FileDiffNotFound, InvalidProject } from "../errors.js";
+import { IGNORED } from "../files.js";
 import { findProject } from "../find-project.js";
-import { diffFile, withHashes, workTrees } from "../git.js";
-import { FILE_LIMITS, isInsidePath } from "../git-diff.js";
+import { diffFile, workTrees } from "../git/index.js";
+import { isInsidePath } from "../paths.js";
 import { liveWorktrees } from "../worktrees.js";
 
 /**
@@ -21,7 +24,7 @@ export const getFileDiff = Effect.fn("getProjectFileDiff")(function* (projectId:
   if (!isInsidePath(request.path)) return yield* new InvalidProject({ message: "The path must be relative and inside the working directory" });
   const [inGit] = yield* workTrees([request.directory]);
   if (!inGit) return yield* new InvalidProject({ message: "The working directory is not a git repository, so there is no diff" });
-  const file = yield* diffFile(request.directory, request.path, FILE_LIMITS);
+  const file = yield* diffFile(request.directory, request.path, FILE_LIMITS, IGNORED);
   if (file === undefined) return yield* new FileDiffNotFound({ path: request.path });
   const [hashed] = yield* withHashes(request.directory, [file]);
   return { file: hashed! } satisfies GetFileDiffResponse;

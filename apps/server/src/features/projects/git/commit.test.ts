@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { NodeChildProcessSpawner, NodeFileSystem, NodePath } from "@effect/platform-node";
 import { describe, expect, it } from "@effect/vitest";
 import { Duration, Effect, Layer } from "effect";
-import { commitPaths } from "./commit-git.js";
+import { commitPaths } from "./commit.js";
 
 const Spawner = NodeChildProcessSpawner.layer.pipe(Layer.provide(Layer.merge(NodeFileSystem.layer, NodePath.layer)));
 

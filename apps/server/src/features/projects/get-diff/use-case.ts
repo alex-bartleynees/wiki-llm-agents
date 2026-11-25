@@ -2,9 +2,11 @@ import type { GetDiffResponse } from "@wiki-agents/contracts/projects/get-diff/r
 import type { DirectoryDiff } from "@wiki-agents/contracts/projects/model";
 import { Effect } from "effect";
 import { changedFiles } from "../changed-files.js";
+import { withHashes } from "../content-hashes.js";
+import { LIST_BUDGET_CHARS, LIST_LIMITS } from "../diff-limits.js";
+import { IGNORED } from "../files.js";
 import { findProject } from "../find-project.js";
-import { diffDirectory, headCommit, withHashes, workTrees } from "../git.js";
-import { LIST_LIMITS } from "../git-diff.js";
+import { diffDirectory, headCommit, workTrees } from "../git/index.js";
 import { mainDirectory } from "../project-context.js";
 import { ProjectRepository } from "../repository.js";
 import { liveWorktrees } from "../worktrees.js";
@@ -16,7 +18,7 @@ import { liveWorktrees } from "../worktrees.js";
 const reviewable = (directory: string) =>
   Effect.gen(function* () {
     const head = yield* headCommit(directory);
-    const files = yield* withHashes(directory, yield* diffDirectory(directory, LIST_LIMITS));
+    const files = yield* withHashes(directory, yield* diffDirectory(directory, LIST_LIMITS, LIST_BUDGET_CHARS, IGNORED));
     return { head, files };
   });
 

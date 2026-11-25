@@ -1,8 +1,8 @@
-import { inspectBranch } from "../branch-cleanup-git.js";
 import type { ListWorktreesResponse } from "@wiki-agents/contracts/projects/list-worktrees/response";
 import { Effect } from "effect";
+import { IGNORED } from "../files.js";
 import { findProject } from "../find-project.js";
-import { changedPaths } from "../git.js";
+import { changedPaths, inspectBranch } from "../git/index.js";
 import { mainDirectory } from "../project-context.js";
 import { ProjectRepository } from "../repository.js";
 import { findVault } from "../../vaults/find-vault.js";
@@ -25,7 +25,7 @@ export const listWorktrees = Effect.fn("listProjectWorktrees")(function* (projec
     (worktree) =>
       Effect.gen(function* () {
         const exists = yield* worktreeExists(worktree);
-        const changedFiles = exists ? (yield* changedPaths(worktree.directory)).filter((change) => !ignored.has(change.path)).length : null;
+        const changedFiles = exists ? (yield* changedPaths(worktree.directory, IGNORED)).filter((change) => !ignored.has(change.path)).length : null;
         const branchDeleted = worktree.branchDeletedAt !== null || (worktree.removedAt !== null &&
           (yield* inspectBranch(main, `refs/heads/${worktree.branch}`)).status === "missing");
         return { ...worktree, exists, changedFiles, branchDeleted, sharedWith: sharedWith(worktree.threadId) };

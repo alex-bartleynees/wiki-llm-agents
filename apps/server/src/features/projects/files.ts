@@ -2,8 +2,8 @@ import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { ByteSize, Data, Effect, FileSystem, Option, Stream } from "effect";
 import type { ChildProcessSpawner } from "effect/process";
+import { holdsRepository, listWorkingFiles } from "./git/index.js";
 import type { FileVersion } from "./repository.js";
-import { isWorkTree, runGit } from "./run-git.js";
 
 export class ProjectFilesError extends Data.TaggedError("ProjectFilesError")<{ readonly message: string; readonly cause?: unknown }> {}
 
@@ -30,19 +30,6 @@ const RACY_MS = 2000;
 const scanError = (message: string) => (cause: unknown) => new ProjectFilesError({ message, cause });
 
 /**
- * The entries git would show in `directory`: tracked plus untracked-but-not-ignored,
- * relative to `directory`. Undefined when git is missing, the folder is not in a work
- * tree, or the folder itself is ignored (git would list nothing).
- */
-const gitListing = Effect.fnUntraced(function* (directory: string) {
-  if (!(yield* isWorkTree(directory))) return undefined;
-  const listed = yield* runGit(directory, ["ls-files", "-z", "--cached", "--others", "--exclude-standard"]);
-  if (listed.code !== 0) return undefined;
-  // A path is listed once per merge stage while a conflict is unresolved.
-  return [...new Set(listed.stdout.split("\0").filter((path) => path !== ""))];
-});
-
-/**
  * Every regular file below `directory` (relative, `/`-separated), skipping `IGNORED`
  * names and, inside a git work tree, whatever `.gitignore` excludes. Nested
  * repositories and submodules are listed by their own git. Symlinks are not followed.
@@ -56,7 +43,7 @@ const listFiles = Effect.fnUntraced(function* (directory: string) {
   const walk = (relative: string, askGit: boolean): Effect.Effect<void, ProjectFilesError, FileSystem.FileSystem | ChildProcessSpawner.ChildProcessSpawner> =>
     Effect.gen(function* () {
       const absolute = join(directory, relative);
-      const listing = askGit ? yield* gitListing(absolute) : undefined;
+      const listing = askGit ? yield* listWorkingFiles(absolute) : undefined;
       if (listing !== undefined) {
         const paths = listing
           .map((entry) => (entry.endsWith("/") ? entry.slice(0, -1) : entry))
@@ -84,7 +71,7 @@ const listFiles = Effect.fnUntraced(function* (directory: string) {
         const path = prefixed(relative, entry.name);
         if (entry.type === "File") files.push(path);
         else if (entry.type === "Directory") {
-          yield* walk(path, yield* fs.lstat(join(directory, path, ".git")).pipe(Effect.as(true), Effect.orElseSucceed(() => false)));
+          yield* walk(path, yield* holdsRepository(join(directory, path)));
         }
       }
     });

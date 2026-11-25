@@ -19,6 +19,7 @@ export const commitChangesEndpoint = Effect.gen(function* () {
     ProjectNotFound: () => Effect.succeed(notFound("Project not found")),
     StaleReview: (error) => Effect.succeed(conflict(error.message)),
     GitRefused: (error) => Effect.succeed(conflict(error.message)),
+    GitFailed: (error) => Effect.succeed(conflict(error.message)),
     ProjectFilesError: (error) => Effect.succeed(conflict(error.message)),
   }),
   Effect.catch(internalError("commit project changes")),

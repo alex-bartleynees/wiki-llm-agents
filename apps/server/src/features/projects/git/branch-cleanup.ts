@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
 import { join } from "node:path";
-import { Cause, Effect, FileSystem, Queue, Stream } from "effect";
+import { Cause, Duration, Effect, FileSystem, Queue, Stream } from "effect";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
-import { preciseStat } from "../../shared/node-files.js";
-import { runGit } from "./run-git.js";
+import { preciseStat } from "../../../shared/node-files.js";
+import { runGit, succeed } from "./process.js";
 
-export const digest = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
+const digest = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const oid = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/;
 const DELETE_TIMEOUT = "15 seconds";
 const KILL_GRACE = "5 seconds";
@@ -122,4 +122,44 @@ export const deleteVerifiedRef = (
   ).pipe(
     Effect.timeoutOrElse({ duration: DELETE_TIMEOUT, orElse: () => Effect.succeed(false) }),
     Effect.orElseSucceed(() => false),
+  );
+
+const queryRemote = (directory: string, args: ReadonlyArray<string>) => succeed(directory, args, { timeout: Duration.seconds(20) });
+
+const remoteTarget = Effect.fnUntraced(function* (directory: string) {
+  const remotes = yield* runGit(directory, ["remote"]);
+  if (remotes.code !== 0) return null;
+  const names = remotes.stdout.trim().split("\n").filter(Boolean);
+  const remote = names.includes("origin") ? "origin" : names.length === 1 ? names[0]! : null;
+  if (remote === null || remote.startsWith("-")) return null;
+  const url = yield* runGit(directory, ["remote", "get-url", "--", remote]);
+  if (url.code !== 0) return null;
+  const remoteUrl = url.stdout.trim();
+  const advertised = yield* queryRemote(directory, ["ls-remote", "--symref", "--exit-code", "--", remote, "HEAD"]);
+  const rows = advertised.split("\n");
+  const ref = rows.find((row) => row.startsWith("ref: refs/heads/") && row.endsWith("\tHEAD"))?.slice(5, -5);
+  const tip = rows.find((row) => /^(?:[a-f0-9]{40}|[a-f0-9]{64})\t/.test(row) && row.endsWith("\tHEAD"))?.split("\t")[0];
+  if (ref === undefined || tip === undefined || (yield* runGit(directory, ["check-ref-format", ref])).code !== 0) return null;
+  const branch = ref.slice("refs/heads/".length);
+  const tracking = `refs/remotes/${remote}/${branch}`;
+  if ((yield* runGit(directory, ["check-ref-format", tracking])).code !== 0) return null;
+  return { remote, remoteUrl, ref, tracking, tip, label: `${remote}/${branch}` };
+});
+
+export const fetchMergeTarget = (directory: string, excludedRef: string) =>
+  Effect.gen(function* () {
+    const target = yield* remoteTarget(directory);
+    if (target === null || excludedRef === target.ref) return target;
+    yield* queryRemote(directory, [
+      "fetch", "--no-tags", "--no-prune", "--no-prune-tags", "--no-auto-maintenance", "--no-recurse-submodules", "--no-write-fetch-head",
+      "--refmap=", "--", target.remote, `+${target.ref}:${target.tracking}`,
+    ]);
+    const fetched = yield* inspectBranch(directory, target.tracking);
+    return fetched.status === "present" && fetched.tip === target.tip ? target : null;
+  }).pipe(Effect.catch(() => Effect.succeed(null)));
+
+export const isAncestor = (directory: string, tip: string, targetTip: string) =>
+  Effect.map(
+    runGit(directory, ["--no-replace-objects", "merge-base", "--is-ancestor", tip, targetTip], false, { GIT_GRAFT_FILE: "/dev/null" }),
+    (result) => result.code === 0,
   );

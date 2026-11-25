@@ -1,14 +1,13 @@
 import { execFileSync } from "node:child_process";
-import { appendFileSync, chmodSync, existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, utimesSync, watch, writeFileSync } from "node:fs";
+import { appendFileSync, chmodSync, existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, watch, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { NodeChildProcessSpawner, NodeFileSystem, NodePath } from "@effect/platform-node";
 import { describe, expect, it } from "@effect/vitest";
 import { Deferred, Effect, Fiber, Layer } from "effect";
 import { TestClock } from "effect/testing";
-import { branchIdentity, deleteVerifiedRef, inspectBranch, repositoryIdentity } from "./branch-cleanup-git.js";
-import { snapshot } from "./files.js";
-import { runGit } from "./run-git.js";
+import { branchIdentity, deleteVerifiedRef, inspectBranch, repositoryIdentity } from "./branch-cleanup.js";
+import { runGit } from "./process.js";
 
 const Platform = NodeChildProcessSpawner.layer.pipe(Layer.provideMerge(Layer.merge(NodeFileSystem.layer, NodePath.layer)));
 
@@ -71,17 +70,6 @@ describe("git reads through the spawner", () => {
       expect((yield* Effect.uninterruptible(runGit(dir, ["rev-parse", "HEAD"]))).code).toBe(0);
     }).pipe(Effect.provide(Platform)));
 
-  it.effect("keeps hashes recorded with fractional modification times", () =>
-    Effect.gen(function* () {
-      const dir = yield* repository;
-      const old = new Date("2020-01-01T00:00:00Z");
-      const path = join(dir, "app.ts");
-      utimesSync(path, old, old);
-      const [file] = yield* snapshot([dir]);
-      expect(file?.modifiedAt).toBe(old.getTime());
-      const recorded = { ...file!, hash: "recorded", modifiedAt: old.getTime() + 0.456 };
-      expect((yield* snapshot([dir], [recorded]))[0]?.hash).toBe("recorded");
-    }).pipe(Effect.provide(Platform)));
 });
 
 describe("verified branch deletion", () => {

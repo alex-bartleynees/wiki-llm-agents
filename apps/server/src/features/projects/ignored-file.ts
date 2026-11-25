@@ -1,7 +1,7 @@
 import type { IgnoredFile, Project, Worktree } from "@wiki-agents/contracts/projects/model";
 import { Effect } from "effect";
 import { InvalidProject } from "./errors.js";
-import { isInsidePath } from "./git-diff.js";
+import { isInsidePath } from "./paths.js";
 import { mainDirectory } from "./project-context.js";
 
 /**

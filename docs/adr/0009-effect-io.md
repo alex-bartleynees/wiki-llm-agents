@@ -28,4 +28,4 @@ Git runs with `detached: false` for short commands, so a file-system monitor dae
 
 Semantic search has its own fetch-based `HttpClient` that refuses redirects. The test app's ambient client points at the app itself, and so must not be used for rag-ai.
 
-Git commands that only read live in `git.ts`; the writes a user starts are in `worktree-git.ts` and `commit-git.ts`. Git runs without a shell, pager, colour, external diff or textconv, in one working directory at a time, with literal pathspecs for file names, so a name is never a glob or an option.
+Git commands live in `features/projects/git/` ([ADR 0011](0011-git-boundary.md)). Git runs without a shell, pager, colour, external diff or textconv, in one working directory at a time, with literal pathspecs for file names, so a name is never a glob or an option.

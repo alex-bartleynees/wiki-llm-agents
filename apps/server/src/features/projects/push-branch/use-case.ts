@@ -1,11 +1,10 @@
 import type { PushBranchRequest } from "@wiki-agents/contracts/projects/push-branch/request";
 import type { PushBranchResponse } from "@wiki-agents/contracts/projects/push-branch/response";
 import { Effect } from "effect";
-import { pushBranch as push } from "../commit-git.js";
 import { InvalidProject, StaleReview } from "../errors.js";
 import { gitDirectory } from "../git-directories.js";
 import { gitStatus } from "../git-status.js";
-import { branchStatus } from "../git.js";
+import { branchStatus, pushBranch as push } from "../git/index.js";
 
 export const pushBranch = Effect.fn("pushProjectBranch")(function* (projectId: string, request: PushBranchRequest) {
   const entry = yield* gitDirectory(projectId, request.directory);

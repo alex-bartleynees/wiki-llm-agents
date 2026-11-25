@@ -12,7 +12,7 @@ export const getGitStatusEndpoint = Effect.gen(function* () {
   Effect.catchTags({
     SchemaError: () => Effect.succeed(badRequest()),
     ProjectNotFound: () => Effect.succeed(notFound("Project not found")),
-    ProjectFilesError: (error) => Effect.succeed(conflict(error.message)),
+    GitFailed: (error) => Effect.succeed(conflict(error.message)),
   }),
   Effect.catch(internalError("get project git status")),
 );

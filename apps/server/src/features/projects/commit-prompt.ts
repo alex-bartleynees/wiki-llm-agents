@@ -1,5 +1,5 @@
 import type { DiffFile } from "@wiki-agents/contracts/projects/model";
-import type { DiffLimits } from "./git-diff.js";
+import type { DiffLimits } from "./git/index.js";
 
 /**
  * The prompt for **Suggest message**: the ticked files' diffs, bounded, and the
