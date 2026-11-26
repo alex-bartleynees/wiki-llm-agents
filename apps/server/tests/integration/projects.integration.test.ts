@@ -6,7 +6,10 @@ import { fileURLToPath } from "node:url";
 import { NodeHttpServer } from "@effect/platform-node";
 import { describe, expect, it, layer } from "@effect/vitest";
 import { afterAll } from "vitest";
+import { AddWorkingDirectoryResponse } from "@wiki-agents/contracts/projects/add-working-directory/response";
 import { ArchiveProjectResponse } from "@wiki-agents/contracts/projects/archive-project/response";
+import { RemoveWorkingDirectoryResponse } from "@wiki-agents/contracts/projects/remove-working-directory/response";
+import { GetDiffResponse } from "@wiki-agents/contracts/projects/get-diff/response";
 import { ListChangesResponse } from "@wiki-agents/contracts/projects/list-changes/response";
 import { ListProjectsResponse } from "@wiki-agents/contracts/projects/list-projects/response";
 import { RegisterProjectResponse } from "@wiki-agents/contracts/projects/register-project/response";
@@ -19,7 +22,7 @@ import { RegisterVaultResponse } from "@wiki-agents/contracts/vaults/register-va
 import { Effect, Layer, Scope } from "effect";
 import { HttpClient } from "effect/http";
 import { makeHttpApp } from "../../src/app/layers.js";
-import type { OpenSessionInput } from "../../src/features/providers/port.js";
+import type { OpenSessionInput, SessionSetup, TurnInput } from "../../src/features/providers/port.js";
 import { makeProviderRegistry } from "../../src/features/providers/registry-live.js";
 import { ReplayAdapter } from "../../src/features/providers/replay/adapter.js";
 import { makeSqlite, Sqlite } from "../../src/shared/persistence/sqlite.js";
@@ -29,11 +32,19 @@ import { decode, getThread, isTag, newVault, post, sendOk, watch } from "./infra
 
 /** The replay provider, recording every session it opens. */
 const opened: Array<OpenSessionInput> = [];
+const turnSetups: Array<{ readonly threadId: string; readonly setup: SessionSetup }> = [];
 const providers = makeProviderRegistry(Effect.succeed([{
   ...ReplayAdapter,
   openSession: (input: OpenSessionInput) => Effect.gen(function* () {
     opened.push(input);
-    return yield* ReplayAdapter.openSession(input);
+    const session = yield* ReplayAdapter.openSession(input);
+    return {
+      ...session,
+      startTurn: (turn: TurnInput) => {
+        turnSetups.push({ threadId: input.threadId, setup: turn.setup });
+        return session.startTurn(turn);
+      },
+    };
   }),
 }]));
 
@@ -68,6 +79,16 @@ const sessionOf = (threadId: string) => Effect.gen(function* () {
   yield* events.until(isTag("turn.finished"), "1 minute");
   return opened.findLast((input) => input.threadId === threadId)!;
 });
+const turnSetupOf = (threadId: string) => Effect.gen(function* () {
+  yield* sessionOf(threadId);
+  return turnSetups.findLast((turn) => turn.threadId === threadId)!.setup;
+});
+const workingDirectoriesPath = (projectId: string) => `/api/projects/${projectId}/working-directories`;
+const addDirectory = (projectId: string, path: string) =>
+  post(workingDirectoriesPath(projectId), { path }).pipe(Effect.flatMap(decode(AddWorkingDirectoryResponse)), Effect.map((result) => result.project));
+const removeDirectoryRequest = (projectId: string, path: string) => HttpClient.del(`${workingDirectoriesPath(projectId)}?path=${encodeURIComponent(path)}`);
+const removeDirectory = (projectId: string, path: string) =>
+  removeDirectoryRequest(projectId, path).pipe(Effect.flatMap(decode(RemoveWorkingDirectoryResponse)), Effect.map((result) => result.project));
 
 /** The shared vault: registered at startup, so before any vault a test adds. */
 const sharedRoot = realpathSync(mkdtempSync(join(tmpdir(), "wiki-projects-vault-")));
@@ -202,6 +223,63 @@ layer(makeTestApp({ providers, vaults: [sharedRoot] }))("projects", (test) => {
     expect((yield* post(`/api/vaults/${vault.id}/threads`, { projectId: "missing" })).status).toBe(404);
     const otherVault = yield* newVault;
     expect((yield* post(`/api/vaults/${otherVault.id}/threads`, { projectId: project.id })).status).toBe(400);
+  }));
+
+  test.effect("adds and removes working directories, reaching a running thread from its next turn", () => Effect.gen(function* () {
+    const vault = yield* shared;
+    const dir = yield* temp;
+    const [repo, sibling] = folders(dir, "repo", "sibling");
+    writeFileSync(join(sibling, "api.ts"), "before");
+    const project = yield* register({ name: "Growing", workingDirectories: [repo] });
+    const thread = yield* createThread(vault.id, { projectId: project.id });
+    expect((yield* turnSetupOf(thread.id)).projectRoots).toEqual([repo, vault.rootPath]);
+
+    const added = yield* addDirectory(project.id, `${sibling}/`);
+    expect(added).toEqual({ ...project, workingDirectories: [repo, sibling] });
+    expect(yield* addDirectory(project.id, sibling)).toEqual(added);
+    const { projects } = yield* HttpClient.get("/api/projects").pipe(Effect.flatMap(decode(ListProjectsResponse)));
+    expect(projects).toContainEqual(added);
+    expect(yield* changes(project.id)).toEqual([]);
+    const granted = yield* turnSetupOf(thread.id);
+    expect(granted.projectRoots).toEqual([repo, sibling, vault.rootPath]);
+    expect(granted.instructions.at(-1)?.text).toContain(sibling);
+
+    writeFileSync(join(sibling, "api.ts"), "after");
+    expect(yield* changes(project.id)).toEqual([{ directory: sibling, path: "api.ts", status: "modified" }]);
+    expect((yield* post(`/api/projects/${project.id}/diff/ignored`, { directory: sibling, path: "api.ts" })).status).toBe(200);
+
+    expect(yield* removeDirectory(project.id, sibling)).toEqual(project);
+    expect(yield* changes(project.id)).toEqual([]);
+    expect(existsSync(join(sibling, "api.ts"))).toBe(true);
+    const revoked = yield* turnSetupOf(thread.id);
+    expect(revoked.projectRoots).toEqual([repo, vault.rootPath]);
+    expect(revoked.instructions.at(-1)?.text).not.toContain(sibling);
+
+    yield* addDirectory(project.id, sibling);
+    expect(yield* changes(project.id)).toEqual([]);
+    const { directories } = yield* HttpClient.get(`/api/projects/${project.id}/diff`).pipe(Effect.flatMap(decode(GetDiffResponse)));
+    expect(directories.find((entry) => entry.directory === sibling)?.ignored).toEqual([]);
+  }));
+
+  test.effect("refuses working directories it can't add or remove", () => Effect.gen(function* () {
+    const dir = yield* temp;
+    const [repo, other] = folders(dir, "repo", "other");
+    mkdirSync(join(repo, "src"));
+    writeFileSync(join(other, "file.txt"), "");
+    const project = yield* register({ name: "Fixed", workingDirectories: [repo] });
+    for (const path of ["relative", join(dir, "missing"), join(other, "file.txt"), "/", "~", homedir(), join(repo, "src"), dir]) {
+      expect((yield* post(workingDirectoriesPath(project.id), { path })).status).toBe(400);
+    }
+    expect((yield* post(workingDirectoriesPath(project.id), {})).status).toBe(400);
+    expect((yield* post(workingDirectoriesPath("missing"), { path: other })).status).toBe(404);
+
+    const removedMain = yield* removeDirectoryRequest(project.id, repo);
+    expect(removedMain.status).toBe(400);
+    expect(yield* removedMain.text).toMatch(/main directory/);
+    expect((yield* removeDirectoryRequest(project.id, other)).status).toBe(400);
+    expect((yield* removeDirectoryRequest("missing", other)).status).toBe(404);
+    const { projects } = yield* HttpClient.get("/api/projects").pipe(Effect.flatMap(decode(ListProjectsResponse)));
+    expect(projects).toContainEqual(project);
   }));
 
   test.effect("archives a project, keeping its threads and changes but refusing new threads, until restored", () => Effect.gen(function* () {

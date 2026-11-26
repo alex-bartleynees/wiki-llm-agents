@@ -25,6 +25,8 @@
   import { projects } from "./projects.svelte.ts";
   import RegisterProjectForm from "./RegisterProjectForm.svelte";
   import { worktrees } from "./worktrees.svelte.ts";
+  import { machineFolders } from "#lib/features/folders/api.ts";
+  import FolderPicker from "#lib/ui/primitives/FolderPicker.svelte";
 
   /**
    * The project to show (null: the first active one), as an overview with the project in the
@@ -142,6 +144,22 @@
       archiving = false;
     }
   }
+
+  let pickingDirectory = $state(false);
+  let changingDirectories = $state(false);
+  async function changeDirectories(change: () => Promise<void>, fallback: string) {
+    changingDirectories = true;
+    error = null;
+    try {
+      await change();
+    } catch (cause) {
+      error = errorMessage(cause, fallback);
+    } finally {
+      changingDirectories = false;
+    }
+  }
+  const addDirectory = (project: Project, path: string) => changeDirectories(() => projects.addDirectory(project.id, path), "Could not add the directory");
+  const removeDirectory = (project: Project, path: string) => changeDirectories(() => projects.removeDirectory(project.id, path), "Could not remove the directory");
 </script>
 
 <svelte:head>
@@ -227,12 +245,22 @@
           {#each selected.workingDirectories as directory, index (directory)}
             <div class="entry">
               <span class="path mono">{directory}</span>
-              <span class="meta mono">
-                {#if index === 0}<span class="main">main · threads start here</span> ·{/if}
-                agents may write
+              <span class="entry-head">
+                <span class="meta mono">
+                  {#if index === 0}<span class="main">main · threads start here</span> ·{/if}
+                  agents may write
+                </span>
+                {#if index > 0}
+                  <button type="button" class="link" aria-label="Remove {directory}" disabled={changingDirectories} onclick={() => removeDirectory(selected, directory)}>Remove</button>
+                {/if}
               </span>
             </div>
           {/each}
+          <button type="button" class="secondary add-directory" disabled={changingDirectories} onclick={() => (pickingDirectory = true)}>
+            {changingDirectories ? "Updating…" : "Add directory…"}
+          </button>
+          <p class="note">Adding or removing a directory reaches running threads from their next turn. Removing one leaves its files on disk.</p>
+          <FolderPicker bind:open={pickingDirectory} title="Add a working directory" load={machineFolders} onchoose={(path) => addDirectory(selected, path)} typed />
         </section>
         <section aria-label="Shared vault">
           <h2 class="mono">shared vault</h2>
@@ -299,7 +327,7 @@
 
       {#key selected.id}<BrowserSignIns project={selected} />{/key}
 
-      <ChangedFiles project={selected} />
+      {#key selected.workingDirectories.join("\n")}<ChangedFiles project={selected} />{/key}
     {:else if loaded && projectId !== null}
       <h1>Project not found</h1>
       <p class="lede">It may have been removed. <a href="/projects">Show all projects</a></p>
@@ -523,6 +551,7 @@
   .main {
     color: var(--accent-ink);
   }
+  .entry-head,
   .worktree-head {
     display: flex;
     flex-wrap: wrap;
@@ -532,10 +561,15 @@
     min-width: 0;
     overflow-wrap: anywhere;
   }
+  .entry-head .link,
   .worktree-head .link {
     flex: 0 0 auto;
     margin-left: auto;
     white-space: nowrap;
+  }
+  .add-directory {
+    align-self: flex-start;
+    margin-top: 4px;
   }
   .vault-name {
     font-weight: 500;
@@ -639,6 +673,8 @@
   /* Phone: one column, list first, form last. */
   @media (max-width: 899px) {
     .list > .secondary,
+    .add-directory,
+    .entry-head .link,
     .collapse {
       min-height: 44px;
     }

@@ -1,7 +1,10 @@
 import { CheckWorktreeBranchResponse } from "@wiki-agents/contracts/projects/check-worktree-branch/response";
 import { DeleteWorktreeBranchRequest } from "@wiki-agents/contracts/projects/delete-worktree-branch/request";
 import { DeleteWorktreeBranchResponse } from "@wiki-agents/contracts/projects/delete-worktree-branch/response";
+import { AddWorkingDirectoryRequest } from "@wiki-agents/contracts/projects/add-working-directory/request";
+import { AddWorkingDirectoryResponse } from "@wiki-agents/contracts/projects/add-working-directory/response";
 import { ArchiveProjectResponse } from "@wiki-agents/contracts/projects/archive-project/response";
+import { RemoveWorkingDirectoryResponse } from "@wiki-agents/contracts/projects/remove-working-directory/response";
 import { CommitChangesRequest } from "@wiki-agents/contracts/projects/commit-changes/request";
 import { CommitChangesResponse } from "@wiki-agents/contracts/projects/commit-changes/response";
 import { GetBrowserSignInsResponse } from "@wiki-agents/contracts/projects/get-browser-sign-ins/response";
@@ -46,7 +49,13 @@ export const archiveProject = (projectId: string) => postJson(`${projectPath(pro
 
 export const restoreProject = (projectId: string) => postJson(`${projectPath(projectId)}/restore`, NoBody, {}, RestoreProjectResponse);
 
-export const listChanges = (projectId: string, signal?: AbortSignal) => getJson(`${projectPath(projectId)}/changes`, ListChangesResponse, signal);
+export const addWorkingDirectory = (projectId: string, path: string) =>
+  postJson(`${projectPath(projectId)}/working-directories`, AddWorkingDirectoryRequest, { path }, AddWorkingDirectoryResponse, SCAN);
+
+export const removeWorkingDirectory = (projectId: string, path: string) =>
+  deleteJson(`${projectPath(projectId)}/working-directories?${new URLSearchParams({ path }).toString()}`, RemoveWorkingDirectoryResponse);
+
+export const listChanges =(projectId: string, signal?: AbortSignal) => getJson(`${projectPath(projectId)}/changes`, ListChangesResponse, signal);
 
 export const reviewChanges = (projectId: string) => postJson(`${projectPath(projectId)}/changes/review`, NoBody, {}, ReviewChangesResponse, SCAN);
 

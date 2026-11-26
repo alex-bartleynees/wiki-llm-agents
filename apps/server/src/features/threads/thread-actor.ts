@@ -25,7 +25,7 @@ import { type BackgroundEvent, ProviderError, type ProviderEvent, type ProviderS
 import { ThreadMcpRegistration } from "../mcp/thread-mcp-registration.js";
 import { SecretMaterial } from "../secrets/material.js";
 import { ProviderRegistry } from "../providers/registry.js";
-import { projectInstruction, projectRoots } from "../projects/project-context.js";
+import { projectInstruction, projectRoots, threadDirectories } from "../projects/project-context.js";
 import { ProjectRepository } from "../projects/repository.js";
 import { worktreeProblem } from "../projects/worktrees.js";
 import { DEFAULT_AUTONOMY } from "@wiki-agents/contracts/agents/model";
@@ -250,7 +250,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
   const bus = yield* ThreadBus;
   const thread = Option.getOrUndefined(yield* repository.find(threadId));
   if (thread === undefined) return yield* new ThreadNotFound({ threadId });
-  const { vault, project, worktree, directories, cwd } = yield* threadWorkspace(thread);
+  const { vault, project, worktree, cwd } = yield* threadWorkspace(thread);
   const projects = yield* ProjectRepository;
   // A thread whose provider is gone can still be read and marked done; its turns fail.
   const adapter = yield* (yield* ProviderRegistry).get(thread.providerInstanceId).pipe(
@@ -348,10 +348,15 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     const projectServers = project === null ? [] : yield* projects.mcpServers(project.id).pipe(Effect.orElseSucceed(() => []));
     const tools = yield* mcpRegistration.current(agentServers, { servers: projectServers, signIns });
     if (tools.notices.length > 0) yield* record(tools.notices.map((text): ThreadEvent => ({ _tag: "notice", turnId, text })));
+    const currentProject = project === null ? null : Option.getOrElse(
+      yield* projects.find(project.id).pipe(Effect.mapError((cause) => new ProviderError({ message: "Couldn't read the project's working directories.", cause }))),
+      () => project,
+    );
+    const directories = currentProject === null ? [] : threadDirectories(currentProject, worktree);
     const setup: SessionSetup = {
       ...agent,
-      instructions: project === null ? agent.instructions : [...agent.instructions, projectInstruction(project, directories, vault.rootPath, worktree, signIns)],
-      projectRoots: project === null ? null : projectRoots(directories, vault.rootPath),
+      instructions: currentProject === null ? agent.instructions : [...agent.instructions, projectInstruction(currentProject, directories, vault.rootPath, worktree, signIns)],
+      projectRoots: currentProject === null ? null : projectRoots(directories, vault.rootPath),
       attachmentFolders: yield* ownAttachmentFolders,
       protection: { paths, names },
       vaultTools: tools.entry,

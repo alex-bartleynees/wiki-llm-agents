@@ -1,6 +1,6 @@
 import type { Project } from "@wiki-agents/contracts/projects/model";
 import { errorMessage } from "#lib/api/client.ts";
-import { archiveProject, listProjects, restoreProject } from "./api.ts";
+import { addWorkingDirectory, archiveProject, listProjects, removeWorkingDirectory, restoreProject } from "./api.ts";
 
 /** The selected project, remembered on this device. */
 const SELECTED_KEY = "wiki-agents:project";
@@ -65,6 +65,14 @@ class ProjectsStore {
 
   async restore(id: string) {
     this.replace((await restoreProject(id)).project);
+  }
+
+  async addDirectory(id: string, path: string) {
+    this.replace((await addWorkingDirectory(id, path)).project);
+  }
+
+  async removeDirectory(id: string, path: string) {
+    this.replace((await removeWorkingDirectory(id, path)).project);
   }
 
   private replace(project: Project) {

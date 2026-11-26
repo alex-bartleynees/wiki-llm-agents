@@ -1,5 +1,6 @@
 import { Layer } from "effect";
 import { HttpRouter } from "effect/http";
+import { addWorkingDirectoryEndpoint } from "./add-working-directory/endpoint.js";
 import { archiveProjectEndpoint } from "./archive-project/endpoint.js";
 import { commitChangesEndpoint } from "./commit-changes/endpoint.js";
 import { getBrowserSignInsEndpoint } from "./get-browser-sign-ins/endpoint.js";
@@ -14,6 +15,7 @@ import { listChangesEndpoint } from "./list-changes/endpoint.js";
 import { listProjectsEndpoint } from "./list-projects/endpoint.js";
 import { listWorktreesEndpoint } from "./list-worktrees/endpoint.js";
 import { registerProjectEndpoint } from "./register-project/endpoint.js";
+import { removeWorkingDirectoryEndpoint } from "./remove-working-directory/endpoint.js";
 import { restoreProjectEndpoint } from "./restore-project/endpoint.js";
 import { saveBrowserSignInsEndpoint } from "./save-browser-sign-ins/endpoint.js";
 import { saveCommitMessageSettingsEndpoint } from "./save-commit-message-settings/endpoint.js";
@@ -30,6 +32,8 @@ export const projectsRouter = Layer.mergeAll(
   HttpRouter.add("POST", "/api/projects", registerProjectEndpoint),
   HttpRouter.add("POST", "/api/projects/:projectId/archive", archiveProjectEndpoint),
   HttpRouter.add("POST", "/api/projects/:projectId/restore", restoreProjectEndpoint),
+  HttpRouter.add("POST", "/api/projects/:projectId/working-directories", addWorkingDirectoryEndpoint),
+  HttpRouter.add("DELETE", "/api/projects/:projectId/working-directories", removeWorkingDirectoryEndpoint),
   HttpRouter.add("GET", "/api/projects/:projectId/changes", listChangesEndpoint),
   HttpRouter.add("POST", "/api/projects/:projectId/changes/review", reviewChangesEndpoint),
   HttpRouter.add("GET", "/api/projects/:projectId/diff", getDiffEndpoint),

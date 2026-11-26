@@ -1,21 +1,16 @@
 import { randomUUID } from "node:crypto";
-import { homedir } from "node:os";
-import { dirname, isAbsolute, resolve } from "node:path";
+import { dirname } from "node:path";
 import type { RegisterProjectRequest } from "@wiki-agents/contracts/projects/register-project/request";
 import type { RegisterProjectResponse } from "@wiki-agents/contracts/projects/register-project/response";
 import { Clock, Effect, FileSystem, Option } from "effect";
-import { expandHome } from "../../../shared/paths.js";
-import { isInside, resolveInVault } from "../../../shared/vault/path-guard.js";
+import { resolveInVault } from "../../../shared/vault/path-guard.js";
 import { VaultRepository } from "../../vaults/repository.js";
 import { InvalidProject } from "../errors.js";
 import { snapshot } from "../files.js";
 import { ProjectRepository } from "../repository.js";
+import { absoluteDirectory, canonicalDirectory } from "../working-directory.js";
 
 const invalid = (message: string) => new InvalidProject({ message });
-
-
-/** `/`, `/home` or the home folder itself: far too much to scan, and never one project. */
-const tooBroad = (path: string) => isInside(path, homedir());
 
 /**
  * Checks everything first and only then creates missing folders, so a rejected
@@ -48,9 +43,7 @@ export const registerProject = Effect.fn("registerProject")(function* (request: 
   /** Each input in order: its canonical path if it exists, else the path to create. */
   const planned: Array<{ readonly path: string; readonly exists: boolean }> = [];
   for (const input of inputs) {
-    const expanded = expandHome(input.trim());
-    if (!isAbsolute(expanded)) return yield* invalid("Working directories must be absolute paths");
-    const path = resolve(expanded);
+    const path = yield* absoluteDirectory(input);
     const exists = yield* fs.exists(path).pipe(Effect.mapError(() => invalid("Cannot read working directory: " + path)));
     if (!exists) {
       if (request.createDirectories !== true) return yield* invalid("Working directory not found: " + path);
@@ -62,11 +55,7 @@ export const registerProject = Effect.fn("registerProject")(function* (request: 
       planned.push({ path, exists: false });
       continue;
     }
-    const canonical = yield* fs.realPath(path).pipe(Effect.mapError(() => invalid("Cannot read working directory: " + path)));
-    const info = yield* fs.stat(canonical).pipe(Effect.mapError(() => invalid("Cannot read working directory: " + path)));
-    if (info.type !== "Directory") return yield* invalid("Not a directory: " + path);
-    if (tooBroad(canonical)) return yield* invalid("Too broad for a working directory: " + path);
-    planned.push({ path: canonical, exists: true });
+    planned.push({ path: yield* canonicalDirectory(path), exists: true });
   }
 
   const existing = [...new Set(planned.filter((entry) => entry.exists).map((entry) => entry.path))];

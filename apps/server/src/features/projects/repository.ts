@@ -37,6 +37,8 @@ export interface ProjectRepositoryService {
   readonly list: Effect.Effect<ReadonlyArray<Project>, DbError>;
   readonly find: (id: string) => Effect.Effect<Option.Option<Project>, DbError>;
   readonly insert: (project: Project, baseline: ReadonlyArray<FileVersion>, at: number) => Effect.Effect<void, DbError>;
+  readonly addWorkingDirectory: (id: string, directory: string, baseline: ReadonlyArray<FileVersion>) => Effect.Effect<void, DbError>;
+  readonly removeWorkingDirectory: (id: string, directory: string) => Effect.Effect<void, DbError>;
   /** Archives the project at `at`, or restores it with null. */
   readonly setArchivedAt: (id: string, at: number | null) => Effect.Effect<void, DbError>;
   /** The files the changed-file list compares with. */

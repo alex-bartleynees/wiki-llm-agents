@@ -471,6 +471,15 @@ vault's threads show.
 - `POST /api/projects {name, workingDirectories, notesFolder?, createDirectories?}`
   registers a project, checking everything before creating any folder;
   `GET /api/projects` lists projects, archived ones included (`archivedAt`).
+- **Add directory…** in the overview's working directories (`POST
+  /api/projects/:id/working-directories {"path"}`) adds an existing folder, with
+  the same checks as registration. A folder inside or around another working
+  directory is refused. **Remove** (`DELETE …/working-directories?path=`) detaches
+  any directory except the main one and leaves its files on disk. Running threads
+  gain or lose access from their next turn; a turn already running keeps what it
+  started with. An added folder's existing files aren't reported as changed, and a
+  removed one's aren't reported as deleted. Removing a folder clears its ignored
+  files. [Editing working directories](docs/adr/0013-edit-project-working-directories.md)
 - `POST /api/projects/:id/archive` (**Archive** on the project) moves a project out of
   the project switchers into the list's **archived** group and refuses new threads
   in it; its threads and changed-file baseline are kept.

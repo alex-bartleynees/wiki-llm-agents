@@ -57,6 +57,26 @@ export const ProjectRepositoryLive = Layer.effect(
             insertFiles(tx, project.id, baseline);
           }),
         ),
+      addWorkingDirectory: (id, directory, baseline) =>
+        query(() =>
+          db.transaction((tx) => {
+            const row = tx.select({ workingDirectories: projects.workingDirectories }).from(projects).where(eq(projects.id, id)).get();
+            if (row === undefined || row.workingDirectories.includes(directory)) return;
+            tx.update(projects).set({ workingDirectories: [...row.workingDirectories, directory] }).where(eq(projects.id, id)).run();
+            tx.delete(projectFiles).where(and(eq(projectFiles.projectId, id), eq(projectFiles.directory, directory))).run();
+            insertFiles(tx, id, baseline);
+          }),
+        ),
+      removeWorkingDirectory: (id, directory) =>
+        query(() =>
+          db.transaction((tx) => {
+            const row = tx.select({ workingDirectories: projects.workingDirectories }).from(projects).where(eq(projects.id, id)).get();
+            if (row === undefined || row.workingDirectories[0] === directory || !row.workingDirectories.includes(directory)) return;
+            tx.update(projects).set({ workingDirectories: row.workingDirectories.filter((existing) => existing !== directory) }).where(eq(projects.id, id)).run();
+            tx.delete(projectFiles).where(and(eq(projectFiles.projectId, id), eq(projectFiles.directory, directory))).run();
+            tx.delete(projectIgnoredFiles).where(and(eq(projectIgnoredFiles.projectId, id), eq(projectIgnoredFiles.directory, directory))).run();
+          }),
+        ),
       setArchivedAt: (id, at) => query(() => void db.update(projects).set({ archivedAt: at }).where(eq(projects.id, id)).run()),
       baseline: (id) =>
         query(() =>

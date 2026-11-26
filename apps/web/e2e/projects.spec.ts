@@ -123,6 +123,39 @@ test("archives a project out of the way and restores it", async ({ page }, info)
   await expect(list.locator("details.archived").getByRole("link", { name })).toHaveCount(0);
 });
 
+test("adds a working directory through the folder picker and removes it again", async ({ page }, info) => {
+  const main = projectFolder(info, "growing");
+  const sibling = projectFolder(info, "sibling");
+  writeFileSync(join(sibling, "api.ts"), "export {};\n");
+  const response = await page.request.post("/api/projects", { data: { name: `Growing ${info.project.name}`, workingDirectories: [main] } });
+  expect(response.status()).toBe(201);
+  const { project } = (await response.json()) as { project: { id: string } };
+
+  await page.goto(`/projects/${project.id}`);
+  const directories = page.getByRole("region", { name: "Working directories" });
+  await expect(directories.getByRole("button", { name: `Remove ${main}` })).toHaveCount(0);
+
+  await directories.getByRole("button", { name: "Add directory…" }).click();
+  const picker = page.getByRole("dialog", { name: "Add a working directory" });
+  await picker.getByLabel("Folder path").fill(join(e2eRoot(), "projects"));
+  await picker.getByRole("button", { name: "Go" }).click();
+  await picker.getByRole("button", { name: `sibling-${info.project.name}` }).click();
+  await picker.getByRole("button", { name: "Choose this folder" }).click();
+  await expect(picker).toBeHidden();
+  await expect(directories).toContainText(sibling);
+  const changes = page.getByRole("region", { name: "Changed files" });
+  await expect(changes.getByRole("heading")).toHaveText(/· 0 files$/);
+  await expect(changes).toContainText(`sibling-${info.project.name}`);
+
+  await directories.getByRole("button", { name: `Remove ${sibling}` }).click();
+  await expect(directories).not.toContainText(sibling);
+  await expect(directories).toContainText(main);
+  await expect(changes).not.toContainText(`sibling-${info.project.name}`);
+  await page.reload();
+  await expect(directories).toContainText(main);
+  await expect(directories).not.toContainText(sibling);
+});
+
 test("resizes the project sidebars on desktop and remembers their widths", async ({ page }, info) => {
   const folder = projectFolder(info, "resize");
   const response = await page.request.post("/api/projects", {
