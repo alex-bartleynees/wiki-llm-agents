@@ -2,6 +2,7 @@
   import type { Project } from "@wiki-agents/contracts/projects/model";
   import { vaults } from "#lib/features/vaults/vaults.svelte.ts";
   import ChangedFiles from "./ChangedFiles.svelte";
+  import WorkingDirectories from "./WorkingDirectories.svelte";
 
   /** The project beside its threads: folders, vault and changed files. */
   let { project }: { project: Project } = $props();
@@ -16,19 +17,14 @@
     <a href="/projects/{project.id}">Overview</a>
   </div>
 
-  <section aria-label="Working directories">
-    <h3 class="mono">working directories</h3>
-    {#each project.workingDirectories as directory, index (directory)}
-      <p class="path mono">{directory}{#if index === 0}<span class="main"> · main</span>{/if}</p>
-    {/each}
-  </section>
+  {#key project.id}<WorkingDirectories {project} compact />{/key}
 
   <section aria-label="Shared vault">
     <h3 class="mono">shared vault</h3>
     <p><a href="/vaults/{project.vaultId}">{vault?.name ?? "vault"}</a>{#if project.notesFolder !== null}<span class="mono muted"> · {project.notesFolder}</span>{/if}</p>
   </section>
 
-  <ChangedFiles {project} />
+  {#key project.workingDirectories.join("\n")}<ChangedFiles {project} />{/key}
 </div>
 
 <style>
@@ -58,13 +54,6 @@
   }
   p {
     margin: 0 0 6px;
-  }
-  .path {
-    font-size: 12px;
-    overflow-wrap: anywhere;
-  }
-  .main {
-    color: var(--accent-ink);
   }
   .muted {
     font-size: 12px;

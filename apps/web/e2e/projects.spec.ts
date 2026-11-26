@@ -156,6 +156,36 @@ test("adds a working directory through the folder picker and removes it again", 
   await expect(directories).not.toContainText(sibling);
 });
 
+test("adds and removes a working directory from the project sidebar in the threads view", async ({ page }, info) => {
+  const main = projectFolder(info, "sidebar");
+  const sibling = projectFolder(info, "sidebar-sibling");
+  const response = await page.request.post("/api/projects", { data: { name: `Sidebar ${info.project.name}`, workingDirectories: [main] } });
+  expect(response.status()).toBe(201);
+  const { project } = (await response.json()) as { project: { id: string } };
+
+  await page.goto(`/projects/${project.id}/threads`);
+  let sidebar = page.getByRole("complementary", { name: "Project", exact: true });
+  if (isPhone(info)) {
+    const details = page.locator("details.phone-details");
+    await details.getByText("Project details").click();
+    sidebar = details;
+  }
+  const directories = sidebar.getByRole("region", { name: "Working directories" });
+  await directories.getByRole("button", { name: "Add directory…" }).click();
+  const picker = page.getByRole("dialog", { name: "Add a working directory" });
+  await picker.getByLabel("Folder path").fill(join(e2eRoot(), "projects"));
+  await picker.getByRole("button", { name: "Go" }).click();
+  await picker.getByRole("button", { name: `sidebar-sibling-${info.project.name}` }).click();
+  await picker.getByRole("button", { name: "Choose this folder" }).click();
+  await expect(picker).toBeHidden();
+  await expect(directories).toContainText(sibling);
+  await expect(sidebar.getByRole("region", { name: "Changed files" })).toContainText(`sidebar-sibling-${info.project.name}`);
+
+  await directories.getByRole("button", { name: `Remove ${sibling}` }).click();
+  await expect(directories).not.toContainText(sibling);
+  await expect(directories).toContainText(main);
+});
+
 test("resizes the project sidebars on desktop and remembers their widths", async ({ page }, info) => {
   const folder = projectFolder(info, "resize");
   const response = await page.request.post("/api/projects", {
