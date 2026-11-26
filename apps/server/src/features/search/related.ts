@@ -1,46 +1,82 @@
-import type { NoteEdge, NoteSummary } from "../indexing/vault-index.js";
 import { Effect } from "effect";
-import { VaultIndex } from "../indexing/vault-index.js";
+import { folderOf } from "../../shared/paths.js";
+import { buildNoteGraph, type NoteEdge, type NoteSummary, VaultIndex, type VaultNoteGraph } from "../indexing/vault-index.js";
 
 export const RELATED_WEIGHTS = { direct: 10, common: 2, tag: 1, folder: 0.25 } as const;
 
-/** Undirected, deduplicated graph; rare common neighbours carry more evidence. */
-export const rankRelated = (path: string, notes: ReadonlyArray<NoteSummary>, edges: ReadonlyArray<NoteEdge>) => {
-  const graph = new Map<string, Set<string>>();
-  for (const { from, to } of edges) {
-    if (from === to) continue;
-    for (const [a, b] of [[from, to], [to, from]] as const) {
-      const neighbours = graph.get(a) ?? new Set<string>();
-      neighbours.add(b); graph.set(a, neighbours);
+export const rankRelatedFromGraph = (path: string, graph: VaultNoteGraph) => {
+  const source = graph.byPath.get(path);
+  const neighbours = graph.adjacency.get(path);
+  const sourceTags = source !== undefined && source.tags.length > 0 ? new Set(source.tags) : undefined;
+  const sourceFolder = folderOf(path);
+
+  const candidates = new Set<string>();
+  const commonScores = new Map<string, number>();
+  if (neighbours !== undefined) {
+    for (const neighbour of neighbours) {
+      if (neighbour !== path) candidates.add(neighbour);
+      const secondHop = graph.adjacency.get(neighbour);
+      if (secondHop === undefined) continue;
+      const weight = 1 / Math.log(Math.max(2, secondHop.size));
+      for (const other of secondHop) {
+        if (other === path) continue;
+        candidates.add(other);
+        commonScores.set(other, (commonScores.get(other) ?? 0) + weight);
+      }
     }
   }
-  const source = notes.find((note) => note.path === path);
-  const neighbours = graph.get(path) ?? new Set<string>();
-  const folder = (p: string) => p.split("/").slice(0, -1).join("/");
-  return notes.filter((note) => note.path !== path).map((note) => {
-    const reasons: string[] = [];
-    let score = 0;
-    if (neighbours.has(note.path)) { score += RELATED_WEIGHTS.direct; reasons.push("Direct link"); }
-    let common = 0;
-    for (const neighbour of graph.get(note.path) ?? []) {
-      if (neighbours.has(neighbour)) common += 1 / Math.log(Math.max(2, graph.get(neighbour)?.size ?? 0));
+  if (sourceTags !== undefined) {
+    for (const tag of sourceTags) {
+      const tagged = graph.byTag.get(tag);
+      if (tagged !== undefined) for (const other of tagged) if (other !== path) candidates.add(other);
     }
-    if (common > 0) { score += RELATED_WEIGHTS.common * common; reasons.push("Shared neighbours"); }
-    const tags = note.tags.filter((tag) => source?.tags.includes(tag));
-    score += tags.length * RELATED_WEIGHTS.tag;
-    if (tags.length) reasons.push("Shared tags");
-    if (folder(path) === folder(note.path)) { score += RELATED_WEIGHTS.folder; reasons.push("Same folder"); }
-    return { ...note, score, reasons };
-  }).filter((note) => note.score > 0).sort((a, b) => b.score - a.score || (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+  }
+  const sameFolder = graph.byFolder.get(sourceFolder);
+  if (sameFolder !== undefined) {
+    for (const other of sameFolder) if (other !== path) candidates.add(other);
+  }
+
+  const ranked: Array<NoteSummary & { readonly score: number; readonly reasons: Array<string> }> = [];
+  for (const candidatePath of candidates) {
+    const note = graph.byPath.get(candidatePath);
+    if (note === undefined) continue;
+    const reasons: Array<string> = [];
+    let score = 0;
+    if (neighbours?.has(candidatePath)) {
+      score += RELATED_WEIGHTS.direct;
+      reasons.push("Direct link");
+    }
+    const common = commonScores.get(candidatePath) ?? 0;
+    if (common > 0) {
+      score += RELATED_WEIGHTS.common * common;
+      reasons.push("Shared neighbours");
+    }
+    if (sourceTags !== undefined && note.tags.length > 0) {
+      let sharedTags = 0;
+      for (const tag of note.tags) if (sourceTags.has(tag)) sharedTags += 1;
+      if (sharedTags > 0) {
+        score += sharedTags * RELATED_WEIGHTS.tag;
+        reasons.push("Shared tags");
+      }
+    }
+    if (folderOf(candidatePath) === sourceFolder) {
+      score += RELATED_WEIGHTS.folder;
+      reasons.push("Same folder");
+    }
+    if (score > 0) ranked.push({ ...note, score, reasons });
+  }
+  return ranked.sort((a, b) => b.score - a.score || (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
 };
 
+/** Undirected, deduplicated graph; rare common neighbours carry more evidence. */
+export const rankRelated = (path: string, notes: ReadonlyArray<NoteSummary>, edges: ReadonlyArray<NoteEdge>) =>
+  rankRelatedFromGraph(path, buildNoteGraph(notes, edges));
+
 export const relatedGraph = Effect.fnUntraced(function* (vaultId: string) {
-  const index = yield* VaultIndex;
-  const paths = (yield* index.titledFiles(vaultId)).filter((file) => file.kind === "note").map((file) => file.path);
-  return { notes: yield* index.notes(vaultId, paths), edges: yield* index.neighbours(vaultId, paths) };
+  return yield* (yield* VaultIndex).noteGraph(vaultId);
 });
 
 export const relatedNotes = Effect.fnUntraced(function* (vaultId: string, path: string) {
   const graph = yield* relatedGraph(vaultId);
-  return rankRelated(path, graph.notes, graph.edges);
+  return rankRelatedFromGraph(path, graph);
 });

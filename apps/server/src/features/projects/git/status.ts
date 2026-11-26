@@ -24,19 +24,26 @@ const remotesOf = (directory: string) => Effect.map(output(directory, ["remote"]
  * the last fetch. Never fetches.
  */
 export const branchStatus = Effect.fnUntraced(function* (directory: string) {
-  const symbolic = yield* run(directory, ["symbolic-ref", "--quiet", "--short", "HEAD"]);
+  const [symbolic, head, remotes, pushDefault] = yield* Effect.all(
+    [
+      run(directory, ["symbolic-ref", "--quiet", "--short", "HEAD"]),
+      headCommit(directory),
+      remotesOf(directory),
+      configValue(directory, "remote.pushDefault"),
+    ],
+    { concurrency: 4 },
+  );
   const branch = symbolic.code === 0 ? symbolic.stdout.trim() : null;
-  const head = yield* headCommit(directory);
-  const remotes = yield* remotesOf(directory);
-  const pushDefault = yield* configValue(directory, "remote.pushDefault");
   const pushRemote =
     pushDefault !== null && remotes.includes(pushDefault) ? pushDefault : remotes.includes("origin") ? "origin" : remotes.length === 1 ? remotes[0]! : null;
   let upstream: { readonly remote: string; readonly branch: string } | null = null;
   let ahead: number | null = null;
   let behind: number | null = null;
   if (branch !== null) {
-    const remote = yield* configValue(directory, `branch.${branch}.remote`);
-    const merge = yield* configValue(directory, `branch.${branch}.merge`);
+    const [remote, merge] = yield* Effect.all(
+      [configValue(directory, `branch.${branch}.remote`), configValue(directory, `branch.${branch}.merge`)],
+      { concurrency: 2 },
+    );
     if (remote !== null && remote !== "." && merge !== null && merge.startsWith("refs/heads/")) {
       upstream = { remote, branch: merge.slice("refs/heads/".length) };
       const counts = head === null ? null : yield* run(directory, ["rev-list", "--left-right", "--count", "HEAD...@{upstream}"]);

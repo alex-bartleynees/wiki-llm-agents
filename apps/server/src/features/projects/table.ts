@@ -1,5 +1,5 @@
 import type { BrowserSignIn } from "@wiki-agents/contracts/projects/model";
-import { integer, primaryKey, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, primaryKey, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 /** A project: its working directories (main directory first) and the shared vault it uses. */
 export const projects = sqliteTable("projects", {
@@ -53,21 +53,25 @@ export const projectIgnoredFiles = sqliteTable(
  * Threads' own git worktrees (see `worktrees.ts`). Kept after removal, so a thread
  * whose worktree is gone can say so instead of running in the main directory.
  */
-export const projectWorktrees = sqliteTable("project_worktrees", {
-  /** One worktree per thread at most. */
-  threadId: text("thread_id").primaryKey(),
-  projectId: text("project_id").notNull(),
-  branch: text("branch").notNull(),
-  /** The worktree's root, canonical, under the data directory. */
-  path: text("path").notNull(),
-  /** Where the thread works: `path`, or the folder in it matching the main directory. */
-  directory: text("directory").notNull(),
-  createdAt: integer("created_at").notNull(),
-  /** Milliseconds since the epoch; null until the app removes it. */
-  removedAt: integer("removed_at"),
-  removedBranchIdentity: text("removed_branch_identity"),
-  branchDeletedAt: integer("branch_deleted_at"),
-});
+export const projectWorktrees = sqliteTable(
+  "project_worktrees",
+  {
+    /** One worktree per thread at most. */
+    threadId: text("thread_id").primaryKey(),
+    projectId: text("project_id").notNull(),
+    branch: text("branch").notNull(),
+    /** The worktree's root, canonical, under the data directory. */
+    path: text("path").notNull(),
+    /** Where the thread works: `path`, or the folder in it matching the main directory. */
+    directory: text("directory").notNull(),
+    createdAt: integer("created_at").notNull(),
+    /** Milliseconds since the epoch; null until the app removes it. */
+    removedAt: integer("removed_at"),
+    removedBranchIdentity: text("removed_branch_identity"),
+    branchDeletedAt: integer("branch_deleted_at"),
+  },
+  (table) => [index("project_worktrees_project_idx").on(table.projectId, table.createdAt)],
+);
 
 /**
  * Threads that work in another thread's worktree: a thread continued in a new thread

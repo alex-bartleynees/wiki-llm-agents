@@ -44,4 +44,19 @@ describe("fuzzyMatch", () => {
   it("returns positions that index into the original text", () => {
     expect(match("işlem", "İşlem")?.positions).toEqual([0, 1, 2, 3, 4]);
   });
+
+  it("grows scratch buffers for long texts and queries without leaking state across calls", () => {
+    const longText = `${"alpha-beta-".repeat(30)}TargetSegment${"-omega".repeat(20)}`;
+    const longQuery = `${"ab".repeat(25)}targetsegment`;
+    const first = match(longQuery, longText);
+    expect(first).toBeDefined();
+    expect(first!.positions).toHaveLength(longQuery.length);
+    for (let i = 1; i < first!.positions.length; i++) {
+      expect(first!.positions[i]!).toBeGreaterThan(first!.positions[i - 1]!);
+    }
+
+    expect(match(`${longQuery}z`, longText)).toBeUndefined();
+    expect(marked("es", "Effect Server")).toBe("Effect Server");
+    expect(match("ts", longText)?.positions).toEqual([longText.indexOf("Target"), longText.indexOf("Segment")]);
+  });
 });

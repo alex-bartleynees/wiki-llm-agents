@@ -30,6 +30,7 @@ export const notes = sqliteTable(
     frontmatter: text("frontmatter", { mode: "json" }).$type<Readonly<Record<string, Json>>>().notNull(),
     tags: text("tags", { mode: "json" }).$type<ReadonlyArray<string>>().notNull(),
     contentHash: text("content_hash").notNull(),
+    ftsRowid: integer("fts_rowid"),
   },
   (table) => [primaryKey({ columns: [table.vaultId, table.path] }), index("notes_content_hash").on(table.contentHash)],
 );

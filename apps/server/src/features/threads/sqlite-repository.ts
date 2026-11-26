@@ -298,6 +298,19 @@ export const ThreadRepositoryLive = Layer.effect(
             .map((row) => ({ threadId, seq: row.seq, at: row.at.getTime(), event: decodeEvent(row.payload) })),
         ),
 
+      eventsOfTypes: (threadId, types) =>
+        types.length === 0
+          ? Effect.succeed([])
+          : query(() =>
+              db
+                .select()
+                .from(threadEvents)
+                .where(and(eq(threadEvents.threadId, threadId), inArray(threadEvents.type, [...types])))
+                .orderBy(asc(threadEvents.seq))
+                .all()
+                .map((row) => ({ threadId, seq: row.seq, at: row.at.getTime(), event: decodeEvent(row.payload) })),
+            ),
+
       append: (threadId, events, at, options) =>
         query(() =>
           db.transaction((tx) => {

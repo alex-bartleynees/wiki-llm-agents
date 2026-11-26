@@ -10,7 +10,10 @@ const MAX_UNTRACKED_BYTES = 32n * 1024n * 1024n;
 const CONCURRENCY = 16;
 
 /** What the working tree is compared with: `HEAD`, or the empty tree before the first commit. */
-const base = Effect.fnUntraced(function* (directory: string) {
+const base = Effect.fnUntraced(function* (directory: string, knownHead?: string | null) {
+  if (knownHead !== undefined) {
+    return knownHead !== null ? "HEAD" : (yield* output(directory, ["hash-object", "-t", "tree", "/dev/null"])).trim();
+  }
   return (yield* run(directory, ["rev-parse", "--verify", "--quiet", "HEAD^{commit}"])).code === 0
     ? "HEAD"
     : (yield* output(directory, ["hash-object", "-t", "tree", "/dev/null"])).trim();
@@ -65,9 +68,9 @@ const failed = (cause: unknown) => new GitFailed({ message: "Could not read the 
  * (staged and unstaged) and untracked files as new. Each diff is cut to `limits`;
  * once the diffs reach `budget` characters, later files come without theirs.
  */
-export const diffDirectory = (directory: string, limits: DiffLimits, budget: number, skip: ReadonlySet<string>) =>
+export const diffDirectory = (directory: string, limits: DiffLimits, budget: number, skip: ReadonlySet<string>, knownHead?: string | null) =>
   Effect.gen(function* () {
-    const from = yield* base(directory);
+    const from = yield* base(directory, knownHead);
     const [tracked, untracked] = yield* Effect.all(
       [
         changedEntries(directory, from).pipe(Effect.flatMap((entries) => trackedFiles(directory, from, entries, limits))),

@@ -5,10 +5,14 @@
   let { vaultId, path }: { vaultId: string; path: string } = $props();
   let notes = $state<typeof RelatedNotesResponse.Type.notes>([]);
   let error = $state(false);
+  let loadedKey: string | undefined;
   $effect(() => {
     void vaultEvents.revision;
+    const key = `${vaultId}\0${path}`;
+    if (key !== loadedKey) notes = [];
+    loadedKey = key;
     const controller = new AbortController();
-    notes = []; error = false;
+    error = false;
     void getJson(`/api/vaults/${vaultId}/related?path=${encodeURIComponent(path)}`, RelatedNotesResponse, controller.signal).then((response) => { if (!controller.signal.aborted) notes = response.notes; }, () => { if (!controller.signal.aborted) error = true; });
     return () => controller.abort();
   });

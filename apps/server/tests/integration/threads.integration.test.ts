@@ -24,6 +24,7 @@ import { makeProviderRegistry } from "../../src/features/providers/registry-live
 import { PROVIDER_GONE, SERVER_STOPPED } from "../../src/features/threads/thread-actor.js";
 import { ThreadActors } from "../../src/features/threads/thread-actors.js";
 import { ThreadBus } from "../../src/features/threads/thread-bus.js";
+import { ThreadRepository } from "../../src/features/threads/repository.js";
 import { makeSqlite, Sqlite } from "../../src/shared/persistence/sqlite.js";
 import { ReplayOnly, TestAgents, TestApp, TestAttachments, TestSecrets, TestWorktrees } from "./infrastructure/test-app.js";
 import { makeTestVault } from "./infrastructure/test-vault.js";
@@ -97,6 +98,11 @@ layer(TestApp)("threads", (it) => {
       const { db } = yield* Sqlite;
       expect(db.get(sql`SELECT status, input_tokens AS tokens FROM turns WHERE id = ${turnId}`)).toEqual({ status: "completed", tokens: 12_455 });
       expect(db.get(sql`SELECT COUNT(*) AS n FROM outbox`)).toEqual({ n: 0 });
+      const repo = yield* ThreadRepository;
+      const filtered = yield* repo.eventsOfTypes(thread.id, ["user.message", "turn.finished"]);
+      expect(filtered.map((event) => event.event._tag)).toEqual(["user.message", "turn.finished"]);
+      expect(filtered[0]!.seq).toBeLessThan(filtered[1]!.seq);
+      expect(yield* repo.eventsOfTypes(thread.id, [])).toEqual([]);
     }),
   );
 

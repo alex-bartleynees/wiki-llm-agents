@@ -8,7 +8,8 @@
   let links = $state<typeof ListNoteContextResponse.Type.notes>([]);
   let error = $state(false);
   $effect(() => {
-    void openThread.version;
+    void openThread.contextVersion;
+    void threads.revision;
     const controller = new AbortController();
     error = false;
     void getJson(`/api/vaults/${vaultId}/thread-notes?path=${encodeURIComponent(path)}`, ListNoteContextResponse, controller.signal).then((response) => { if (!controller.signal.aborted) links = response.notes.filter((note, index, all) => all.findIndex((other) => other.threadId === note.threadId) === index); }, () => { if (!controller.signal.aborted) error = true; });

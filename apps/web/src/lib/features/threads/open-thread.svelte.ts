@@ -24,6 +24,7 @@ class OpenThreadStore {
   sending = $state(false);
   /** Bumped for every event applied, for views that follow the end (autoscroll). */
   version = $state(0);
+  contextVersion = $state(0);
   #threadId: string | null = null;
   #controller: AbortController | undefined;
   #close: (() => void) | undefined;
@@ -57,13 +58,16 @@ class OpenThreadStore {
       this.timeline = timeline;
       this.status = "loaded";
       this.version++;
+      this.contextVersion++;
       // A reopened stream resumes from the last event applied.
       this.#close = listen(() => threadTopic(threadId, this.timeline.lastSeq), ThreadStreamMessage, {
         onEvent: (message) => {
           if (message.type !== "event" || message.event.threadId !== this.#threadId) return;
           if (applyEvent(this.timeline, message.event)) {
             this.version++;
-            if (message.event.event._tag === "note.opened") {
+            if (message.event.event._tag === "note.context") {
+              this.contextVersion++;
+            } else if (message.event.event._tag === "note.opened") {
               void goto(message.event.event.href);
               shell.tab = "wiki";
             }

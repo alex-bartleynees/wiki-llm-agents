@@ -43,6 +43,7 @@ class ThreadsStore {
   showDone = $state(false);
   status = $state<"loading" | "loaded" | "failed">("loading");
   error = $state<string | undefined>(undefined);
+  revision = $state(0);
   #scope: ThreadScope | undefined;
   #controller: AbortController | undefined;
   #close: (() => void) | undefined;
@@ -57,7 +58,9 @@ class ThreadsStore {
     this.#scope = scope;
     this.#close = listen(vaultThreadsTopic(scope.vaultId), ThreadsStreamMessage, {
       onEvent: (message) => {
-        if (message.type === "thread.updated" && inScope(this.#scope, message.thread)) this.#upsert(message.thread);
+        if (message.type !== "thread.updated") return;
+        if (inScope(this.#scope, message.thread)) this.#upsert(message.thread);
+        else this.revision++;
       },
       // Updates sent while disconnected are lost; reload the list.
       onReconnect: () => void this.#load(scope),
@@ -166,6 +169,7 @@ class ThreadsStore {
       if (this.#scope !== scope) return;
       this.threads = threads;
       this.status = "loaded";
+      this.revision++;
     } catch (error) {
       if (isAbort(error)) return;
       this.status = "failed";
@@ -175,6 +179,7 @@ class ThreadsStore {
 
   #upsert(thread: ThreadSummary) {
     this.threads = [thread, ...this.threads.filter((other) => other.id !== thread.id)].sort(byRecent);
+    this.revision++;
     openThread.updated(thread);
   }
 }

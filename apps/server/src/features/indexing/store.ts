@@ -1,6 +1,7 @@
 import type { FileKind } from "@wiki-agents/contracts/notes/model";
 import { Context, type Effect } from "effect";
-import type { ExtractedNote, LinkKind } from "../../shared/markdown/extract.js";
+import type { ExtractedLink, ExtractedNote, LinkKind } from "../../shared/markdown/extract.js";
+import type { LinkIndex } from "../../shared/markdown/link-resolution.js";
 import type { DbError } from "../../shared/persistence/errors.js";
 
 export interface IndexedFile {
@@ -22,19 +23,29 @@ export interface IndexedLink {
   readonly targetPath: string | null;
 }
 
+export interface NoteLinkToIndex extends ExtractedLink {
+  readonly targetPath?: string | null;
+}
+
 /** The note as extracted, plus its raw content and hash. */
-export interface NoteToIndex extends ExtractedNote {
+export interface NoteToIndex extends Omit<ExtractedNote, "links"> {
+  readonly links: ReadonlyArray<NoteLinkToIndex>;
   readonly content: string;
   readonly contentHash: string;
+}
+
+export interface IndexBatch {
+  readonly files: ReadonlyArray<IndexedFile>;
+  readonly notes: ReadonlyArray<{ readonly file: IndexedFile; readonly note: NoteToIndex }>;
+  readonly pathsChanged: boolean;
 }
 
 /** Write side of the vault index, used only by the indexer. */
 export interface IndexStoreService {
   readonly files: (vaultId: string) => Effect.Effect<ReadonlyArray<IndexedFileWithHash>, DbError>;
-  /** Records a non-note file, or a note whose content hasn't changed (new mtime only). */
-  readonly putFile: (vaultId: string, file: IndexedFile) => Effect.Effect<void, DbError>;
-  /** Records a note with its blob, links (unresolved until `setLinkTargets`), and search row. */
-  readonly putNote: (vaultId: string, file: IndexedFile, note: NoteToIndex) => Effect.Effect<void, DbError>;
+  readonly filesByPath: (vaultId: string, paths: ReadonlyArray<string>) => Effect.Effect<ReadonlyArray<IndexedFileWithHash>, DbError>;
+  readonly linkIndex: (vaultId: string) => Effect.Effect<LinkIndex, DbError>;
+  readonly putBatch: (vaultId: string, batch: IndexBatch) => Effect.Effect<void, DbError>;
   /** Forgets files and everything derived from them; prunes blobs nothing refers to. */
   readonly remove: (vaultId: string, paths: ReadonlyArray<string>) => Effect.Effect<void, DbError>;
   readonly links: (vaultId: string) => Effect.Effect<ReadonlyArray<IndexedLink>, DbError>;

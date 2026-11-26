@@ -23,5 +23,10 @@ export const fileChanges = sqliteTable(
     recordedAt: integer("recorded_at", { mode: "timestamp_ms" }).notNull(),
     undoneAt: integer("undone_at", { mode: "timestamp_ms" }),
   },
-  (table) => [index("file_changes_turn_idx").on(table.turnId), index("file_changes_path_idx").on(table.vaultId, table.path)],
+  (table) => [
+    index("file_changes_turn_idx").on(table.turnId),
+    index("file_changes_path_idx").on(table.vaultId, table.path),
+    index("file_changes_before_hash_idx").on(table.beforeHash),
+    index("file_changes_after_hash_idx").on(table.afterHash),
+  ],
 );

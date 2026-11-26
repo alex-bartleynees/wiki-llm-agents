@@ -3,6 +3,8 @@ import type { FileKind } from "@wiki-agents/contracts/notes/model";
 import type { TagCount } from "@wiki-agents/contracts/search/list-tags/response";
 import type { SearchResult } from "@wiki-agents/contracts/search/search-notes/response";
 import { Context, type Effect } from "effect";
+import type { LinkIndex } from "../../shared/markdown/link-resolution.js";
+import { folderOf } from "../../shared/paths.js";
 import type { DbError } from "../../shared/persistence/errors.js";
 import type { IndexedFile } from "./store.js";
 
@@ -49,6 +51,50 @@ export interface ModifiedFile extends TitledFile {
   readonly modifiedAt: number;
 }
 
+export interface VaultNoteGraph {
+  readonly notes: ReadonlyArray<NoteSummary>;
+  readonly byPath: ReadonlyMap<string, NoteSummary>;
+  readonly edges: ReadonlyArray<NoteEdge>;
+  readonly adjacency: ReadonlyMap<string, ReadonlySet<string>>;
+  readonly byTag: ReadonlyMap<string, ReadonlyArray<string>>;
+  readonly byFolder: ReadonlyMap<string, ReadonlyArray<string>>;
+}
+
+export const buildNoteGraph = (notes: ReadonlyArray<NoteSummary>, edges: ReadonlyArray<NoteEdge>): VaultNoteGraph => {
+  const adjacency = new Map<string, Set<string>>();
+  for (const { from, to } of edges) {
+    if (from === to) continue;
+    let fromSet = adjacency.get(from);
+    if (fromSet === undefined) {
+      fromSet = new Set();
+      adjacency.set(from, fromSet);
+    }
+    fromSet.add(to);
+    let toSet = adjacency.get(to);
+    if (toSet === undefined) {
+      toSet = new Set();
+      adjacency.set(to, toSet);
+    }
+    toSet.add(from);
+  }
+  const byPath = new Map<string, NoteSummary>();
+  const byTag = new Map<string, Array<string>>();
+  const byFolder = new Map<string, Array<string>>();
+  for (const note of notes) {
+    byPath.set(note.path, note);
+    for (const tag of note.tags) {
+      const list = byTag.get(tag);
+      if (list === undefined) byTag.set(tag, [note.path]);
+      else list.push(note.path);
+    }
+    const folder = folderOf(note.path);
+    const list = byFolder.get(folder);
+    if (list === undefined) byFolder.set(folder, [note.path]);
+    else list.push(note.path);
+  }
+  return { notes, byPath, edges, adjacency, byTag, byFolder };
+};
+
 /**
  * Read side of the vault index: the port other features (notes, search, pins, MCP)
  * use instead of the SQLite adapter.
@@ -58,6 +104,8 @@ export interface VaultIndexService {
   readonly files: (vaultId: string) => Effect.Effect<ReadonlyArray<IndexedFile>, DbError>;
   /** Every visible file with its title, unsorted. */
   readonly titledFiles: (vaultId: string) => Effect.Effect<ReadonlyArray<TitledFile>, DbError>;
+  readonly linkIndex: (vaultId: string) => Effect.Effect<LinkIndex, DbError>;
+  readonly noteGraph: (vaultId: string) => Effect.Effect<VaultNoteGraph, DbError>;
   /** Notes linking to or embedding `path`, sorted by title, without `path` itself. */
   readonly backlinks: (vaultId: string, path: string) => Effect.Effect<ReadonlyArray<Backlink>, DbError>;
   readonly counts: (vaultId: string) => Effect.Effect<{ readonly files: number; readonly notes: number }, DbError>;
@@ -69,8 +117,6 @@ export interface VaultIndexService {
   readonly search: (vaultId: string, query: SearchQuery) => Effect.Effect<SearchResults, DbError>;
   /** Frontmatter tags with how many notes have each, most used first. */
   readonly tags: (vaultId: string) => Effect.Effect<ReadonlyArray<TagCount>, DbError>;
-  /** Resolved note-to-note links into or out of any of `paths`, excluding links of a note to itself. */
-  readonly neighbours: (vaultId: string, paths: ReadonlyArray<string>) => Effect.Effect<ReadonlyArray<NoteEdge>, DbError>;
   /** The notes among `paths` (others are skipped), in no particular order. */
   readonly notes: (vaultId: string, paths: ReadonlyArray<string>) => Effect.Effect<ReadonlyArray<NoteSummary>, DbError>;
   /** Indexed note contents by hash; hashes the index no longer keeps are missing. */

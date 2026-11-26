@@ -147,6 +147,56 @@ describe("open thread", () => {
     expect(openThread.thread?.id).toBe("second");
     expect(openThread.status).toBe("loaded");
   });
+
+  it("bumps contextVersion on open and note.context, not on streaming deltas", async () => {
+    api.getThread.mockResolvedValue({ thread: summary("ctx", null), events: [] });
+    const beforeOpen = openThread.contextVersion;
+    await openThread.open("ctx");
+    expect(openThread.contextVersion).toBe(beforeOpen + 1);
+    const afterOpen = openThread.contextVersion;
+    const stream = streams.find((candidate) => !candidate.closed && JSON.stringify(candidate.topic).includes('"threadId":"ctx"'))!;
+
+    stream.onEvent({
+      type: "event",
+      event: {
+        threadId: "ctx",
+        seq: 1,
+        createdAt: 2,
+        event: { _tag: "message.delta", turnId: "t1", text: "streaming chunk" },
+      },
+    });
+    expect(openThread.contextVersion).toBe(afterOpen);
+
+    stream.onEvent({
+      type: "event",
+      event: {
+        threadId: "ctx",
+        seq: 2,
+        createdAt: 3,
+        event: {
+          _tag: "note.context",
+          turnId: "t1",
+          note: { path: "index.md", reason: "cited", hash: "0123456789abcdef", notices: [] },
+        },
+      },
+    });
+    expect(openThread.contextVersion).toBe(afterOpen + 1);
+  });
+
+  it("bumps threads.revision on load and thread.updated across scopes", async () => {
+    api.listThreads.mockResolvedValue({ threads: [summary("a", "p1")] });
+    const start = threads.revision;
+    await threads.connect({ vaultId: "v1", projectId: "p1" });
+    expect(threads.revision).toBe(start + 1);
+    const afterLoad = threads.revision;
+    const stream = streams.find((candidate) => isVaultThreads(candidate.topic) && !candidate.closed)!;
+
+    stream.onEvent({ type: "thread.updated", thread: { ...summary("a", "p1"), title: "Renamed", updatedAt: 5 } });
+    expect(threads.revision).toBe(afterLoad + 1);
+
+    stream.onEvent({ type: "thread.updated", thread: { ...summary("other", "p2"), title: "Other scope", updatedAt: 6 } });
+    expect(threads.revision).toBe(afterLoad + 2);
+  });
 });
 
 describe("done threads", () => {

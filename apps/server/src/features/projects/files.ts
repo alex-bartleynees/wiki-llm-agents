@@ -29,6 +29,11 @@ const RACY_MS = 2000;
 
 const scanError = (message: string) => (cause: unknown) => new ProjectFilesError({ message, cause });
 
+interface ListedFile {
+  readonly path: string;
+  readonly info?: FileSystem.File.Info;
+}
+
 /**
  * Every regular file below `directory` (relative, `/`-separated), skipping `IGNORED`
  * names and, inside a git work tree, whatever `.gitignore` excludes. Nested
@@ -36,7 +41,7 @@ const scanError = (message: string) => (cause: unknown) => new ProjectFilesError
  */
 const listFiles = Effect.fnUntraced(function* (directory: string) {
   const fs = yield* FileSystem.FileSystem;
-  const files: Array<string> = [];
+  const files: Array<ListedFile> = [];
   const prefixed = (relative: string, name: string) => (relative === "" ? name : relative + "/" + name);
 
   /** `askGit`: the folder may be in a work tree (the top, or a folder holding `.git`). */
@@ -52,15 +57,16 @@ const listFiles = Effect.fnUntraced(function* (directory: string) {
           .map((entry) => prefixed(relative, entry))
           .filter((path) => !path.split("/").some((part) => IGNORED.has(part)));
         // Missing (tracked but deleted) is absent, as it would be from a walk.
-        const kinds = yield* Effect.forEach(
+        const infos = yield* Effect.forEach(
           paths,
-          (path) => fs.lstat(join(directory, path)).pipe(Effect.map((info) => info.type), Effect.orElseSucceed(() => undefined)),
+          (path) => fs.lstat(join(directory, path)).pipe(Effect.orElseSucceed(() => undefined)),
           { concurrency: CONCURRENCY },
         );
         const nested: Array<string> = [];
         paths.forEach((path, index) => {
-          if (kinds[index] === "File") files.push(path);
-          else if (kinds[index] === "Directory") nested.push(path);
+          const info = infos[index];
+          if (info?.type === "File") files.push({ path, info });
+          else if (info?.type === "Directory") nested.push(path);
         });
         for (const path of nested) yield* walk(path, true);
         return;
@@ -69,7 +75,7 @@ const listFiles = Effect.fnUntraced(function* (directory: string) {
       for (const entry of entries) {
         if (IGNORED.has(entry.name)) continue;
         const path = prefixed(relative, entry.name);
-        if (entry.type === "File") files.push(path);
+        if (entry.type === "File") files.push({ path });
         else if (entry.type === "Directory") {
           yield* walk(path, yield* holdsRepository(join(directory, path)));
         }
@@ -103,19 +109,19 @@ export const snapshot = (directories: ReadonlyArray<string>, previous: ReadonlyA
     const fs = yield* FileSystem.FileSystem;
     const started = yield* Effect.sync(() => Date.now());
     const known = new Map(previous.map((file) => [fileKey(file), file]));
-    const listed: Array<{ readonly directory: string; readonly path: string }> = [];
+    const listed: Array<{ readonly directory: string; readonly path: string; readonly info?: FileSystem.File.Info }> = [];
     for (const directory of directories) {
       const canonical = yield* fs.realPath(directory).pipe(Effect.mapError(scanError("Could not scan " + directory)));
       if (canonical !== directory) return yield* new ProjectFilesError({ message: "A working directory has moved or become a symlink: " + directory });
-      for (const path of yield* listFiles(directory)) listed.push({ directory, path });
+      for (const entry of yield* listFiles(directory)) listed.push({ directory, path: entry.path, ...(entry.info === undefined ? {} : { info: entry.info }) });
     }
     const versions = yield* Effect.forEach(
       listed,
-      ({ directory, path }) =>
+      ({ directory, path, info: preInfo }) =>
         Effect.gen(function* () {
           const absolute = join(directory, path);
           // Gone between listing and reading: as if it had gone a moment earlier.
-          const info = yield* fs.lstat(absolute).pipe(Effect.orElseSucceed(() => undefined));
+          const info = preInfo ?? (yield* fs.lstat(absolute).pipe(Effect.orElseSucceed(() => undefined)));
           if (info === undefined || info.type !== "File") return undefined;
           const size = ByteSize.toBigInt(info.size);
           const modifiedAt = Option.getOrThrow(info.mtime).getTime();

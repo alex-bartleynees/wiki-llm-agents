@@ -33,8 +33,13 @@ export const threads = sqliteTable(
     updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
     deletedAt: integer("deleted_at", { mode: "timestamp_ms" }),
   },
-  (table) => [index("threads_vault_idx").on(table.vaultId, table.updatedAt), index("threads_continued_from_idx").on(table.continuedFromThreadId), index("threads_parent_idx").on(table.parentThreadId),
-    index("threads_inactivity_idx").on(table.activityAt, table.id).where(sql`${table.doneAt} IS NULL AND ${table.deletedAt} IS NULL`)],
+  (table) => [
+    index("threads_vault_idx").on(table.vaultId, table.updatedAt),
+    index("threads_updated_idx").on(table.updatedAt),
+    index("threads_continued_from_idx").on(table.continuedFromThreadId),
+    index("threads_parent_idx").on(table.parentThreadId),
+    index("threads_inactivity_idx").on(table.activityAt, table.id).where(sql`${table.doneAt} IS NULL AND ${table.deletedAt} IS NULL`),
+  ],
 );
 
 /**
@@ -82,7 +87,10 @@ export const turns = sqliteTable(
     /** The latest `plan.updated` steps as JSON (`PlanStep[]`); null when the agent reported no plan. */
     plan: text("plan"),
   },
-  (table) => [index("turns_thread_idx").on(table.threadId, table.status)],
+  (table) => [
+    index("turns_thread_idx").on(table.threadId, table.status),
+    index("turns_thread_ended_idx").on(table.threadId, table.endedAt),
+  ],
 );
 
 /** Approvals and questions; pending ones survive restarts and stay answerable. */

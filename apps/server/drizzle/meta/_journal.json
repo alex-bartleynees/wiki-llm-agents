@@ -225,6 +225,20 @@
       "when": 1795260019739,
       "tag": "0031_empty_preak",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1795667865847,
+      "tag": "0032_performance_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "6",
+      "when": 1795667866217,
+      "tag": "0033_rekey_notes_fts",
+      "breakpoints": true
     }
   ]
 }

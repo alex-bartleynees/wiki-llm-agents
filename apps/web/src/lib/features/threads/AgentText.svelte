@@ -1,7 +1,20 @@
+<script lang="ts" module>
+  const RESOLVED_CACHE_MAX = 1000;
+  const resolvedCache = new Map<string, string | null>();
+  const cacheKey = (vaultId: string, revision: number, link: string) => `${vaultId}\0${revision}\0${link}`;
+  const setCached = (key: string, value: string | null) => {
+    resolvedCache.delete(key);
+    resolvedCache.set(key, value);
+    if (resolvedCache.size > RESOLVED_CACHE_MAX) resolvedCache.delete(resolvedCache.keys().next().value!);
+  };
+</script>
+
 <script lang="ts">
+  import { untrack } from "svelte";
   import { ResolveLinksRequest } from "@wiki-agents/contracts/notes/resolve-links/request";
   import { ResolveLinksResponse } from "@wiki-agents/contracts/notes/resolve-links/response";
   import { postJson } from "#lib/api/client.ts";
+  import { vaultEvents } from "#lib/features/indexing/vault-events.svelte.ts";
   import { openThread } from "./open-thread.svelte.ts";
   import { type Inline, parseAgentText } from "./agent-text.ts";
 
@@ -9,21 +22,45 @@
   let { text, vaultId: inVault }: { text: string; vaultId?: string | null } = $props();
   const blocks = $derived(parseAgentText(text));
   const citations = $derived([...new Set(blocks.flatMap((block) => block.type === "p" ? block.lines.flat() : block.items.flat()).filter((part) => part.type === "citation").map((part) => part.text))].slice(0, 100));
+  const citationKey = $derived(JSON.stringify(citations));
+  const citationNumber = $derived(new Map(citations.map((link, index) => [link, index + 1])));
   let resolved = $state<Record<string, string | null>>({});
   $effect(() => {
+    void citationKey;
+    const list = untrack(() => citations);
     const vaultId = inVault ?? openThread.thread?.vaultId;
-    const links = citations.map((link) => ({ link }));
+    const revision = vaultEvents.revision;
+    if (!vaultId || list.length === 0) {
+      resolved = {};
+      return;
+    }
+    const immediate: Record<string, string | null> = {};
+    const missing: Array<string> = [];
+    for (const link of list) {
+      const key = cacheKey(vaultId, revision, link);
+      if (resolvedCache.has(key)) immediate[link] = resolvedCache.get(key) ?? null;
+      else missing.push(link);
+    }
+    resolved = immediate;
+    if (missing.length === 0) return;
     let active = true;
-    if (vaultId && links.length) void postJson(`/api/vaults/${vaultId}/resolve-links`, ResolveLinksRequest, { links }, ResolveLinksResponse).then((response) => {
-      if (active) resolved = Object.fromEntries(response.links.map((link, index) => [links[index]!.link, link.href]));
-    }, () => { if (active) resolved = {}; });
+    const links = missing.map((link) => ({ link }));
+    void postJson(`/api/vaults/${vaultId}/resolve-links`, ResolveLinksRequest, { links }, ResolveLinksResponse).then((response) => {
+      const merged: Record<string, string | null> = { ...immediate };
+      response.links.forEach((link, index) => {
+        const raw = missing[index]!;
+        setCached(cacheKey(vaultId, revision, raw), link.href);
+        merged[raw] = link.href;
+      });
+      if (active) resolved = merged;
+    }, () => { if (active) resolved = immediate; });
     return () => { active = false; };
   });
 </script>
 
 {#snippet inline(parts: ReadonlyArray<Inline>)}
   {#each parts as part, index (index)}
-    {#if part.type === "citation"}{#if resolved[part.text]}<a href={resolved[part.text]!} title={part.text}>[{citations.indexOf(part.text) + 1}]</a>{:else}<span title="Unresolved citation">[[{part.text}]]</span>{/if}{:else if part.type === "strong"}<strong>{part.text}</strong>{:else if part.type === "em"}<em>{part.text}</em>{:else if part.type === "code"}<code
+    {#if part.type === "citation"}{#if resolved[part.text]}<a href={resolved[part.text]!} title={part.text}>[{citationNumber.get(part.text) ?? 0}]</a>{:else}<span title="Unresolved citation">[[{part.text}]]</span>{/if}{:else if part.type === "strong"}<strong>{part.text}</strong>{:else if part.type === "em"}<em>{part.text}</em>{:else if part.type === "code"}<code
         class="mono">{part.text}</code
       >{:else}{part.text}{/if}
   {/each}

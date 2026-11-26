@@ -2,7 +2,7 @@ import { Effect, Schema } from "effect";
 import { Tool } from "effect/ai";
 import { VaultIndex } from "../../../indexing/vault-index.js";
 import { rankNeighbours } from "../../../search/link-hops.js";
-import { relatedGraph, rankRelated } from "../../../search/related.js";
+import { rankRelatedFromGraph, relatedGraph } from "../../../search/related.js";
 import { searchNotes } from "../../../search/search-notes/use-case.js";
 import { VaultCaller } from "../../auth.js";
 import { scopeFolders, scopeNotices, usableScope } from "../../scope.js";
@@ -92,7 +92,7 @@ export const vaultSearch = Effect.fnUntraced(function* (params: Params) {
   const graph = hops > 0 ? yield* relatedGraph(vaultId) : null;
   for (let hop = 1; hop <= hops && frontier.length > 0; hop++) {
     const ranked = rankNeighbours(frontier, graph?.edges ?? [], seen).filter((note) => inScope(scope, note.path));
-    const related = frontier.map((path) => rankRelated(path, graph?.notes ?? [], graph?.edges ?? []));
+    const related = graph === null ? [] : frontier.map((path) => rankRelatedFromGraph(path, graph));
     const scores = new Map<string, number>();
     for (const notes of related) for (const note of notes) scores.set(note.path, (scores.get(note.path) ?? 0) + note.score);
     const kept = [...ranked].sort((a, b) => (scores.get(b.path) ?? 0) - (scores.get(a.path) ?? 0) || (a.path < b.path ? -1 : a.path > b.path ? 1 : 0)).slice(0, limit);

@@ -124,6 +124,10 @@ export interface ThreadRepositoryService {
   readonly listChildren: (parentThreadId: string) => Effect.Effect<ReadonlyArray<ThreadSummary>, DbError>;
   /** Events with a seq greater than `afterSeq`, in order. */
   readonly events: (threadId: string, afterSeq: number) => Effect.Effect<ReadonlyArray<StoredThreadEvent>, DbError>;
+  readonly eventsOfTypes: (
+    threadId: string,
+    types: ReadonlyArray<ThreadEvent["_tag"]>,
+  ) => Effect.Effect<ReadonlyArray<StoredThreadEvent>, DbError>;
   /**
    * Appends events in order. With `startTurn`, also records a `turn.start` outbox
    * row: the provider hasn't been asked to run the turn yet.

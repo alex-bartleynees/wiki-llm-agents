@@ -92,7 +92,13 @@ export const toInboxItems = (db: Db, rows: ReadonlyArray<ItemRow>): ReadonlyArra
     .where(inArray(inboxDeliveries.itemId, rows.map((row) => row.id)))
     .orderBy(asc(inboxDeliveries.channel))
     .all();
-  return rows.map((row) => toItem(row, deliveries.filter((delivery) => delivery.itemId === row.id)));
+  const byItem = new Map<string, Array<DeliveryRow>>();
+  for (const delivery of deliveries) {
+    const list = byItem.get(delivery.itemId);
+    if (list === undefined) byItem.set(delivery.itemId, [delivery]);
+    else list.push(delivery);
+  }
+  return rows.map((row) => toItem(row, byItem.get(row.id) ?? []));
 };
 
 export const readInboxItem = (db: Db, itemId: string): InboxItem | undefined => {

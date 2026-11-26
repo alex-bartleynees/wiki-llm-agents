@@ -3,7 +3,7 @@ import type { LinkToResolve } from "@wiki-agents/contracts/notes/resolve-links/r
 import type { ResolvedLink, ResolveLinksResponse } from "@wiki-agents/contracts/notes/resolve-links/response";
 import { Effect } from "effect";
 import { slug } from "github-slugger";
-import { makeLinkIndex, parseWikilink, resolveLinkTarget, suffixMatches } from "../../../shared/markdown/link-resolution.js";
+import { parseWikilink, resolveLinkTarget, suffixMatches } from "../../../shared/markdown/link-resolution.js";
 import { VaultIndex } from "../../indexing/vault-index.js";
 import { findVault } from "../../vaults/find-vault.js";
 
@@ -22,8 +22,8 @@ const inner = (link: string) => link.trim().replace(/^!?\[\[/, "").replace(/\]\]
  */
 export const resolveLinks = Effect.fn("resolveLinks")(function* (input: ResolveLinksInput) {
   const vault = yield* findVault(input.vaultId);
-  const files = yield* (yield* VaultIndex).titledFiles(vault.id);
-  const index = makeLinkIndex(files.map((file) => file.path));
+  const vaultIndex = yield* VaultIndex;
+  const [files, index] = yield* Effect.all([vaultIndex.titledFiles(vault.id), vaultIndex.linkIndex(vault.id)], { concurrency: "unbounded" });
   const titles = new Map(files.map((file) => [file.path, file.title]));
 
   const resolve = ({ link, from }: LinkToResolve): ResolvedLink => {

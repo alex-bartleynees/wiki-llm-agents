@@ -313,7 +313,9 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     ).pipe(Effect.map((folders) => folders.flatMap(Option.toArray)));
   const ownAttachmentFolders = Effect.gen(function* () {
     if (attachmentFolders === undefined) {
-      const sent = (yield* repository.events(threadId, 0)).flatMap(({ event }) => (event._tag === "user.message" ? (event.attachments ?? []) : []));
+      const sent = (yield* repository.eventsOfTypes(threadId, ["user.message"])).flatMap(({ event }) =>
+        event._tag === "user.message" ? (event.attachments ?? []) : [],
+      );
       attachmentFolders = new Set(yield* foldersOf(sent));
     }
     return [...attachmentFolders].sort();
@@ -423,12 +425,30 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     const own = [...pending.values()].filter((request) => request.turnId === current.id && request.subagentId === undefined);
     const cancelled = own.map((request): ThreadEvent => ({ _tag: "request.resolved", turnId: current.id, requestId: request.requestId, answer: null }));
     const links = [...new Set([...replyText.matchAll(/\[\[([^\]\n]+)\]\]/g)].map((match) => match[1]!))].slice(0, 100);
+    const citedEvents: Array<ThreadEvent> = [];
     if (links.length) {
       const resolved = yield* resolveLinks({ vaultId: vault.id, links: links.map((link) => ({ link })) }).pipe(Effect.provideContext(contextServices), Effect.option);
-      if (Option.isSome(resolved)) for (const link of resolved.value.links) {
-        if (link.path === null) continue;
-        const note = yield* loadContext(vault.id, { path: link.path }, "cited").pipe(Effect.provideContext(contextServices), Effect.option);
-        if (Option.isSome(note)) yield* record([{ _tag: "note.context", turnId: current.id, note: { ...note.value, heading: link.heading, content: "", notices: ["Citation observed in the reply; this does not establish that the provider read this version."] } }]);
+      if (Option.isSome(resolved)) {
+        const resolvedLinks = resolved.value.links.filter((link): link is typeof link & { readonly path: string } => link.path !== null);
+        const loaded = yield* Effect.forEach(
+          resolvedLinks,
+          (link) =>
+            loadContext(vault.id, { path: link.path }, "cited").pipe(
+              Effect.provideContext(contextServices),
+              Effect.option,
+              Effect.map((note) => ({ link, note })),
+            ),
+          { concurrency: 8 },
+        );
+        for (const { link, note } of loaded) {
+          if (Option.isSome(note)) {
+            citedEvents.push({
+              _tag: "note.context",
+              turnId: current.id,
+              note: { ...note.value, heading: link.heading, content: "", notices: ["Citation observed in the reply; this does not establish that the provider read this version."] },
+            });
+          }
+        }
       }
     }
     replyText = "";
@@ -439,6 +459,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     // A compaction that finished without the provider saying it compacted anything is shown as such, never as compacted.
     const unreported = current.kind === "compaction" && outcome === "completed" && !current.compactionReported;
     yield* record([
+      ...citedEvents,
       ...cancelled,
       ...(unreported ? [{ _tag: "context.compaction", turnId: current.id, outcome: "noop", trigger: "manual" } satisfies ThreadEvent] : []),
       ...(changes.length === 0 ? [] : [{ _tag: "turn.changes", turnId: current.id, changes } satisfies ThreadEvent]),
@@ -467,7 +488,9 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     const opened = yield* Effect.result(Effect.flatMap(currentSetup(current.id), (setup) => Effect.map(openSession(setup), (session) => ({ session, setup }))));
     if (opened._tag === "Failure") return yield* finish("failed", null, opened.failure.message);
     const { session, setup } = opened.success;
-    const events = (yield* repository.events(threadId, 0)).map(({ event }) => event).filter((event) => event.turnId === current.id);
+    const events = (yield* repository.eventsOfTypes(threadId, ["user.message", "note.context"]))
+      .map(({ event }) => event)
+      .filter((event) => event.turnId === current.id);
     const context = events.flatMap((event) => event._tag === "note.context" && event.note.reason === "supplied" ? [event.note] : []);
     const attached = events.flatMap((event) => (event._tag === "user.message" ? (event.attachments ?? []) : []));
     const imagesAsFiles = events.some((event) => event._tag === "user.message" && event.imagesAsFiles === true);
@@ -586,7 +609,7 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     const children = yield* repository.listChildren(threadId);
     if (children.length === 0) return;
     // The callback message and its child turn IDs commit together in the turn outbox.
-    const history = yield* repository.events(threadId, 0);
+    const history = yield* repository.eventsOfTypes(threadId, ["user.message"]);
     const delivered = new Set(history.flatMap(({ event }) => event._tag === "user.message" ? event.childReports ?? [] : []));
     const reports = [];
     for (const child of children) {

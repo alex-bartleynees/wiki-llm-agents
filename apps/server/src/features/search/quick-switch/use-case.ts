@@ -1,6 +1,7 @@
 import type { QuickSwitchRequest } from "@wiki-agents/contracts/search/quick-switch/request";
 import type { QuickSwitchResponse, QuickSwitchResult } from "@wiki-agents/contracts/search/quick-switch/response";
 import { Effect } from "effect";
+import { comparePaths } from "../../../shared/paths.js";
 import { VaultIndex } from "../../indexing/vault-index.js";
 import { findVault } from "../../vaults/find-vault.js";
 import { fuzzyMatch, normaliseFuzzyQuery } from "../fuzzy.js";
@@ -34,7 +35,7 @@ export const quickSwitch = Effect.fn("quickSwitch")(function* (request: QuickSwi
     });
   }
 
-  scored.sort((a, b) => b.score - a.score || a.result.path.length - b.result.path.length || a.result.path.localeCompare(b.result.path));
+  scored.sort((a, b) => b.score - a.score || a.result.path.length - b.result.path.length || comparePaths(a.result.path, b.result.path));
   const response: QuickSwitchResponse = { results: scored.slice(0, LIMIT).map((entry) => entry.result) };
   return response;
 });

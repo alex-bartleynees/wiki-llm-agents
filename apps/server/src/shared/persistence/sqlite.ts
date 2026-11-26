@@ -21,12 +21,23 @@ export const makeSqlite = (options: { readonly file: string; readonly migrations
         try: () => {
           const client = new Database(options.file);
           client.pragma("journal_mode = WAL");
+          client.pragma("synchronous = NORMAL");
           client.pragma("foreign_keys = ON");
+          client.pragma("busy_timeout = 5000");
+          client.pragma("cache_size = -64000");
+          client.pragma("temp_store = MEMORY");
+          client.pragma("mmap_size = 268435456");
           return client;
         },
         catch: (cause) => new DbError({ cause }),
       }),
-      (client) => Effect.sync(() => client.close()),
+      (client) =>
+        Effect.gen(function* () {
+          yield* Effect.try(() => {
+            client.pragma("optimize");
+          }).pipe(Effect.catch((error) => Effect.logWarning("sqlite optimize on close failed", error)));
+          yield* Effect.sync(() => client.close());
+        }),
     );
     const db = drizzle(client);
     yield* Effect.try({

@@ -1,6 +1,7 @@
 import type { UpdateVaultRequest } from "@wiki-agents/contracts/vaults/update-vault/request";
 import { Data, Effect, FileSystem } from "effect";
 import { resolveInVault } from "../../../shared/vault/path-guard.js";
+import { Indexer } from "../../indexing/indexer.js";
 import { findVault } from "../find-vault.js";
 import { VaultRepository } from "../repository.js";
 
@@ -34,5 +35,11 @@ export const updateVault = Effect.fn("updateVault")(function* (request: UpdateVa
     templateFolder = path;
   }
   yield* (yield* VaultRepository).setTemplateFolder(vault.id, templateFolder);
-  return { ...vault, templateFolder };
+  const updated = { ...vault, templateFolder };
+  if (templateFolder !== null) {
+    yield* (yield* Indexer)
+      .run({ _tag: "Sync", vault: updated, paths: [templateFolder] })
+      .pipe(Effect.catchTag("IndexFailed", (error) => Effect.logWarning("template folder index sync failed", error)));
+  }
+  return updated;
 });

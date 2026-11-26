@@ -1,4 +1,5 @@
 import { posix } from "node:path";
+import { comparePaths, folderOf } from "../paths.js";
 
 /** The parts of `[[target#heading|alias]]` (inner text, without the brackets). */
 export interface ParsedWikilink {
@@ -34,31 +35,24 @@ export interface LinkIndex {
 }
 
 export const makeLinkIndex = (paths: ReadonlyArray<string>): LinkIndex => {
+  const byPath = new Map<string, string>();
   const bySuffix = new Map<string, Array<string>>();
   for (const path of paths) {
-    const segments = path.toLowerCase().split("/");
-    for (let i = 1; i < segments.length; i++) {
-      const suffix = segments.slice(i).join("/");
-      const matches = bySuffix.get(suffix) ?? [];
-      matches.push(path);
-      bySuffix.set(suffix, matches);
+    const lower = path.toLowerCase();
+    byPath.set(lower, path);
+    for (let slash = lower.indexOf("/"); slash !== -1; slash = lower.indexOf("/", slash + 1)) {
+      const suffix = lower.slice(slash + 1);
+      const matches = bySuffix.get(suffix);
+      if (matches === undefined) bySuffix.set(suffix, [path]);
+      else matches.push(path);
     }
   }
-  return {
-    byPath: new Map(paths.map((path) => [path.toLowerCase(), path])),
-    paths,
-    bySuffix,
-  };
-};
-
-const folderOf = (path: string) => {
-  const dir = posix.dirname(path);
-  return dir === "." ? "" : dir;
+  return { byPath, paths, bySuffix };
 };
 
 /** Fewer folders first, then shorter, then alphabetical: Obsidian's "shortest path". */
 const byShortestPath = (a: string, b: string) =>
-  a.split("/").length - b.split("/").length || a.length - b.length || a.localeCompare(b);
+  a.split("/").length - b.split("/").length || a.length - b.length || comparePaths(a, b);
 
 /**
  * Resolves a link target the way Obsidian does, case-insensitively:
@@ -76,7 +70,8 @@ export const resolveLinkTarget = (
   const target = rawTarget.trim().replace(/^\/+/, "");
   if (target === "") return undefined;
   // `Effect 4.1` has an "extension" too, so always try the markdown file first.
-  const candidates = [`${target}.md`, target].map((candidate) => candidate.toLowerCase());
+  const lowerTarget = target.toLowerCase();
+  const candidates = [`${lowerTarget}.md`, lowerTarget];
   const fromFolder = folderOf(fromPath).toLowerCase();
 
   for (const candidate of candidates) {
@@ -90,8 +85,9 @@ export const resolveLinkTarget = (
     if (match !== undefined) return match;
   }
   for (const candidate of candidates) {
-    const matches = index.bySuffix.get(candidate) ?? [];
-    if (matches.length === 0) continue;
+    const matches = index.bySuffix.get(candidate);
+    if (matches === undefined || matches.length === 0) continue;
+    if (matches.length === 1) return matches[0];
     const sameFolder = matches.find((path) => folderOf(path).toLowerCase() === fromFolder);
     return sameFolder ?? [...matches].sort(byShortestPath)[0];
   }

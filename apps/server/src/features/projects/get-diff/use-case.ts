@@ -18,7 +18,7 @@ import { liveWorktrees } from "../worktrees.js";
 const reviewable = (directory: string) =>
   Effect.gen(function* () {
     const head = yield* headCommit(directory);
-    const files = yield* withHashes(directory, yield* diffDirectory(directory, LIST_LIMITS, LIST_BUDGET_CHARS, IGNORED));
+    const files = yield* withHashes(directory, yield* diffDirectory(directory, LIST_LIMITS, LIST_BUDGET_CHARS, IGNORED, head));
     return { head, files };
   });
 
@@ -38,32 +38,41 @@ export const getDiff = Effect.fn("getProjectDiff")(function* (projectId: string)
   const changes = outside.length === 0 ? [] : yield* changedFiles(outside, yield* repository.baseline(projectId));
   const ignoredFiles = yield* repository.ignoredFiles(projectId);
   const ignoredIn = (directory: string) => ignoredFiles.filter((file) => file.directory === directory).map((file) => file.path);
-  const diffs = yield* Effect.forEach(
-    directories,
-    (directory, index): Effect.Effect<DirectoryDiff, Effect.Error<ReturnType<typeof reviewable>>, Effect.Services<ReturnType<typeof reviewable>>> => {
-      const ignored = ignoredIn(directory);
-      return inGit[index]
-        ? reviewable(directory).pipe(Effect.map(({ head, files }) => ({ directory, git: true, head, files, changes: [], ignored })))
-        : Effect.succeed({ directory, git: false, files: [], changes: changes.filter((change) => change.directory === directory), ignored });
-    },
-    { concurrency: 4 },
-  );
   const ignoredInMain = ignoredIn(mainDirectory(project));
-  const worktreeDiffs = yield* Effect.forEach(
-    yield* liveWorktrees(projectId),
-    (worktree) =>
-      reviewable(worktree.directory).pipe(
-        Effect.map(({ head, files }): DirectoryDiff => ({
-          directory: worktree.directory,
-          worktree: { threadId: worktree.threadId, branch: worktree.branch },
-          git: true,
-          head,
-          files,
-          changes: [],
-          ignored: ignoredInMain,
-        })),
+  const [diffs, worktreeDiffs] = yield* Effect.all(
+    [
+      Effect.forEach(
+        directories,
+        (directory, index): Effect.Effect<DirectoryDiff, Effect.Error<ReturnType<typeof reviewable>>, Effect.Services<ReturnType<typeof reviewable>>> => {
+          const ignored = ignoredIn(directory);
+          return inGit[index]
+            ? reviewable(directory).pipe(Effect.map(({ head, files }) => ({ directory, git: true, head, files, changes: [], ignored })))
+            : Effect.succeed({ directory, git: false, files: [], changes: changes.filter((change) => change.directory === directory), ignored });
+        },
+        { concurrency: 4 },
       ),
-    { concurrency: 4 },
+      liveWorktrees(projectId).pipe(
+        Effect.flatMap((worktrees) =>
+          Effect.forEach(
+            worktrees,
+            (worktree) =>
+              reviewable(worktree.directory).pipe(
+                Effect.map(({ head, files }): DirectoryDiff => ({
+                  directory: worktree.directory,
+                  worktree: { threadId: worktree.threadId, branch: worktree.branch },
+                  git: true,
+                  head,
+                  files,
+                  changes: [],
+                  ignored: ignoredInMain,
+                })),
+              ),
+            { concurrency: 4 },
+          ),
+        ),
+      ),
+    ],
+    { concurrency: 2 },
   );
   return { directories: [...diffs, ...worktreeDiffs] } satisfies GetDiffResponse;
 });

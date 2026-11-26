@@ -83,24 +83,32 @@
     return `⎇ ${worktree.branch} · ${title}`;
   };
 
-  /**
-   * Each git directory's changed files, split into those in review and those ignored,
-   * and the ticked ones to commit (as listed, with the hashes you reviewed).
-   */
-  const groups = $derived(
+  const fileGroups = $derived(
     (diff?.directories ?? []).map((directory) => {
       const ignored = new Set(directory.ignored);
       const reviewed = directory.files.filter((file) => !ignored.has(file.path));
       const ignoredFiles = directory.files.filter((file) => ignored.has(file.path));
-      const ignoredTicked = ignoredFiles.filter((file) => isTicked(ticks, keyOf(directory.directory, file.path), true));
       return {
         directory,
         reviewed,
         ignored: ignoredFiles,
         showIgnored: showIgnored.has(directory.directory),
-        toCommit: [...reviewed.filter((file) => isTicked(ticks, keyOf(directory.directory, file.path), false)), ...ignoredTicked],
+      };
+    }),
+  );
+
+  /**
+   * Each git directory's changed files, split into those in review and those ignored,
+   * and the ticked ones to commit (as listed, with the hashes you reviewed).
+   */
+  const groups = $derived(
+    fileGroups.map((group) => {
+      const ignoredTicked = group.ignored.filter((file) => isTicked(ticks, keyOf(group.directory.directory, file.path), true));
+      return {
+        ...group,
+        toCommit: [...group.reviewed.filter((file) => isTicked(ticks, keyOf(group.directory.directory, file.path), false)), ...ignoredTicked],
         ignoredTicked: ignoredTicked.length,
-        status: branches.find((status) => status.directory === directory.directory),
+        status: branches.find((status) => status.directory === group.directory.directory),
       };
     }),
   );
@@ -136,7 +144,7 @@
 
   /** Every git file shown, numbered once, in display order: each directory's files, then its ignored files if shown. */
   const entries = $derived(
-    groups.flatMap((group) =>
+    fileGroups.flatMap((group) =>
       [...group.reviewed, ...(group.showIgnored ? group.ignored : [])].map((listed) => {
         const key = keyOf(group.directory.directory, listed.path);
         const file = whole[key] ?? listed;
@@ -148,12 +156,12 @@
   const indexOf = $derived(new Map(entries.map((entry, index) => [entry.key, index])));
   /** Ignored files are left out of the totals. */
   const totals = $derived.by(() => {
-    const files = groups.flatMap((group) => group.reviewed);
+    const files = fileGroups.flatMap((group) => group.reviewed);
     return {
       files: files.length,
       additions: files.reduce((sum, file) => sum + file.additions, 0),
       deletions: files.reduce((sum, file) => sum + file.deletions, 0),
-      ignored: groups.reduce((sum, group) => sum + group.ignored.length, 0),
+      ignored: fileGroups.reduce((sum, group) => sum + group.ignored.length, 0),
     };
   });
   const comments = $derived(review.comments(project.id));

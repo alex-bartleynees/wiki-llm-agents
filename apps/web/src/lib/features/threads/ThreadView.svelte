@@ -1,6 +1,5 @@
 <script lang="ts">
   import { threadHref } from "./thread-link.ts";
-  import { tick } from "svelte";
   import AgentPicker from "#lib/features/agents/AgentPicker.svelte";
   import { agents } from "#lib/features/agents/agents.svelte.ts";
   import { describeAutonomy, enforcedAutonomy } from "#lib/features/agents/autonomy.ts";
@@ -35,7 +34,10 @@
     void openThread.version;
     const element = scroller;
     if (element === undefined || !following) return;
-    void tick().then(() => element.scrollTo({ top: element.scrollHeight }));
+    const frame = requestAnimationFrame(() => {
+      if (following) element.scrollTo({ top: element.scrollHeight });
+    });
+    return () => cancelAnimationFrame(frame);
   });
 
   const onscroll = () => {
