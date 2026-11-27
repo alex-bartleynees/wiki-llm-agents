@@ -61,7 +61,8 @@
   // Rendered links depend on the whole index; keep content only for same-note refreshes.
   $effect(() => {
     void attempt;
-    void vaultEvents.revision;
+    void vaultEvents.structureRevision;
+    void vaultEvents.versionOf(path);
     const key = `${vaultId}\0${path}`;
     if (key !== shownKey) noteState = { status: "loading" };
     const controller = new AbortController();

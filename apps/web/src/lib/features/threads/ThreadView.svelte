@@ -330,6 +330,10 @@
   .timeline > p {
     margin: 0;
   }
+  .timeline > :not(.working) {
+    content-visibility: auto;
+    contain-intrinsic-block-size: auto 64px;
+  }
   .user .text {
     margin: 0;
     white-space: pre-wrap;

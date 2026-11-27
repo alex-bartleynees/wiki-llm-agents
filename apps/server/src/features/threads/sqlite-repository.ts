@@ -8,7 +8,7 @@ import {
   ThreadEvent,
   type ThreadSummary,
 } from "@wiki-agents/contracts/threads/model";
-import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { Effect, Layer, Option, Queue, Schema } from "effect";
 import { DbError } from "../../shared/persistence/errors.js";
 import { Sqlite } from "../../shared/persistence/sqlite.js";
@@ -40,21 +40,27 @@ const summaryColumns = {
   doneReason: threads.doneReason,
   continuedFrom: threads.continuedFromThreadId,
   parentThreadId: threads.parentThreadId,
-  continuedIn: sql<string | null>`(SELECT c.id FROM threads c WHERE c.continued_from_thread_id = threads.id AND c.deleted_at IS NULL
-    ORDER BY c.created_at DESC LIMIT 1)`,
+  continuedIn: threads.continuedInThreadId,
   createdAt: threads.createdAt,
   updatedAt: threads.updatedAt,
-  status: sql<ThreadSummary["status"]>`CASE
-    WHEN EXISTS (SELECT 1 FROM runtime_requests r WHERE r.thread_id = threads.id AND r.status = 'pending') THEN 'waiting'
-    WHEN EXISTS (SELECT 1 FROM turns t WHERE t.thread_id = threads.id AND t.status = 'running') THEN 'running'
-    ELSE 'idle' END`,
-  lastSeq: sql<number>`COALESCE((SELECT MAX(e.seq) FROM thread_events e WHERE e.thread_id = threads.id), 0)`,
-  subagentsActive: sql<number>`(SELECT COUNT(*) FROM thread_subagents s WHERE s.thread_id = threads.id AND s.status IN ('running', 'waiting'))`,
-  running: sql<string | null>`(SELECT json_object('startedAt', t.started_at, 'plan', t.plan) FROM turns t
-    WHERE t.thread_id = threads.id AND t.status = 'running' ORDER BY t.started_at DESC LIMIT 1)`,
-  last: sql<string | null>`(SELECT json_object('outcome', t.status, 'reason', t.reason, 'endedAt', t.ended_at) FROM turns t
-    WHERE t.thread_id = threads.id AND t.status <> 'running' ORDER BY t.ended_at DESC, t.rowid DESC LIMIT 1)`,
+  status: threads.status,
+  lastSeq: threads.lastSeq,
+  subagentsActive: threads.activeSubagents,
+  running: threads.runningTurnJson,
+  last: threads.lastTurnJson,
 };
+
+const SUMMARY_EVENTS = new Set<ThreadEvent["_tag"]>([
+  "user.message",
+  "compaction.requested",
+  "handoff.requested",
+  "subagent.reported",
+  "subagent.updated",
+  "request.opened",
+  "request.resolved",
+  "plan.updated",
+  "turn.finished",
+]);
 
 const RunningJson = Schema.fromJsonString(Schema.Struct({ startedAt: Schema.Number, plan: Schema.NullOr(Schema.String) }));
 const decodeRunning = Schema.decodeUnknownSync(RunningJson);
@@ -160,14 +166,20 @@ export const ThreadRepositoryLive = Layer.effect(
       })),
       noteContext: (vaultId, path) => query(() => db.select({ threadId: threads.id, title: threads.title, turnId: threadNotes.turnId, path: threadNotes.path, reason: threadNotes.reason, hash: threadNotes.hash }).from(threadNotes).innerJoin(threads, eq(threads.id, threadNotes.threadId)).where(and(eq(threads.vaultId, vaultId), isNull(threads.deletedAt), path === undefined ? undefined : eq(threadNotes.path, path))).orderBy(desc(threads.updatedAt), asc(threadNotes.path)).all()),
       insert: (thread) =>
-        query(() => {
-          const at = new Date(thread.createdAt);
-          const { draftText, continuedFrom, ...row } = thread;
-          db.insert(threads)
-            .values({ ...row, title: row.title ?? null, draftText: draftText ?? "", continuedFromThreadId: continuedFrom ?? null, createdAt: at, updatedAt: at, activityAt: thread.createdAt })
-            .run();
-          return Option.getOrThrow(findSync(thread.id));
-        }),
+        query(() =>
+          db.transaction((tx) => {
+            const at = new Date(thread.createdAt);
+            const { draftText, continuedFrom, ...row } = thread;
+            tx.insert(threads)
+              .values({ ...row, title: row.title ?? null, draftText: draftText ?? "", continuedFromThreadId: continuedFrom ?? null, createdAt: at, updatedAt: at, activityAt: thread.createdAt })
+              .run();
+            if (continuedFrom !== undefined) {
+              tx.update(threads).set({ continuedInThreadId: thread.id }).where(eq(threads.id, continuedFrom)).run();
+            }
+            const inserted = tx.select(summaryColumns).from(threads).where(and(eq(threads.id, thread.id), isNull(threads.deletedAt))).get();
+            return toSummary(inserted!);
+          }),
+        ),
 
       find: (threadId) => query(() => findSync(threadId)),
 
@@ -277,8 +289,8 @@ export const ThreadRepositoryLive = Layer.effect(
                 isNull(threads.deletedAt),
                 or(
                   gte(threads.updatedAt, new Date(since)),
-                  sql`EXISTS (SELECT 1 FROM turns t WHERE t.thread_id = ${threads.id} AND t.status = 'running')`,
-                  sql`EXISTS (SELECT 1 FROM thread_subagents s WHERE s.thread_id = ${threads.id} AND s.status IN ('running', 'waiting'))`,
+                  ne(threads.status, "idle"),
+                  gt(threads.activeSubagents, 0),
                 ),
               ),
             )
@@ -315,8 +327,8 @@ export const ThreadRepositoryLive = Layer.effect(
         query(() =>
           db.transaction((tx) => {
             const when = new Date(at);
-            const last = tx.get<{ seq: number | null }>(sql`SELECT MAX(seq) AS seq FROM thread_events WHERE thread_id = ${threadId}`);
-            let seq = last?.seq ?? 0;
+            const currentRow = tx.select({ lastSeq: threads.lastSeq }).from(threads).where(eq(threads.id, threadId)).get();
+            let seq = currentRow?.lastSeq ?? 0;
             const activity = events.some((event) =>
               event._tag === "user.message" || event._tag === "turn.finished" ||
               event._tag === "subagent.updated" || event._tag === "request.resolved" ||
@@ -330,6 +342,7 @@ export const ThreadRepositoryLive = Layer.effect(
               event._tag === "compaction.requested" || (event._tag === "subagent.updated" &&
               (event.status === "running" || event.status === "waiting")),
             );
+            const refreshSummary = events.some((event) => SUMMARY_EVENTS.has(event._tag));
             if (startsWork || backgroundWork) {
               tx.update(threads).set({ doneAt: null, doneReason: null })
                 .where(and(eq(threads.id, threadId), startsWork ? undefined : eq(threads.doneReason, "inactivity"))).run();
@@ -426,7 +439,23 @@ export const ThreadRepositoryLive = Layer.effect(
                 .run();
             }
             const activityAt = sql`MAX(COALESCE(${threads.activityAt}, 0), ${at})`;
-            tx.update(threads).set({ updatedAt: when, ...(activity ? { activityAt } : {}) }).where(eq(threads.id, threadId)).run();
+            const summaryUpdate = refreshSummary
+              ? {
+                  status: sql<ThreadSummary["status"]>`CASE
+                    WHEN EXISTS (SELECT 1 FROM runtime_requests r WHERE r.thread_id = ${threadId} AND r.status = 'pending') THEN 'waiting'
+                    WHEN EXISTS (SELECT 1 FROM turns t WHERE t.thread_id = ${threadId} AND t.status = 'running') THEN 'running'
+                    ELSE 'idle' END`,
+                  activeSubagents: sql<number>`(SELECT COUNT(*) FROM thread_subagents s WHERE s.thread_id = ${threadId} AND s.status IN ('running', 'waiting'))`,
+                  runningTurnJson: sql<string | null>`(SELECT json_object('startedAt', t.started_at, 'plan', t.plan) FROM turns t
+                    WHERE t.thread_id = ${threadId} AND t.status = 'running' ORDER BY t.started_at DESC LIMIT 1)`,
+                  lastTurnJson: sql<string | null>`(SELECT json_object('outcome', t.status, 'reason', t.reason, 'endedAt', t.ended_at) FROM turns t
+                    WHERE t.thread_id = ${threadId} AND t.status <> 'running' ORDER BY t.ended_at DESC, t.rowid DESC LIMIT 1)`,
+                }
+              : {};
+            tx.update(threads)
+              .set({ lastSeq: seq, updatedAt: when, ...(activity ? { activityAt } : {}), ...summaryUpdate })
+              .where(eq(threads.id, threadId))
+              .run();
             const manager = sql`threads.id = (SELECT c.parent_thread_id FROM threads c WHERE c.id = ${threadId})`;
             if (activity) tx.update(threads).set({ activityAt }).where(manager).run();
             const reopened = startsWork || backgroundWork

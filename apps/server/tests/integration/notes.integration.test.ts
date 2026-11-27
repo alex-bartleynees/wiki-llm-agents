@@ -51,14 +51,14 @@ layer(FixtureLive.pipe(Layer.provideMerge(TestApp)))("notes", (it) => {
       const { vaultId } = yield* Fixture;
       const tree = yield* getJson(`/api/vaults/${vaultId}/tree`, GetTreeResponse);
       expect(tree.entries).toEqual([
-        { path: "assets/diagram.png", kind: "file" },
-        { path: "assets/drawing.svg", kind: "file" },
-        { path: "data/listings.json", kind: "json" },
-        { path: "index.md", kind: "note" },
-        { path: "notes.txt", kind: "file" },
-        { path: "Projects/Effect 4.1.md", kind: "note" },
-        { path: "Projects/Plan.md", kind: "note" },
-        { path: "Reports/Spending.html", kind: "page" },
+        { path: "assets/diagram.png", kind: "file", title: "diagram.png" },
+        { path: "assets/drawing.svg", kind: "file", title: "drawing.svg" },
+        { path: "data/listings.json", kind: "json", title: "listings.json" },
+        { path: "index.md", kind: "note", title: "index" },
+        { path: "notes.txt", kind: "file", title: "notes.txt" },
+        { path: "Projects/Effect 4.1.md", kind: "note", title: "Effect 4.1" },
+        { path: "Projects/Plan.md", kind: "note", title: "Plan" },
+        { path: "Reports/Spending.html", kind: "page", title: "Spending.html" },
       ]);
     }),
   );

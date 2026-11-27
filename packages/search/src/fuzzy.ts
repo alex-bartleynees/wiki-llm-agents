@@ -1,17 +1,19 @@
-/*
- * Fuzzy matching for the quick switcher: the query's characters must appear in the
- * text in order, ignoring case. Of all the ways they could line up, the best scoring
- * one wins, where runs of consecutive characters and characters at the start of a
- * word score highest (`eff serv` → **Eff**ect **Serv**er). As in fzf, every
- * character of a run earns the bonus of the word start it began at, so `rag` prefers
- * **RAG** Layer to **R**ecipes **a**nd **G**uided Brew. Pure, so it is tested on
- * its own; dynamic programming over query × text, which is fast for titles and paths.
- */
-
 export interface FuzzyMatch {
   readonly score: number;
-  /** Indices (UTF-16) of the matched characters in the text, ascending. */
   readonly positions: ReadonlyArray<number>;
+}
+
+export interface QuickSwitchCandidate<Kind extends string> {
+  readonly path: string;
+  readonly kind: Kind;
+  readonly title?: string | undefined;
+}
+
+export interface QuickSwitchMatch<Kind extends string> {
+  readonly path: string;
+  readonly kind: Kind;
+  readonly title: string;
+  readonly match: { readonly field: "title" | "path"; readonly positions: ReadonlyArray<number> };
 }
 
 const MATCH = 1;
@@ -19,16 +21,16 @@ const CONSECUTIVE = 4;
 const WORD_START = 8;
 const AFTER_SLASH = 9;
 const CAMEL = 6;
-/** Per character skipped between two matched characters. */
 const GAP = 0.3;
-/** Per character before the first match. */
 const LEADING = 0.1;
-/** Per character of text, so shorter texts win ties. */
 const LENGTH = 0.01;
+const TITLE_BONUS = 4;
+const DEFAULT_LIMIT = 20;
 
 const SEPARATOR = /[\s\-_.()[\]{}]/;
 const LOWER = /\p{Ll}/u;
 const UPPER = /\p{Lu}/u;
+const pathCollator = new Intl.Collator("en");
 
 const isAsciiSeparator = (code: number) =>
   code === 32 ||
@@ -48,7 +50,6 @@ const isAsciiSeparator = (code: number) =>
 const isLower = (text: string, index: number, code: number) => (code < 128 ? code >= 97 && code <= 122 : LOWER.test(text[index]!));
 const isUpper = (text: string, index: number, code: number) => (code < 128 ? code >= 65 && code <= 90 : UPPER.test(text[index]!));
 
-/** How good a place `index` is to match a character: the start of a word scores more than its middle. */
 const boundaryBonus = (text: string, index: number): number => {
   if (index === 0) return WORD_START;
   const prevCode = text.charCodeAt(index - 1);
@@ -80,13 +81,10 @@ const ensureRowBuffers = (m: number, nm: number) => {
   }
 };
 
-/** The best way `query` (already lower case, no spaces) lines up in `text`, or undefined when it doesn't. */
 export const fuzzyMatch = (query: string, text: string): FuzzyMatch | undefined => {
   const n = query.length;
   const m = text.length;
   if (n === 0 || n > m) return undefined;
-  // Lower-casing can change a string's length (`İ` → `i̇`); then go character by
-  // character and keep the first unit, so positions still index into `text`.
   const lower = text.toLowerCase();
   const sameLength = lower.length === m;
   if (sameLength) {
@@ -106,8 +104,6 @@ export const fuzzyMatch = (query: string, text: string): FuzzyMatch | undefined 
   ensureRowBuffers(m, n * m);
   const bonus = scratchBonus;
   for (let j = 0; j < m; j++) bonus[j] = boundaryBonus(text, j);
-  // score[i][j]: best score with query[i] matched at text[j]; from[i][j]: where query[i-1]
-  // was matched; run[i][j]: the bonus the run ending at j carries.
   let previous = scratchPrevScore;
   let current = scratchCurrScore;
   let previousRun = scratchPrevRun;
@@ -120,7 +116,6 @@ export const fuzzyMatch = (query: string, text: string): FuzzyMatch | undefined 
     current.fill(-Infinity, 0, m);
     currentRun.fill(0, 0, m);
     from.fill(-1, rowOffset, rowOffset + m);
-    // Best of previous[k] - GAP * (j - k - 1) over k < j - 1, carried along j.
     let gapBest = -Infinity;
     let gapFrom = -1;
     const isFirst = i === 0;
@@ -174,5 +169,39 @@ export const fuzzyMatch = (query: string, text: string): FuzzyMatch | undefined 
   return { score: previous[end]! - LENGTH * m, positions };
 };
 
-/** The query as matched: lower case, without whitespace. */
 export const normaliseFuzzyQuery = (query: string) => query.toLowerCase().replace(/\s+/g, "");
+
+const defaultTitle = (path: string, kind: string) => {
+  const slash = path.lastIndexOf("/");
+  const name = slash === -1 ? path : path.slice(slash + 1);
+  return kind === "note" ? name.replace(/\.md$/i, "") : name;
+};
+
+export const rankQuickSwitch = <Kind extends string>(
+  files: ReadonlyArray<QuickSwitchCandidate<Kind>>,
+  rawQuery: string,
+  limit = DEFAULT_LIMIT,
+): Array<QuickSwitchMatch<Kind>> => {
+  const query = normaliseFuzzyQuery(rawQuery);
+  if (query === "") return [];
+  const scored: Array<{ readonly score: number; readonly result: QuickSwitchMatch<Kind> }> = [];
+  for (const file of files) {
+    if (file.kind === "file") continue;
+    const title = file.title ?? defaultTitle(file.path, file.kind);
+    const byTitle = fuzzyMatch(query, title);
+    const byPath = fuzzyMatch(query, file.path);
+    const best =
+      byTitle !== undefined && (byPath === undefined || byTitle.score + TITLE_BONUS >= byPath.score)
+        ? { score: byTitle.score + TITLE_BONUS, field: "title" as const, positions: byTitle.positions }
+        : byPath !== undefined
+          ? { score: byPath.score, field: "path" as const, positions: byPath.positions }
+          : undefined;
+    if (best === undefined) continue;
+    scored.push({
+      score: best.score,
+      result: { path: file.path, kind: file.kind, title, match: { field: best.field, positions: best.positions } },
+    });
+  }
+  scored.sort((a, b) => b.score - a.score || a.result.path.length - b.result.path.length || pathCollator.compare(a.result.path, b.result.path));
+  return scored.slice(0, limit).map((entry) => entry.result);
+};

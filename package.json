@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "workspaces": [
+    "packages/search",
     "packages/contracts",
     "apps/server",
     "apps/web"

@@ -69,9 +69,16 @@ export const snippetParts = (raw: string): Array<SnippetPart> => {
 
 const FRONTMATTER = /^---\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)/;
 
+export const asciiLower = (text: string): string => text.replace(/[A-Z]/g, (char) => char.toLowerCase());
+
+export const computeLead = (content: string, maxLength = 200): string => {
+  const body = content.replace(FRONTMATTER, "").replace(/\s+/g, " ").trim();
+  if (body === "") return "";
+  return body.length > maxLength ? `${body.slice(0, maxLength).trimEnd()}…` : body;
+};
+
 /** The start of a note's body, for results that matched by tag alone (no snippet to show). */
 export const leadParts = (content: string, maxLength = 200): Array<SnippetPart> => {
-  const body = content.replace(FRONTMATTER, "").replace(/\s+/g, " ").trim();
-  if (body === "") return [];
-  return [{ text: body.length > maxLength ? `${body.slice(0, maxLength).trimEnd()}…` : body, match: false }];
+  const lead = computeLead(content, maxLength);
+  return lead === "" ? [] : [{ text: lead, match: false }];
 };

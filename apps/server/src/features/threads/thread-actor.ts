@@ -86,7 +86,8 @@ type Message =
   | { readonly _tag: "Background"; readonly event: BackgroundEvent }
   /** From the turn's provider fiber; ignored once that turn is over. */
   | { readonly _tag: "ProviderEvent"; readonly turnId: string; readonly event: ProviderEvent }
-  | { readonly _tag: "ProviderEnded"; readonly turnId: string; readonly exit: Exit.Exit<void, ProviderError> };
+  | { readonly _tag: "ProviderEnded"; readonly turnId: string; readonly exit: Exit.Exit<void, ProviderError> }
+  | { readonly _tag: "FlushDelta"; readonly generation: number };
 
 export type AnswerError = RequestNotFound | RequestClosed | WrongAnswerKind | DbError;
 
@@ -388,7 +389,30 @@ export const makeThreadActor = Effect.fnUntraced(function* (
     return opened;
   });
 
-  const record = Effect.fnUntraced(function* (events: ReadonlyArray<ThreadEvent>, options?: { readonly startTurn?: string }) {
+  const DELTA_COALESCE_MS = 40;
+  let bufferedDelta: { turnId: string; messageId: string; text: string } | undefined;
+  let deltaCooldown = false;
+  let deltaGeneration = 0;
+  let deltaFlushFiber: Fiber.Fiber<void> | undefined;
+
+  const cancelDeltaTimer = Effect.gen(function* () {
+    deltaGeneration += 1;
+    const fiber = deltaFlushFiber;
+    deltaFlushFiber = undefined;
+    if (fiber !== undefined) yield* Fiber.interrupt(fiber);
+  });
+
+  const scheduleDeltaFlush = Effect.gen(function* () {
+    if (deltaFlushFiber !== undefined) return;
+    const generation = deltaGeneration;
+    deltaFlushFiber = yield* Effect.sleep(`${DELTA_COALESCE_MS} millis`).pipe(
+      Effect.andThen(Queue.offer(mailbox, { _tag: "FlushDelta", generation })),
+      Effect.asVoid,
+      Effect.forkIn(actorScope),
+    );
+  });
+
+  const recordBatch = Effect.fnUntraced(function* (events: ReadonlyArray<ThreadEvent>, options?: { readonly startTurn?: string }) {
     const { stored, reopenedManager } = yield* repository.append(threadId, events, yield* clock.now, options);
     yield* bus.publishEvents(stored);
     if (reopenedManager !== undefined) yield* bus.publishThread(reopenedManager);
@@ -397,6 +421,66 @@ export const makeThreadActor = Effect.fnUntraced(function* (
       if (Option.isSome(summary)) yield* bus.publishThread(summary.value);
     }
   });
+
+  const record = Effect.fnUntraced(function* (events: ReadonlyArray<ThreadEvent>, options?: { readonly startTurn?: string }) {
+    const pendingDelta = bufferedDelta;
+    bufferedDelta = undefined;
+    if (pendingDelta !== undefined || deltaCooldown) {
+      yield* cancelDeltaTimer;
+      deltaCooldown = false;
+    }
+    const batch: ReadonlyArray<ThreadEvent> =
+      pendingDelta === undefined
+        ? events
+        : [{ _tag: "message.delta", turnId: pendingDelta.turnId, messageId: pendingDelta.messageId, text: pendingDelta.text }, ...events];
+    if (batch.length === 0) return;
+    yield* recordBatch(batch, options);
+  });
+
+  const onMessageDelta = Effect.fnUntraced(function* (event: Extract<ThreadEvent, { readonly _tag: "message.delta" }>) {
+    if (bufferedDelta !== undefined && (bufferedDelta.turnId !== event.turnId || bufferedDelta.messageId !== event.messageId)) {
+      const flushed = bufferedDelta;
+      bufferedDelta = undefined;
+      yield* recordBatch([{ _tag: "message.delta", ...flushed }]);
+    }
+    if (!deltaCooldown && bufferedDelta === undefined) {
+      yield* recordBatch([event]);
+      deltaCooldown = true;
+      yield* scheduleDeltaFlush;
+      return;
+    }
+    if (bufferedDelta === undefined) {
+      bufferedDelta = { turnId: event.turnId, messageId: event.messageId, text: event.text };
+    } else {
+      bufferedDelta.text += event.text;
+    }
+    yield* scheduleDeltaFlush;
+  });
+
+  const onFlushDelta = Effect.fnUntraced(function* (generation: number) {
+    if (generation !== deltaGeneration) return;
+    deltaFlushFiber = undefined;
+    if (bufferedDelta === undefined) {
+      deltaCooldown = false;
+      return;
+    }
+    const flushed = bufferedDelta;
+    bufferedDelta = undefined;
+    yield* recordBatch([{ _tag: "message.delta", ...flushed }]);
+    deltaCooldown = true;
+    yield* scheduleDeltaFlush;
+  });
+
+  yield* Scope.addFinalizer(
+    actorScope,
+    Effect.gen(function* () {
+      const flushed = bufferedDelta;
+      bufferedDelta = undefined;
+      if (flushed !== undefined) {
+        yield* recordBatch([{ _tag: "message.delta", ...flushed }]).pipe(Effect.ignore);
+      }
+    }),
+  );
 
   /**
    * Records the vault's note changes against the turn until it finishes (see
@@ -941,6 +1025,8 @@ export const makeThreadActor = Effect.fnUntraced(function* (
       );
     }
     switch (event._tag) {
+      case "message.delta":
+        return yield* onMessageDelta(event);
       case "turn.finished":
         return yield* finish(event.outcome, event.usage, event.reason);
       case "request.opened":
@@ -1031,14 +1117,46 @@ export const makeThreadActor = Effect.fnUntraced(function* (
         return turn?.id === message.turnId ? onProviderEvent(message.event) : Effect.void;
       case "ProviderEnded":
         return turn?.id === message.turnId ? onProviderEnded(message.exit) : Effect.void;
+      case "FlushDelta":
+        return onFlushDelta(message.generation);
     }
+  };
+
+  const coalesceMessages = (messages: ReadonlyArray<Message>): Array<Message> => {
+    const out: Array<Message> = [];
+    for (const message of messages) {
+      const prev = out.at(-1);
+      if (
+        message._tag === "ProviderEvent" &&
+        message.event._tag === "message.delta" &&
+        prev?._tag === "ProviderEvent" &&
+        prev.event._tag === "message.delta" &&
+        prev.turnId === message.turnId &&
+        prev.event.turnId === message.event.turnId &&
+        prev.event.messageId === message.event.messageId
+      ) {
+        out[out.length - 1] = {
+          _tag: "ProviderEvent",
+          turnId: prev.turnId,
+          event: { ...prev.event, text: prev.event.text + message.event.text },
+        };
+      } else {
+        out.push(message);
+      }
+    }
+    return out;
   };
 
   const resumeDone = yield* Deferred.make<void>();
   yield* Queue.offer(mailbox, { _tag: "Resume" });
-  yield* Queue.take(mailbox).pipe(
-    Effect.flatMap(handle),
-    Effect.catchCause((cause) => Effect.logError(`thread ${threadId}: message failed`, cause)),
+  yield* Queue.takeAll(mailbox).pipe(
+    Effect.flatMap((batch) =>
+      Effect.forEach(
+        coalesceMessages(batch),
+        (message) => handle(message).pipe(Effect.catchCause((cause) => Effect.logError(`thread ${threadId}: message failed`, cause))),
+        { discard: true },
+      ),
+    ),
     Effect.forever,
     Effect.forkIn(actorScope),
   );

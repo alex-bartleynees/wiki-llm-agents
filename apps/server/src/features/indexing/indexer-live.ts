@@ -53,8 +53,13 @@ export const IndexerLive = Layer.effect(
       Effect.forEach(mergeByVault(jobs), (work) =>
         Effect.gen(function* () {
           const exit = yield* Effect.exit(apply(work));
-          if (Exit.isSuccess(exit) && exit.value.length > 0) {
-            yield* PubSub.publish(changes, { type: "vault.changed", vaultId: work.vault.id, paths: exit.value });
+          if (Exit.isSuccess(exit) && exit.value.paths.length > 0) {
+            yield* PubSub.publish(changes, {
+              type: "vault.changed",
+              vaultId: work.vault.id,
+              paths: exit.value.paths,
+              structureChanged: work.rebuild || exit.value.structureChanged,
+            });
           }
           if (Exit.isFailure(exit)) yield* Effect.logError(`indexing ${work.vault.name} failed`, exit.cause);
           const result = Exit.isSuccess(exit)

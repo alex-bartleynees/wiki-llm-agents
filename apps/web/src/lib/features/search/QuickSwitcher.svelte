@@ -6,6 +6,7 @@
   import { viewHref } from "@wiki-agents/contracts/notes/model";
   import { isAbort } from "#lib/api/client.ts";
   import { recent } from "#lib/features/notes/recent.svelte.ts";
+  import { tree } from "#lib/features/notes/tree.svelte.ts";
   import { pins } from "#lib/features/pins/pins.svelte.ts";
   import { shell, shortcutLabel } from "#lib/ui/layout/shell.svelte.ts";
   import { quickSwitch } from "./api.ts";
@@ -101,6 +102,12 @@
     const id = vaultId;
     if (id === undefined || q.trim() === "") {
       results = [];
+      return;
+    }
+    const local = tree.match(id, q);
+    if (local !== null) {
+      results = local;
+      active = 0;
       return;
     }
     const controller = new AbortController();

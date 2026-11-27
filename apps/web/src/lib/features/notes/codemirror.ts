@@ -10,6 +10,7 @@ import { Decoration, type DecorationSet, drawSelection, EditorView, highlightAct
 import { tags } from "@lezer/highlight";
 import { quickSwitch } from "#lib/features/search/api.ts";
 import { imageFiles, imageName } from "./images.ts";
+import { tree } from "./tree.svelte.ts";
 import { wikilinkQuery, wikilinkTarget } from "./wikilinks.ts";
 
 export interface EditorOptions {
@@ -75,9 +76,13 @@ const wikilinkCompletions =
     const line = context.state.doc.lineAt(context.pos);
     const typed = wikilinkQuery(line.text.slice(0, context.pos - line.from));
     if (typed === undefined || typed.query.trim() === "") return null;
-    const controller = new AbortController();
-    context.addEventListener("abort", () => controller.abort());
-    const { results } = await quickSwitch(options.vaultId, typed.query, controller.signal).catch(() => ({ results: [] }));
+    const local = tree.match(options.vaultId, typed.query);
+    let results = local;
+    if (results === null) {
+      const controller = new AbortController();
+      context.addEventListener("abort", () => controller.abort());
+      results = (await quickSwitch(options.vaultId, typed.query, controller.signal).catch(() => ({ results: [] }))).results;
+    }
     const paths = options.vaultPaths();
     return {
       from: line.from + typed.from,

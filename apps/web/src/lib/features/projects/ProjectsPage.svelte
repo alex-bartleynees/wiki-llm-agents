@@ -506,10 +506,6 @@
   .entry + .entry {
     border-top: 1px solid var(--line-soft);
   }
-  .path {
-    font-size: 13px;
-    overflow-wrap: anywhere;
-  }
   .main {
     color: var(--accent-ink);
   }

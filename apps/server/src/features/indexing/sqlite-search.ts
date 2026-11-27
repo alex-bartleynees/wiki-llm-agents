@@ -1,7 +1,7 @@
 import type { SearchResult } from "@wiki-agents/contracts/search/search-notes/response";
 import { type SQL, sql } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
-import { ftsMatch, leadParts, MATCH_END, MATCH_START, snippetParts } from "./fts-query.js";
+import { ftsMatch, MATCH_END, MATCH_START, snippetParts } from "./fts-query.js";
 import type { SearchQuery, SearchResults } from "./vault-index.js";
 
 /*
@@ -23,12 +23,8 @@ interface Row {
   readonly text: string;
 }
 
-/**
- * The note has the tag or a child of it (`project` matches `project/app`), ignoring
- * ASCII case (SQLite's `lower()` leaves other letters alone).
- */
 const hasTag = (tag: string): SQL =>
-  sql`EXISTS (SELECT 1 FROM json_each(notes.tags) AS t WHERE lower(t.value) = ${tag} OR substr(lower(t.value), 1, ${tag.length + 1}) = ${`${tag}/`})`;
+  sql`EXISTS (SELECT 1 FROM note_tags nt WHERE nt.vault_id = notes.vault_id AND nt.path = notes.path AND (nt.tag = ${tag} OR (nt.tag >= ${`${tag}/`} AND nt.tag < ${`${tag}0`})))`;
 
 const tagFilter = (tags: ReadonlyArray<string>): SQL =>
   tags.length === 0 ? sql`` : sql` AND ${sql.join(tags.map(hasTag), sql` AND `)}`;
@@ -74,16 +70,23 @@ export const searchNotes = (db: BetterSQLite3Database, vaultId: string, query: S
       )
       .map((row) => toResult(row, snippetParts(row.text)));
   } else if (query.tags.length > 0) {
+    const primaryTag = query.tags[0]!;
+    const extraFilters = sql`${tagFilter(query.tags.slice(1))}${folderFilter(sql`notes.path`, query.folders)}`;
     rows = db
       .all<Row>(
-        sql`SELECT notes.path AS path, notes.title AS title, notes.tags AS tags, blobs.content AS text
-            FROM notes
-            JOIN blobs ON blobs.hash = notes.content_hash
-            WHERE notes.vault_id = ${vaultId}${filters}
+        sql`SELECT notes.path AS path, notes.title AS title, notes.tags AS tags, notes.lead AS text
+            FROM (
+              SELECT DISTINCT path
+              FROM note_tags
+              WHERE vault_id = ${vaultId}
+                AND (tag = ${primaryTag} OR (tag >= ${`${primaryTag}/`} AND tag < ${`${primaryTag}0`}))
+            ) matched
+            JOIN notes ON notes.vault_id = ${vaultId} AND notes.path = matched.path
+            WHERE 1${extraFilters}
             ORDER BY notes.title COLLATE NOCASE, notes.path
             LIMIT ${take}`,
       )
-      .map((row) => toResult(row, leadParts(row.text)));
+      .map((row) => toResult(row, row.text === "" ? [] : [{ text: row.text, match: false }]));
   } else {
     rows = [];
   }

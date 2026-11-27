@@ -19,6 +19,7 @@ export const fileKind = (path: string): FileKind => {
 export const TreeEntry = Schema.Struct({
   path: Schema.String,
   kind: FileKind,
+  title: Schema.optionalKey(Schema.String),
 });
 export type TreeEntry = typeof TreeEntry.Type;
 

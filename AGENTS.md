@@ -16,8 +16,10 @@ Read `README.md` first. Design decisions are in the user's vault at
   - `apps/server/src/features/<feature>/<operation>/endpoint.ts` (plus
     `use-case.ts` only when there is real orchestration)
   Copy `vaults/list-vaults` as the template.
-- `packages/contracts` depends on `effect` only. `apps/web` and `apps/server`
-  never import each other.
+- `packages/contracts` holds wire schemas and depends on `effect` only. Pure logic
+  shared by the server and web app goes in its own package with no dependencies,
+  like `packages/search`, not in contracts. `apps/web` and `apps/server` never
+  import each other.
 - Endpoints decode the request, call a use case or repository, map errors, and
   encode the response. No SQL or file IO in endpoints.
 - Server IO uses Effect's `FileSystem`, `ChildProcess` and `HttpClient`, not `node:fs`,

@@ -14,6 +14,7 @@ export const VaultChanged = Schema.Struct({
   type: Schema.Literal("vault.changed"),
   vaultId: Schema.String,
   paths: Schema.Array(Schema.String),
+  structureChanged: Schema.optionalKey(Schema.Boolean),
 });
 export type VaultChanged = typeof VaultChanged.Type;
 

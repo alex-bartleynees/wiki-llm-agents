@@ -106,12 +106,14 @@ const inspectCandidates = Effect.fnUntraced(function* (
           return { kind: "touch" as const, file };
         }
         const content = utf8.decode(bytes.value);
+        const extracted = extractNote(content, path);
         return {
           kind: "note" as const,
           file,
           previousHash: previous?.contentHash ?? null,
           added: previous === undefined,
-          note: { ...extractNote(content, path), content, contentHash } satisfies NoteToIndex,
+          titleChanged: previous !== undefined && previous.title !== extracted.title,
+          note: { ...extracted, content, contentHash } satisfies NoteToIndex,
         };
       }),
     { concurrency: IO_CONCURRENCY },
@@ -164,6 +166,7 @@ export const reconcileVault = Effect.fnUntraced(function* (vault: Vault, scope: 
   const filesToPut: Array<IndexedFile> = [];
   const rawNotesToPut: Array<{ readonly file: IndexedFile; readonly note: NoteToIndex }> = [];
   let pathsChanged = false;
+  let titleChanged = false;
 
   for (const item of inspections) {
     if (item.kind === "unchanged") continue;
@@ -186,6 +189,7 @@ export const reconcileVault = Effect.fnUntraced(function* (vault: Vault, scope: 
     rawNotesToPut.push({ file: item.file, note: item.note });
     changed.add(item.file.path);
     if (item.added) pathsChanged = true;
+    if (item.titleChanged) titleChanged = true;
   }
 
   const removed = [...gone].filter((path) => knownFiles.has(path));
@@ -228,5 +232,5 @@ export const reconcileVault = Effect.fnUntraced(function* (vault: Vault, scope: 
     });
     yield* store.setLinkTargets(vault.id, updates);
   }
-  return [...changed].sort();
+  return { paths: [...changed].sort(), structureChanged: pathsChanged || titleChanged };
 });

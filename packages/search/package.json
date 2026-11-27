@@ -1,0 +1,23 @@
+{
+  "name": "@wiki-agents/search",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Pure search ranking shared by the server and the web app. No dependencies.",
+  "exports": {
+    "./*": {
+      "source": "./src/*.ts",
+      "types": "./dist/*.d.ts",
+      "default": "./dist/*.js"
+    }
+  },
+  "scripts": {
+    "check": "tsc --noEmit -p tsconfig.test.json",
+    "test": "vitest run",
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.0",
+    "vitest": "^5.1.0"
+  }
+}

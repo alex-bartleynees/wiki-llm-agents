@@ -14,6 +14,7 @@ export interface IndexedFile {
 export interface IndexedFileWithHash extends IndexedFile {
   /** For notes, the hash of the indexed content; null for other files. */
   readonly contentHash: string | null;
+  readonly title: string | null;
 }
 
 export interface IndexedLink {

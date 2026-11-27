@@ -10,6 +10,7 @@ import { listen } from "#lib/api/sse.ts";
 class VaultEventsStore {
   /** Bumped on every change, and after a reconnect. */
   revision = $state(0);
+  structureRevision = $state(0);
   /** Bumped after a reconnect: changes may have been missed, so everything is stale. */
   #reconnects = $state(0);
   readonly #versions = new SvelteMap<string, number>();
@@ -25,10 +26,12 @@ class VaultEventsStore {
         if (event.type !== "vault.changed" || event.vaultId !== this.#vaultId) return;
         for (const path of event.paths) this.#versions.set(path, (this.#versions.get(path) ?? 0) + 1);
         this.revision++;
+        if (event.structureChanged !== false) this.structureRevision++;
       },
       onReconnect: () => {
         this.#reconnects++;
         this.revision++;
+        this.structureRevision++;
       },
     });
   }

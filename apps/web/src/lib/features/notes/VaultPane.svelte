@@ -42,13 +42,13 @@
 
   $effect(() => {
     const id = vaultId;
-    if (vaultEvents.revision > 0 && id !== undefined) untrack(() => void tree.load(id, { refresh: true }));
+    if (vaultEvents.structureRevision > 0 && id !== undefined) untrack(() => void tree.load(id, { refresh: true }));
   });
 
   // Pins: titles change and files go missing as the vault changes.
   $effect(() => {
     const id = vaultId;
-    const refresh = vaultEvents.revision > 0;
+    const refresh = vaultEvents.structureRevision > 0;
     if (id !== undefined) untrack(() => void pins.load(id, { refresh }));
   });
 

@@ -6,6 +6,7 @@
   import { AttachmentDraft } from "#lib/features/attachments/draft.svelte.ts";
   import { modelWithoutImages } from "#lib/features/attachments/draft.ts";
   import { recent } from "#lib/features/notes/recent.svelte.ts";
+  import { tree } from "#lib/features/notes/tree.svelte.ts";
   import { quickSwitch } from "#lib/features/search/api.ts";
   import { MessageDraft } from "./message-draft.svelte.ts";
   import { listModels } from "./api.ts";
@@ -119,6 +120,11 @@
     };
     if (current.query === "") {
       offer(recent.list(vault).filter((file) => file.kind === "note").map((file) => ({ path: file.path, name: file.title })));
+      return;
+    }
+    const local = tree.match(vault, current.query);
+    if (local !== null) {
+      offer(local.filter((result) => result.kind === "note").map((result) => ({ path: result.path, name: result.title })));
       return;
     }
     const controller = new AbortController();

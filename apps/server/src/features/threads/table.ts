@@ -23,12 +23,18 @@ export const threads = sqliteTable(
     nativeSessionId: text("native_session_id"),
     /** The thread this one continues (Continue in a new thread); null when it continues none. */
     continuedFromThreadId: text("continued_from_thread_id"),
+    continuedInThreadId: text("continued_in_thread_id"),
     /** The manager that launched this child app thread. */
     parentThreadId: text("parent_thread_id"),
     /** When you marked the thread done; cleared by its next message. */
     doneAt: integer("done_at", { mode: "timestamp_ms" }),
     doneReason: text("done_reason", { enum: ["inactivity"] }),
     activityAt: integer("activity_at"),
+    lastSeq: integer("last_seq").notNull().default(0),
+    status: text("status", { enum: ["idle", "running", "waiting"] }).notNull().default("idle"),
+    activeSubagents: integer("active_subagents").notNull().default(0),
+    runningTurnJson: text("running_turn_json"),
+    lastTurnJson: text("last_turn_json"),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
     deletedAt: integer("deleted_at", { mode: "timestamp_ms" }),
@@ -36,6 +42,7 @@ export const threads = sqliteTable(
   (table) => [
     index("threads_vault_idx").on(table.vaultId, table.updatedAt),
     index("threads_updated_idx").on(table.updatedAt),
+    index("threads_active_idx").on(table.updatedAt).where(sql`${table.status} <> 'idle' OR ${table.activeSubagents} > 0`),
     index("threads_continued_from_idx").on(table.continuedFromThreadId),
     index("threads_parent_idx").on(table.parentThreadId),
     index("threads_inactivity_idx").on(table.activityAt, table.id).where(sql`${table.doneAt} IS NULL AND ${table.deletedAt} IS NULL`),

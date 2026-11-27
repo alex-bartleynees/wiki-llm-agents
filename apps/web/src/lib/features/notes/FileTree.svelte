@@ -47,7 +47,7 @@
   {/each}
   {#each node.files as file (file.path)}
     {@const view = viewHref(vaultId, file.path)}
-    <li>
+    <li class="file-row">
       {#if view !== undefined}
         <a class="row note" style:--depth={depth} href={view} aria-current={file.path === current ? "page" : undefined}>
           <span class="name">{file.kind === "note" ? file.name.replace(/\.md$/i, "") : file.name}</span>
@@ -117,8 +117,15 @@
   .chevron.open {
     transform: rotate(90deg);
   }
+  .file-row {
+    content-visibility: auto;
+    contain-intrinsic-block-size: auto 28px;
+  }
   /* Bigger touch targets on phones. */
   @media (max-width: 899px) {
+    .file-row {
+      contain-intrinsic-block-size: auto 40px;
+    }
     .row {
       min-height: 40px;
       font-size: 15px;

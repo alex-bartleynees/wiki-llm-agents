@@ -36,7 +36,6 @@ describe("fuzzyMatch", () => {
     expect(score("ip", "Implementation Plan")).toBeGreaterThan(score("ip", "Shipping"));
     expect(score("note", "Note")).toBeGreaterThan(score("note", "Notebook"));
     expect(score("rag", "RAG Layer")).toBeGreaterThan(score("rag", "Storage"));
-    // A run that starts a word beats the same letters scattered over word starts.
     expect(score("rag", "RAG Layer with rag-ai")).toBeGreaterThan(score("rag", "Recipes and Guided Brew Plan"));
     expect(score("plan", "Implementation Plan")).toBeGreaterThan(score("plan", "Pi Layer And Notes"));
   });

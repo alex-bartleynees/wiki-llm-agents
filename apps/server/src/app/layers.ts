@@ -54,6 +54,7 @@ import { ThreadBusLive } from "../features/threads/thread-bus.js";
 import { VaultRepositoryLive } from "../features/vaults/sqlite-repository.js";
 import { startupVaults } from "../features/vaults/startup-vaults.js";
 import { AppConfig } from "../shared/config.js";
+import { CompressionLive } from "../shared/compression.js";
 import { OriginGuardLive } from "../shared/origin-guard.js";
 import { makeClosingServer } from "../shared/server-closing.js";
 import type { DbError } from "../shared/persistence/errors.js";
@@ -142,7 +143,7 @@ const inboxAndSchedules = (channels: AppOptions["channels"]) =>
  * Its services (repositories, indexer...) are part of the output, for tests.
  */
 export const makeHttpApp = (options: AppOptions) =>
-  HttpRouter.serve(Layer.mergeAll(router, OriginGuardLive), { disableLogger: true }).pipe(
+  HttpRouter.serve(Layer.mergeAll(router, OriginGuardLive, CompressionLive), { disableLogger: true }).pipe(
     Layer.provide(Layer.mergeAll(startupVaults(options.vaults), IndexingStartup, ThreadsStartup, InboxStartup, SchedulesStartup, NotificationsStartup)),
     Layer.provideMerge(inboxAndSchedules(options.channels)),
     Layer.provideMerge(threads),

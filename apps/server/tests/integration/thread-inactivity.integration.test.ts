@@ -229,6 +229,7 @@ layer(TestApp)("thread inactivity", (it) => {
     db.transaction((tx) => {
       tx.run(sql`INSERT INTO turns (id, thread_id, input, status, started_at)
         VALUES (${turnId}, ${target.id}, 'Queued message', 'running', ${target.createdAt})`);
+      tx.run(sql`UPDATE threads SET status = 'running' WHERE id = ${target.id}`);
       tx.run(sql`INSERT INTO outbox (id, kind, payload, next_attempt_at)
         VALUES (${`turn.start:${turnId}`}, 'turn.start', '{}', ${target.createdAt})`);
     });

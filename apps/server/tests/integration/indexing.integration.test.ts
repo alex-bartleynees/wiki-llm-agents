@@ -153,7 +153,32 @@ layer(TestApp)("vault index", (it) => {
       yield* sync(vault, "index.md");
       write("Other.md", "# Other, edited");
       yield* sync(vault, "Other.md");
-      expect(yield* PubSub.take(subscription)).toEqual({ type: "vault.changed", vaultId: vault.id, paths: ["Other.md"] });
+      expect(yield* PubSub.take(subscription)).toEqual({ type: "vault.changed", vaultId: vault.id, paths: ["Other.md"], structureChanged: false });
+      write("Other.md", "---\ntitle: Renamed Title\n---\n# Other, edited");
+      yield* sync(vault, "Other.md");
+      expect(yield* PubSub.take(subscription)).toEqual({ type: "vault.changed", vaultId: vault.id, paths: ["Other.md"], structureChanged: true });
+      write("FreshTag.md", "---\ntags: [Project/App, Area]\n---\nFirst paragraph lead text.");
+      yield* sync(vault, "FreshTag.md");
+      expect(yield* PubSub.take(subscription)).toEqual({ type: "vault.changed", vaultId: vault.id, paths: ["FreshTag.md"], structureChanged: true });
+      const { db } = yield* Sqlite;
+      expect(db.all(sql`SELECT tag FROM note_tags WHERE vault_id = ${vault.id} AND path = 'FreshTag.md' ORDER BY tag`)).toEqual([
+        { tag: "area" },
+        { tag: "project/app" },
+      ]);
+      expect(db.get(sql`SELECT lead FROM notes WHERE vault_id = ${vault.id} AND path = 'FreshTag.md'`)).toEqual({
+        lead: "First paragraph lead text.",
+      });
+      const plan = db.all<{ detail: string }>(
+        sql`EXPLAIN QUERY PLAN
+            SELECT notes.path, notes.title, notes.tags, notes.lead
+            FROM (
+              SELECT DISTINCT path FROM note_tags
+              WHERE vault_id = ${vault.id} AND (tag = 'project' OR (tag >= 'project/' AND tag < 'project0'))
+            ) matched
+            JOIN notes ON notes.vault_id = ${vault.id} AND notes.path = matched.path
+            ORDER BY notes.title COLLATE NOCASE, notes.path`,
+      );
+      expect(plan.some((row) => row.detail.includes("SEARCH note_tags USING COVERING INDEX"))).toBe(true);
     }),
   );
 
@@ -239,7 +264,7 @@ layer(TestApp)("vault index", (it) => {
       const delivered = yield* events.until((frame) => Schema.decodeUnknownSync(VaultEvent)(frame.message).type === "vault.changed");
       expect(delivered.map((frame) => frame.message)).toEqual([
         { type: "ready" },
-        { type: "vault.changed", vaultId: vault.id, paths: ["Fresh.md"] },
+        { type: "vault.changed", vaultId: vault.id, paths: ["Fresh.md"], structureChanged: true },
       ]);
     }),
   );
@@ -452,7 +477,7 @@ describe("watching vault folders", () => {
         const subscription = yield* (yield* Indexer).subscribe;
         writeFileSync(join(vault.rootPath, "New.md"), "# New");
         const event = yield* PubSub.take(subscription).pipe(Effect.timeout(Duration.seconds(10)));
-        expect(event).toEqual({ type: "vault.changed", vaultId: vault.id, paths: ["New.md"] });
+        expect(event).toEqual({ type: "vault.changed", vaultId: vault.id, paths: ["New.md"], structureChanged: true });
       }),
     );
 
@@ -481,7 +506,7 @@ describe("watching vault folders", () => {
         const subscription = yield* (yield* Indexer).subscribe;
         write("Projects/Watched.md", "[[index]]");
         const event = yield* PubSub.take(subscription).pipe(Effect.timeout(Duration.seconds(10)));
-        expect(event).toEqual({ type: "vault.changed", vaultId: vault.id, paths: ["Projects/Watched.md"] });
+        expect(event).toEqual({ type: "vault.changed", vaultId: vault.id, paths: ["Projects/Watched.md"], structureChanged: true });
         expect(yield* backlinks(vault, "index.md")).toEqual(["Projects/Plan.md", "Projects/Watched.md"]);
       }),
     );
@@ -496,7 +521,7 @@ describe("watching vault folders", () => {
         const subscription = yield* (yield* Indexer).subscribe;
         write("Projects/Polled.md", "[[index]]");
         const event = yield* PubSub.take(subscription).pipe(Effect.timeout(Duration.seconds(10)));
-        expect(event).toEqual({ type: "vault.changed", vaultId: vault.id, paths: ["Projects/Polled.md"] });
+        expect(event).toEqual({ type: "vault.changed", vaultId: vault.id, paths: ["Projects/Polled.md"], structureChanged: true });
         expect(yield* backlinks(vault, "index.md")).toEqual(["Projects/Plan.md", "Projects/Polled.md"]);
       }),
     );

@@ -1,22 +1,26 @@
+import type { TreeEntry } from "@wiki-agents/contracts/notes/model";
+import { rankQuickSwitch } from "@wiki-agents/search/fuzzy";
+import type { QuickSwitchResult } from "@wiki-agents/contracts/search/quick-switch/response";
 import { errorMessage, isAbort } from "#lib/api/client.ts";
 import { getTree } from "./api.ts";
 import { buildTree, type TreeFolder } from "./tree.ts";
 
 type TreeState =
   | { readonly status: "loading" }
-  | { readonly status: "loaded"; readonly root: TreeFolder; readonly count: number; readonly paths: ReadonlyArray<string> }
+  | {
+      readonly status: "loaded";
+      readonly root: TreeFolder;
+      readonly count: number;
+      readonly entries: ReadonlyArray<TreeEntry>;
+      readonly paths: ReadonlyArray<string>;
+    }
   | { readonly status: "failed"; readonly message: string };
 
-/** The file tree of the open vault. */
 class TreeStore {
   vaultId = $state<string | undefined>(undefined);
   state = $state<TreeState>({ status: "loading" });
   #controller: AbortController | undefined;
 
-  /**
-   * Loads the tree when the vault changes. `refresh` reloads the same vault quietly,
-   * keeping the current tree on screen until the new one arrives (live updates).
-   */
   async load(vaultId: string, options: { readonly refresh?: boolean } = {}) {
     const sameVault = vaultId === this.vaultId;
     if (sameVault && !options.refresh && this.state.status !== "failed") return;
@@ -26,14 +30,18 @@ class TreeStore {
     if (!sameVault || this.state.status !== "loaded") this.state = { status: "loading" };
     try {
       const { entries } = await getTree(vaultId, controller.signal);
-      this.state = { status: "loaded", root: buildTree(entries), count: entries.length, paths: entries.map((entry) => entry.path) };
+      this.state = { status: "loaded", root: buildTree(entries), count: entries.length, entries, paths: entries.map((entry) => entry.path) };
     } catch (error) {
       if (isAbort(error)) return;
       this.state = { status: "failed", message: errorMessage(error, "Could not load the vault") };
     }
   }
 
-  /** True when the loaded vault has a note at this path. */
+  match(vaultId: string, query: string): ReadonlyArray<QuickSwitchResult> | null {
+    if (this.vaultId !== vaultId || this.state.status !== "loaded") return null;
+    return rankQuickSwitch(this.state.entries, query);
+  }
+
   hasNote(path: string): boolean {
     if (this.state.status !== "loaded") return false;
     let folder: TreeFolder | undefined = this.state.root;

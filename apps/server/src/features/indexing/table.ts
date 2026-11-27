@@ -29,10 +29,24 @@ export const notes = sqliteTable(
     title: text("title").notNull(),
     frontmatter: text("frontmatter", { mode: "json" }).$type<Readonly<Record<string, Json>>>().notNull(),
     tags: text("tags", { mode: "json" }).$type<ReadonlyArray<string>>().notNull(),
+    lead: text("lead").notNull().default(""),
     contentHash: text("content_hash").notNull(),
     ftsRowid: integer("fts_rowid"),
   },
   (table) => [primaryKey({ columns: [table.vaultId, table.path] }), index("notes_content_hash").on(table.contentHash)],
+);
+
+export const noteTags = sqliteTable(
+  "note_tags",
+  {
+    vaultId: text("vault_id").notNull(),
+    tag: text("tag").notNull(),
+    path: text("path").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.vaultId, table.tag, table.path] }),
+    index("note_tags_vault_path_idx").on(table.vaultId, table.path, table.tag),
+  ],
 );
 
 /** Note contents by SHA-256, shared by identical versions; change review (slice 9) keeps old ones. */

@@ -9,6 +9,7 @@ import { TestApp } from "./infrastructure/test-app.js";
 
 const SHELL = "<!doctype html><title>app shell</title>";
 const ASSET = "console.log('app')";
+const LARGE_ASSET = "export const payload = 'wiki-agents-static-bundle';\n".repeat(40);
 
 /** A fake SvelteKit build in a temp directory, removed when the layer closes. */
 const FakeWebBuild = Layer.unwrap(
@@ -20,6 +21,7 @@ const FakeWebBuild = Layer.unwrap(
     mkdirSync(join(root, "_app", "immutable"), { recursive: true });
     writeFileSync(join(root, "index.html"), SHELL);
     writeFileSync(join(root, "_app", "immutable", "app.abc123.js"), ASSET);
+    writeFileSync(join(root, "_app", "immutable", "large.abc123.js"), LARGE_ASSET);
     return ConfigProvider.layer(ConfigProvider.fromUnknown({ WIKI_AGENTS_STATIC_DIR: root }));
   }),
 );
@@ -52,6 +54,31 @@ layer(TestApp.pipe(Layer.provide(FakeWebBuild)))("serving the web app", (it) => 
       expect(response.status).toBe(200);
       expect(response.headers["cache-control"]).toBe(IMMUTABLE_CACHE);
       expect(yield* response.text).toBe(ASSET);
+    }),
+  );
+
+  it.effect("compresses large static assets over streams with br or gzip", () =>
+    Effect.gen(function* () {
+      const br = yield* HttpClient.execute(
+        HttpClientRequest.get("/_app/immutable/large.abc123.js").pipe(
+          HttpClientRequest.setHeader("accept", "*/*"),
+          HttpClientRequest.setHeader("accept-encoding", "br, gzip"),
+        ),
+      );
+      expect(br.status).toBe(200);
+      expect(br.headers["content-encoding"]).toBe("br");
+      expect(br.headers["vary"]).toContain("Accept-Encoding");
+      expect(yield* br.text).toBe(LARGE_ASSET);
+
+      const gz = yield* HttpClient.execute(
+        HttpClientRequest.get("/_app/immutable/large.abc123.js").pipe(
+          HttpClientRequest.setHeader("accept", "*/*"),
+          HttpClientRequest.setHeader("accept-encoding", "gzip"),
+        ),
+      );
+      expect(gz.status).toBe(200);
+      expect(gz.headers["content-encoding"]).toBe("gzip");
+      expect(yield* gz.text).toBe(LARGE_ASSET);
     }),
   );
 

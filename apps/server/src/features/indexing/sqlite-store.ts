@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { posix } from "node:path";
 import type { TagCount } from "@wiki-agents/contracts/search/list-tags/response";
 import { and, asc, count, desc, eq, gte, inArray, ne, sql } from "drizzle-orm";
@@ -7,9 +8,10 @@ import { comparePaths } from "../../shared/paths.js";
 import { DbError } from "../../shared/persistence/errors.js";
 import { Sqlite } from "../../shared/persistence/sqlite.js";
 import { fileChanges } from "../changes/table.js";
+import { asciiLower, computeLead } from "./fts-query.js";
 import { folderFilter, searchNotes } from "./sqlite-search.js";
 import { type IndexedFile, IndexStore, type NoteToIndex } from "./store.js";
-import { blobs, links, notes, vaultFiles } from "./table.js";
+import { blobs, links, notes, noteTags, vaultFiles } from "./table.js";
 import { buildNoteGraph, type NoteEdge, type NoteSummary, type TitledFile, VaultIndex, type VaultNoteGraph } from "./vault-index.js";
 
 /** SQLite allows 32766 bound parameters; stay well below it. */
@@ -21,6 +23,7 @@ const chunks = <A>(items: ReadonlyArray<A>): Array<ReadonlyArray<A>> =>
 interface VaultCache {
   files: ReadonlyArray<IndexedFile> | undefined;
   titledFiles: ReadonlyArray<TitledFile> | undefined;
+  treeEtag: string | undefined;
   linkIndex: LinkIndex | undefined;
   tags: ReadonlyArray<TagCount> | undefined;
   noteGraph: VaultNoteGraph | undefined;
@@ -36,7 +39,7 @@ const make = Effect.gen(function* () {
   const cacheOf = (vaultId: string): VaultCache => {
     let entry = caches.get(vaultId);
     if (entry === undefined) {
-      entry = { files: undefined, titledFiles: undefined, linkIndex: undefined, tags: undefined, noteGraph: undefined };
+      entry = { files: undefined, titledFiles: undefined, treeEtag: undefined, linkIndex: undefined, tags: undefined, noteGraph: undefined };
       caches.set(vaultId, entry);
     }
     return entry;
@@ -46,6 +49,7 @@ const make = Effect.gen(function* () {
     const entry = cacheOf(vaultId);
     entry.files = undefined;
     entry.titledFiles = undefined;
+    entry.treeEtag = undefined;
     if (pathsChanged) entry.linkIndex = undefined;
     entry.tags = undefined;
     entry.noteGraph = undefined;
@@ -99,11 +103,19 @@ const make = Effect.gen(function* () {
       sql`INSERT INTO notes_fts (vault_id, path, title, body, tags) VALUES (${vaultId}, ${file.path}, ${note.title}, ${note.body}, ${note.tags.join(" ")})`,
     );
     const ftsRowid = Number(ftsInserted.lastInsertRowid);
-    const row = { title: note.title, frontmatter: note.frontmatter, tags: note.tags, contentHash: note.contentHash, ftsRowid };
+    const lead = computeLead(note.content);
+    const row = { title: note.title, frontmatter: note.frontmatter, tags: note.tags, lead, contentHash: note.contentHash, ftsRowid };
     db.insert(notes)
       .values({ vaultId, path: file.path, ...row })
       .onConflictDoUpdate({ target: [notes.vaultId, notes.path], set: row })
       .run();
+    db.delete(noteTags).where(and(eq(noteTags.vaultId, vaultId), eq(noteTags.path, file.path))).run();
+    const lowerTags = [...new Set(note.tags.map(asciiLower).filter((tag) => tag !== ""))];
+    if (lowerTags.length > 0) {
+      db.insert(noteTags)
+        .values(lowerTags.map((tag) => ({ vaultId, tag, path: file.path })))
+        .run();
+    }
     db.delete(links).where(and(eq(links.vaultId, vaultId), eq(links.srcPath, file.path))).run();
     if (note.links.length > 0) {
       db.insert(links)
@@ -130,6 +142,7 @@ const make = Effect.gen(function* () {
       }
       db.delete(vaultFiles).where(and(eq(vaultFiles.vaultId, vaultId), inArray(vaultFiles.path, batch))).run();
       db.delete(notes).where(and(eq(notes.vaultId, vaultId), inArray(notes.path, batch))).run();
+      db.delete(noteTags).where(and(eq(noteTags.vaultId, vaultId), inArray(noteTags.path, batch))).run();
       db.delete(links).where(and(eq(links.vaultId, vaultId), inArray(links.srcPath, batch))).run();
       if (rowids.length > 0) {
         db.run(sql`DELETE FROM notes_fts WHERE rowid IN (${sql.join(rowids.map((id) => sql`${id}`), sql`, `)})`);
@@ -164,9 +177,22 @@ const make = Effect.gen(function* () {
       .leftJoin(notes, and(eq(notes.vaultId, vaultFiles.vaultId), eq(notes.path, vaultFiles.path)))
       .where(eq(vaultFiles.vaultId, vaultId))
       .all()
-      .map((row) => ({ ...row, title: row.title ?? posix.basename(row.path) }));
+      .map((row) => ({ ...row, title: row.title ?? posix.basename(row.path) }))
+      .sort((a, b) => comparePaths(a.path, b.path));
     entry.titledFiles = rows;
     return rows;
+  };
+
+  const loadTreeEtagSync = (vaultId: string): string => {
+    const entry = cacheOf(vaultId);
+    if (entry.treeEtag !== undefined) return entry.treeEtag;
+    const hash = createHash("sha256").update(vaultId).update("\0");
+    for (const file of loadTitledFilesSync(vaultId)) {
+      hash.update(file.path).update("\0").update(file.kind).update("\0").update(file.title).update("\n");
+    }
+    const etag = `"${hash.digest("base64url").slice(0, 24)}"`;
+    entry.treeEtag = etag;
+    return etag;
   };
 
   const loadNoteGraphSync = (vaultId: string): VaultNoteGraph => {
@@ -209,6 +235,7 @@ const make = Effect.gen(function* () {
             mtimeMs: vaultFiles.mtimeMs,
             size: vaultFiles.size,
             contentHash: notes.contentHash,
+            title: notes.title,
           })
           .from(vaultFiles)
           .leftJoin(notes, and(eq(notes.vaultId, vaultFiles.vaultId), eq(notes.path, vaultFiles.path)))
@@ -228,6 +255,7 @@ const make = Effect.gen(function* () {
                   mtimeMs: vaultFiles.mtimeMs,
                   size: vaultFiles.size,
                   contentHash: notes.contentHash,
+                  title: notes.title,
                 })
                 .from(vaultFiles)
                 .leftJoin(notes, and(eq(notes.vaultId, vaultFiles.vaultId), eq(notes.path, vaultFiles.path)))
@@ -310,6 +338,7 @@ const make = Effect.gen(function* () {
         const oldHashes = db.select({ hash: notes.contentHash }).from(notes).where(eq(notes.vaultId, vaultId)).all().map((row) => row.hash);
         db.delete(vaultFiles).where(eq(vaultFiles.vaultId, vaultId)).run();
         db.delete(notes).where(eq(notes.vaultId, vaultId)).run();
+        db.delete(noteTags).where(eq(noteTags.vaultId, vaultId)).run();
         db.delete(links).where(eq(links.vaultId, vaultId)).run();
         db.run(sql`DELETE FROM notes_fts WHERE vault_id = ${vaultId}`);
         pruneBlobs(oldHashes);
@@ -321,6 +350,8 @@ const make = Effect.gen(function* () {
     files: (vaultId) => query(() => loadFilesSync(vaultId)),
 
     titledFiles: (vaultId) => query(() => loadTitledFilesSync(vaultId)),
+
+    treeEtag: (vaultId) => query(() => loadTreeEtagSync(vaultId)),
 
     linkIndex: (vaultId) => query(() => loadLinkIndexSync(vaultId)),
 

@@ -15,7 +15,7 @@ buildNpmPackage {
 
   # Update after changing package-lock.json:
   #   nix run nixpkgs#prefetch-npm-deps package-lock.json
-  npmDepsHash = "sha256-eNKVbucXpKykvDmsGxFP69XaHDpm1U3Jr259Wyl6Uv0=";
+  npmDepsHash = "sha256-KX5LBLfu1LyKNSmD+sXEy+OJ139ZXE4BbmbZm87TUME=";
 
   # better-sqlite3 ships prebuilt binaries; python3 is only for its node-gyp fallback.
   nativeBuildInputs = [ python3 makeWrapper ];
@@ -27,10 +27,11 @@ buildNpmPackage {
     runHook preInstall
 
     app=$out/lib/wiki-agents
-    mkdir -p $app/apps/server $app/apps/web $app/packages/contracts $out/bin
+    mkdir -p $app/apps/server $app/apps/web $app/packages/contracts $app/packages/search $out/bin
 
     cp package.json $app/
     cp -r packages/contracts/package.json packages/contracts/dist $app/packages/contracts/
+    cp -r packages/search/package.json packages/search/dist $app/packages/search/
     cp -r apps/server/package.json apps/server/dist apps/server/drizzle $app/apps/server/
     cp -r apps/web/build $app/apps/web/
 
@@ -42,7 +43,7 @@ buildNpmPackage {
     cp -r node_modules $app/
     # npm nests a dependency in a workspace when the root holds another version of it
     # (chokidar 6 for the server, while a dev tool hoists chokidar 4), so copy those too.
-    for workspace in apps/server packages/contracts; do
+    for workspace in apps/server packages/contracts packages/search; do
       if [ -d $workspace/node_modules ]; then cp -r $workspace/node_modules $app/$workspace/; fi
     done
 

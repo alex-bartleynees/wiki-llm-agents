@@ -102,8 +102,8 @@ export const buildNoteGraph = (notes: ReadonlyArray<NoteSummary>, edges: Readonl
 export interface VaultIndexService {
   /** Every visible file in the vault, sorted by path. */
   readonly files: (vaultId: string) => Effect.Effect<ReadonlyArray<IndexedFile>, DbError>;
-  /** Every visible file with its title, unsorted. */
   readonly titledFiles: (vaultId: string) => Effect.Effect<ReadonlyArray<TitledFile>, DbError>;
+  readonly treeEtag: (vaultId: string) => Effect.Effect<string, DbError>;
   readonly linkIndex: (vaultId: string) => Effect.Effect<LinkIndex, DbError>;
   readonly noteGraph: (vaultId: string) => Effect.Effect<VaultNoteGraph, DbError>;
   /** Notes linking to or embedding `path`, sorted by title, without `path` itself. */

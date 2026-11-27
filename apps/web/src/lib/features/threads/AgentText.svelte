@@ -29,7 +29,7 @@
     void citationKey;
     const list = untrack(() => citations);
     const vaultId = inVault ?? openThread.thread?.vaultId;
-    const revision = vaultEvents.revision;
+    const revision = vaultEvents.structureRevision;
     if (!vaultId || list.length === 0) {
       resolved = {};
       return;

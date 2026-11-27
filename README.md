@@ -1188,6 +1188,7 @@ origin even when opened directly in a tab:
 apps/server/        Node + Effect HTTP server (API, SSE, MCP, actors, SQLite); serves the web build
 apps/web/           SvelteKit SPA (adapter-static), no server code
 packages/contracts/ Effect Schemas shared by both: <feature>/<operation>/{request,response}.ts
+packages/search/    Pure search ranking shared by both (quick-switch fuzzy matching); no dependencies
 nix/                package.nix (buildNpmPackage); home-manager module
 design/             Claude Design mockup
 ```

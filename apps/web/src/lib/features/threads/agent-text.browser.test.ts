@@ -80,7 +80,12 @@ describe("AgentText citation cache", () => {
     expect(postJson.mock.calls[1]![2]).toEqual({ links: [{ link: "Beta" }] });
     expect(target.querySelectorAll("a")).toHaveLength(2);
 
-    stream.onEvent({ type: "vault.changed", vaultId, paths: ["Alpha.md"] });
+    stream.onEvent({ type: "vault.changed", vaultId, paths: ["Unrelated.md"], structureChanged: false });
+    flushSync();
+    await settle();
+    expect(postJson).toHaveBeenCalledTimes(2);
+
+    stream.onEvent({ type: "vault.changed", vaultId, paths: ["Alpha.md"], structureChanged: true });
     flushSync();
     await settle();
     expect(postJson).toHaveBeenCalledTimes(3);

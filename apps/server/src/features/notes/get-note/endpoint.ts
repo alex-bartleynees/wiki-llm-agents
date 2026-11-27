@@ -2,12 +2,14 @@ import { GetNoteRequest } from "@wiki-agents/contracts/notes/get-note/request";
 import { GetNoteResponse } from "@wiki-agents/contracts/notes/get-note/response";
 import { Effect } from "effect";
 import { HttpRouter, HttpServerResponse } from "effect/http";
+import { respondWithEtag } from "../../../shared/etag.js";
 import { badRequest, internalError, notFound } from "../../../shared/http-errors.js";
-import { getNote } from "./use-case.js";
+import { getNoteWithEtag } from "./use-case.js";
 
 export const getNoteEndpoint = Effect.gen(function* () {
   const request = yield* HttpRouter.schemaParams(GetNoteRequest);
-  return yield* HttpServerResponse.schemaJson(GetNoteResponse)(yield* getNote(request));
+  const { response, etag } = yield* getNoteWithEtag(request);
+  return yield* respondWithEtag(etag, () => HttpServerResponse.schemaJson(GetNoteResponse)(response));
 }).pipe(
   Effect.catchTags({
     SchemaError: () => Effect.succeed(badRequest()),

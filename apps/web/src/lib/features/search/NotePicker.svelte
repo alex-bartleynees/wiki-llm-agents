@@ -1,6 +1,7 @@
 <script lang="ts">
   import { tick } from "svelte";
   import { recent } from "#lib/features/notes/recent.svelte.ts";
+  import { tree } from "#lib/features/notes/tree.svelte.ts";
   import { noteName } from "#lib/features/threads/mentions.ts";
   import { quickSwitch } from "./api.ts";
 
@@ -43,6 +44,11 @@
     };
     if (text === "") {
       offer(recent.list(vault).filter((file) => file.kind === "note").map((file) => ({ path: file.path, name: file.title })));
+      return;
+    }
+    const local = tree.match(vault, text);
+    if (local !== null) {
+      offer(local.filter((result) => result.kind === "note").map((result) => ({ path: result.path, name: result.title })));
       return;
     }
     const controller = new AbortController();
